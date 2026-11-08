@@ -7,7 +7,7 @@
 //
 // This engine was the odd one out: `setCurrentTime` passed the value straight to
 // `Animation.currentTime`, which accepts anything and would park the playhead past the end,
-// and `setPlaySpeed(0)` was accepted where the other two engines rejected it.
+// and `setPlaybackSpeed(0)` was accepted where the other two engines rejected it.
 //
 // jsdom has no Web Animations API, so the two classes the engine constructs are stubbed with
 // the bare minimum — the same approach as PxAnimatorWebApiTrigger.test.ts.
@@ -100,14 +100,14 @@ describe('WAAPI engine — the shared time contract', () => {
         api.setTotalTime(DUR * 10);
         expect(api.getTotalTime()).toBe(DUR * 10);
         expect(api.getTotalDuration()).toBeNull();
-        expect(api.getTotalPlayDuration()).toBeNull();
+        expect(api.getTotalPlaybackDuration()).toBeNull();
     });
 
     it('rejects a rate of 0 with a warning and leaves the rate alone', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
         const api = createSvgAnimationPlayer({ doc: doc(), container: '#stage' });
 
-        api.setPlaySpeed(0);
+        api.setPlaybackSpeed(0);
 
         expect(warn).toHaveBeenCalled();
         expect(created.every(a => a.playbackRate === 1)).toBe(true);
@@ -117,10 +117,10 @@ describe('WAAPI engine — the shared time contract', () => {
     it('still accepts ordinary rates, forwards and backwards', () => {
         const api = createSvgAnimationPlayer({ doc: doc(), container: '#stage' });
 
-        api.setPlaySpeed(2);
+        api.setPlaybackSpeed(2);
         expect(created.every(a => a.playbackRate === 2)).toBe(true);
 
-        api.setPlaySpeed(-1);
+        api.setPlaybackSpeed(-1);
         expect(created.every(a => a.playbackRate === -1)).toBe(true);
     });
 
@@ -143,12 +143,12 @@ describe('WAAPI engine — the shared time contract', () => {
     it('the play family is the position and the lengths divided by the speed', () => {
         const api = createSvgAnimationPlayer({ doc: doc({ iterations: 2 }), container: '#stage' });
         api.setTotalTime(DUR / 2);
-        api.setPlaySpeed(2);
-        expect(api.getPlaySpeed()).toBe(2);
-        expect(api.getPlayDuration()).toBe(DUR / 2);
-        expect(api.getTotalPlayDuration()).toBe(DUR);
-        expect(api.getCurrentPlayTime()).toBeCloseTo(DUR / 4, 5);
-        api.setPlayDuration(DUR * 4);        // one pass over four times its length = a quarter speed
-        expect(api.getPlaySpeed()).toBe(0.25);
+        api.setPlaybackSpeed(2);
+        expect(api.getPlaybackSpeed()).toBe(2);
+        expect(api.getPlaybackDuration()).toBe(DUR / 2);
+        expect(api.getTotalPlaybackDuration()).toBe(DUR);
+        expect(api.getCurrentPlaybackTime()).toBeCloseTo(DUR / 4, 5);
+        api.setPlaybackDuration(DUR * 4);        // one pass over four times its length = a quarter speed
+        expect(api.getPlaybackSpeed()).toBe(0.25);
     });
 });

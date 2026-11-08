@@ -28,7 +28,7 @@ import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
  */
 
 /** What changed for a player in the page-wide registry. Experimental — may change. @public */
-export type PxAnimationPlayersEvent = 'add' | 'remove' | 'play' | 'pause' | 'reset' | 'finish';
+export type PxAnimationPlayersEvent = 'add' | 'remove' | 'play' | 'pause' | 'stop' | 'finish';
 
 /** Called for every {@link PxAnimationPlayersEvent} of every player in the window. Experimental — may change. @public */
 export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animator: PxAnimationPlayerApi) => void;
@@ -37,7 +37,7 @@ export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animat
 export interface PxAnimationPlayerRegistry {
     /** Every live player, in creation order. */
     getAll(): ReadonlyArray<PxAnimationPlayerApi>;
-    /** Announcements of add / remove / play / pause / cancel / finish; returns the unsubscribe. */
+    /** Announcements of add / remove / play / pause / stop / finish — the player callbacks' set; returns the unsubscribe. */
     subscribe(listener: PxAnimationPlayersListener): () => void;
 }
 
@@ -123,7 +123,7 @@ export function withRegistryEvents(callbacks: PxPlayerCallbacks | undefined, api
         ...callbacks,
         onPlay: () => { callbacks?.onPlay?.(); fire('play'); },
         onPause: () => { callbacks?.onPause?.(); fire('pause'); },
-        onReset: () => { callbacks?.onReset?.(); fire('reset'); },
+        onStop: () => { callbacks?.onStop?.(); fire('stop'); },
         onFinish: () => { callbacks?.onFinish?.(); fire('finish'); },
     };
 }

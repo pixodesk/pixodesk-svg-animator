@@ -4,14 +4,55 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxActions, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
+import { PxPlayState, PxTriggerAction, PxTriggerEvent } from '@pixodesk/svg-animator-core';
 import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
-import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react";
+import { FC, ReactNode, useEffect, useRef, useState } from "react";
+import type { SvgAnimationPlayerProps } from './SvgAnimator';
 
 
 /**
- * Controls playback of SVG+CSS animated files by toggling class names on a wrapper div.
+ * The props of {@link SvgCssAnimationPlayer} — DERIVED from {@link SvgAnimationPlayerProps}, never a second list: the
+ * same names, each the same shape or a narrower one where a class toggle can do less. The type below fails to
+ * compile the moment one drifts.
+ *
+ * | prop | as on `SvgAnimationPlayer`, narrowed to |
+ * |---|---|
+ * | `playUsingActionTriggers` | the BLOCK only — a script-free SVG imported as a component carries no triggers the component could read, so there is no `true` |
+ * | `timelineOptions` | the gate numbers `inViewThreshold` / `inViewDebounce` |
+ * | `actions` | `outOfView` |
+ * | `className`, `style` | — (here on the wrapper `<div>`) |
+ * | `children` | its own: the SVGR-imported SVG |
+ * @public
+ */
+export type SvgCssAnimationPlayerProps = Pick<SvgAnimationPlayerProps, 'className' | 'style'> & {
+    /** WHEN — the triggers block, as on `SvgAnimationPlayer`: `start`, `stop`, `pause`, `resume` (derived when left
+     *  out), each one event or a list. Absent: nothing starts it (the class toggle waits). */
+    playUsingActionTriggers?: Exclude<SvgAnimationPlayerProps['playUsingActionTriggers'], boolean>;
+    /** The visibility gate's numbers, as in `SvgAnimationPlayer`'s `timelineOptions`: how much must be on screen
+     *  (0–1, default 0.5) and for how long, ms (default 150). */
+    timelineOptions?: Pick<Extract<NonNullable<SvgAnimationPlayerProps['timelineOptions']>, { type?: 'time' }>, 'inViewThreshold' | 'inViewDebounce'>;
+    /** Only `outOfView` applies — `'pause'` (default), `'continue'`, `'jumpToStart'` (replays on the next entry). */
+    actions?: Pick<NonNullable<SvgAnimationPlayerProps['actions']>, 'outOfView'>;
+    /** The SVGR-imported SVG component to animate. */
+    children: ReactNode;
+};
+
+/** The guard: every CSS-component prop is an `SvgAnimationPlayer` prop (no name of its own) of a compatible shape —
+ *  rename or reshape one there and this stops compiling. @internal */
+export type _SvgCssPropsAreSvgAnimationPlayerProps = [
+    AssertNever<Exclude<keyof SvgCssAnimationPlayerProps, keyof SvgAnimationPlayerProps | 'children'>>,
+    AssertAssignable<Omit<SvgCssAnimationPlayerProps, 'children'>, Partial<SvgAnimationPlayerProps>>,
+];
+/** Compiles only when `T` is assignable to `U`. */
+type AssertAssignable<T extends U, U> = T;
+/** Compiles only when `T` is `never` — here: no prop name the JS component lacks. */
+type AssertNever<T extends never> = T;
+
+/**
+ * Controls playback of SVG+CSS animated files by toggling class names on a wrapper div — the script-free sibling of
+ * {@link SvgAnimationPlayer} (which plays the JSON document): the SAME prop names ({@link SvgCssAnimationPlayerProps}),
+ * fewer of them.
  *
  * Intended for use with SVG files exported from the Pixodesk editor using the
  * **CSS Keyframes** (no `<script>` tag). Import the SVG as a React component
@@ -20,52 +61,32 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer actionTriggers={{ start: 'hoverIn', pause: 'hoverOut' }}>
+ * <SvgCssAnimationPlayer playUsingActionTriggers={{ start: 'hoverIn', pause: 'hoverOut' }}>
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```
  *
  * The wrapper div carries one of three states via CSS class names:
- * - *(no class)*                        — stopped
+ * - *(no class)*                        — idle
  * - `px-anim-enabled`                   — paused
  * - `px-anim-enabled px-anim-playing`   — playing
  *
  * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
- * `pause` (resume is derived unless the file names it) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * `pause` (resume is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
- * (`createVisibilityGate`), so the two players cannot drift. An absent `actionTriggers` block plays on load; an
- * empty one lists nothing.
+ * (`createVisibilityGate`), so the two players cannot drift. No `playUsingActionTriggers`, or an empty block: nothing
+ * starts it.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
- * - the start transition is always `continue` — a class cannot restart keyframes or jump to their end
- * - the stop transition is always `reset` — a class cannot play keyframes backwards
- * - completing the iteration, `whenIdle` and the finish transition are the file's own CSS
- *
- * @param children  - The SVGR-imported SVG component to animate.
- * @param actionTriggers - WHEN: the file's own `timeline.actionTriggers` block — `start`, `stop`, `pause`, `resume`,
- *   each one event or a list of them (only the events each list can use).
- * @param actions - Only `outOfView` applies — what happens while none of it is on screen (default `'pause'`):
- *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
- *   without waiting to be seen, `'reset'` goes back to the beginning so it replays on the next entry.
- * @param inViewThreshold - How much of the element must be on screen (0–1) before it may run (default `0.5`).
- * @param inViewDebounce  - How long that must hold, in ms, before it starts — so scrolling straight past starts
- *   nothing (default `150`).
- * @param className - Additional CSS class names to apply to the wrapper div.
- * @param style     - Inline styles for the wrapper div (e.g. `{ width: 400, height: 400 }`).
+ * - the start is always `continue` — a class cannot jump keyframes to their start or end
+ * - the stop is always `jumpToStart` — a class cannot play keyframes backwards or on to their end
+ * - `whenIdle` and the finish are the file's own CSS
  * @public
  */
-const SvgCssAnimationPlayer: FC<{
-    className?: string;
-    style?: CSSProperties;
-    children: ReactNode;
-    actionTriggers?: PxActionTriggersInput;
-    actions?: Pick<PxActions, 'outOfView'>;
-    inViewThreshold?: number;
-    inViewDebounce?: number;
-}> = ({ className, style, children, actionTriggers, actions, inViewThreshold, inViewDebounce }) => {
+const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, style, children, playUsingActionTriggers, timelineOptions, actions }) => {
     // one rule with the JSON player: the lists normalised, the gate defaulted
-    const resolved = resolveTriggers(actionTriggers);
-    const gateConfig = resolveGate({ actions, inViewThreshold, inViewDebounce });
+    const resolved = resolveTriggers(playUsingActionTriggers);
+    const gateConfig = resolveGate({ actions, inViewThreshold: timelineOptions?.inViewThreshold, inViewDebounce: timelineOptions?.inViewDebounce });
     const playsOnLoad = resolved.start.includes(PxTriggerEvent.load);
 
     const [state, setState] = useState<PxPlayState>(PxPlayState.idle);
@@ -85,7 +106,7 @@ const SvgCssAnimationPlayer: FC<{
             start: () => setState(PxPlayState.playing),
             hold: () => setState(PxPlayState.paused),
             release: () => setState(PxPlayState.playing),
-            reset: () => setState(PxPlayState.idle),
+            jumpToStart: () => setState(PxPlayState.idle),
         });
         gateRef.current = gate;
         // Only `load` is held by the gate; a hover or a click is aimed at something already seen.

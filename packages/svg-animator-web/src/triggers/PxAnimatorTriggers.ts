@@ -83,7 +83,7 @@ export function setupAnimationTriggers(
         start: () => executor.play(),
         hold: () => api.pause(),
         release: () => api.play(),
-        reset: () => executor.reset(),
+        jumpToStart: () => executor.jumpToStart(),
     });
     cleanups.push(() => gate.dispose());
 

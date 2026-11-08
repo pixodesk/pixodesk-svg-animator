@@ -10,6 +10,9 @@ Status **2026-10-28 — layers 0–1 implemented** (schema 1.10; see [Implementa
 > (1.16); the component props `play` / `pause` → `playWhile` / `pauseWhile`, plus a `playState` word; the handle's
 > `cancel()` / `finish()` are `reset()` / `jumpToEnd()`, `setPlaybackRate` → `setPlaySpeed`, and plain time reads are
 > INSIDE the iteration (`total…` for the run).
+>
+> **Since 1.23 (2026-11-05)** — decided in `dev-docs/reviews/schema-and-props--improvements.md` §0: `playSpeed` → `playbackSpeed` (1.22) and the handle's `play…` family → `playback…`; the action words name where and how (1.23) — `reset` → `jumpToStart`, `rewind` → `animateToStart`, `restart` → `jumpToStart`, `stop.completeIteration: true` → `stop: 'animateToEnd'` (plus `stop: 'jumpToEnd'`), and reaching the end by any route runs `finish`; `reset()` → `jumpToStart()` (reports nothing), `onReset` removed, `onWarn` → `onWarning`; the props are `play` / `pause` again beside `playState`, one driver family at a time in TypeScript; `null` no longer deletes in an override.
+
 Layers 0 and 1 REPLACE D6 in
 [component-api.md](./component-api.md) ("improved D6" = layers 0 and 1 together; layer 1 lists the
 differences) and describe exactly today's schema 1.9, renamed and regrouped — see

@@ -76,8 +76,8 @@ a number when it differs — the note with that number, under the table, says ho
 | **Play using action triggers** | | | | | | |
 | `playUsingActionTriggers` | ✓ | 10 | 11 | ✓ | ✓ | 5 |
 | **Declarative control** | | | | | | |
-| `playWhile` | — | — | — | ✓ | ✓ | ✓ |
-| `pauseWhile` | — | — | — | ✓ | ✓ | ✓ |
+| `play` | — | — | — | ✓ | ✓ | ✓ |
+| `pause` | — | — | — | ✓ | ✓ | ✓ |
 | `playState` | — | — | — | ✓ | ✓ | ✓ |
 | `showAtProgress` | — | — | — | ✓ | ✓ | ✓ |
 | `showAtTime` | — | — | — | ✓ | ✓ | ✓ |
@@ -86,13 +86,12 @@ a number when it differs — the note with that number, under the table, says ho
 | **Callbacks** | | | | | | |
 | `onPlay` | ✓ | — | ✓ | ✓ | `@play` | ✓ |
 | `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ |
-| `onReset` | ✓ | — | ✓ | ✓ | `@reset` | ✓ |
 | `onFinish` | ✓ | — | ✓ | ✓ | `@finish` | ✓ |
 | `onReady` | ✓ | — | ✓ | ✓ | `@ready` | ✓ |
 | `onDestroy` | ✓ | — | ✓ | ✓ | `@destroy` | ✓ |
 | `onStop` | ✓ | — | ✓ | ✓ | `@stop` | ✓ |
 | `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
-| `onWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| `onWarning` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `suppressWarnings` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `suppressErrors` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `fallback` | — | — | — | — | — | ✓ |
@@ -113,8 +112,9 @@ a number when it differs — the note with that number, under the table, says ho
 7. `createSvgAnimationPlayersFromPage` returns the handles it created; `getSvgAnimationPlayer(element)` finds one later.
 8. The handle is the component's template ref, a `PxAnimationPlayerHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
-10. The tag always plays on the file's own triggers — embedding a finished file IS choosing its behaviour — so it
-    takes no `playUsingActionTriggers` option.
+10. The tag plays on the file's own triggers — embedding a finished file IS choosing its behaviour. The call that reads
+    the tags takes the option for every player it creates: `createSvgAnimationPlayersFromPage({ playUsingActionTriggers })`
+    — `true` (or left out) each file's own triggers, a block instead of them, `false` to leave the driving to your code.
 11. `true` only: a pre-rendered file plays on its own triggers, or on the returned api.
 
 What some of the names mean:
@@ -128,32 +128,34 @@ What some of the names mean:
   `createSvgAnimationPlayer({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
 - **`timelineOptions`** merges corrections over the file's timing block — `{ iterations: 'infinite' }`,
-  `{ playSpeed: 2 }` — never a replacement; `null` at a key deletes it. See
-  [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
+  `{ playbackSpeed: 2 }` — never a replacement; a key left out keeps the file's value (to get a default,
+  set it). See [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 - **`actions`** merges over the file's `timeline.actions` — how start, stop, finish and out-of-view
-  look: `{ stop: 'rewind' }`. The same rules as `timelineOptions`.
+  look: `{ stop: 'animateToStart' }`. The same rules as `timelineOptions`.
 - **`playUsingActionTriggers`** means "play the way the document says". The HTML tag always works this way;
   the web player takes it as an option (`createSvgAnimationPlayer({ …, playUsingActionTriggers: true })`) — without
   it, nothing starts and the returned api drives playback. An **object** instead of `true` is the whole
   `actionTriggers` block to use in place of the file's (`{ start: 'hoverIn', stop: 'hoverOut' }`).
-- **`playWhile`** is a level: while `true` the animation plays — the built-in `start` — and `false`
-  performs the built-in `stop`, each done the way the file's `actions` say (the presets, the stop's
-  `completeIteration` — [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
-  `playWhile={false}` performs the stop action (`actions.stop`: reset or rewind) — it does not pause;
-  freeze with **`pauseWhile`**, a level on top that holds the current frame while `true`.
+- **`play`** is a level: while `true` the animation plays — the built-in `start` — and `false`
+  performs the built-in `stop`, each done the way the file's `actions` say
+  ([Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
+  `play={false}` performs the stop action (`actions.stop`: `jumpToStart`, `animateToStart`,
+  `jumpToEnd` or `animateToEnd`) — it does not pause; a mount with `play={false}` does nothing.
+  Freeze with **`pause`**, a level on top that holds the current frame while `true`.
   **`playState`** is the same control in one word — `'idle'` (the stop action), `'playing'`, `'paused'`
-  (frozen) — for a host that keeps the state as one value; set beside the booleans it wins and they
-  are reported ignored (PX1501).
+  (frozen) — for a host that keeps the state as one value; React and React Native's TypeScript takes
+  one family at a time, and otherwise `playState` beside the booleans wins and they are reported ignored (PX1501).
 - **`showAtProgress`** shows the frame at a point between 0 and 1 of ONE iteration; **`showAtTime`**
   shows the frame at that many ms inside it, `0` to `getDuration()`.
 - **`playerRef`** is the handle for calling `play()`, `pause()`, `stop()` and the rest from your code.
   Having it never changes how the component is controlled.
 - **`onDestroy`** fires when the player is thrown away: `destroy()`, an unmount, or a new `doc`.
-  **`onStop`** fires when the built-in `stop` action is performed — not on a pause (`onPause`), the end (`onFinish`) or a removal (`onDestroy`).
+  **`onStop`** fires when the built-in `stop` action is performed — at once, or on arrival for `animateToEnd` —
+  not on a pause (`onPause`), the end (`onFinish`), a removal (`onDestroy`) or `jumpToStart()` (which reports nothing).
 - **`onError`** means this player will not play: the document failed to load, parse or build,
   or drawing it threw. Nothing is rendered, `isReady()` is `false`, and React Native shows
   `fallback` instead. Without a handler the message goes to `console.error`.
-- **`onWarn`** means it plays, but something was ignored, simplified or misspelled. Without a
+- **`onWarning`** means it plays, but something was ignored, simplified or misspelled. Without a
   handler the message goes to `console.warn`.
 - **`suppressWarnings`** / **`suppressErrors`** turn off those console messages, for an app that already
   knows about them. A handler you passed still gets called.
@@ -165,54 +167,58 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 | Name | React `SvgCssAnimationPlayer` | Vue `SvgCssAnimationPlayer` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
-| `actionTriggers` | ✓ the file's `actionTriggers` block; absent lists nothing — `{ start: 'load' }` plays on load | ✓ same |
+| `playUsingActionTriggers` | ✓ the block only (no `true`); absent lists nothing — `{ start: 'load' }` plays on load | ✓ same |
+| `timelineOptions` | ✓ the gate numbers only: `inViewThreshold` (default `0.5`), `inViewDebounce` (default `150` ms) | ✓ same |
 | `actions` | ✓ `outOfView` only; default `'pause'` | ✓ same |
-| `inViewThreshold` | ✓ default `0.5` | ✓ same |
-| `inViewDebounce` | ✓ default `150` ms | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `actionTriggers` is the JSON player's block — `start`, `stop`, `pause` (the derived `resume`
-  follows), each one event or a list of them, read by the same rules
+The props are the JSON component's names, narrowed where a class toggle can do less (React's
+`SvgCssAnimationPlayerProps` is derived from `SvgAnimationPlayerProps`, so the two cannot drift):
+
+- `playUsingActionTriggers` is the JSON player's block — `start`, `stop`, `pause`, `resume` (derived
+  when left out), each one event or a list of them, read by the same rules
   ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pause: 'hoverOut'` pauses,
-  `stop: 'hoverOut'` stops. An **empty** block — or no prop at all — does nothing here: a wrapper has
-  no `play()` to call, so a wrapper that should play on load says `actionTriggers={{ start: 'load' }}`
-  (until 1.17 an absent prop played on load).
+  `stop: 'hoverOut'` stops. The block only — a script-free SVG carries no triggers the wrapper could
+  read, so there is no `true`. An **empty** block — or no prop at all — does nothing here: a wrapper
+  has no `play()` to call, so a wrapper that should play on load says
+  `playUsingActionTriggers={{ start: 'load' }}`.
 - `actions` takes only `outOfView` (`{ outOfView: 'pause' }`): an animation nobody can
   see does not run, whatever started it.
-- Accepted limits of a class toggle: a start acts as the `continue` preset and a stop as
-  `reset` — a class cannot restart keyframes, jump to their end or play them backwards — and the
-  stop's `completeIteration`, `whenIdle` and the finish preset are the file's own CSS.
-  None of them is a prop here.
-- `inViewThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
-  `inViewDebounce` is how long it must stay that way first, so scrolling straight past starts
-  nothing. The defaults are the same as the JSON player's.
+- Accepted limits of a class toggle: the start is always `continue` and the stop always
+  `jumpToStart` — a class cannot jump keyframes to their start or end, or play them backwards — and
+  `whenIdle` and the finish preset are the file's own CSS. None of them is a prop here.
+- `timelineOptions` takes the two gate numbers: `inViewThreshold` is how much of the SVG (0 to 1)
+  must be on screen before it may run; `inViewDebounce` is how long it must stay that way first, so
+  scrolling straight past starts nothing. The defaults are the same as the JSON player's.
 
 ### Control modes — one rule
 
-A component can be controlled in several ways, and only one of them can be in charge. If you set
-props from more than one group, the group highest in this table wins, and the player warns you
+A component can be controlled in several ways, and only one of them can be in charge. In React and
+React Native, TypeScript accepts one driver family at a time — `PxControlProps` is a union of `showAtProgress` · `showAtTime` ·
+`play` + `pause` · `playState` · `playUsingActionTriggers`. If you set props from more than one group
+anyway (from JavaScript), the group highest in this table wins, and the player warns you
 once, naming the props and the winner. React, Vue and React Native all use the same rule from
 core (`resolveControlMode`), so they always pick the same winner:
 
 <!-- px-check off the mode-priority rule, prose -->
 | Priority | Mode | Chosen when | The document's triggers |
 |---|---|---|---|
-| 1 | controlled time | `showAtProgress` or `showAtTime` | switched off; the player seeks and holds |
-| 2 | play / pause | `playWhile`, `pauseWhile` or `playState` | switched off; `playWhile={true}` calls `start`, `playWhile={false}` performs the stop action (`actions.stop`: reset or rewind) — it does not pause — and `pauseWhile` freezes; `playState` says the same as one word |
+| 1 | controlled time | `showAtProgress` or `showAtTime` (`showAtProgress` wins over `showAtTime`) | switched off; the player seeks and holds |
+| 2 | play / pause | `play`, `pause` or `playState` | switched off; `play={true}` calls `start`, `play={false}` performs the stop action (`actions.stop`) — it does not pause — and `pause` freezes; `playState` says the same as one word |
 | 3 | playUsingActionTriggers | `playUsingActionTriggers` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
 `playerRef` is not in the table: the handle is filled in **every** mode and never changes it, so
 `<SvgAnimationPlayer doc={doc} playUsingActionTriggers playerRef={playerRef} />` autoplays and gives you the handle.
-`playUsingActionTriggers: false` is not a control prop and claims nothing; `playWhile: false` is one, and holds.
+`playUsingActionTriggers: false` is not a control prop and claims nothing; `play: false` is one, and holds.
 The HTML tag is always in playUsingActionTriggers mode; the web player's `playUsingActionTriggers: true` option is the same mode.
 
 ### Callbacks and diagnostics — one shape
 
 The callbacks have the same names on every player: you pass them as options on the web
 (`createSvgAnimationPlayer({ onFinish })`) and as props in React and React Native. Vue takes the playback
-ones as events (`@play`) but `onWarn` and `onError` as props — with an event, Vue would always
+ones as events (`@play`) but `onWarning` and `onError` as props — with an event, Vue would always
 count the message as handled, and nobody would see it in the console. All of them are defined
 once in core, as `PxAnimationPlayerCallbacks`:
 
@@ -227,15 +233,16 @@ interface PxAnimationPlayerCallbacks {
                             //   the push twin of isReady()
     onPlay?: () => void;    // started or resumed
     onPause?: () => void;
-    onReset?: () => void;
-    onFinish?: () => void;  // reached the end, or jumpToEnd() was called — not when stopped early
+    onFinish?: () => void;  // reached the end, or jumpToEnd() was called — not when stopped early;
+                            //   a loop stopped at a pass end reports onStop only
     onDestroy?: () => void;  // destroy() was called, the component unmounted, or a new `doc` arrived
-    onStop?: () => void;    // the built-in stop was performed (now, or after the iteration it waited for)
+    onStop?: () => void;    // the built-in stop was performed — at once, or on arrival for
+                            //   `animateToEnd`; jumpToStart() reports nothing (like a seek)
 
     // Diagnostics — two severities, one meaning each, on every player. Neither ever throws at
     // the caller. Give a handler and it takes over from the console; give none and the console
     // is the fallback, so nothing is lost by default.
-    onWarn?: (d: PxDiagnostic) => void;  // IT PLAYS, but something was ignored, degraded or
+    onWarning?: (d: PxDiagnostic) => void;  // IT PLAYS, but something was ignored, degraded or
                                          //   misspelled; else console.warn
     onError?: (d: PxDiagnostic) => void; // THIS INSTANCE WILL NOT PLAY: failed to load, parse or
                                          //   build, or the render threw — nothing rendered,
@@ -265,7 +272,7 @@ interface PxDiagnostic {
 Every message comes with a `kind` that says **who can fix it**. That is a separate question from
 how serious it is: a broken document is fatal, a slightly odd one still plays, but both are the
 document's fault and both are fixed the same way, by fixing the file. So you get one handler per
-severity (`onError`, `onWarn`) and read `kind` inside it to decide what to do:
+severity (`onError`, `onWarning`) and read `kind` inside it to decide what to do:
 
 <!-- px-check values PxDiagnosticKind pkg=core -->
 | `kind` | who fixes it | examples |
@@ -273,7 +280,7 @@ severity (`onError`, `onWarn`) and read `kind` inside it to decide what to do:
 | `document` | regenerate or repair the file | effects shape, unknown keys, an invalid document, no or unresolved bindings, a `scroll.subject` that is not a valid selector, a blocked SVG tag |
 | `host` | fix the page or app | no root element, a selector that matched nothing, `setAttribute` finding no element, a failed fetch |
 | `platform` | nothing — the player degraded | unsupported CSS attrs, `smoothing` needing the built-in driver, native scroll-timeline construction failing, `react-native-svg` prop limits |
-| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `actionTriggers` on a scroll timeline |
+| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `actionTriggers` on a scroll timeline, a playback call on a scroll timeline (PX1505) |
 | `internal` | report it to us | could not build, compile or render the document; a render that threw |
 
 For example: fail a CI check on `document`, ignore `platform`, and send `internal` to your error
@@ -283,24 +290,34 @@ per kind.
 ### Time — one contract
 
 Every engine on every player implements the same meaning of time, written on `PxAnimationPlayerApi`
-and implemented once in core: **every plain ms is model ms inside the iteration; `total…` counts
-the whole run; the speed only changes how fast real time passes.**
+and implemented once in core, over two clocks — **model time** (content ms, as authored) and
+**playback time** (model time ÷ the speed): **every plain ms is model ms inside the iteration;
+`total…` counts the whole run; the `playback…` family is playback time.**
 
 - `getCurrentTime()` / `setCurrentTime()` and `getCurrentProgress()` / `setCurrentProgress()` are the
   frame on screen inside the **current iteration** — `0..getDuration()`, or 0–1 of it; a slider built on
   them spans one pass and wraps on a looping file, as every animation player's does. `showAtTime` /
   `showAtProgress` are the same axis. One pass is always finite, so no read has an `infinite` exception;
 - `getTotalTime()` / `setTotalTime()` and `getTotalDuration()` span the **whole run**, every iteration
-  included — `getTotalDuration()` is `null` when `iterations` is `'infinite'`, the honest slider maximum;
-  `getCurrentIteration()` says which pass is on screen;
-- the **`play…` family is real time** at the current speed: `playSpeed` (the file's key, the
-  `timelineOptions` key and `getPlaySpeed()` / `setPlaySpeed()` — 1 normal, 2 double),
-  `getPlayDuration()` / `setPlayDuration()` (one pass on the clock; the setter sets the speed),
-  `getTotalPlayDuration()` and `getCurrentPlayTime()`. `delay` is run ms scaled by the speed, as WAAPI's is;
+  included — `getTotalDuration()` is `null` when `iterations` is `'infinite'`, the honest slider maximum,
+  and `getTotalProgress()` the 0–1 of the run (`null` when endless); `getCurrentIteration()` says which
+  pass is on screen. "Total" means including repeats — GSAP's words exactly: `time` / `totalTime`,
+  `duration` / `totalDuration`, `progress` / `totalProgress`;
+- the **`playback…` family is playback time**: `playbackSpeed` (the file's key, the
+  `timelineOptions` key and `getPlaybackSpeed()` / `setPlaybackSpeed()` — 1 normal, 2 double; a
+  negative speed on the handle plays backwards and multiplies with `iterationDirection`),
+  `getPlaybackDuration()` / `setPlaybackDuration()` (one pass; the setter sets the speed),
+  `getTotalPlaybackDuration()`, `getCurrentPlaybackTime()` and `getTotalPlaybackTime()`. `delay` is
+  ms scaled by the speed, as WAAPI's is;
 - a seek **clamps** — to the pass or to the run; a speed of `0` is **rejected everywhere**, with a
   warning — `pause()` is how you stop;
 - `getPlayState()` is the one state read — `idle` · `playing` · `paused` · `finished` · `destroyed`; a
-  call after `destroy()` is ignored with a warning ([PX1504](../diagnostics.md)).
+  move in flight (`animateToStart`, `animateToEnd`) reads `idle`; a call after `destroy()` is ignored
+  with a warning ([PX1504](../diagnostics.md));
+- on a scroll or view timeline the scroll position owns the playhead: `play()`, `pause()`, `stop()`,
+  `playOnce()`, `setPlaybackSpeed()` and `setPlaybackDuration()` are no-ops with a warning
+  ([PX1505](../diagnostics.md#the-props-a-component-was-given)); a seek still applies until the next scroll.
+  The full list of such rules: [The contract](./playback-and-triggers.md#the-contract).
 
 ### Why these names
 
@@ -313,18 +330,19 @@ these are the props and calls of the players:
 | `doc` | not `document`: `document` shadows `window.document` in exactly the files that also query it, and the type is `PxDocument` |
 | `playerRef` | not React's `ref`: the handle is not a control mode — the drivers are the `play…` / `show…` props — and Vue and React Native carry the same name, so one word reads the same in all three |
 | `playUsingActionTriggers` | a driver prop starts with its verb and says what drives — here the action triggers; `autoplay` lied for a click file (it waited), `triggers` alone did not say that it plays |
-| `playWhile` / `pauseWhile` | levels, not commands: the handle's `play()` is a one-shot command and the prop holds as long as its condition does — "while" says level (Framer Motion's `whileHover`), and a driver prop starts with its verb; `play` / `pause` until 1.21. Two booleans because `playWhile={hovered}` and `pauseWhile={!inView}` compose from two sources — the CSS model (`animation-name` applied × `animation-play-state`) |
-| `playState` | the same control as one state word — `idle` · `playing` · `paused`, the `PxPlayState` values a host can ask for (`PxPlayStateRequest`) — for a host that keeps the state as a value; beside the booleans it wins (PX1501) |
+| `play` / `pause` | two booleans beside `playState` because `play={hovered}` and `pause={!inView}` compose from two sources — the CSS model (`animation-name` applied × `animation-play-state`) |
+| `playState` | the same control as one state word — `idle` · `playing` · `paused`, the `PxPlayState` values a host can ask for (`PxPlayStateRequest`) — for a host that keeps the state as a value; React and React Native's TypeScript takes it alone, otherwise beside the booleans it wins (PX1501) |
 | `showAtProgress` / `showAtTime` | `show…` because they show a frame and never play; ms as every time on this API (WAAPI's unit), so not `showAtMs` |
 | `timelineOptions` | not `timeline`: it is not the file's `timeline` object — two of its keys live on other props — and a prop sharing a file key's name would promise the same shape; `actions` keeps the file's name because it is a partial of that block |
 | `suppressWarnings` / `suppressErrors` | React's own `suppressHydrationWarning` / `suppressContentEditableWarning` set the word; `muteWarn` / `muteError` until 1.15 |
 | `onFinish` | WAAPI's word (`finish()`, `onfinish`, `playState: 'finished'`), one trio with the `finish` moment in `actions` and the `finished` state; `ended` is `<video>`'s, `complete` Lottie's |
-| `onReset` / `onStop` | a state against an action: `onReset` says "back at the start pose", whatever caused it; `onStop` says "the stop action was performed" |
+| `onStop` (no `onReset`) | `onStop` says "the stop action was performed" — at once, or on arrival for `animateToEnd`. `onReset` (until 1.22) fired for a mix — a jump, a rewind's end, the gate, even `destroy()` — no page could act on; the state is `getPlayState() === 'idle'` |
+| `jumpToStart()` | the action words name the destination and the manner — `reset()` until 1.22; unconditional, and it reports nothing, like a seek |
 | `getDuration()` | one iteration, as WAAPI's `duration`, CSS `animation-duration` and lottie-web's `getDuration()` are; `getTotalDuration()` for the whole run — `null` when infinite, the honest slider maximum |
-| `getCurrentTime()` / `getTotalTime()` | plain names are model ms INSIDE the iteration, `total…` the run — GSAP's `time` / `totalTime`, `duration` / `totalDuration`; lottie-web's `currentFrame`, Three.js `action.time` and WAAPI's `progress` are per iteration too, so a looping file's slider wraps; until 1.21 `getCurrentTime()` was run ms on the web and iteration ms on React Native |
-| `playSpeed`, `getPlaySpeed()` / `setPlaySpeed()` | a factor, as every player spells speed (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`); `play…` is the real-time family's word (`getPlayDuration()`, `getCurrentPlayTime()`) — "play duration: 3 s" is how people read real seconds; the file key was `playDuration` (wall ms) until 1.15, the method `setPlaybackRate` until 1.21 — "rate" reads as a frequency next to `frameRate` |
-| `jumpToEnd()` | the executor of the `jumpToEnd` preset, so the same word; its siblings name positions and motion (`restart`, `rewind`, `reset`) where `finished` is a state — `jumpToFinished` until 1.17 |
-| `getPlayState()` | WAAPI's `playState`; `idle` is its word for before the first play and after a reset (`stopped` until 1.18 read as played-then-stopped); `destroyed` so a call after `destroy()` has an answer |
+| `getCurrentTime()` / `getTotalTime()`, `getCurrentProgress()` / `getTotalProgress()` | plain names are model ms INSIDE the iteration, `total…` the run, including repeats — GSAP's `time` / `totalTime`, `duration` / `totalDuration`, `progress` / `totalProgress`; lottie-web's `currentFrame`, Three.js `action.time` and WAAPI's `progress` are per iteration too, so a looping file's slider wraps; until 1.21 `getCurrentTime()` was run ms on the web and iteration ms on React Native |
+| `playbackSpeed`, `getPlaybackSpeed()` / `setPlaybackSpeed()` | a factor, as every player spells speed (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`), and a factor needs no knowledge of the content's length; "playback speed" is how media players say it, and the handle's family reads the same (`getPlaybackDuration()`, `getCurrentPlaybackTime()`). The file key was `playDuration` until 1.15 and `playSpeed` until 1.21; the method `setPlaybackRate` until 1.21 — "rate" reads as a frequency next to `frameRate` |
+| `jumpToEnd()` | the executor of the `jumpToEnd` preset, so the same word — one destination word and one manner word, as `jumpToStart` — `jumpToFinished` until 1.17 |
+| `getPlayState()` | WAAPI's `playState`; `idle` is its word for before the first play and after a jump back to the start (`stopped` until 1.18 read as played-then-stopped); `destroyed` so a call after `destroy()` has an answer |
 
 ## See also
 

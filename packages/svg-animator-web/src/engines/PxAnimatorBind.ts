@@ -53,7 +53,7 @@ export function finaliseAnimator(
     const res = composeApiExtras(make(effectiveCallbacks), { ...animatorConfig, onStop: callbacks?.onStop }, webRaf);
     executor = res.playExecutor;
 
-    // the file's `playSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
+    // the file's `playbackSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
     return res;
 }
 
@@ -83,7 +83,7 @@ export function bindWithEngineChoice(
     // `setupAnimationTriggers` for scroll docs). The animator is never `play()`ed by us
     // for custom driving; scrubbing via `setCurrentTime` holds the pose.
     if (isScrollTimeline(animatorConfig)) {
-        return finaliseAnimator(animatorConfig, callbacks, cb => {
+        return guardScrollDrivenPlayback(diag, finaliseAnimator(animatorConfig, callbacks, cb => {
 
             // `pin` — hold the canvas on screen for the scrubbed stretch (`position: sticky`,
             // + an optional tall wrapper the player injects). MUST be applied before anything
@@ -135,7 +135,7 @@ export function bindWithEngineChoice(
                 diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollNoRootToObserve);
             }
             return api;
-        });
+        }));
     }
 
     return finaliseAnimator(animatorConfig, callbacks, cb => {
@@ -152,6 +152,19 @@ export function bindWithEngineChoice(
             createFrameLoopAnimator(doc, adapter, cb, rootElement)
         );
     });
+}
+
+/** On a scroll / view timeline the scroll position owns the playhead: the playback verbs are no-ops that say so
+ *  (PX1505 `scrollOwnsPlayhead`); seeks still apply until the next scroll moves the playhead. */
+function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxAnimationPlayerApi): PxAnimationPlayerApi {
+    const ignored = (call: string) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
+    api.play = ignored('play()');
+    api.pause = ignored('pause()');
+    api.stop = ignored('stop()');
+    api.playOnce = ignored('playOnce()');
+    api.setPlaybackSpeed = ignored('setPlaybackSpeed()');
+    api.setPlaybackDuration = ignored('setPlaybackDuration()');
+    return api;
 }
 
 /**

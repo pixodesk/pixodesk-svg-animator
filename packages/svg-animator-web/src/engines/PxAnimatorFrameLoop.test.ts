@@ -119,7 +119,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, whenIdle: 'firstFrame', actions: { finish: { behavior: 'reset' } } });
+        const { api, calls, opacity } = setup({ delay: 160, whenIdle: 'firstFrame', actions: { finish: { behavior: 'jumpToStart' } } });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ actions: { finish: { behavior: 'reset' } } });
+        const { api, calls } = setup({ actions: { finish: { behavior: 'jumpToStart' } } });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -219,11 +219,11 @@ describe('createAdapterSvgAnimationPlayer', () => {
         expect(opacity()).toBeCloseTo(expected, 5);
     });
 
-    it('setPlaySpeed(2) doubles progress', () => {
+    it('setPlaybackSpeed(2) doubles progress', () => {
         const { api, opacity } = setup();
 
         api.play();
-        api.setPlaySpeed(2);
+        api.setPlaybackSpeed(2);
         vi.advanceTimersByTime(80); // logical time 160
         expect(opacity()).toBeCloseTo(0.5, 5);
 
@@ -231,12 +231,12 @@ describe('createAdapterSvgAnimationPlayer', () => {
         expect(opacity()).toBe(1);
     });
 
-    it('setPlaySpeed(-1) after seeking to the end plays backwards and fires onFinish once at 0', () => {
+    it('setPlaybackSpeed(-1) after seeking to the end plays backwards and fires onFinish once at 0', () => {
         const onFinish = vi.fn();
         const { api, opacity } = setup({}, { onFinish });
 
         api.setCurrentTime(DUR);
-        api.setPlaySpeed(-1);
+        api.setPlaybackSpeed(-1);
         api.play();
 
         vi.advanceTimersByTime(160); // logical time 320 − 160 = 160
@@ -254,7 +254,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     it('play() at the start with rate -1 rewinds to the end and plays backwards', () => {
         const { api, opacity } = setup();
 
-        api.setPlaySpeed(-1);
+        api.setPlaybackSpeed(-1);
         api.play(); // at time 0 with rate < 0 → auto-seeks to the end
 
         vi.advanceTimersByTime(16);
@@ -264,9 +264,9 @@ describe('createAdapterSvgAnimationPlayer', () => {
         expect(opacity()).toBeCloseTo(0.5, 5);
     });
 
-    it('callbacks: onPlay / onPause / onReset fire; onFinish fires exactly once; onDestroy on destroy()', () => {
+    it('callbacks: onPlay / onPause fire; onFinish fires exactly once; jumpToStart() reports nothing; onDestroy on destroy()', () => {
         const callbacks = {
-            onPlay: vi.fn(), onPause: vi.fn(), onReset: vi.fn(),
+            onPlay: vi.fn(), onPause: vi.fn(),
             onFinish: vi.fn(), onDestroy: vi.fn(),
         };
         const { api } = setup({}, callbacks);
@@ -284,8 +284,10 @@ describe('createAdapterSvgAnimationPlayer', () => {
         vi.advanceTimersByTime(160);
         expect(callbacks.onFinish).toHaveBeenCalledTimes(1); // not re-fired
 
-        api.reset();
-        expect(callbacks.onReset).toHaveBeenCalledTimes(1);
+        api.jumpToStart();
+        expect(callbacks.onPlay).toHaveBeenCalledTimes(2);   // like a seek: nothing new reported
+        expect(callbacks.onPause).toHaveBeenCalledTimes(1);
+        expect(callbacks.onFinish).toHaveBeenCalledTimes(1);
 
         api.destroy();
         expect(callbacks.onDestroy).toHaveBeenCalledTimes(1);
@@ -335,7 +337,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
 
     it('onFinish fires on every replay of a hover/reverse trigger cycle (finish re-arms on play)', () => {
         // Mirrors what setupAnimationTriggers produces for
-        // `start: 'hoverIn'` + `stop: 'hoverOut'` with `actions: { stop: { behavior: 'rewind' } }`:
+        // `start: 'hoverIn'` + `stop: 'hoverOut'` with `actions: { stop: { behavior: 'animateToStart' } }`:
         // hover → play to end, leave → reverse to 0, hover → forward to end.
         const onFinish = vi.fn();
         const { api } = setup({}, { onFinish });
@@ -344,12 +346,12 @@ describe('createAdapterSvgAnimationPlayer', () => {
         vi.advanceTimersByTime(DUR + 32); // natural end
         expect(onFinish).toHaveBeenCalledTimes(1);
 
-        api.setPlaySpeed(-1);          // leave: reverse
+        api.setPlaybackSpeed(-1);          // leave: reverse
         api.play();
         vi.advanceTimersByTime(DUR + 32); // reverse end at t=0
         expect(onFinish).toHaveBeenCalledTimes(2);
 
-        api.setPlaySpeed(1);           // hover again: forward
+        api.setPlaybackSpeed(1);           // hover again: forward
         api.play();
         vi.advanceTimersByTime(DUR + 32); // natural end again
         expect(onFinish).toHaveBeenCalledTimes(3);
@@ -375,19 +377,19 @@ describe('createAdapterSvgAnimationPlayer', () => {
         expect(opacity()).toBeLessThan(0.3);
     });
 
-    it('setPlaySpeed() during the delay phase preserves the remaining delay', () => {
+    it('setPlaybackSpeed() during the delay phase preserves the remaining delay', () => {
         const { api, calls } = setup({ delay: 160 });
 
         api.play();
         vi.advanceTimersByTime(96);  // inside the delay window
-        api.setPlaySpeed(2);
+        api.setPlaybackSpeed(2);
 
         vi.advanceTimersByTime(16);  // raw time ≈ -64 + 32 = -32 → still waiting
         expect(calls.length).toBe(0);
     });
 
     it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ actions: { finish: { behavior: 'reset' } } });
+        const { api, calls } = setup({ actions: { finish: { behavior: 'jumpToStart' } } });
 
         api.play();
         vi.advanceTimersByTime(64);
@@ -405,7 +407,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
             const { api, opacity } = setup();
 
             api.play();
-            api.setPlaySpeed(0);
+            api.setPlaybackSpeed(0);
             expect(warn).toHaveBeenCalled();
 
             // Still advancing at 1×: a rate of 0 must not have frozen it.

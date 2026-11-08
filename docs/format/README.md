@@ -135,7 +135,7 @@ and the editor always writes it. WHY: a default nobody wrote is a guess, and an 
 something other than an empty one trapped every merge patch, hand edit and tool that drops empty objects.
 
 `start: 'load'` is something a **file** says, never a component default. Nothing plays until a prop
-or option names the driver (`playUsingActionTriggers`, `playWhile` / `playState`, `showAt…`). A file embedded with no
+or option names the driver (`playUsingActionTriggers`, `play` / `playState`, `showAt…`). A file embedded with no
 code around it — the `<div data-px-animation-src>` tag, the CSS wrapper, a standalone SVG file —
 has no other possible driver, so there the embedding is that naming and the file plays as saved.
 
@@ -182,11 +182,11 @@ interface SVG_JSON extends NODE {
         // WHAT ADVANCES THE PLAYHEAD — a discriminated object mirroring WAAPI's
         // DocumentTimeline / ScrollTimeline / ViewTimeline. Timing and the playback
         // dynamics live INSIDE it; each type carries only the fields that mean
-        // something for it. `type` is optional: absent = 'time' (the wall clock), so the
+        // something for it. `type` is optional: absent = 'time' (the player's clock), so the
         // common case declares nothing. Omitting `timeline` entirely = all defaults.
         timeline?:
             | {
-                type?: 'time';                     // wall time — something STARTS it (the triggers). OPTIONAL: absent = 'time'
+                type?: 'time';                     // the clock — something STARTS it (the triggers). OPTIONAL: absent = 'time'
                 engine?: 'auto' | 'native' | 'js';  // WHO RUNS IT (default 'auto'): the browser where it can — WAAPI here,
                                                    // its ScrollTimeline for scroll/view — else the player's own frame loop;
                                                    // 'native' = browser only; 'js' = the player's own loop (+ own scroll measurement)
@@ -194,16 +194,16 @@ interface SVG_JSON extends NODE {
                                                    // falling back to it); uncapped when absent, ignored by WAAPI/RN
                 inTime?: number;                   // the content WINDOW's start, ms (default 0); keyframe times are absolute content ms
                 outTime?: number;                  // …and its end. The editor always writes it; absent = the max keyframe time (else 1000)
-                playSpeed?: number;                // how fast real time passes through the window: 1 (default) = content ms as real ms,
+                playbackSpeed?: number;            // the speed one pass plays at: 1 (default) = one content ms per playback ms,
                                                    // 2 = twice as fast, 0.5 = half. Positive; the direction is iterationDirection.
-                                                   // Was `playDuration` (wall ms of one pass) until 1.15: playSpeed = (outTime − inTime) / playDuration
+                                                   // `playSpeed` until 1.21; `playDuration` (ms of one pass) until 1.15
                 delay?: number;                    // waited whenever a run starts from the beginning, ms (default 0) — never on a
                                                    // resume from a pause; negative = skip ahead, e.g. -500 starts from the 0.5 s frame.
-                                                   // Run ms, scaled by the speed as WAAPI's delay is: at playSpeed 2 a delay of 500 lasts 250 real ms
+                                                   // Scaled by the speed as WAAPI's delay is: at playbackSpeed 2 a delay of 500 waits 250 ms
                 iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
                 iterationDirection?: 'normal' | 'reverse' | 'alternate' | 'alternateReverse';  // each iteration's direction (default 'normal')
                 actionTriggers?: {                 // the REQUESTS a page event can make. Absent and {} are the SAME: nothing starts it
-                                                   // until something drives it (play(), playWhile, an override); a file that plays by
+                                                   // until something drives it (play(), the `play` prop, an override); a file that plays by
                                                    // itself says { start: 'load' } — the editor writes it (since 1.17; absent meant load before).
                                                    // The player's state picks the list an event is read from
                     start?: EVENTS;                // acts when idle (or finished) — a start per actions.start. load · hoverIn · click
@@ -217,24 +217,32 @@ interface SVG_JSON extends NODE {
                     // names only the events listed beside it; any other is dropped by the document repair.
                     // The two click toggles are spelt with the lists: start + stop on 'click', start + pause on 'click'
                 actions?: {                        // the MOMENTS whose outcome is configurable — written once here, honoured by the
-                                                   // triggers, a component's `playWhile` prop and the api alike. `behavior` is a PRESET; a slot
-                                                   // that says only its preset may be the word itself: `stop: 'rewind'` ≡ `{ behavior: 'rewind' }`
-                    start?: 'continue' | 'restart' | 'jumpToEnd' | { behavior?: 'continue' | 'restart' | 'jumpToEnd' };
+                                                   // triggers, a component's `play` prop and the api alike. `behavior` is a PRESET — every
+                                                   // move names WHERE it goes (…ToStart / …ToEnd) and HOW (jump… at once, animate… playing
+                                                   // there); a slot that says only its preset may be the word itself:
+                                                   // `stop: 'animateToStart'` ≡ `{ behavior: 'animateToStart' }`. Reaching the END — naturally
+                                                   // or by a …ToEnd move — runs `finish`. Until 1.22: reset → jumpToStart, rewind →
+                                                   // animateToStart, restart → jumpToStart, stop.completeIteration: true → stop: 'animateToEnd'
+                    start?: 'continue' | 'jumpToStart' | 'jumpToEnd' | { behavior?: 'continue' | 'jumpToStart' | 'jumpToEnd' };
                                                    // default 'continue': plays on from where it is (at the start or the end, a
-                                                   // fresh run); 'restart' from the beginning always; 'jumpToEnd' = the end pose, no motion
-                                                   // (`jumpToFinished` until 1.17)
-                    stop?: 'reset' | 'rewind' | { behavior?: 'reset' | 'rewind'; completeIteration?: boolean };
-                                                   // default 'reset': jumps back to the state as before it started; 'rewind' plays
-                                                   // back to it. completeIteration: now (default false), or after the current iteration
-                    finish?: 'hold' | 'reset' | 'rewind' | { behavior?: 'hold' | 'reset' | 'rewind' };   // the run ends by itself; default 'hold' keeps the last frame
-                    outOfView?: 'pause' | 'continue' | 'reset' | { behavior?: 'pause' | 'continue' | 'reset' };
+                                                   // fresh run); 'jumpToStart' from the beginning always; 'jumpToEnd' = the end pose,
+                                                   // no motion, then `finish`
+                    stop?: 'jumpToStart' | 'animateToStart' | 'jumpToEnd' | 'animateToEnd'
+                        | { behavior?: 'jumpToStart' | 'animateToStart' | 'jumpToEnd' | 'animateToEnd' };
+                                                   // default 'jumpToStart': at once back to the idle pose; 'animateToStart' plays
+                                                   // back to it; 'jumpToEnd' / 'animateToEnd' go on to the end of the current pass
+                                                   // (at once / playing — "stop after this pass"), then `finish`
+                    finish?: 'hold' | 'jumpToStart' | 'animateToStart' | { behavior?: 'hold' | 'jumpToStart' | 'animateToStart' };
+                                                   // at the end (natural, or a stop that went there); default 'hold' keeps the last frame
+                    outOfView?: 'pause' | 'continue' | 'jumpToStart' | { behavior?: 'pause' | 'continue' | 'jumpToStart' };
                                                    // the visibility GATE — a condition on every driver, not an event: while none of it
-                                                   // is on screen (default 'pause'; 'continue' = keep running; 'reset' jumps back, so the
-                                                   // next entry replays it). Seen again (`wake`), it carries on what was meant to run
+                                                   // is on screen (default 'pause'; 'continue' = keep running; 'jumpToStart' jumps back,
+                                                   // so the next entry replays it). Seen again (`wake`), it carries on what was meant to run
                 };
-                whenIdle?: 'static' | 'firstFrame';  // what shows while IDLE — before the first start, after a reset or
-                                                   // where a rewind lands: the SVG as authored (default 'static'), or the first
-                                                   // frame's values — hand-authored files only (`showWhenStopped` until 1.18)
+                whenIdle?: 'static' | 'firstFrame';  // what shows while IDLE — before the first start, after jumpToStart() or
+                                                   // a move back to the start: the SVG as authored (default 'static'), or the first
+                                                   // frame's values — hand-authored files only (`showWhenStopped` until 1.18).
+                                                   // CSS animation-fill-mode split in two: 'firstFrame' = backwards, finish 'hold' = forwards
                 inViewThreshold?: number;          // how much must be on screen before it may run: 0 = any part, 1 = all of it; default 0.5
                 inViewDebounce?: number;           // and for how long, ms; default 150, so scrolling straight past starts nothing
               }
@@ -396,13 +404,13 @@ the presets are on [Playback settings & triggers](../library/playback-and-trigge
 | `timeline` | WAAPI's word for what advances the playhead (`DocumentTimeline` / `ScrollTimeline` / `ViewTimeline`): `type` picks the kind, and timing lives inside it |
 | `actionTriggers` | not `triggers`: the word *action* links it to `actions` — a key here is a request a page event can make, the same key there the moment whose outcome is configurable |
 | `actions` | keyed by moments — `start`, `stop`, `finish`, `outOfView`: "what happens at this moment" is the one reading that fits all four |
-| `behavior` | "stop behavior: rewind" says what kind of thing the value is; `do` (1.11) and `transition` (1.10, read as CSS) did not |
+| `behavior` | "stop behavior: animateToStart" says what kind of thing the value is; `do` (1.11) and `transition` (1.10, read as CSS) did not |
 | `outOfView` | names the condition in the words `inViewThreshold` / `inViewDebounce` already use; `suspend` (until 1.12) asked "suspended by what?" |
-| `whenIdle` | it governs the whole idle state — after a reset or a rewind too, not only before the first start — and `idle` is WAAPI's word for exactly that state (`playState: idle`), so the key, the `PxPlayState` value and `getPlayState()` say one word; `showWhenStopped` (until 1.18) read as played-then-stopped, `beforeStart` (until 1.14) as "the first start only" |
+| `whenIdle` | it governs the whole idle state — after a move back to the start too, not only before the first start — and `idle` is WAAPI's word for exactly that state (`playState: idle`), so the key, the `PxPlayState` value and `getPlayState()` say one word; `showWhenStopped` (until 1.18) read as played-then-stopped, `beforeStart` (until 1.14) as "the first start only" |
 | `actionTriggers` absent ≡ `{}` | a default nobody wrote is a guess, and an absent block meaning something other than an empty one trapped every merge patch and hand edit; a file that plays by itself says `start: 'load'` — always written, never implied (since 1.17) |
-| `jumpToEnd` | its siblings name positions and motion — `restart`, `rewind`, `reset` — where `finished` is a state; `jumpToFinished` until 1.17 |
+| `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` | one destination word and one manner word say what a reader had to look up — "reset to where?", "rewind how?", "complete what?"; `reset` / `rewind` / `restart` / `stop.completeIteration` until 1.22 (`jumpToFinished` until 1.17). Reaching the end by any route runs `finish` |
 | `inTime` / `outTime` | the editor's in and out points — positions in the CONTENT, not in the run (a run with `iterations: 3` has one `outTime` and three passes); not `startTime` / `endTime` |
-| `playSpeed` | a factor where 2 is faster, as every player spells speed (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`): it needs no knowledge of the content's length, and with it no key in the file is a wall quantity — every ms is model ms, the speed only says how fast real time passes; `play…` is the real-time family's word (`getPlayDuration()`, `getCurrentPlayTime()`), "play duration: 3 s" being how people read real seconds. `playDuration` (wall ms of one pass, until 1.15) was the one wall number in the file, and speed was spelled three ways in two senses |
+| `playbackSpeed` | a factor where 2 is faster, as every player spells speed (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`): it needs no knowledge of the content's length. `playback…` because "playback speed" is how media players say it, and the handle's family reads the same (`getPlaybackDuration()`, `getCurrentPlaybackTime()`); `playSpeed` until 1.21, `playDuration` (ms of one pass) until 1.15 |
 | `clone.omit` | subtractive on purpose — the choice is which layer of the source's own transform the clone leaves out, and the ladder may grow (`transform`); `omit` is TypeScript's word for exactly that operation (`Omit<T, K>`), read right by every TS developer, and it grows into a list; `without` until 1.19 |
 | `retime.offset` / `inTime` / `outTime` | a window is two named points everywhere else in the format (the timeline's `inTime` / `outTime`, the scroll `range`) — tuples are for vectors and points; `offset`, not `start`, because that word is a trigger list and an action elsewhere. Lottie's layer `st` / `ip` / `op` in the timeline's own words; `start` / `timeCrop: [a, b]` until 1.20 |
 | `iterations` / `iterationDirection` | WAAPI's words and values; `iteration` in front because the direction is per iteration — a scroll timeline has an axis direction of its own |
@@ -534,7 +542,7 @@ attribute's keyframes:
 }
 ```
 
-**Before it plays, and after a reset, an element shows its static attributes.** An animated
+**Before it plays, and after a jump back to the start, an element shows its static attributes.** An animated
 attribute that has no static value beside it rests on its **first frame** — the player fills
 that value in as if you had written it. So the ellipse below sits at `139, 163` before anyone
 presses play, not at the origin, even though it states no `transform` of its own; and the
@@ -848,8 +856,8 @@ each property has one fixed unit that is always understood:
 <!-- px-check off units, prose -->
 | Value | Unit |
 |---|---|
-| time (`time`, `timeline.inTime` / `outTime`, `timeline.delay`, `retime.offset` / `inTime` / `outTime`) | milliseconds of MODEL time — inside the iteration; `delay` is run ms, scaled by the speed like every other ms |
-| `timeline.playSpeed` | a factor on real time: `1` = content ms pass as real ms, `2` = twice as fast, `0.5` = half |
+| time (`time`, `timeline.inTime` / `outTime`, `timeline.delay`, `retime.offset` / `inTime` / `outTime`) | milliseconds of MODEL time — inside the iteration; `delay` is ms before the run, scaled by the speed like every other ms |
+| `timeline.playbackSpeed` | a factor from model time to playback time: `1` = one content ms per playback ms, `2` = twice as fast, `0.5` = half |
 | lengths, coordinates, `fontSize` in px | plain numbers in the drawing's coordinates (the `viewBox` space) — no unit is written |
 | `rotate`, `skew`, angles | degrees |
 | `opacity`, trim `range` / `offset`, stop `offset`, `inViewThreshold` | a share of the whole, from `0` (none) to `1` (all) |
@@ -1275,7 +1283,7 @@ player materializes each clone into its own elements with its own timing.
 | `source` | `"#id"` | the source element / symbol (the `<use>` also keeps its normal `href`) |
 | `omit` | `translate` (optional) | leave the field out for a direct copy of the whole element; `translate` (`PxCloneOmit.translate`) copies the source's content WITHOUT its own outer position — the clone stays where the `<use>` put it |
 | `retime.offset` | ms | shift the source's internal timeline: the document ms its time 0 lands on (Lottie's `st`) |
-| `retime.stretch` | a multiplier of duration | `2` = twice as long (half speed), `0.5` = half as long (double speed) — After Effects' and Lottie's authoring word (`sr`); the player's speed is `playSpeed` |
+| `retime.stretch` | a multiplier of duration | `2` = twice as long (half speed), `0.5` = half as long (double speed) — After Effects' and Lottie's authoring word (`sr`); the player's speed is `playbackSpeed` |
 | `retime.inTime` | ms | show the instance only from this time of the document timeline… (both or neither; materialized as a wrapping `<g>` with an opacity gate) |
 | `retime.outTime` | ms | …to this one |
 
@@ -1659,16 +1667,16 @@ function validateDocument(doc: unknown, options?: { strict?: boolean }): PxValid
 // components are built FROM, public for anyone building a component of their own. ○
 // ONE executor performs every built-in action (from `/engine`): `createPlayExecutor(api, cfg, raf)`
 //   builds a `PxPlayExecutor` over any `PxPlayTarget` from a `PxPlayExecutorConfig` — `start()` per
-//   `actions.start`, `stop()` per `actions.stop` (behavior, completeIteration), `onNaturalFinish()`
-//   per `actions.finish`; `executorConfigOf(view)` reads that config from the runtime view
+//   `actions.start`, `stop()` per `actions.stop`, `onNaturalFinish()` per `actions.finish` (run on
+//   every arrival at the end — natural, or a …ToEnd move); `executorConfigOf(view)` reads that config from the runtime view
 //   (a `PxApiExtrasConfig`); `ensurePlayExecutor(api, cfg, raf)` reuses the one an engine attached;
 //   `composeApiExtras(api, cfg, raf)` completes an engine's api (a `PxApiExtrasTarget`) with the
-//   COMPOSED members (`PxApiExtras`) — `play()`, `stop()`, `reset()`, `playOnce()`, `getDuration()`,
-//   `getPlayState()` and every per-iteration and real-time read (`getCurrentTime()`, `getCurrentIteration()`,
-//   `getPlayDuration()`, …) over the engine's ONE run clock (`getTotalTime()` / `setTotalTime()`).
+//   COMPOSED members (`PxApiExtras`) — `play()`, `stop()`, `jumpToStart()`, `playOnce()`, `getDuration()`,
+//   `getPlayState()` and every per-iteration and playback read (`getCurrentTime()`, `getCurrentIteration()`,
+//   `getPlaybackDuration()`, …) over the engine's ONE run clock (`getTotalTime()` / `setTotalTime()`).
 //   `PxEngineAnimationPlayerApi` is what an engine constructs — the full api minus those.
 //
-// ○ The props side (from `/engine`): `resolvePlaybackWorld(iterations)` says what `playWhile` drives — a
+// ○ The props side (from `/engine`): `resolvePlaybackWorld(iterations)` says what `play` drives — a
 //   POSE on a one-shot document (`PxPlaybackWorld.oneShot`) or a RUN on a looping one;
 //   `resolveDeclarativePlayback(args: PxDeclarativeArgs)` turns a props change
 //   (`PxDeclarativeProps`) into ordered `PxDeclarativeAction`s plus usage warnings;
@@ -1683,9 +1691,9 @@ function validateDocument(doc: unknown, options?: { strict?: boolean }): PxValid
 //   [Playback settings & triggers](../library/playback-and-triggers.md#for-player-authors--the-same-rules-exported).
 
 // ● Per-instance playback override, shared by every player. `patch` is a
-//   deep-partial of the document's `animator` block; objects merge key by key,
-//   values replace, and `null` DELETES a key (restoring the default its absence
-//   means). Pure — the document is not modified; the result shares every
+//   recursive partial of the document's `animator` block; objects merge key by key,
+//   values replace, and a key left out changes nothing (there is no delete — to get
+//   a default, set it). Pure — the document is not modified; the result shares every
 //   untouched subtree by reference. Warnings say what could not be applied
 //   (e.g. clock-only keys aimed at a scroll timeline).
 function applyAnimatorConfig(
@@ -1726,14 +1734,16 @@ interface PxPlatformAdapter {
 //   React Native all call this, so they always decide the same way. The first match
 //   wins:
 //     1. `showAtProgress` or `showAtTime` set  → you control the position
-//     2. `playWhile` / `pauseWhile`, or `playState`, set → you control playing and pausing (`playLevelsOf`
+//     2. `play` / `pause`, or `playState`, set → you control playing and pausing (`playStateToLevels`
 //        folds the one state word into the two levels: playing = play, paused = play + pause, idle = stop)
 //     3. `playUsingActionTriggers` set       → the document's own triggers, or the ones you passed
 //     4. nothing set               → static: the first frame, nothing plays
-//   If you set props from more than one line, the result includes a ready-made
-//   warning to show. `playerRef` never changes the result: it is a handle for calling
-//   methods, not an instruction.
-function resolveControlMode(props: PxControlProps): PxResolvedControlMode;
+//   If you set props from more than one line (JavaScript — TypeScript's `PxControlProps` takes
+//   one family at a time), the result includes a ready-made warning to show (PX1501; also for
+//   `showAtProgress` beside `showAtTime` — `showAtProgress` wins). `playerRef` never changes the
+//   result: it is a handle for calling methods, not an instruction. It reads `PxAnyControlProps`:
+//   every control prop, in any mix.
+function resolveControlMode(props: PxAnyControlProps): PxResolvedControlMode;
 
 // ● (from `/engine`) True when that mode has to take the document's own triggers over — every mode
 //   except `playUsingActionTriggers`, INCLUDING `static`: a component given no control props at
@@ -1753,14 +1763,14 @@ adapter. You need it only to build a player; everything else is on the main entr
 |---|---|---|
 | Wire types | `PxDocument`, `PxDocumentJson` (the shape a JSON import has; PxDocumentInput until 1.21), `toPxDocument(doc)` (○), `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxActionTriggers`, `PxTriggerEvents`, `PxActions`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
 | Player API types | `PxAnimationPlayerApi<TRoot>`, `PxEngineAnimationPlayerApi<TRoot>` (○), `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. **`/engine`**: `PxEngineAnimationPlayerApi`, `PxPlatformAdapter`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
-| Component contract | `PxAnimationPlayerHandle`, `PxAnimationPlayerCallbacks`, `PxControlProps`, `PxPlayStateRequest`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `playLevelsOf(props)` (○), `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `applyDeclarativeAction(api, action, totalMs)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle (`play()`, `pause()`, `stop()` …), the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `PxPlayStateRequest` is what the `playState` prop accepts (idle · playing · paused — the `PxPlayState` values a host can ask for); `playLevelsOf` folds that one word into the two levels `playWhile` / `pauseWhile` (playing = play, paused = play + pause, idle = stop). **`/engine`**: `PxControlProps`, `PxControlMode`, `resolveControlMode`, `controlModeTakesOverTrigger` and the ○ names. `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
+| Component contract | `PxAnimationPlayerHandle`, `PxAnimationPlayerCallbacks`, `PxControlProps`, `PxPlayStateRequest`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `playStateToLevels(props)` (○), `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `applyDeclarativeAction(api, action, totalMs)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle (`play()`, `pause()`, `stop()` …), the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `PxControlProps` is a union — ONE driver family at a time compiles (`showAtProgress` · `showAtTime` · `play` + `pause` · `playState` · `playUsingActionTriggers`); `resolveControlMode` reads `PxAnyControlProps` — every control prop in any mix — so a JavaScript caller still gets its PX1501 warning. `PxPlayStateRequest` is what the `playState` prop accepts (idle · playing · paused — the `PxPlayState` values a host can ask for); `playStateToLevels` folds that one word into the two levels `{ play, pause }` (playing = play, paused = play + pause, idle = stop) — `playLevelsOf` until 1.22. **`/engine`**: `PxControlProps`, `PxControlMode`, `resolveControlMode`, `controlModeTakesOverTrigger` and the ○ names. `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ **`/engine`** · how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
-| Playback defaults | `PX_PLAYBACK_DEFAULTS`, `resolveTriggers(triggers)`, `PxResolvedTriggers`, `triggerEventList(events)`, `resolveActions(actions)`, `PxResolvedActions`, `actionSettingsOf(slot)` (one slot's settings, the word form read as its object), `resolveGate(view)`, `PxResolvedGate` | ○ what an absent key means (the start / stop / finish / outOfView behaviors `continue` · `reset` · `hold` · `pause`, no iteration completion, `whenIdle` 'static', threshold 0.5, debounce 150 ms — and no `start`: an absent trigger block names no event) — the one table every player reads. `resolveTriggers` normalises the lists to arrays of the events each may name (`triggerEventList` does one), derives `resume` unless the file names it (`derivedResume`), and reads an absent block and an empty one both as nothing; `resolveActions` defaults every action setting; `resolveGate` defaults the gate (`outOfView` behavior, threshold, debounce). **`/engine`**: `resolveTriggers`, `PxResolvedTriggers`, `triggerEventList`, `resolveActions`, `PxResolvedActions`, `resolveGate`, `PxResolvedGate` |
+| Playback defaults | `PX_PLAYBACK_DEFAULTS`, `resolveTriggers(triggers)`, `PxResolvedTriggers`, `triggerEventList(events)`, `resolveActions(actions)`, `PxResolvedActions`, `actionSettingsOf(slot)` (one slot's settings, the word form read as its object), `resolveGate(view)`, `PxResolvedGate` | ○ what an absent key means (the start / stop / finish / outOfView behaviors `continue` · `jumpToStart` · `hold` · `pause`, `whenIdle` 'static', threshold 0.5, debounce 150 ms — and no `start`: an absent trigger block names no event) — the one table every player reads. `resolveTriggers` normalises the lists to arrays of the events each may name (`triggerEventList` does one), derives `resume` unless the file names it (`derivedResume`), and reads an absent block and an empty one both as nothing; `resolveActions` defaults every action setting; `resolveGate` defaults the gate (`outOfView` behavior, threshold, debounce). **`/engine`**: `resolveTriggers`, `PxResolvedTriggers`, `triggerEventList`, `resolveActions`, `PxResolvedActions`, `resolveGate`, `PxResolvedGate` |
 | Trigger lists | `PxTriggerList`, `allowedTriggerEvents(list)`, `counterpartTriggerEvent(event)`, `derivedResume(start, stop, pause)`, `triggerIssues(triggers)`, `PxTriggerIssueKind`, `PxTriggerIssue` | ○ the lists by name; the events each may name (the schema is built from it); the event that undoes another (`hoverIn` ↔ `hoverOut`, `click` → `click`); the derived resume; every problem with a block as a `PxTriggerIssue` (`eventNotAllowed` · `collision` · `resumeExtra` · `resumeMissing`) — [Which events each list may name](../library/playback-and-triggers.md#which-events-each-list-may-name). **`/engine`**: the four functions and `PxTriggerIssue` |
 | State rule | `PxPlayState`, `PxTriggerAction`, `triggerActionFor(triggers, state, event)`, `triggerListsEvent(triggers, event)` | ○ the player's state (`PxPlayState`: idle · playing · paused · finished · destroyed) picks the list an event is read from, and the answer is `play`, `pause` or `stop`; `triggerListsEvent` says which listeners to attach — [Triggers](../library/playback-and-triggers.md#triggers--when-it-plays). **`/engine`**: the two functions |
-| Play executor | `PxPlayExecutor`, `createPlayExecutor(api, cfg, raf)`, `ensurePlayExecutor(api, cfg, raf)`, `executorConfigOf(view)`, `PxPlayTarget`, `PxPlayExecutorConfig`, `composeApiExtras(api, cfg, raf)`, `PxApiExtrasConfig`, `PxApiExtrasTarget`, `PxApiExtras`, `fillModeOf(whenIdle, finishBehavior)` | ○ the ONE performer of every built-in action — the triggers, the `playWhile` prop and the api's `play()` / `stop()` all call it — and the composed api members built on it; `fillModeOf` is the `animation-fill-mode` the two wire settings spell, for CSS and the WAAPI engine — see the signature block above. **`/engine`**: all but `PxPlayExecutor` |
+| Play executor | `PxPlayExecutor`, `createPlayExecutor(api, cfg, raf)`, `ensurePlayExecutor(api, cfg, raf)`, `executorConfigOf(view)`, `PxPlayTarget`, `PxPlayExecutorConfig`, `composeApiExtras(api, cfg, raf)`, `PxApiExtrasConfig`, `PxApiExtrasTarget`, `PxApiExtras`, `fillModeOf(whenIdle, finishBehavior)` | ○ the ONE performer of every built-in action — the triggers, the `play` prop and the api's `play()` / `stop()` all call it — and the composed api members built on it; `fillModeOf` is the `animation-fill-mode` the two wire settings spell, for CSS and the WAAPI engine — see the signature block above. **`/engine`**: all but `PxPlayExecutor` |
 | Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ **`/engine`** · the one meaning of time, seeking and rate that every engine implements — see `PxAnimationPlayerApi` |
-| Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticCode`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `code` saying what happened and a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks`. The text is not shipped: `PxDiagnosticCode` is a number, described on the [codes page](../diagnostics.md) |
+| Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticCode`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarning` / `onError` with a `code` saying what happened and a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks`. The text is not shipped: `PxDiagnosticCode` is a number, described on the [codes page](../diagnostics.md) |
 | Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneOmit` (`clone.omit` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxPlaybackDirection`, `PxTriggerEvent`, `PxStartBehavior`, `PxStopBehavior`, `PxFinishBehavior`, `PxOutOfViewBehavior`, `PxWhenIdle`, `PxFillMode`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerEvent.click` and `start?: PxTriggerEvents` come from one import. `PxFillMode` is the one that is not a wire key: the engines' `animation-fill-mode`, derived from `whenIdle` and the finish behavior by `fillModeOf` |
 | Browser spelling | `cssPlaybackDirection(direction)`, `cssScrollPhase(phase)`, `PxCssPlaybackDirection`, `PxCssScrollPhase` | ▪ a camelCase format value spelled the way CSS / Web Animations take it (`alternateReverse` → `'alternate-reverse'`), where a player or the editor's CSS export hands it to the browser |
 | Schema version | `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning). `PX_WIRE_SCHEMA_VERSION` (▪) is the bump-site string behind `PX_WIRE_VERSION`, moved to `/internal` (review §16) |
@@ -1770,8 +1780,8 @@ adapter. You need it only to build a player; everything else is on the main entr
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals. `legacyAnimatorOf` (▪) is the raw config at the pre-rendered SVG's `meta.animator` address — unchecked: cast it with `PxAnimatorConfigSchema` |
 | Timeline shape | `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ the runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) → the nested `timeline` object. The other direction, `resolveAnimatorTimeline` (▪), moved to `/internal` (review §17a): read the view through `getAnimatorConfig` / `prepareDocument` |
 | Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |
-| Playback override | `PxPlaybackOverride`, `PxTimelinePatch`, `PxTimelineTiming`, `PxActionsPatch`, `PxPatch`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult` | ● the `timelineOptions` and `actions` overrides as every player takes them — each a `PxPatch` (every key optional at every depth, `null` deletes): of `PxTimelineTiming` (the timeline minus `actionTriggers` and `actions`) and of `PxActions` — and the companion types of the two merge functions above — [Overriding from a player](../library/playback-and-triggers.md#overriding-from-a-player) |
-| Override plumbing | `applyPlaybackOverride(doc, override)`, `PxPlaybackOverrideInput`, `PxPlaybackOverrideResult`, `withActionTriggers(doc, actionTriggers)`, `PxActionTriggersInput` (the driver prop's object form: the lists minus the derived resume) | ○ **`/engine`** · the one implementation of `{ timelineOptions, actions, playUsingActionTriggers }` every player calls — the timing and the actions merged, then the triggers SET as a whole when `playUsingActionTriggers` is an object — and the SET itself, which an empty block and a replacement need and a merge cannot say |
+| Playback override | `PxPlaybackOverride`, `PxTimelineOptions`, `PxTimelineTiming`, `PxActionsOptions`, `PxRecursivePartial`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult` | ● the `timelineOptions` and `actions` overrides as every player takes them — `PxTimelineOptions` and `PxActionsOptions`, each a `PxRecursivePartial` (every key optional at every depth, arrays replaced whole, no delete): of `PxTimelineTiming` (the timeline minus `actionTriggers` and `actions`) and of `PxActions` — and the companion types of the two merge functions above (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22) — [Overriding from a player](../library/playback-and-triggers.md#overriding-from-a-player) |
+| Override plumbing | `applyPlaybackOverride(doc, override)`, `PxPlaybackOverrideInput`, `PxPlaybackOverrideResult`, `withActionTriggers(doc, actionTriggers)`, `PxActionTriggersInput` (the driver prop's object form: the same lists as the file, the resume list derived when left out) | ○ **`/engine`** · the one implementation of `{ timelineOptions, actions, playUsingActionTriggers }` every player calls — the timing and the actions merged, then the triggers SET as a whole when `playUsingActionTriggers` is an object — and the SET itself, which an empty block and a replacement need and a merge cannot say |
 | No-driver patch | `withoutTriggerDriver(doc)` | ○ **`/engine`** · the document's triggers replaced by an EMPTY block — nothing starts it — what every player applies when `playUsingActionTriggers` is absent (the components' non-`playUsingActionTriggers` control modes use the same helper) |
 | Compiled animation | `PxCompiledAnimation`, `PxCompiledKeyframe`, `PxAnyPropertyAnimation`, `isCompiledAnimation(entry)`, `PxCompiledAnimationSchema`, `PxAnyPropertyAnimationSchema`, `PxRgba`, `PxRgbaSchema`, `PxCubicBezier`, `PxCubicBezierSchema`, `PxPathValue` | ○ the format's low layer — [Compiled animation](#compiled-animation--the-low-layer). `compileAnimation`, `compileAnimationDefinition`, `compileAnimationsInTree`, `PxCompileContext` (▪) lower authored entries to it; `toAuthoredAnimation`, `authorCompiledAnimations` (▪) read it back as the authored form (the editor's read path); `anyPropertyAnimationSchemaOf` (▪) builds the entry union around a widened authored schema (the editor's); `PxNormalizedPathValueSchema` (▪) casts a compiled `d` value (`{paths}`) |
 | Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxValueKind` | ○ **`/engine`** · what `normalizeBindings` hands the engines: compiled animations in window ms — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪); `movesAlongPath` (▪) says whether a compiled `transform` is a motion path the frame loop evaluates |

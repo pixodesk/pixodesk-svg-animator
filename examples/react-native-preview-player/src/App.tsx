@@ -7,7 +7,7 @@
  * web version's drag-and-drop, the documents are embedded (see `samples.ts`).
  */
 import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
-import { getAnimatorConfig, type PxTimelinePatch } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, type PxTimelineOptions } from '@pixodesk/svg-animator-core';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -20,7 +20,7 @@ type LoopMode = 'auto' | 'loop' | 'no-loop';
 const RATES = [0.25, 0.5, 1, 2, 4];
 
 /** The loop override, as a `timeline` merge over the file's timing. `undefined` = leave the file alone. */
-const loopTimeline = (mode: LoopMode): PxTimelinePatch | undefined =>
+const loopTimeline = (mode: LoopMode): PxTimelineOptions | undefined =>
     mode === 'loop' ? { iterations: 'infinite' } : mode === 'no-loop' ? { iterations: 1 } : undefined;
 
 export default function App() {
@@ -57,8 +57,8 @@ export default function App() {
         return () => clearInterval(id);
     }, []);
 
-    // Re-apply the speed whenever it changes or the document is rebuilt (the file's `playSpeed` is the initial value).
-    useEffect(() => { api.current?.setPlaySpeed(rate); }, [rate, doc]);
+    // Re-apply the speed whenever it changes or the document is rebuilt (the file's `playbackSpeed` is the initial value).
+    useEffect(() => { api.current?.setPlaybackSpeed(rate); }, [rate, doc]);
 
     const call = (fn: (a: PxAnimationPlayerHandle) => void) => () => { if (api.current) fn(api.current); };
 
@@ -113,8 +113,8 @@ export default function App() {
                     {([
                         ['▶ Play', call(a => a.play())],
                         ['❚❚ Pause', call(a => a.pause())],
-                        ['◼ Stop', call(a => a.reset())],
-                        ['↺ Restart', call(a => { a.reset(); a.play(); })],
+                        ['◼ Stop', call(a => a.jumpToStart())],
+                        ['↺ Restart', call(a => { a.jumpToStart(); a.play(); })],
                         ['⤓ Finish', call(a => a.jumpToEnd())],
                     ] as Array<[string, () => void]>).map(([label, onPress]) => (
                         <Pressable

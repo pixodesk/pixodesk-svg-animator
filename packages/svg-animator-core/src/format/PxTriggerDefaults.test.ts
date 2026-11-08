@@ -149,15 +149,15 @@ describe('trigger defaults', () => {
 
     it('the gate defaults from the one table, read off the runtime view', () => {
         expect(resolveGate(undefined)).toEqual({ outOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150 });
-        expect(resolveGate({ actions: { outOfView: { behavior: 'reset' } }, inViewThreshold: 0 })).toEqual({ outOfView: 'reset', inViewThreshold: 0, inViewDebounce: 150 });
+        expect(resolveGate({ actions: { outOfView: { behavior: 'jumpToStart' } }, inViewThreshold: 0 })).toEqual({ outOfView: 'jumpToStart', inViewThreshold: 0, inViewDebounce: 150 });
     });
 
     it('the actions default from the one table, each field on its own', () => {
         expect(resolveActions(undefined)).toEqual({
-            start: { behavior: 'continue' }, stop: { behavior: 'reset', completeIteration: false },
+            start: { behavior: 'continue' }, stop: { behavior: 'jumpToStart' },
             finish: { behavior: 'hold' }, outOfView: { behavior: 'pause' },
         });
-        expect(resolveActions({ stop: { completeIteration: true } }).stop).toEqual({ behavior: 'reset', completeIteration: true });
+        expect(resolveActions({ stop: 'animateToEnd' }).stop).toEqual({ behavior: 'animateToEnd' });
         expect(resolveActions({ start: { behavior: 'jumpToEnd' } }).start.behavior).toBe('jumpToEnd');
     });
 

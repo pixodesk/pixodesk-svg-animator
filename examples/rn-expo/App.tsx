@@ -124,8 +124,8 @@ export default function AppPlayer() {
                 <Pressable style={styles.button} onPress={() => api.current?.pause()}>
                     <Text style={styles.buttonText}>Pause</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => api.current?.reset()}>
-                    <Text style={styles.buttonText}>Reset</Text>
+                <Pressable style={styles.button} onPress={() => api.current?.jumpToStart()}>
+                    <Text style={styles.buttonText}>To start</Text>
                 </Pressable>
                 <Pressable style={styles.button} onPress={() => api.current?.setCurrentTime(1000)}>
                     <Text style={styles.buttonText}>Seek 1s</Text>

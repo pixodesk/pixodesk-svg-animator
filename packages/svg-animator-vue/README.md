@@ -35,8 +35,8 @@ gate), or the triggers object you bind instead of `true`:
 
 ### Declarative play/pause
 
-Control playback with two levels — `playWhile` plays while true (`true` calls the built-in `start`,
-`false` the built-in `stop`), `pauseWhile` freezes on top; how each looks is the file's
+Control playback with two levels — `play` plays while true (`true` calls the built-in `start`,
+`false` the built-in `stop`), `pause` freezes on top; how each looks is the file's
 `timeline.actions`, adjusted through the `actions` prop. `playState` is the same control in one word
 (`'idle' | 'playing' | 'paused'`):
 
@@ -47,7 +47,7 @@ const paused = ref(false);
 </script>
 
 <template>
-  <SvgAnimationPlayer :doc="animationDoc" playWhile :pauseWhile="paused" />
+  <SvgAnimationPlayer :doc="animationDoc" play :pause="paused" />
   <button @click="paused = !paused">Toggle</button>
 
   <!-- the same as one state word -->
@@ -76,7 +76,7 @@ const player = ref<PxAnimationPlayerHandle | null>(null);
 ```
 
 <!-- px-check members PxAnimationPlayerHandle pkg=vue -->
-`PxAnimationPlayerHandle` methods: `play()` (paused → resume, otherwise the configured start), `pause()`, `stop()` (the configured stop — after the current iteration when the file asks for that), `reset()` (reset now, unconditionally), `jumpToEnd()` (the end pose, no motion — advanced), `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `getPlayState()` (idle · playing · paused · finished · destroyed); real time — `getPlaySpeed()` / `setPlaySpeed(speed)` (1 normal, 2 double, negative = reverse), `getPlayDuration()` / `setPlayDuration(ms)` (one pass in real ms; the setter sets the speed), `getTotalPlayDuration()`, `getCurrentPlayTime()`; one iteration — `getDuration()` (one pass, ms — a looping file's slider maximum), `getCurrentTime()` / `setCurrentTime(ms)` (the frame inside the current iteration), `getCurrentProgress()` / `setCurrentProgress(p)`, `getCurrentIteration()`; the whole run — `getTotalDuration()` (null when infinite), `getTotalTime()` / `setTotalTime(ms)`. Plain names are model ms inside the iteration, `total…` the run, `play…` real time ([Time axes](../../docs/library/playback-and-triggers.md#time-axes)).
+`PxAnimationPlayerHandle` methods: `play()` (paused → resume, otherwise the configured start), `pause()`, `stop()` (the configured stop, `actions.stop` — its animate-to-end preset stops after the current pass), `jumpToStart()` (to the idle pose now, unconditionally — reports nothing), `jumpToEnd()` (the end pose, no motion — advanced), `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `getPlayState()` (idle · playing · paused · finished · destroyed); playback time — `getPlaybackSpeed()` / `setPlaybackSpeed(speed)` (1 normal, 2 double, negative = reverse), `getPlaybackDuration()` / `setPlaybackDuration(ms)` (one pass in playback ms; the setter sets the speed), `getTotalPlaybackDuration()`, `getCurrentPlaybackTime()`, `getTotalPlaybackTime()`; one iteration — `getDuration()` (one pass, ms — a looping file's slider maximum), `getCurrentTime()` / `setCurrentTime(ms)` (the frame inside the current iteration), `getCurrentProgress()` / `setCurrentProgress(p)`, `getCurrentIteration()`; the whole run — `getTotalDuration()` (null when infinite), `getTotalTime()` / `setTotalTime(ms)`, `getTotalProgress()`. Plain names are model ms inside the iteration, `total…` the run (including repeats, GSAP's words), `playback…` model time ÷ the speed ([Two clocks](../../docs/library/playback-and-triggers.md#two-clocks)).
 
 ### Controlled time
 
@@ -95,22 +95,22 @@ Render a single frame — by time in milliseconds, or by fraction of one iterati
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is |
-| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived from them). See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
-| `playWhile` | `boolean` | A level: plays while `true` (the built-in `start`), `false` performs the built-in `stop`. How each looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-start-stop-and-finish-look) |
-| `pauseWhile` | `boolean` | A level on top: freeze the current frame while `true` / resume; only while `playWhile` is true |
+| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause, resume }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived when left out). See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `play` | `boolean` | A level: plays while `true` (the built-in `start`), `false` performs the built-in `stop` (a mount with `false` does nothing). How each looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-start-stop-and-finish-look) |
+| `pause` | `boolean` | A level on top: freeze the current frame while `true` / resume; only while `play` is true |
 | `playState` | `'idle' \| 'playing' \| 'paused'` | The same control as one state word (`PxPlayStateRequest`): `idle` = the stop action, `paused` = frozen; set beside the booleans it wins (PX1501) |
 | `showAtProgress` | `number` | show the frame at this position in ONE iteration: `0` is the first frame, `0.5` the middle, `1` the last |
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `getDuration()`) |
-| `timelineOptions` | `PxTimelinePatch` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: 'rewind' }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` (a prop, not an event — see below) |
+| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, deep-merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actions` | `PxActionsOptions` | per-instance override of how the built-in actions look — `{ stop: 'animateToStart' }` — deep-merged over the document's `timeline.actions`. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `onWarning` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` (a prop, not an event — see below) |
 | `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
-| `suppressWarnings` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: this is about the console, not about you |
+| `suppressWarnings` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarning`, if you gave it, still fires: this is about the console, not about you |
 | `suppressErrors` | `boolean` | the same switch for `console.error` |
 
-With none of `playUsingActionTriggers` / `playWhile` / `pauseWhile` / `playState` / `showAtProgress` / `showAtTime` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
+With none of `playUsingActionTriggers` / `play` / `pause` / `playState` / `showAtProgress` / `showAtTime` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
-Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `reset` and `destroy` on its way out. Changing `showAtProgress` / `showAtTime` does **not** recreate the animator — it just jumps the existing one to the new position.
+Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `destroy` on its way out. Changing `showAtProgress` / `showAtTime` does **not** recreate the animator — it just jumps the existing one to the new position.
 
 ## Events
 
@@ -120,7 +120,6 @@ Note: passing a different `doc` (or unmounting) throws the old player away and b
 | `ready` | The player exists and the SVG is rendered (once, async) |
 | `play` | Animation started or resumed |
 | `pause` | Animation paused |
-| `reset` | Back at the start pose — `reset()`, a stop or finish whose preset is `reset`, the end of a rewind |
 | `finish` | Animation reached its end — every iteration played, or `jumpToEnd()` was called |
 | `destroy` | The player was torn down (e.g. on unmount) |
-| `stop` | The built-in `stop` action was performed — a `stop` trigger, `playWhile` false or `stop()`; a pause, the end, a `reset()` and a destroy each fire their own |
+| `stop` | The built-in `stop` action was performed — a `stop` trigger, `play` false or `stop()`; at once, or on arrival for `animateToEnd`. A pause, the end and a destroy each fire their own; `jumpToStart()` emits nothing |

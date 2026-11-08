@@ -31,10 +31,10 @@ describe('createDiagnostics — warnings', () => {
 
     it('hands over to the handler INSTEAD of the console — taking it means owning it', () => {
         const warn = warnSpy();
-        const onWarn = vi.fn();
-        createDiagnostics({ onWarn }).warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, { key: 'duration' });
+        const onWarning = vi.fn();
+        createDiagnostics({ onWarning }).warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, { key: 'duration' });
 
-        const d = onWarn.mock.calls[0][0] as PxDiagnostic;
+        const d = onWarning.mock.calls[0][0] as PxDiagnostic;
         expect(d.code).toBe(PxDiagnosticCode.timelineOverrideIgnored);
         expect(d.kind).toBe(PxDiagnosticKind.usage);
         expect(d.data).toEqual([{ key: 'duration' }]);
@@ -52,19 +52,19 @@ describe('createDiagnostics — warnings', () => {
 
     it('does NOT prefix the message handed to a handler', () => {
         // A caller feeding this into its own UI should not have to strip our tag.
-        const onWarn = vi.fn();
-        createDiagnostics({ onWarn }, '[SvgAnimationPlayer]').warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
+        const onWarning = vi.fn();
+        createDiagnostics({ onWarning }, '[SvgAnimationPlayer]').warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
 
-        const d = onWarn.mock.calls[0][0] as PxDiagnostic;
+        const d = onWarning.mock.calls[0][0] as PxDiagnostic;
         expect(d.message).not.toContain('[SvgAnimationPlayer]');
         expect(d.kind).toBe(PxDiagnosticKind.host);
     });
 
     it('the message is the code and a link to the page — the description is NOT shipped', () => {
-        const onWarn = vi.fn();
-        createDiagnostics({ onWarn }).warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollSubjectNoMatch, '#hero');
+        const onWarning = vi.fn();
+        createDiagnostics({ onWarning }).warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollSubjectNoMatch, '#hero');
 
-        const d = onWarn.mock.calls[0][0] as PxDiagnostic;
+        const d = onWarning.mock.calls[0][0] as PxDiagnostic;
         expect(d.message).toBe('PX1304 https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/diagnostics.md#px1304');
         // The specifics ride in `data`, where a sentence would once have interpolated them.
         expect(d.data).toEqual(['#hero']);
@@ -86,10 +86,10 @@ describe('createDiagnostics — warnings', () => {
 
     it('suppressWarnings is about the console, not about you — a handler you passed still fires', () => {
         const warn = warnSpy();
-        const onWarn = vi.fn();
-        createDiagnostics({ onWarn, suppressWarnings: true }).warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported);
+        const onWarning = vi.fn();
+        createDiagnostics({ onWarning, suppressWarnings: true }).warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported);
 
-        expect(onWarn).toHaveBeenCalledTimes(1);
+        expect(onWarning).toHaveBeenCalledTimes(1);
         expect(warn).not.toHaveBeenCalled();
     });
 
@@ -110,7 +110,7 @@ describe('createDiagnostics — kinds', () => {
 
     it('carries the kind through to the handler', () => {
         const seen: Array<string> = [];
-        const diag = createDiagnostics({ onWarn: d => seen.push(d.kind) });
+        const diag = createDiagnostics({ onWarning: d => seen.push(d.kind) });
 
         diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape);
         diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
@@ -122,13 +122,13 @@ describe('createDiagnostics — kinds', () => {
     });
 
     it('the code is independent of the kind — one code, whichever kind the site chose', () => {
-        const onWarn = vi.fn();
-        const diag = createDiagnostics({ onWarn });
+        const onWarning = vi.fn();
+        const diag = createDiagnostics({ onWarning });
 
         diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.scrollSubjectInvalid, 'a');
         diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollSubjectNoMatch, 'a');
 
-        expect(onWarn.mock.calls.map(c => (c[0] as PxDiagnostic).code))
+        expect(onWarning.mock.calls.map(c => (c[0] as PxDiagnostic).code))
             .toEqual([PxDiagnosticCode.scrollSubjectInvalid, PxDiagnosticCode.scrollSubjectNoMatch]);
     });
 });
@@ -212,13 +212,13 @@ describe('createDiagnostics — errors', () => {
     it('warnings and errors are independent channels', () => {
         const warn = warnSpy();
         const error = errorSpy();
-        const onWarn = vi.fn();
-        const diag = createDiagnostics({ onWarn });   // only warnings are handled
+        const onWarning = vi.fn();
+        const diag = createDiagnostics({ onWarning });   // only warnings are handled
 
         diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);
         diag.error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, new Error('not handled'));
 
-        expect(onWarn).toHaveBeenCalledTimes(1);
+        expect(onWarning).toHaveBeenCalledTimes(1);
         expect(warn).not.toHaveBeenCalled();
         expect(error).toHaveBeenCalledTimes(1);       // the error still reaches the console
     });

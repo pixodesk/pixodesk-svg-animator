@@ -76,17 +76,17 @@ describe('reportDocumentDiagnostics', () => {
 
     it('given a diagnostics channel it reports THROUGH it — kind document, code documentSchemaMismatch, the problems in data — and prints nothing itself', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const onWarn = vi.fn();
-        reportDocumentDiagnostics(mangled, '[test]', createDiagnostics({ onWarn }));
+        const onWarning = vi.fn();
+        reportDocumentDiagnostics(mangled, '[test]', createDiagnostics({ onWarning }));
         expect(warn).not.toHaveBeenCalled();
-        expect(onWarn).toHaveBeenCalledTimes(1);
-        const d = onWarn.mock.calls[0][0];
+        expect(onWarning).toHaveBeenCalledTimes(1);
+        const d = onWarning.mock.calls[0][0];
         expect(d.kind).toBe(PxDiagnosticKind.document);
         expect(d.code).toBe(PxDiagnosticCode.documentSchemaMismatch);
         expect(JSON.stringify(d.data)).toContain('MANGLES PROPERTY NAMES');
         // a sound document says nothing on either road
-        reportDocumentDiagnostics(sound, '[test]', createDiagnostics({ onWarn }));
-        expect(onWarn).toHaveBeenCalledTimes(1);
+        reportDocumentDiagnostics(sound, '[test]', createDiagnostics({ onWarning }));
+        expect(onWarning).toHaveBeenCalledTimes(1);
         warn.mockRestore();
     });
 

@@ -11,9 +11,9 @@ A single-page preview player that demonstrates all three runtime packages side b
 - **Choose player:** switch between the Web, React and Vue implementations at runtime.
 - **Drop area:** drag-and-drop any Pixodesk animation `.json` document onto the page to play it.
 - **Light/dark theme:** toggle the theme; the choice is saved to `localStorage`.
-- **Transport controls:** Play, Pause, Stop (reset to start), Restart, Finish (jump to end).
+- **Transport controls:** Play, Pause, Stop (jump to start), Restart, Finish (jump to end).
 - **Time slider:** shows the current time inside the iteration and lets you scrub one pass.
-- **Play speed:** `setPlaySpeed` (wired for the Web player only in this UI).
+- **Playback speed:** `setPlaybackSpeed` (wired for the Web player only in this UI).
 - **Trigger cue:** with *Use trigger* on, the document's own trigger starts the animation, so
   while it sits still the stage says what to do — hover, click, or scroll it into view.
 
@@ -22,8 +22,8 @@ The stage starts empty; use **Load demo** to load the built-in sample animation
 
 ## How it works
 
-Each package exposes the same imperative API (`play` / `pause` / `reset` /
-`jumpToEnd` / `getCurrentTime` / `setCurrentTime` / `setPlaySpeed`). The three adapters in
+Each package exposes the same imperative API (`play` / `pause` / `jumpToStart` /
+`jumpToEnd` / `getCurrentTime` / `setCurrentTime` / `setPlaybackSpeed`). The three adapters in
 [`src/players/`](src/players/) wrap them behind a common
 [`PlayerHandle`](src/players/types.ts) so the vanilla-TS UI in
 [`src/main.ts`](src/main.ts) can drive any of them uniformly.

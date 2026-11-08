@@ -63,7 +63,7 @@ function createAnimatorImpl(
 ): PxAnimationPlayerApi {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
-    // `onWarn` / `onError` if given, the console otherwise — unless `suppressWarnings` / `suppressErrors` switch it off.
+    // `onWarning` / `onError` if given, the console otherwise — unless `suppressWarnings` / `suppressErrors` switch it off.
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
     const onProblems = (problems: Parameters<typeof reportDocumentProblems>[0]) => reportDocumentProblems(problems, diag);
 
@@ -78,7 +78,7 @@ function createAnimatorImpl(
     // reaching us are unrecognizable and this says so, instead of the animation silently rendering
     // nothing (dev-docs/plans/minification-boundary.md §3). On the checked copy, which keeps unknown
     // keys and has its invalid values already repaired and reported above — so it names exactly the
-    // keys this build does not know. Through the player's channel: `onWarn` gets it, `suppressWarnings` mutes it.
+    // keys this build does not know. Through the player's channel: `onWarning` gets it, `suppressWarnings` mutes it.
     reportDocumentDiagnostics(doc, '[PxAnimator] createSvgAnimationPlayer', diag);
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
@@ -304,18 +304,20 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         "play": () => { enqueue(api => api.play()); },
         "pause": () => { enqueue(api => api.pause()); },
         "stop": () => { enqueue(api => api.stop()); },
-        "reset": () => { enqueue(api => api.reset()); },
+        "jumpToStart": () => { enqueue(api => api.jumpToStart()); },
         "jumpToEnd": () => { enqueue(api => api.jumpToEnd()); },
         "playOnce": () => { enqueue(api => api.playOnce()); },
         "getPlayState": () => destroyed ? PxPlayState.destroyed : (animator ? animator.getPlayState() : PxPlayState.idle),
-        "getPlaySpeed": () => animator ? animator.getPlaySpeed() : 1,
-        "setPlaySpeed": (speed: number) => { enqueue(api => api.setPlaySpeed(speed)); },
-        "getPlayDuration": () => animator ? animator.getPlayDuration() : null,
-        "setPlayDuration": (ms: number) => { enqueue(api => api.setPlayDuration(ms)); },
-        "getTotalPlayDuration": () => animator ? animator.getTotalPlayDuration() : null,
-        "getCurrentPlayTime": () => animator ? animator.getCurrentPlayTime() : null,
+        "getPlaybackSpeed": () => animator ? animator.getPlaybackSpeed() : 1,
+        "setPlaybackSpeed": (speed: number) => { enqueue(api => api.setPlaybackSpeed(speed)); },
+        "getPlaybackDuration": () => animator ? animator.getPlaybackDuration() : null,
+        "setPlaybackDuration": (ms: number) => { enqueue(api => api.setPlaybackDuration(ms)); },
+        "getTotalPlaybackDuration": () => animator ? animator.getTotalPlaybackDuration() : null,
+        "getCurrentPlaybackTime": () => animator ? animator.getCurrentPlaybackTime() : null,
+        "getTotalPlaybackTime": () => animator ? animator.getTotalPlaybackTime() : null,
         "getDuration": () => animator ? animator.getDuration() : null,
         "getTotalDuration": () => animator ? animator.getTotalDuration() : null,
+        "getTotalProgress": () => animator ? animator.getTotalProgress() : null,
         "getCurrentTime": () => animator ? animator.getCurrentTime() : null,
         "setCurrentTime": (time: number) => { enqueue(api => api.setCurrentTime(time)); },
         "getCurrentProgress": () => animator ? animator.getCurrentProgress() : null,
@@ -354,8 +356,10 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
  * @public
  */
 export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCallbacks & {
-    /** One triggers block for EVERY player this call creates, instead of each file's own — the whole block. Absent: each file's. */
-    playUsingActionTriggers?: PxActionTriggersInput;
+    /** As on every surface: `true` (or absent — a tag embeds a finished file, so the file IS the driver) each file's own
+     *  `actionTriggers`; an OBJECT, one block for EVERY player this call creates — the whole block; `false`, the
+     *  triggers do not drive (your code does, through {@link getSvgAnimationPlayer}). */
+    playUsingActionTriggers?: boolean | PxActionTriggersInput;
 };
 
 /**

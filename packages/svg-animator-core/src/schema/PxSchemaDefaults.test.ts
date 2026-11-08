@@ -91,7 +91,7 @@ describe('schema.defaults — what an absent field means', () => {
         const d = PX_PLAYBACK_DEFAULTS;
         expect(PxTimeTimelineSchema.defaults).toMatchObject({ whenIdle: d.whenIdle, inViewThreshold: d.inViewThreshold, inViewDebounce: d.inViewDebounce });
         expect(PxStartActionSchema.defaults).toEqual({ behavior: d.startBehavior });
-        expect(PxStopActionSchema.defaults).toEqual({ behavior: d.stopBehavior, completeIteration: d.stopCompleteIteration });
+        expect(PxStopActionSchema.defaults).toEqual({ behavior: d.stopBehavior });
         expect(PxFinishActionSchema.defaults).toEqual({ behavior: d.finishBehavior });
         expect(PxOutOfViewActionSchema.defaults).toEqual({ behavior: d.outOfViewBehavior });
         expect(PxActionTriggersSchema.defaults).toEqual({});
@@ -101,17 +101,17 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxFinishActionSchema.defaults.behavior).toBe(PxFinishBehavior.hold);
         const flat = resolveAnimatorTimeline({ timeline: { actionTriggers: { start: PxTriggerEvent.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(resolveAnimatorTimeline({ timeline: { actions: { finish: { behavior: PxFinishBehavior.reset } } } }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { actions: { finish: { behavior: PxFinishBehavior.jumpToStart } } } }).resetOnFinish).toBe(true);
         expect(resolveAnimatorTimeline({ timeline: { actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
         // §4: the window replaced `duration`. `inTime` has the stated default; `outTime` has a DERIVED default
         // (max keyframe time), so the schema deliberately states none — `PX_DEFAULT_DURATION_MS` survives only as
-        // the scan fallback; `playSpeed` (1.16) states 1.
+        // the scan fallback; `playbackSpeed` (1.16) states 1.
         expect(PxTimeTimelineSchema.defaults.inTime).toBe(0);
         expect('outTime' in PxTimeTimelineSchema.defaults).toBe(false);
-        expect(PxTimeTimelineSchema.defaults.playSpeed).toBe(1);
+        expect(PxTimeTimelineSchema.defaults.playbackSpeed).toBe(1);
         expect(PxTimeTimelineSchema.defaults.iterations).toBe(PX_DEFAULT_ITERATIONS);
         expect(PxTimeTimelineSchema.defaults.delay).toBe(0);
     });

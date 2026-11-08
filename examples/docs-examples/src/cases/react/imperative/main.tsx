@@ -10,7 +10,7 @@ function App() {
       <div className="controls">
         <button onClick={() => api.current?.play()}>play()</button>
         <button onClick={() => api.current?.pause()}>pause()</button>
-        <button onClick={() => api.current?.reset()}>reset()</button>
+        <button onClick={() => api.current?.jumpToStart()}>jumpToStart()</button>
         <button onClick={() => api.current?.jumpToEnd()}>jumpToEnd()</button>
       </div>
       <div className="stage">

@@ -147,7 +147,7 @@ export enum PxDiagnosticCode {
      * NAMES: an animation document is data loaded at runtime, so renaming the property reads inside the player
      * stops them matching the keys in the JSON, and the animation silently does nothing. Feed the published
      * reserved-name list to your minifier — `@pixodesk/svg-animator-web/mangle-reserved.json`, see
-     * docs/library/minification.md. Reaches `onWarn` like every other diagnostic; `suppressWarnings` silences
+     * docs/library/minification.md. Reaches `onWarning` like every other diagnostic; `suppressWarnings` silences
      * the console fallback (until 1.15 this report went to the console on its own).
      * @data the problems (path: finding), the first twelve, then the mangling hint
      */
@@ -226,15 +226,15 @@ export enum PxDiagnosticCode {
     controlPropsConflict = 1501,
 
     /**
-     * A declarative playback modifier was set where it cannot apply — `pauseWhile` without `playWhile`. Ignored.
-     * (How a `playWhile` change looks is the timeline's `actions`: `start`, `stop` and its `completeIteration`.)
+     * A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored.
+     * (How a `play` change looks is the timeline's `actions`: `start` and `stop`, each a jump or an animate to the start or the end.)
      * @data the explanation
      */
     playModifierIgnored = 1502,
 
     /**
      * An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative
-     * driver (`playWhile`/`pauseWhile`/`playState` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and
+     * driver (`play`/`pause`/`playState` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and
      * the next prop change reasserts the props.
      * @data the call
      */
@@ -245,6 +245,14 @@ export enum PxDiagnosticCode {
      * @data the call
      */
     callAfterDestroy = 1504,
+
+    /**
+     * A playback call (`play()`, `pause()`, `stop()`, `playOnce()`, `setPlaybackSpeed()`, `setPlaybackDuration()`) on a
+     * scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next
+     * scroll moves it.
+     * @data the call
+     */
+    scrollOwnsPlayhead = 1505,
 
     // ── 1600 · React Native ──────────────────────────────────────────────────────────────────
 

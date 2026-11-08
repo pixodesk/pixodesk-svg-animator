@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 // The content window (first-use review §4): `inTime`/`outTime` play a slice of the content and
-// `playSpeed` is the initial speed. Frame-loop engine under fake
+// `playbackSpeed` is the initial speed. Frame-loop engine under fake
 // timers, like index.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../index';
@@ -46,16 +46,16 @@ describe('the content window (§4)', () => {
         expect(opacity()).toBe(1);
     });
 
-    it('playSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
+    it('playbackSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
         // window 1000 ms at speed 0.5: after 500 real ms, content time 250
-        const api = createSvgAnimationPlayer({ doc: windowDoc({ playSpeed: 0.5, actionTriggers: { start: 'load' } }), container: '#box', playUsingActionTriggers: true });
+        const api = createSvgAnimationPlayer({ doc: windowDoc({ playbackSpeed: 0.5, actionTriggers: { start: 'load' } }), container: '#box', playUsingActionTriggers: true });
         vi.advanceTimersByTime(500);
-        expect(api.getPlaySpeed()).toBe(0.5);
+        expect(api.getPlaybackSpeed()).toBe(0.5);
         expect(api.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real
-        expect(api.getPlayDuration()).toBeCloseTo(2000, 5);  // one pass in real ms at this speed
-        api.setPlaySpeed(2);                                  // replaces the file's 0.5
+        expect(api.getPlaybackDuration()).toBeCloseTo(2000, 5);  // one pass in real ms at this speed
+        api.setPlaybackSpeed(2);                                  // replaces the file's 0.5
         vi.advanceTimersByTime(500);                          // 500 real ms at speed 2 = 1000 content ms → clamped at the end
-        expect(api.getPlaySpeed()).toBe(2);
+        expect(api.getPlaybackSpeed()).toBe(2);
         expect(api.getCurrentTime()).toBeCloseTo(1000, -1);
     });
 });

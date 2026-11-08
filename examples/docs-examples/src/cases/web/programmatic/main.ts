@@ -9,10 +9,10 @@ const animator = createSvgAnimationPlayer({
 const $ = (id: string) => document.getElementById(id)!;
 $('play').onclick = () => animator.play();
 $('pause').onclick = () => animator.pause();
-$('reset').onclick = () => animator.reset();
+$('jumpToStart').onclick = () => animator.jumpToStart();
 $('finish').onclick = () => animator.jumpToEnd();
-$('reverse').onclick = () => { animator.setPlaySpeed(-1); animator.play(); };
-$('normal').onclick = () => { animator.setPlaySpeed(1); animator.play(); };
+$('reverse').onclick = () => { animator.setPlaybackSpeed(-1); animator.play(); };
+$('normal').onclick = () => { animator.setPlaybackSpeed(1); animator.play(); };
 
 // Slider: pause, then jump to the slider's time — inside the current iteration (0..getDuration()).
 // A slider over the WHOLE run of a finite file would use setTotalTime() with getTotalDuration() as max.

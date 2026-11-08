@@ -10,8 +10,8 @@ diagnostic a stable identity you can switch on in code and search for.
 createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#stage',
-  onWarn:  d => console.log(d.code, d.data),   // 1204, ['#missing']
-  onError: d => report(d.code, d.error),
+  onWarning: d => console.log(d.code, d.data),   // 1204, ['#missing']
+  onError:   d => report(d.code, d.error),
 });
 ```
 
@@ -46,7 +46,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1109"></a>**1109** | Two trigger lists react to one event in the same state: `stop` and `pause` (playing — `pause` wins), or `stop` and the counterpart of a `pause` event (paused — the resume wins). The file should name one. | the event and the two lists |
 | <a id="px1110"></a>**1110** | A trigger list names an event it cannot use — `start` on `hoverOut`, `stop` on `load` or `hoverIn`, `pause` or `resume` on `load`. The event is ignored. | the list and the event |
 | <a id="px1111"></a>**1111** | The file's `resume` list differs from what the player would derive — the counterpart of each `pause` event plus the `start` events that do not stop it: it names an event the derivation would not, or leaves out one it would (that pause then waits for `start` or `stop`). The list is honoured as written. | the list and the event |
-| <a id="px1112"></a>**1112** | The document has keys or shapes this build's schema does not know — unrecognized keys above all. It plays, with those parts ignored. If you did not author them, the usual cause is a build that MANGLES PROPERTY NAMES: an animation document is data loaded at runtime, so renaming the property reads inside the player stops them matching the keys in the JSON, and the animation silently does nothing. Feed the published reserved-name list to your minifier — `@pixodesk/svg-animator-web/mangle-reserved.json`, see docs/library/minification.md. Reaches `onWarn` like every other diagnostic; `suppressWarnings` silences the console fallback (until 1.15 this report went to the console on its own). | the problems (path: finding), the first twelve, then the mangling hint |
+| <a id="px1112"></a>**1112** | The document has keys or shapes this build's schema does not know — unrecognized keys above all. It plays, with those parts ignored. If you did not author them, the usual cause is a build that MANGLES PROPERTY NAMES: an animation document is data loaded at runtime, so renaming the property reads inside the player stops them matching the keys in the JSON, and the animation silently does nothing. Feed the published reserved-name list to your minifier — `@pixodesk/svg-animator-web/mangle-reserved.json`, see docs/library/minification.md. Reaches `onWarning` like every other diagnostic; `suppressWarnings` silences the console fallback (until 1.15 this report went to the console on its own). | the problems (path: finding), the first twelve, then the mangling hint |
 | <a id="px1106"></a>**1106** | A binding names no element, or names animations that `definitions.animations` does not have. | the binding |
 
 ## The mount: elements the player could not find
@@ -85,9 +85,10 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | Code | What it means | Data |
 |---|---|---|
 | <a id="px1501"></a>**1501** | Props from more than one control mode were set at once. The higher-priority mode wins and the other props are ignored — see the control-mode rule. | which props conflicted, and which won |
-| <a id="px1502"></a>**1502** | A declarative playback modifier was set where it cannot apply — `pauseWhile` without `playWhile`. Ignored. (How a `playWhile` change looks is the timeline's `actions`: `start`, `stop` and its `completeIteration`.) | the explanation |
-| <a id="px1503"></a>**1503** | An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative driver (`playWhile`/`pauseWhile`/`playState` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
+| <a id="px1502"></a>**1502** | A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored. (How a `play` change looks is the timeline's `actions`: `start` and `stop`, each a jump or an animate to the start or the end.) | the explanation |
+| <a id="px1503"></a>**1503** | An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative driver (`play`/`pause`/`playState` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
 | <a id="px1504"></a>**1504** | A call on a destroyed player — ignored; `getPlayState()` says `destroyed`. | the call |
+| <a id="px1505"></a>**1505** | A playback call (`play()`, `pause()`, `stop()`, `playOnce()`, `setPlaybackSpeed()`, `setPlaybackDuration()`) on a scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next scroll moves it. | the call |
 
 ## React Native
 

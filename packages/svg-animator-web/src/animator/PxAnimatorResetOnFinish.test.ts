@@ -67,8 +67,8 @@ describe('timeline.actions.finish', () => {
         api.destroy();
     });
 
-    it("'reset': the document snaps back to frame 0 on natural finish", () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'reset' } } }), container: '#svg-container' });
+    it("'jumpToStart': the document snaps back to frame 0 on natural finish", () => {
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'jumpToStart' } } }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR / 2);
         expect(parseFloat(renderedOpacity() ?? 'NaN')).toBeGreaterThan(0);   // mid-flight
@@ -79,7 +79,7 @@ describe('timeline.actions.finish', () => {
 
     it('the caller’s own onFinish still fires (before the reset)', () => {
         const onFinish = vi.fn();
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'reset' } } }), container: '#svg-container', onFinish });
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'jumpToStart' } } }), container: '#svg-container', onFinish });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(onFinish).toHaveBeenCalledTimes(1);
@@ -87,8 +87,8 @@ describe('timeline.actions.finish', () => {
         api.destroy();
     });
 
-    it("'rewind': the document plays BACK to its start after a natural finish and rests there", () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'rewind' } } }), container: '#svg-container' });
+    it("'animateToStart': the document plays BACK to its start after a natural finish and rests there", () => {
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'animateToStart' } } }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR + DUR / 2);
         expect(api.isPlaying()).toBe(true);                                   // on its way back
@@ -102,7 +102,7 @@ describe('timeline.actions.finish', () => {
     });
 
     it('reset re-arms the animation — play() after finish runs again from the start', () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'reset' } } }), container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ actions: { finish: { behavior: 'jumpToStart' } } }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('0');

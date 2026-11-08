@@ -63,7 +63,7 @@ const MANGLING_HINT = 'If you did not author these keys, the usual cause is a bu
  * key" leaves the reader no wiser, which is the whole point.
  *
  * Through `diag` when a player hands its channel over: ONE `documentSchemaMismatch` warning (kind `document`)
- * carrying the problems and the hint, so `onWarn` receives it and `suppressWarnings` silences the console like
+ * carrying the problems and the hint, so `onWarning` receives it and `suppressWarnings` silences the console like
  * every other diagnostic. Without a channel (a tool, a test) it prints to the console itself.
  *
  * `where` names the entry the document came in through, so the console message says which call to look at.

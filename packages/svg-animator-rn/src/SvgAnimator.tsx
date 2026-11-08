@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxFinishBehavior, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, playLevelsOf, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, playStateToLevels, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -259,7 +259,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
 
     // §10 / D5: in the play tier's ONE-SHOT world the pose contract beats the file's rest poses — pin
     // both sides (the first frame before, the last frame after), so the held poses are the same on
-    // every file (a `finish: reset` document would otherwise revert to its static attrs).
+    // every file (a `finish: jumpToStart` document would otherwise revert to its static attrs).
     if (pinPoseFill && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
         doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
     }
@@ -304,8 +304,8 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
  */
 export function SvgAnimationPlayer({
     doc, timelineOptions, actions,
-    playUsingActionTriggers, playWhile, pauseWhile, playState, playerRef, showAtProgress, showAtTime,
-    onReady, onPlay, onStop, onPause, onReset, onFinish, onDestroy, onError, fallback, onWarn, suppressWarnings, suppressErrors,
+    playUsingActionTriggers, play, pause, playState, playerRef, showAtProgress, showAtTime,
+    onReady, onPlay, onStop, onPause, onFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
@@ -323,7 +323,7 @@ export function SvgAnimationPlayer({
 
     /**
      * The diagnostics channel, built from the CURRENT props each time (API review §5).
-     * Deliberately not hoisted into a wrapper closure: `(m, d) => onWarn?.(m, d)` would always
+     * Deliberately not hoisted into a wrapper closure: `(m, d) => onWarning?.(m, d)` would always
      * be a function, so the channel would believe a handler exists and the console fallback
      * would never fire for anyone who passed nothing.
      *
@@ -331,14 +331,14 @@ export function SvgAnimationPlayer({
      * built them, so callbacks and diagnostics are read through `latest` — refreshed every render
      * (as React's `callbacksRef`) — never the props they closed over.
      */
-    const latest = useRef({ onReady, onPlay, onPause, onReset, onFinish, onStop, onDestroy, onWarn, onError, suppressWarnings, suppressErrors });
-    latest.current = { onReady, onPlay, onPause, onReset, onFinish, onStop, onDestroy, onWarn, onError, suppressWarnings, suppressErrors };
+    const latest = useRef({ onReady, onPlay, onPause, onFinish, onStop, onDestroy, onWarning, onError, suppressWarnings, suppressErrors });
+    latest.current = { onReady, onPlay, onPause, onFinish, onStop, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
     const makeDiag = (): PxDiagnostics => createDiagnostics(latest.current, '[SvgAnimationPlayer]');
 
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAtProgress, showAtTime, playWhile, pauseWhile, playState, playUsingActionTriggers });
+        resolveControlMode({ showAtProgress, showAtTime, play, pause, playState, playUsingActionTriggers });
 
     const compiled = useMemo((): Compiled => {
         try {
@@ -399,7 +399,7 @@ export function SvgAnimationPlayer({
         runClock.stop();
         progress.value = restingPosition();
         latest.current.onFinish?.();
-        executor?.onNaturalFinish();              // `actions.finish`: hold / reset / rewind
+        executor?.onNaturalFinish();              // `actions.finish`: hold / jumpToStart / animateToStart
     };
 
     const startFrom = (fromMs: number) => {
@@ -460,13 +460,12 @@ export function SvgAnimationPlayer({
             runClock.stop();
             latest.current.onPause?.();
         },
-        reset: () => {
+        jumpToStart: () => {
             cancelAnimation(progress);
             progress.value = 0;
             playingRef.current = false;
             runClock.seek(0);
             runClock.stop();
-            latest.current.onReset?.();
         },
         jumpToEnd: () => {
             cancelAnimation(progress);
@@ -475,9 +474,10 @@ export function SvgAnimationPlayer({
             runClock.stop();
             progress.value = restingPosition();
             latest.current.onFinish?.();
+            executor?.onNaturalFinish();          // arriving at the end runs `actions.finish`, as on the web engines
         },
-        getPlaySpeed: () => rateRef.current,
-        setPlaySpeed: (rate: number) => {
+        getPlaybackSpeed: () => rateRef.current,
+        setPlaybackSpeed: (rate: number) => {
             if (!isValidPlaybackRate(rate)) {
                 makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);
                 return;
@@ -542,11 +542,11 @@ export function SvgAnimationPlayer({
             play: () => { guardWrite('play()'); api.play(); },
             pause: () => { guardWrite('pause()'); api.pause(); },
             stop: () => { guardWrite('stop()'); api.stop(); },
-            reset: () => { guardWrite('reset()'); api.reset(); },
+            jumpToStart: () => { guardWrite('jumpToStart()'); api.jumpToStart(); },
             jumpToEnd: () => { guardWrite('jumpToEnd()'); api.jumpToEnd(); },
             playOnce: () => { guardWrite('playOnce()'); api.playOnce(); },
-            setPlaySpeed: (speed: number) => { guardWrite('setPlaySpeed()'); api.setPlaySpeed(speed); },
-            setPlayDuration: (ms: number) => { guardWrite('setPlayDuration()'); api.setPlayDuration(ms); },
+            setPlaybackSpeed: (speed: number) => { guardWrite('setPlaybackSpeed()'); api.setPlaybackSpeed(speed); },
+            setPlaybackDuration: (ms: number) => { guardWrite('setPlaybackDuration()'); api.setPlaybackDuration(ms); },
             setCurrentTime: (t: number) => { guardWrite('setCurrentTime()'); api.setCurrentTime(t); },
             setCurrentProgress: (p: number) => { guardWrite('setCurrentProgress()'); api.setCurrentProgress(p); },
             setTotalTime: (t: number) => { guardWrite('setTotalTime()'); api.setTotalTime(t); },
@@ -589,7 +589,7 @@ export function SvgAnimationPlayer({
             const world = resolvePlaybackWorld(tracks.iterations === Infinity ? 'infinite' : tracks.iterations);
             const totalMs = tracks.iterations === Infinity ? Infinity : tracks.duration * Math.max(1, tracks.iterations);
             const prev = prevPlaybackRef.current?.compiled === compiled ? prevPlaybackRef.current.props : undefined;
-            const levels = playLevelsOf({ playWhile, pauseWhile, playState });
+            const levels = playStateToLevels({ play, pause, playState });
             const { actions, warnings } = resolveDeclarativePlayback({ world, prev, next: levels });
             prevPlaybackRef.current = { compiled, props: levels };
             if (warnings.length) {
@@ -605,7 +605,7 @@ export function SvgAnimationPlayer({
             player.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, compMode, playUsingActionTriggers, playWhile, pauseWhile, playState, showAtProgress, showAtTime]);
+    }, [compiled, compMode, playUsingActionTriggers, play, pause, playState, showAtProgress, showAtTime]);
 
     // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
     // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled
@@ -637,7 +637,7 @@ export function SvgAnimationPlayer({
                     if (startPending) { startPending = false; pausedByGate = false; player.play(); }
                     else if (pausedByGate) { pausedByGate = false; engine.play(); }
                 } else if (player.isPlaying()) {
-                    if (gate.outOfView === PxOutOfViewBehavior.reset) player.reset();
+                    if (gate.outOfView === PxOutOfViewBehavior.jumpToStart) player.jumpToStart();
                     else engine.pause();   // 'continue' never reaches here — the poll does not run
                     pausedByGate = true;
                 }

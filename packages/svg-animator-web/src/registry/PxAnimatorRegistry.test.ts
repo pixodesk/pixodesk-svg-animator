@@ -61,7 +61,7 @@ describe('the page-wide animator registry', () => {
         expect(getAllSvgAnimationPlayers().length).toBe(before);
     });
 
-    it('announces add, play, pause, cancel and remove for the object the caller holds — after its own callbacks', () => {
+    it('announces add, play, pause, stop and remove for the object the caller holds — after its own callbacks', () => {
         const events: Array<string> = [];
         const subjects = new Set<PxAnimationPlayerApi>();
         const own: Array<string> = [];
@@ -69,24 +69,24 @@ describe('the page-wide animator registry', () => {
         const off = onSvgAnimationPlayersChange((event: PxAnimationPlayersEvent, a: PxAnimationPlayerApi) => { events.push(event); subjects.add(a); });
         const api = createSvgAnimationPlayer({
             doc: makeDoc(), container,
-            onPlay: () => own.push('play'), onPause: () => own.push('pause'), onReset: () => own.push('reset'),
+            onPlay: () => own.push('play'), onPause: () => own.push('pause'), onStop: () => own.push('stop'),
         });
         made.push(api);
         api.play();
         api.pause();
-        api.reset();
+        api.stop();
         api.destroy();
         off();
         // Listed first, gone last …
         expect(events[0]).toBe('add');
         expect(events[events.length - 1]).toBe('remove');
         // … and in between the registry mirrors the caller's own callbacks exactly, in order
-        // (the `load` trigger plays once at creation, `destroy()` resets once more on its way
-        // out — both reach the caller and the registry alike).
+        // (the `load` trigger plays once at creation — it reaches the caller and the registry alike; `destroy()`
+        // reports `remove` only, no `reset` any more since 1.22).
         expect(events.slice(1, -1)).toEqual(own);
         expect(own).toContain('play');
         expect(own).toContain('pause');
-        expect(own).toContain('reset');
+        expect(own).toContain('stop');
         // Every event named the proxy `createSvgAnimationPlayer` returned — never the engine behind it.
         expect([...subjects]).toEqual([api]);
     });

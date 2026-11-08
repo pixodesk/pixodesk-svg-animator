@@ -330,7 +330,7 @@ describe('wire step 1.14 → 1.15 — `timeline.beforeStart` → `showWhenStoppe
     it('a 1.9 document converts through every step to the current version: the whole chain in one read', () => {
         const old = { type: 'svg', animator: { version: '1.9.0', timeline: { outTime: 1000, trigger: { playStart: 'click', playStop: 'click' }, playStopAction: 'rewind', outOfViewAction: 'reset', showFirstFrameBeforePlayStart: true } }, children: [] };
         expect(timelineOf(convertWireDocument(old).doc)).toEqual({
-            outTime: 1000, actionTriggers: { start: 'click', stop: 'click' }, actions: { stop: 'rewind', outOfView: 'reset' }, whenIdle: 'firstFrame',
+            outTime: 1000, actionTriggers: { start: 'click', stop: 'click' }, actions: { stop: 'animateToStart', outOfView: 'jumpToStart' }, whenIdle: 'firstFrame',
         });
     });
 
@@ -339,3 +339,43 @@ describe('wire step 1.14 → 1.15 — `timeline.beforeStart` → `showWhenStoppe
         expect(convertWireDocument(current).applied).toEqual([]);
     });
 });
+
+describe('wire steps 1.21 → 1.22 → 1.23 — `playbackSpeed`, and the action words jump / animate to the start or the end (schema-and-props--improvements.md §0)', () => {
+    const at = (version: string, timeline: Record<string, unknown>) => ({ type: 'svg', animator: { version, timeline: { outTime: 1000, ...timeline } }, children: [] });
+    const down = (doc: unknown, b: number) => {
+        const result = applyWireStepsDown(doc, { steps: PX_WIRE_STEPS, target: { a: 1, b, c: 0 }, readerReadsEditorPart: false });
+        if (!result.ok) throw new Error(result.reason);
+        return result.doc;
+    };
+
+    it('1.22: `playSpeed` becomes `playbackSpeed`, value kept, and back', () => {
+        const up = convertWireDocument(at('1.21.0', { playSpeed: 0.5 })).doc;
+        expect(timelineOf(up)).toEqual({ outTime: 1000, playbackSpeed: 0.5 });
+        expect(timelineOf(down(up, 21))).toEqual({ outTime: 1000, playSpeed: 0.5 });
+    });
+
+    it('1.23: every slot\'s word is renamed — the word form and the settings form', () => {
+        const up = convertWireDocument(at('1.22.0', { actions: { start: 'restart', stop: { behavior: 'rewind' }, finish: 'reset', outOfView: 'reset' } })).doc;
+        expect(timelineOf(up)).toEqual({ outTime: 1000, actions: { start: 'jumpToStart', stop: { behavior: 'animateToStart' }, finish: 'jumpToStart', outOfView: 'jumpToStart' } });
+        expect(timelineOf(down(up, 22))).toEqual({ outTime: 1000, actions: { start: 'restart', stop: { behavior: 'rewind' }, finish: 'reset', outOfView: 'reset' } });
+    });
+
+    it('1.23: `completeIteration: true` becomes `stop: animateToEnd`; an ENDLESS timeline takes the old stop word as its finish', () => {
+        const endless = convertWireDocument(at('1.22.0', { iterations: 'infinite', actions: { stop: { behavior: 'rewind', completeIteration: true } } })).doc;
+        expect(timelineOf(endless)).toEqual({ outTime: 1000, iterations: 'infinite', actions: { stop: 'animateToEnd', finish: 'animateToStart' } });
+        // a finite one keeps its finish (accepted limit: the completed stop then ends the way the natural end does)
+        const finite = convertWireDocument(at('1.22.0', { iterations: 3, actions: { stop: { completeIteration: true }, finish: 'hold' } })).doc;
+        expect(timelineOf(finite)).toEqual({ outTime: 1000, iterations: 3, actions: { stop: 'animateToEnd', finish: 'hold' } });
+        // `completeIteration: false` is the default — dropped, the slot keeps its word
+        const off = convertWireDocument(at('1.22.0', { actions: { stop: { behavior: 'rewind', completeIteration: false } } })).doc;
+        expect(timelineOf(off)).toEqual({ outTime: 1000, actions: { stop: 'animateToStart' } });
+    });
+
+    it('1.23 down: `animateToEnd` becomes `completeIteration` with the finish\'s way back; `stop: jumpToEnd` stays for the older reader to default', () => {
+        const back = down(at('1.23.0', { iterations: 'infinite', actions: { stop: 'animateToEnd', finish: 'animateToStart' } }), 22);
+        expect(timelineOf(back)).toEqual({ outTime: 1000, iterations: 'infinite', actions: { stop: { behavior: 'rewind', completeIteration: true }, finish: 'rewind' } });
+        const jump = down(at('1.23.0', { actions: { stop: 'jumpToEnd' } }), 22);
+        expect(timelineOf(jump)).toEqual({ outTime: 1000, actions: { stop: 'jumpToEnd' } });
+    });
+});
+

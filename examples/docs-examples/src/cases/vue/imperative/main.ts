@@ -9,7 +9,7 @@ createApp({
       h('div', { class: 'controls' }, [
         h('button', { onClick: () => api.value?.play() }, 'play()'),
         h('button', { onClick: () => api.value?.pause() }, 'pause()'),
-        h('button', { onClick: () => api.value?.reset() }, 'reset()'),
+        h('button', { onClick: () => api.value?.jumpToStart() }, 'jumpToStart()'),
         h('button', { onClick: () => api.value?.jumpToEnd() }, 'jumpToEnd()'),
       ]),
       h('div', { class: 'stage' }, [

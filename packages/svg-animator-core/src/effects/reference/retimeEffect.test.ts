@@ -741,7 +741,7 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
         }));
         // Same output whether the removed key is absent or points somewhere else entirely.
         // `source` is the removed key — not a retime field any more, on purpose.
-        expect(build(untyped<PxRetimeEffect>({ start: 250, source: '#decoy' }))).toEqual(build({ start: 250 }));
+        expect(build(untyped<PxRetimeEffect>({ offset: 250, source: '#decoy' }))).toEqual(build({ offset: 250 }));
     });
 
     it('the schema gives the removed key no slot — strict validation flags it', () => {

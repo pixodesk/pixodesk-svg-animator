@@ -19,17 +19,17 @@ import { PxDocStage } from './PxDocStage';
 
 describe('animator.timeline spelling compat', () => {
 
-    it('§4: the window folds — inTime/outTime → flat duration (window length) + inTime; playSpeed passes', () => {
+    it('§4: the window folds — inTime/outTime → flat duration (window length) + inTime; playbackSpeed passes', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: { timeline: { inTime: 500, outTime: 2500, playSpeed: 0.5 } },
+            animator: { timeline: { inTime: 500, outTime: 2500, playbackSpeed: 0.5 } },
         });
         expect(cfg?.duration).toBe(2000);        // outTime − inTime: the engines' one length
         expect(cfg?.inTime).toBe(500);           // the sampling shift
-        expect(cfg?.playSpeed).toBe(0.5);        // the file's speed, the engine's initial one
+        expect(cfg?.playbackSpeed).toBe(0.5);        // the file's speed, the engine's initial one
         // …and the round trip writes the window back as its two points
-        expect(nestAnimatorTimeline({ inTime: 500, duration: 2000, playSpeed: 0.5 }).timeline)
-            .toEqual({ inTime: 500, outTime: 2500, playSpeed: 0.5 });
+        expect(nestAnimatorTimeline({ inTime: 500, duration: 2000, playbackSpeed: 0.5 }).timeline)
+            .toEqual({ inTime: 500, outTime: 2500, playbackSpeed: 0.5 });
     });
 
     it('§4: an absent outTime means the max raw keyframe time; none at all means the old default', () => {
@@ -47,8 +47,8 @@ describe('animator.timeline spelling compat', () => {
 
     it('flattens a time timeline to the flat runtime keys (actions.finish → resetOnFinish + fill, iterationDirection → direction)', () => {
         const actions = {
-            start: { behavior: 'restart' }, stop: { behavior: 'rewind', completeIteration: true },
-            finish: { behavior: 'reset' }, outOfView: { behavior: 'continue' },
+            start: { behavior: 'jumpToStart' }, stop: { behavior: 'animateToEnd' },
+            finish: { behavior: 'jumpToStart' }, outOfView: { behavior: 'continue' },
         } as const;
         const flat = resolveAnimatorTimeline({
             timeline: {
@@ -171,14 +171,14 @@ describe('animator.timeline spelling compat', () => {
                 engine: 'auto',
                 outTime: 4000,
                 actionTriggers: { start: 'click' },
-                actions: { finish: 'reset' },
+                actions: { finish: 'jumpToStart' },
                 delay: 250, iterations: 3, iterationDirection: 'reverse'
             }
         });
         // the rest pose comes from `whenIdle`, or from `fill` alone; a held end writes no `actions.finish`
         expect(nestAnimatorTimeline({ whenIdle: 'static', fill: 'both' })).toEqual({ timeline: { whenIdle: 'static' } });
         expect(nestAnimatorTimeline({ fill: 'both' })).toEqual({ timeline: { whenIdle: 'firstFrame' } });
-        expect(nestAnimatorTimeline({ fill: 'backwards' })).toEqual({ timeline: { actions: { finish: 'reset' }, whenIdle: 'firstFrame' } });
+        expect(nestAnimatorTimeline({ fill: 'backwards' })).toEqual({ timeline: { actions: { finish: 'jumpToStart' }, whenIdle: 'firstFrame' } });
         expect(nestAnimatorTimeline({ fill: 'forwards' })).toEqual({});
     });
 
@@ -240,8 +240,8 @@ describe('animator.timeline spelling compat', () => {
             // the derived rest-pose view and its wire source, consistent with each other
             fill: 'backwards', resetOnFinish: true, whenIdle: 'firstFrame',
             actions: {
-                start: { behavior: 'restart' }, stop: { behavior: 'rewind', completeIteration: true },
-                finish: { behavior: 'reset' }, outOfView: { behavior: 'continue' },
+                start: { behavior: 'jumpToStart' }, stop: { behavior: 'animateToEnd' },
+                finish: { behavior: 'jumpToStart' }, outOfView: { behavior: 'continue' },
             },
             inViewThreshold: 0.2, inViewDebounce: 80,
         };
@@ -265,7 +265,7 @@ describe('animator.timeline spelling compat', () => {
     });
 
     it("time timeline: `type: 'time'` and an absent type both validate; the retired 'clock' does not", () => {
-        for (const timeline of [{ type: 'time', outTime: 10 }, { outTime: 10, whenIdle: 'firstFrame', actions: { finish: { behavior: 'rewind' } } }]) {
+        for (const timeline of [{ type: 'time', outTime: 10 }, { outTime: 10, whenIdle: 'firstFrame', actions: { finish: { behavior: 'animateToStart' } } }]) {
             const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
             expect(PxAnimatorConfigSchema.isValid({ timeline }, ctx)).toBe(true);
             expect(ctx.errors).toEqual([]);

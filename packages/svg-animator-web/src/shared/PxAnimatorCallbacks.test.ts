@@ -11,12 +11,12 @@ import { toEngineCallbacks } from './PxAnimatorCallbacks';
 describe('toEngineCallbacks', () => {
 
     it('passes each lifecycle callback through', () => {
-        const onPlay = vi.fn(), onPause = vi.fn(), onReset = vi.fn(), onFinish = vi.fn(), onDestroy = vi.fn();
-        const out = toEngineCallbacks({ onPlay, onPause, onReset, onFinish, onDestroy });
+        const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onDestroy = vi.fn();
+        const out = toEngineCallbacks({ onPlay, onPause, onFinish, onDestroy });
 
-        out.onPlay?.(); out.onPause?.(); out.onReset?.(); out.onFinish?.(); out.onDestroy?.();
+        out.onPlay?.(); out.onPause?.(); out.onFinish?.(); out.onDestroy?.();
 
-        for (const fn of [onPlay, onPause, onReset, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
+        for (const fn of [onPlay, onPause, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
     });
 
     it('onStop is carried through untouched — it is the executor\'s to fire (the built-in stop), never a pause, finish or removal', () => {
@@ -24,7 +24,7 @@ describe('toEngineCallbacks', () => {
         const out = toEngineCallbacks({ onStop, onPause: () => {} });
         expect(out.onStop).toBe(onStop);
 
-        out.onPause?.(); out.onReset?.(); out.onFinish?.(); out.onDestroy?.();
+        out.onPause?.(); out.onFinish?.(); out.onDestroy?.();
         expect(onStop).not.toHaveBeenCalled();
     });
 
@@ -34,7 +34,6 @@ describe('toEngineCallbacks', () => {
         const out = toEngineCallbacks({});
         expect(out.onPlay).toBeUndefined();
         expect(out.onPause).toBeUndefined();
-        expect(out.onReset).toBeUndefined();
         expect(out.onFinish).toBeUndefined();
         expect(out.onDestroy).toBeUndefined();
     });
@@ -45,10 +44,10 @@ describe('toEngineCallbacks', () => {
     });
 
     it('passes the diagnostics fields through untouched', () => {
-        const onWarn = vi.fn(), onError = vi.fn();
-        const out = toEngineCallbacks({ onWarn, onError, suppressWarnings: true, suppressErrors: false });
+        const onWarning = vi.fn(), onError = vi.fn();
+        const out = toEngineCallbacks({ onWarning, onError, suppressWarnings: true, suppressErrors: false });
 
-        expect(out.onWarn).toBe(onWarn);
+        expect(out.onWarning).toBe(onWarning);
         expect(out.onError).toBe(onError);
         expect(out.suppressWarnings).toBe(true);
         expect(out.suppressErrors).toBe(false);

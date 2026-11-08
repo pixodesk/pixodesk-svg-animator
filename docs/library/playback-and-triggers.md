@@ -55,7 +55,7 @@ now two seconds per bounce and waiting until half of it has scrolled into view.
 ## Two blocks — requests and moments
 
 Three things make an animation go: the **triggers** (the user hovers or clicks), a component's
-**`playWhile` / `pauseWhile` props** (your app's state — or `playState`, the same control in one
+**`play` / `pause` props** (your app's state — or `playState`, the same control in one
 word), and the **player API** (`play()`, `pause()`, `stop()` from your code). All three call the same **built-in actions**, so the format writes down
 **how** each action looks exactly once, in the timeline's `actions` block, and all three honour
 it. The two blocks are not mirror images of each other:
@@ -71,15 +71,15 @@ it. The two blocks are not mirror images of each other:
 <!-- px-check off the two-blocks overview — each key and list is checked in its own table below -->
 | action | does | how it looks (`actions`) | requested by (`actionTriggers`) |
 |---|---|---|---|
-| **start** | idle or finished → playing | `start.behavior`: `continue` · `restart` · `jumpToEnd` | `start` |
-| **stop** | playing or paused → idle | `stop.behavior`: `reset` · `rewind`, `stop.completeIteration` | `stop` |
+| **start** | idle or finished → playing | `start.behavior`: `continue` · `jumpToStart` · `jumpToEnd` | `start` |
+| **stop** | playing or paused → idle, or on to the end | `stop.behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` | `stop` |
 | **pause** / **resume** | freeze, and carry on | nothing to configure | `pause`; `resume` — derived unless the file names it |
-| **finish** | the run ends by itself | `finish.behavior`: `hold` · `reset` · `rewind` | — (the player) |
-| **outOfView** / **wake** | nobody can see it / seen again | `outOfView.behavior`: `pause` · `continue` · `reset` | — (the view sensor: a condition, not an event) |
+| **finish** | the end is reached — by itself, or by a `…ToEnd` move | `finish.behavior`: `hold` · `jumpToStart` · `animateToStart` | — (the player) |
+| **outOfView** / **wake** | nobody can see it / seen again | `outOfView.behavior`: `pause` · `continue` · `jumpToStart` | — (the view sensor: a condition, not an event) |
 
-So `player.stop()` on a looping heartbeat with `actions: { stop: { completeIteration: true } }`
-finishes the beat and then rests — and so does a `hoverOut` listed in `actionTriggers.stop`, and so does
-`playWhile={false}` on the React component. One vocabulary, learnt once.
+So `player.stop()` on a looping heartbeat with `actions: { stop: 'animateToEnd' }` finishes the
+beat and then rests — and so does a `hoverOut` listed in `actionTriggers.stop`, and so does
+`play={false}` on the React component. One vocabulary, learnt once — [the action words](#the-action-words).
 
 ## The `timeline` — what advances the playhead
 
@@ -90,7 +90,7 @@ API timeline. Its `type` picks the kind, mirroring WAAPI's `DocumentTimeline` /
 <!-- px-check schema PxTimelineSchema values=type -->
 | `timeline.type` | The playhead follows… |
 |---|---|
-| `time` (default — may be omitted) | wall time — something *starts* it (the `actionTriggers`), and it has the playback dynamics below |
+| `time` (default — may be omitted) | the player's clock — something *starts* it (the `actionTriggers`), and it has the playback dynamics below |
 | `scroll` | a scroll container's offset — [Scroll-driven playback](#scroll-driven-playback-in-development) |
 | `view` | the SVG's journey through the viewport — [Scroll-driven playback](#scroll-driven-playback-in-development) |
 
@@ -109,10 +109,10 @@ in the timeline. `animator` itself keeps only what is not playback: the lookup t
 |---|---|---|---|
 | `timeline.inTime` | ms | `0` | where the content WINDOW begins. Keyframe times are absolute content ms |
 | `timeline.outTime` | ms | max keyframe time | …and where it ends — one pass plays `inTime` → `outTime`. The editor always writes it |
-| `timeline.playSpeed` | factor | `1` | how fast real time passes through the window: `2` plays one pass in half the real time, `0.5` in twice. Content ms stay content ms — only the speed changes. The handle's `setPlaySpeed()` replaces it at runtime; `setPlayDuration(ms)` asks for the same knob as a length. WHY a speed, not a wall duration (`playDuration` until 1.15): every player spells speed as a factor (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`), a factor needs no knowledge of the content's length, and with it no key in the file is ever wall time |
+| `timeline.playbackSpeed` | factor | `1` | the speed one pass plays at: `2` plays one pass in half the time, `0.5` in twice. Content ms stay content ms — only the speed changes. Must be positive in a file (the direction is `iterationDirection`). The handle's `setPlaybackSpeed()` replaces it at runtime; `setPlaybackDuration(ms)` asks for the same knob as a length. WHY a speed, not a duration (`playDuration` until 1.15): every player spells speed as a factor (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`) and a factor needs no knowledge of the content's length. WHY `playback…` (`playSpeed` until 1.21): "playback speed" is how media players say it, and the handle's family reads the same (`getPlaybackDuration()`, `getCurrentPlaybackTime()`) |
 | `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.engine` selects, so it sits beside it |
 | `timeline.engine` | `auto` · `native` · `js` | `auto` | how the animated attributes get updated — [Engine](#engine) |
-| `timeline.delay` | ms | `0` | waited whenever a run starts from the beginning — the first play, a `restart`, a play after a reset or an end — never on a resume from a paused position. Run ms, scaled by the speed as WAAPI's `delay` is: at `playSpeed: 2` a `delay: 500` lasts 250 real ms. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s |
+| `timeline.delay` | ms | `0` | waited whenever a run starts from the beginning — the first play, a `jumpToStart` start, a play after a jump back to the start or an end — never on a resume from a paused position. Scaled by the speed as WAAPI's `delay` is: at `playbackSpeed: 2` a `delay: 500` waits 250 ms. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s |
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
 | `timeline.iterationDirection` | `normal` · `reverse` · `alternate` · `alternateReverse` | `normal` | each iteration's direction; `alternate` ping-pongs on every other iteration. `reverse` applies to a single pass too — still one iteration |
 
@@ -125,15 +125,21 @@ applied first, when the document is prepared; `iterations` then repeats the resu
 can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
 document set to infinite iterations, keeps spinning during every iteration.
 
-### Time axes
+### Two clocks
 
-One rule covers every time on this API: **every plain ms is model ms inside the iteration; `total…`
-counts the whole run; the speed only changes how fast real time passes.** So `inTime` / `outTime`, a
-keyframe's `time`, the components' `showAtTime` and the handle's `getDuration()` / `getCurrentTime()`
-are model ms of one pass; `getTotalDuration()` / `getTotalTime()` span the run — the delay, then every
-iteration; and the `play…` family — `playSpeed`, `getPlayDuration()`, `getCurrentPlayTime()` — is the
-same positions in real time at the current speed. No key in the file is a wall quantity, which is
-why `delay: 500` at `playSpeed: 2` reads as 250 real ms without a table.
+There are two clocks, and every time on this API is on one of them:
+
+- **Model time** — content ms, as the keyframes are authored. `inTime` / `outTime`, a keyframe's
+  `time`, the components' `showAtTime` and the handle's `getDuration()` / `getCurrentTime()` are
+  model ms of **one pass**; the `total…` names span the **whole run**, every iteration included —
+  `getTotalDuration()`, `getTotalTime()`, `getTotalProgress()`.
+- **Playback time** — model time ÷ the speed: the `playback…` family. `playbackSpeed` sets it;
+  `getPlaybackDuration()` is how long one pass takes, `getTotalPlaybackDuration()` the whole run,
+  `getCurrentPlaybackTime()` / `getTotalPlaybackTime()` the playhead on the pass and on the run.
+
+"Total" means *including repeats* — GSAP's words exactly: `time` / `totalTime`,
+`duration` / `totalDuration`, `progress` / `totalProgress`. `delay`, `inViewDebounce` and `frameRate`
+are plain ms (the delay is scaled by the speed, as WAAPI's is).
 
 ## Triggers — WHEN it plays
 
@@ -143,7 +149,7 @@ names it — over one open vocabulary of events:
 
 ```json
 "timeline": {
-  "actions": { "stop": { "completeIteration": true } },
+  "actions": { "stop": "animateToEnd" },
   "actionTriggers": { "start": ["hoverIn", "click"], "stop": "hoverOut", "pause": "click" }
 }
 ```
@@ -223,8 +229,8 @@ playing or paused — and every action checks the state **as it was when the eve
 
 - `{ "start": "click", "pause": "click" }`: a click while idle starts, while playing pauses,
   while paused resumes.
-- Add `actions: { start: 'restart' }` and a click while idle restarts, while a
-  click while paused still resumes.
+- Add `actions: { start: 'jumpToStart' }` and a click while idle (or finished) starts from the
+  top, while a click while paused still resumes.
 
 Two lists that react to the same event **in the same state** are a **collision**: the players
 report it ([PX1109](../diagnostics.md#what-the-document-says)) and one of them wins.
@@ -252,7 +258,7 @@ Every warning the players give about a triggers block, by kind:
 
 An absent `actionTriggers` block and an empty one, `"actionTriggers": {}`, mean the same thing:
 nothing is listed, so nothing starts the animation until something drives it — your code's `play()`,
-a component's `playWhile` prop, or a `playUsingActionTriggers` object. A file that plays by itself
+a component's `play` prop, or a `playUsingActionTriggers` object. A file that plays by itself
 says so: `"actionTriggers": { "start": "load" }`. The editor always writes it, and files saved before
 schema 1.17 — when an absent block still meant `load` — get the line written in when they are
 migrated. WHY: a default nobody wrote is a guess, and an absent block meaning something other than an
@@ -267,58 +273,99 @@ on*, editable.
 ## Actions — how start, stop and finish look
 
 `timeline.actions` gives the built-in actions their settings — one slot per moment. `behavior` names a
-**preset**: one word for where the move ends and the path it takes there (an instant jump, playing
-on, playing back) — and a slot that says only `behavior` is written as the word itself: `"stop": "rewind"`
-is exactly `"stop": { "behavior": "rewind" }`. Every setting has a stated default, so a document that says
-nothing plays the way it always did: a start continues, a stop resets, the end holds. A key here names
-a moment; `start` and `stop` are requests too, so they appear in `actionTriggers` as well
-([Two blocks](#two-blocks--requests-and-moments)).
+**preset**: one word for where the move goes and how it gets there — and a slot that says only
+`behavior` is written as the word itself: `"stop": "animateToStart"` is exactly
+`"stop": { "behavior": "animateToStart" }`. Every setting has a stated default, so a document that says
+nothing plays the way it always did: a start continues, a stop jumps back to the start, the end holds.
+A key here names a moment; `start` and `stop` are requests too, so they appear in `actionTriggers` as
+well ([Two blocks](#two-blocks--requests-and-moments)).
+
+### The action words
+
+Every move names **where** it goes (`…ToStart` / `…ToEnd`) and **how** (`jump…` at once,
+`animate…` playing there). The same words serve every slot that can take them:
+
+<!-- px-check off the one table of action words — each slot's values are checked in its own table below -->
+| Word | Means | Taken by |
+|---|---|---|
+| `jumpToStart` | at once to the idle pose (`whenIdle`: the file's static look, or the first frame) | `start` · `stop` · `finish` · `outOfView` |
+| `animateToStart` | plays backwards to the idle pose | `stop` · `finish` |
+| `jumpToEnd` | at once to the end of the pass (a one-shot: the run's end) | `start` · `stop` |
+| `animateToEnd` | plays on to the end of the pass | `stop` |
+| `continue` | keeps going from where it is | `start` · `outOfView` |
+| `hold` | stays where it is | `finish` |
+| `pause` | freezes where it is (the gate only) | `outOfView` |
+
+**Reaching the end runs `actions.finish`** — by any route: the natural end, a stop that goes there
+(`jumpToEnd`, `animateToEnd`), a start that goes there (`jumpToEnd`), or the handle's `jumpToEnd()`.
+"The end" is the end of the **current pass**; on a one-shot that is the run's end. WHY these words
+(`reset` / `rewind` / `restart` / `completeIteration` until 1.22): one destination word and one manner
+word say what a reader had to look up — "reset to where?", "rewind how?", "complete what?".
+
+<!-- px-check off worked examples — the words are checked in the tables below -->
+| You want | `actions` | What happens |
+|---|---|---|
+| stop after this pass — a heartbeat should not die mid-beat | `{ stop: 'animateToEnd' }` | a stop plays on to the end of the current pass; arriving there runs `finish` — `hold` rests on that frame |
+| …then snap back | `{ stop: 'animateToEnd', finish: 'jumpToStart' }` | the beat completes, then the idle pose |
+| …then undo it smoothly | `{ stop: 'animateToEnd', finish: 'animateToStart' }` | the beat completes, then plays back to the idle pose — an explicit two-leg chain |
+| a lid that opens on hover-in and closes animated on hover-out | `{ stop: 'animateToStart' }` | a stop plays backwards from wherever it is |
+| an overlay that appears at once and leaves animated | `{ start: 'jumpToEnd', stop: 'animateToStart' }` | a start shows the end pose with no motion (then `finish`: `hold`); a stop plays it back out |
+| a splash that replays on every click | `{ start: 'jumpToStart' }` | a start always plays from the top |
 
 <!-- px-check schema PxActionsSchema -->
 | Field | Values | Default |
 |---|---|---|
-| `start.behavior` | `continue` · `restart` · `jumpToEnd` | `continue` |
-| `stop.behavior` | `reset` · `rewind` | `reset` |
-| `stop.completeIteration` | `true` · `false` | `false` |
-| `finish.behavior` | `hold` · `reset` · `rewind` | `hold` |
-| `outOfView.behavior` | `pause` · `continue` · `reset` | `pause` — [the visibility gate](#whether-it-may-run--the-visibility-gate) |
+| `start.behavior` | `continue` · `jumpToStart` · `jumpToEnd` | `continue` |
+| `stop.behavior` | `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` | `jumpToStart` |
+| `finish.behavior` | `hold` · `jumpToStart` · `animateToStart` | `hold` |
+| `outOfView.behavior` | `pause` · `continue` · `jumpToStart` | `pause` — [the visibility gate](#whether-it-may-run--the-visibility-gate) |
 
 `pause`, `resume` and `wake` have nothing to configure.
 
 <!-- px-check values PxStartBehavior pkg=core -->
-| `actions.start.behavior` | A start (a `start` event, `playWhile={true}`, `play()`)… |
+| `actions.start.behavior` | A start (a `start` event, `play={true}`, `play()`)… |
 |---|---|
 | `continue` (default) | continues from the current position. At the start or the end, that is a fresh run from the beginning |
-| `restart` | starts from the beginning every time — a splash that must replay on every click |
-| `jumpToEnd` | lands in finished: the end pose with no motion — overlay art that appears instantly and retreats animated. WHY `jumpToEnd` (`jumpToFinished` until 1.17): its siblings name positions and motion — `restart`, `rewind`, `reset` — while `finished` is a state |
+| `jumpToStart` | starts from the beginning every time — a splash that must replay on every click (was `restart`) |
+| `jumpToEnd` | lands at the end pose with no motion, then runs `finish` — overlay art that appears instantly and retreats animated with `stop: 'animateToStart'`. `iterationDirection: 'reverse'` cannot replace it: a reversed one-shot still *plays* when started |
 
 <!-- px-check values PxStopBehavior pkg=core -->
-| `actions.stop.behavior` | A stop (a `stop` event, `playWhile={false}`, `stop()`)… |
+| `actions.stop.behavior` | A stop (a `stop` event, `play={false}`, `stop()`)… |
 |---|---|
-| `reset` (default) | jumps back to the state as before it started |
-| `rewind` | plays BACK to it — the VCR word, never confused with `iterationDirection: reverse`. The trash-can lid: opens on hover-in, closes animated on hover-out |
-
-<!-- px-check off one boolean, not a value list -->
-| `actions.stop.completeIteration` | WHEN the stop takes effect |
-|---|---|
-| `false` (default) | now |
-| `true` | after the current iteration — a heartbeat should not die mid-beat; a one-shot runs to its end first. Orthogonal to `behavior`: `rewind` after completion plays back from there — finish the motion, then undo it smoothly |
+| `jumpToStart` (default) | jumps back to the idle pose at once (was `reset`) |
+| `animateToStart` | plays backwards to the idle pose (was `rewind`) — the trash-can lid: opens on hover-in, closes animated on hover-out |
+| `jumpToEnd` | jumps to the end of the current pass, then runs `finish` |
+| `animateToEnd` | plays on to the end of the current pass, then runs `finish` — "stop after this pass" (was `stop.completeIteration: true`); a one-shot runs to its end first |
 
 <!-- px-check values PxFinishBehavior pkg=core -->
-| `actions.finish.behavior` | When it ends by itself (every iteration played)… |
+| `actions.finish.behavior` | At the end — every iteration played, or a `…ToEnd` move arrived… |
 |---|---|
-| `hold` (default) | keeps the last frame showing |
-| `reset` | jumps back to the start state |
-| `rewind` | plays back to the start state |
+| `hold` (default) | keeps the last frame showing (the `finished` state) |
+| `jumpToStart` | jumps back to the idle pose (was `reset`) |
+| `animateToStart` | plays backwards to the idle pose (was `rewind`) |
 
-`reset` means ONE thing wherever it appears (the stop, finish and out-of-view presets): the state
-as before it started — the SVG as authored. A hand-authored file whose static attributes differ
-from its first keyframe can ask for the **first frame** instead with `timeline.whenIdle`,
-which governs the whole **idle** state — before the first start, after `reset()`, after a stop or
-finish whose behavior is `reset`, and where a `rewind` lands (a paused animation shows its paused
-frame, a finished one its held frame). WHY `whenIdle` (`showWhenStopped` until 1.18): "stopped" read
-as played-then-stopped, "before start" as the first start only; `idle` is WAAPI's word for exactly
-this state, so the key, the `PxPlayState` value and `getPlayState()` now say one word:
+### What shows while idle — `whenIdle`
+
+`jumpToStart` and `animateToStart` land on ONE picture wherever they appear: the **idle pose** — by
+default the SVG as authored. A hand-authored file whose static attributes differ from its first
+keyframe can ask for the **first frame** instead with `timeline.whenIdle`, which governs the whole
+**idle** state — before the first start, after `jumpToStart()`, after a stop or finish that went back
+to the start (a paused animation shows its paused frame, a finished one its held frame).
+
+It is CSS's `animation-fill-mode`, split in two: what shows **before** the run is `whenIdle`, what
+stays **after** it is `actions.finish`.
+
+<!-- px-check off the fill-mode correspondence, prose -->
+| CSS `animation-fill-mode` | SVGA |
+|---|---|
+| `backwards` | `whenIdle: 'firstFrame'` |
+| `forwards` | `finish: 'hold'` (the default) |
+| `both` | both of the above |
+| `none` | neither — `whenIdle: 'static'` and a finish that goes back to the start |
+
+WHY `whenIdle` (`showWhenStopped` until 1.18): "stopped" read as played-then-stopped, "before start"
+as the first start only; `idle` is WAAPI's word for exactly this state, so the key, the `PxPlayState`
+value and `getPlayState()` now say one word:
 
 <!-- px-check values PxWhenIdle pkg=core -->
 | `timeline.whenIdle` | What is shown while idle |
@@ -326,16 +373,16 @@ this state, so the key, the `PxPlayState` value and `getPlayState()` now say one
 | `static` (default) | the SVG as authored |
 | `firstFrame` | the first frame's values. The editor never writes it: in its files the two are the same picture |
 
-A **one-shot document** driven by a component's `playWhile` prop reads these settings too:
-`playWhile={true}` is a start (the default `continue` plays to the end and holds there, per finish
-`hold`), `playWhile={false}` a stop (`reset` snaps back, `rewind` plays back). The trash-can lid that
-closes animated is `actions={{ stop: 'rewind' }}`; overlay art that appears at once
-and retreats animated is `actions={{ start: 'jumpToEnd', stop: 'rewind' }}`.
+A **one-shot document** driven by a component's `play` prop reads these settings too:
+`play={true}` is a start (the default `continue` plays to the end and holds there, per finish
+`hold`), `play={false}` a stop (`jumpToStart` snaps back, `animateToStart` plays back). The trash-can
+lid that closes animated is `actions={{ stop: 'animateToStart' }}`; overlay art that appears at once
+and retreats animated is `actions={{ start: 'jumpToEnd', stop: 'animateToStart' }}`.
 
 ### Whether it may run — the visibility gate
 
 An animation nobody can see does not play, whatever started it. The gate is a **condition on
-every driver** — the triggers, a component's `playWhile` prop and the API alike — not an event: once
+every driver** — the triggers, a component's `play` prop and the API alike — not an event: once
 none of it is on screen the player performs the built-in `outOfView` moment, and once it is seen
 again `wake`, which carries on whatever was meant to run. `outOfView` has one setting; the two
 numbers that say when the sensor counts it as seen are plain timeline keys:
@@ -345,7 +392,7 @@ numbers that say when the sensor counts it as seen are plain timeline keys:
 |---|---|
 | `pause` (default) | pause where it is; it resumes when the element comes back |
 | `continue` | keep playing — and start without waiting to be seen at all |
-| `reset` | jump back to the start, so the next entry replays it from the beginning |
+| `jumpToStart` | jump back to the idle pose, so the next entry replays it from the beginning (was `reset`) |
 
 `continue` reads differently in the two slots that take it: under `actions.start` it means "from
 where it rests", here "keep running".
@@ -357,7 +404,7 @@ where it rests", here "keep running".
 | `timeline.inViewDebounce` | `150` | and for how long, in ms. Scrolling straight past an animation therefore starts nothing; `0` starts the moment the threshold is met |
 
 `wake` needs no setting: if it was meant to run, it runs again — from the paused position after
-`pause`, from the start after `reset`; `continue` never stopped. A hidden browser tab counts as
+`pause`, from the start after `jumpToStart`; `continue` never stopped. A hidden browser tab counts as
 out of view. An element taller than the screen counts as fully visible once it fills the screen,
 so a threshold of `0.5` or `1` can always be met. Where nothing can measure visibility — a server
 render, a test environment without `IntersectionObserver` — the animation plays as if fully
@@ -377,14 +424,15 @@ for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 - **Pre-rendered SVG + CSS animation** (no script at all) listens for `load` and, through CSS
   `:hover`, for `hoverIn` and `hoverOut` — `hoverOut` may pause or stop, not both. `click` and the
   visibility gate cannot be done in pure CSS and are dropped from the file; the actions keep
-  their defaults (a class cannot restart keyframes or play them backwards). The editor marks every
+  their defaults (a class cannot jump keyframes to their start or end, or play them backwards). The editor marks every
   choice *(CSS)* or *(JS)* so you see what the script-free flavour keeps. See
   [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
-- **The CSS components** (`SvgCssAnimationPlayer` in React and Vue) take the same `actionTriggers`
-  object, `actions` limited to `outOfView`, and the two gate numbers as props, and read them with the
-  same rules — an absent `actionTriggers` prop lists nothing, so nothing starts without one (until
-  1.17 they played on load); `rewind`, `restart`, `jumpToEnd` and the iteration completion act as the
-  defaults there, for the same reason.
+- **The CSS components** (`SvgCssAnimationPlayer` in React and Vue) take the JS component's prop
+  names, narrowed: `playUsingActionTriggers` as a block only (a script-free SVG carries no triggers the
+  component could read, so there is no `true`), `timelineOptions` with the two gate numbers, and
+  `actions` limited to `outOfView` — read with the same rules. An absent `playUsingActionTriggers`
+  lists nothing, so nothing starts without one. Accepted limits of a class toggle: the start is
+  always `continue` and the stop always `jumpToStart`, for the same reason as above.
 
 ## Overriding from a player
 
@@ -398,16 +446,16 @@ player takes the **same three overrides**, and the file on disk is never modifie
 <!-- px-check off the three override props, prose — their types are checked in each player's signature block -->
 | | prop / option | what it carries |
 |---|---|---|
-| the timing | `timelineOptions` | corrections to the file's `timeline` block, minus its `actionTriggers` and `actions` — `iterations`, `delay`, `playSpeed`, the gate numbers — as an object shaped like the file; whoever needs more edits the document |
-| the actions | `actions` | corrections to the file's `timeline.actions`, setting by setting — `{ stop: 'rewind' }` changes how a stop looks and leaves the rest as the file has it |
-| the triggers | `playUsingActionTriggers` | `true` plays on the file's own triggers; an **object** is the whole `actionTriggers` block to use instead. Lists left out are simply not listed, never the file's values |
+| the timing | `timelineOptions` | corrections to the file's `timeline` block, minus its `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, the gate numbers — as an object shaped like the file; whoever needs more edits the document |
+| the actions | `actions` | corrections to the file's `timeline.actions`, setting by setting — `{ stop: 'animateToStart' }` changes how a stop looks and leaves the rest as the file has it |
+| the triggers | `playUsingActionTriggers` | `true` plays on the file's own triggers; an **object** is the whole `actionTriggers` block to use instead — `resume` included (derived when left out), so the override has the file's power. Lists left out are simply not listed, never the file's values |
 
 Merge or replace — the one rule for the three:
 
 <!-- px-check off merge versus replace, prose -->
 | | |
 |---|---|
-| `timelineOptions`, `actions` | **patches** — objects merge key by key, values replace, `null` deletes |
+| `timelineOptions`, `actions` | **recursive partials** — objects merge key by key, values replace, a key left out changes nothing |
 | a `playUsingActionTriggers` object | **replaces** the file's `actionTriggers` as a whole — its lists belong together, so switching hover → click would otherwise carry the hover-era lists along |
 
 The prop is `timelineOptions`, not `timeline`: it is not the file's `timeline` object — two of its
@@ -427,10 +475,10 @@ const a = createSvgAnimationPlayer({
   src: '/bouncing-ball.json',
   container: '#box',
   timelineOptions: { iterations: 'infinite' },
-  actions: { stop: { completeIteration: true } },   // no `playUsingActionTriggers`: nothing starts until a.play()
+  actions: { stop: 'animateToEnd' },   // no `playUsingActionTriggers`: nothing starts until a.play()
 });
 a.play();
-a.stop();      // finishes the current iteration, then rests — the actions said so
+a.stop();      // plays on to the end of the current pass, then rests — the actions said so
 ```
 
 **React / Vue / React Native** — the same objects, as props:
@@ -441,13 +489,13 @@ a.stop();      // finishes the current iteration, then rests — the actions sai
 
 // these triggers instead of the file's: starts on hover-in, plays back on hover-out
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'hoverIn', stop: 'hoverOut' }}
-  actions={{ stop: 'rewind' }} />
+  actions={{ stop: 'animateToStart' }} />
 
 // one click starts it, the next stops it
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'click', stop: 'click' }} />
 
 // driven by your state — the same actions, the same settings
-<SvgAnimationPlayer doc={spinner} playWhile={busy} actions={{ stop: { completeIteration: true } }} />
+<SvgAnimationPlayer doc={spinner} play={busy} actions={{ stop: 'animateToEnd' }} />
 ```
 
 ### How the merge works
@@ -455,11 +503,11 @@ a.stop();      // finishes the current iteration, then rests — the actions sai
 <!-- px-check off the merge rules, prose -->
 | | |
 | --- | --- |
-| **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them; `actions: { stop: 'rewind' }` leaves `stop.completeIteration` and the other actions alone |
+| **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them; `actions: { stop: 'animateToStart' }` leaves the other actions alone |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
-| **`null` deletes** | `{ timelineOptions: { delay: null } }` removes the file's delay, restoring what its *absence* means; `{ actions: { stop: null } }` drops the file's stop settings. This is the only way to get a default back, because there is no value that spells "unset" |
+| **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0 } }`, `{ actions: { finish: 'hold' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
 | **`actionTriggers` and `actions` are not timeline keys here** | the file nests them, the props lift them: only `playUsingActionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error |
-| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `delay`, `playSpeed`, `iterationDirection`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning |
+| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `delay`, `playbackSpeed`, `iterationDirection`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning |
 
 Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions, playUsingActionTriggers })`
 is the one implementation the web player and the three components call: the timing and the
@@ -469,28 +517,34 @@ and `actions` of `PxPlaybackOverride` plus `playUsingActionTriggers`), its answe
 document, sharing every untouched subtree, and the merge's warnings. `applyAnimatorConfig(doc, patch)`
 applies a patch to a whole document; `mergeAnimatorConfig` does the same one level down, on the
 `animator` block alone, and reports what it could and could not do in a `PxAnimatorConfigMergeResult`.
-A patch is a `PxPatch` of the wire type — every key optional at every depth, `null` deletes,
-arrays and primitives replace — so `PxAnimatorConfigPatch` patches the `animator` block,
-`PxTimelinePatch` the timing, typed from `PxTimelineTiming` (the timeline minus `actionTriggers` and
-`actions`), and `PxActionsPatch` the `actions` block (`PxActions`). `withTriggers(doc, triggers)`
-is the SET a `PxActionTriggers` block needs (an empty block and a replacement that drops keys are things
-a merge cannot say).
+A patch is a `PxRecursivePartial` of the wire type — every key optional at every depth, arrays and
+primitives replaced whole, no delete — so `PxAnimatorConfigPatch` patches the `animator` block,
+`PxTimelineOptions` (the `timelineOptions` prop) the timing, typed from `PxTimelineTiming` (the timeline
+minus `actionTriggers` and `actions`), and `PxActionsOptions` (the `actions` prop) the `actions` block
+(`PxActions`). WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22):
+`PxRecursivePartial` says what the type IS — the common `RecursivePartial`; the other two are the props'
+own words. `withActionTriggers(doc, triggers)` is the SET a `PxActionTriggers` block needs (an empty
+block and a replacement that drops keys are things a merge cannot say).
 
 ### A note on the components' control props
 
-When you control a component with `playWhile`, `pauseWhile`, `playState`, `showAtProgress` or `showAtTime`,
+When you control a component with `play` / `pause`, `playState`, `showAtProgress` or `showAtTime`,
 the component ignores the triggers saved in the file: core's `withoutTriggerDriver` replaces them
 with an **empty** `actionTriggers` block, so nothing starts the animation by itself — the same patch the
 web player applies when `playUsingActionTriggers` is absent. Only `playUsingActionTriggers` mode follows the file's
-triggers. The `playWhile` / `pauseWhile` props (and `playState`) call the built-in actions, so the file's `actions` (and the
+triggers. The `play` / `pause` props (and `playState`) call the built-in actions, so the file's `actions` (and the
 `actions` prop) still say how each move looks. `playerRef` is not a control prop: the handle is
 filled in every mode and never changes which one you are in.
 
-React, Vue and React Native decide this with the same core function, so they always agree.
-`resolveControlMode` looks at the control props you passed (`PxControlProps`) and returns the
-mode that wins (`PxControlMode`), plus a ready-made warning if you passed props from more than
-one mode. `controlModeTakesOverTrigger` then says whether that mode ignores the file's triggers —
-true for every mode except `playUsingActionTriggers`.
+**One driver family at a time.** The React and React Native components type their control props as
+`PxControlProps`, a union: `showAtProgress` · `showAtTime` · `play` + `pause` · `playState` · `playUsingActionTriggers` —
+two families together do not compile. Vue's runtime props, or a JavaScript caller, can still pass any mix (`PxAnyControlProps`
+is every control prop, in any mix): React, Vue and React Native decide it with the same core
+function, so they always agree. `resolveControlMode` reads the props you passed and returns the mode
+that wins (`PxControlMode`), plus a ready-made [PX1501](../diagnostics.md#the-props-a-component-was-given)
+warning when they came from more than one family — also when both `showAtProgress` and `showAtTime`
+are set (`showAtProgress` wins). `controlModeTakesOverTrigger` then says whether that mode ignores the
+file's triggers — true for every mode except `playUsingActionTriggers`.
 
 ### For player authors — the same rules, exported
 
@@ -498,14 +552,14 @@ Everything above is decided by functions in `@pixodesk/svg-animator-core`, so a 
 write yourself cannot drift from the four shipped ones:
 
 - **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means
-  (the behaviors `continue` · `reset` · `hold` · `pause`, no iteration completion,
+  (the behaviors `continue` · `jumpToStart` · `hold` · `pause`,
   `whenIdle: 'static'`, 0.5, 150 ms — and no `start`: an absent trigger block names no event).
   `resolveTriggers(triggers)` returns a `PxResolvedTriggers` —
   every list an array of the events it may name (`triggerEventList` normalises one), `resume`
   derived unless the file names it, an absent block and an empty one both nothing.
   `resolveActions(actions)` returns a
   `PxResolvedActions` — every setting defaulted; `actionSettingsOf(slot)` reads one slot however it
-  is written (the word `'rewind'` is exactly `{ behavior: 'rewind' }`). `resolveGate(view)` returns a `PxResolvedGate`:
+  is written (the word `'animateToStart'` is exactly `{ behavior: 'animateToStart' }`). `resolveGate(view)` returns a `PxResolvedGate`:
   the `outOfView` behavior and the two sensor numbers, defaulted.
 - **The lists.** `PxTriggerList` names them (`start` · `stop` · `pause` · `resume`);
   `allowedTriggerEvents(list)` is the table of events each may name (the schema is built from it);
@@ -525,22 +579,38 @@ write yourself cannot drift from the four shipped ones:
   (`PxResolvedTriggers`, `PxTriggerIssue`) come from `@pixodesk/svg-animator-core/engine`; the
   consts `PxTriggerList`, `PxTriggerIssueKind`, `PxPlayState` and `PxTriggerAction` from the main entry.
 - **The executor.** One `PxPlayExecutor` per player performs every built-in action — `start()` per
-  `actions.start`, `stop()` per `actions.stop` (preset and iteration completion), `pause()` /
-  `resume()`, the state-rule `play()`, `reset()` (the unconditional reset-now), `rewind()`, and
-  `onNaturalFinish()`, which performs `actions.finish` when the engine reports the end. It owns the one
-  state engines cannot report: paused versus idle. `createPlayExecutor(api, config, raf)` builds
+  `actions.start`, `stop()` per `actions.stop`, `pause()` / `resume()`, the state-rule `play()`,
+  `jumpToStart()` (the unconditional jump to the idle pose), `animateToStart()`, and
+  `onNaturalFinish()`, which performs `actions.finish` when the engine reports the end (or a jump
+  there). It owns the one state engines cannot report: paused versus idle.
+  `playStateToLevels(props)` (`/engine`) turns the `playState` word into the two levels the executor
+  is driven by — `{ play, pause }` — so every framework component resolves `playState` the same way. `createPlayExecutor(api, config, raf)` builds
   one over any `PxPlayTarget` (the slice of the API it drives) from a `PxPlayExecutorConfig` (the
   run's geometry and the `actions` — `executorConfigOf(view)` reads them from the runtime view, a
   `PxApiExtrasConfig`); `ensurePlayExecutor` reuses the one an engine attached. `composeApiExtras(api, cfg, raf)`
   then completes an engine's api (a `PxApiExtrasTarget`) with the composed members — `play()`,
-  `stop()`, `reset()`, `playOnce()`, `getDuration()`, `getPlayState()` and every per-iteration and
-  real-time read (`getCurrentTime()`, `getCurrentIteration()`, `getPlayDuration()`, …) — as `PxApiExtras`,
+  `stop()`, `jumpToStart()`, `playOnce()`, `getDuration()`, `getPlayState()` and every per-iteration and
+  playback read (`getCurrentTime()`, `getCurrentIteration()`, `getPlaybackDuration()`, …) — as `PxApiExtras`,
   so one engine keeps one run clock and no rule can drift between engines. `applyDeclarativeAction`
   drives a `PxDeclarativeTarget` (the public api, or a component's proxy to it) from the
   declarative resolver's actions.
 - **CSS.** `fillModeOf(whenIdle, finishBehavior)` is the `animation-fill-mode` the two
-  settings spell — (`static`, `hold`) `forwards`, (`firstFrame`, `hold`) `both`, (`static`, `reset`)
-  `none`, (`firstFrame`, `reset`) `backwards` — what the CSS export and the WAAPI engine hand to the browser.
+  settings spell — (`static`, `hold`) `forwards`, (`firstFrame`, `hold`) `both`, (`static`, `jumpToStart`)
+  `none`, (`firstFrame`, `jumpToStart`) `backwards` — what the CSS export and the WAAPI engine hand to the browser.
+
+## The contract
+
+What the names alone do not settle — each row is a test in the packages:
+
+<!-- px-check off behaviour rules, prose -->
+| Rule | What it means |
+|---|---|
+| A stop that reaches the end runs `finish` | `stop: 'jumpToEnd'` or `'animateToEnd'` arrives at the end of the current pass and performs `actions.finish` — `hold` rests there (`finished`), `jumpToStart` / `animateToStart` go back. `onStop` fires when the stop is performed: at once, or on arrival for `animateToEnd`. A loop stopped at a pass end reports `onStop` only — its run never ended, so there is no `onFinish` |
+| The state during a move reads `idle` | while an `animateToStart` or `animateToEnd` move is on its way, `getPlayState()` reads `idle` |
+| A negative speed multiplies with `iterationDirection` | `setPlaybackSpeed(-1)` plays a `reverse` pass forwards. A file's `playbackSpeed` must be positive — in a file the direction is `iterationDirection` |
+| Playback verbs do nothing on a scroll or view timeline | the scroll position owns the playhead: `play()`, `pause()`, `stop()`, `playOnce()`, `setPlaybackSpeed()` and `setPlaybackDuration()` are no-ops with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); a seek still applies until the next scroll moves it |
+| `play={false}` on mount does nothing | a component mounted with `play={false}` performs no stop action — there is nothing to stop yet; a change from `true` to `false` stops |
+| `jumpToStart()` reports nothing | the handle's unconditional jump to the idle pose fires no callback — like a seek (`setCurrentTime()`); `stop()` runs the file's stop action and reports `onStop` |
 
 ## Scroll-driven playback (in development)
 

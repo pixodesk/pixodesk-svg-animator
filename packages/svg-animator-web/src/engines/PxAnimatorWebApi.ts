@@ -365,10 +365,9 @@ export function createWebApiAnimator(
             animations.forEach(a => a.pause());
             callbacks?.onPause?.();
         },
-        "reset": () => {
+        "jumpToStart": () => {
             finishNotified = false; // re-arm finish notification
             animations.forEach(a => a.cancel());
-            callbacks?.onReset?.();
         },
         "jumpToEnd": () => {
             for (const a of animations) {
@@ -388,8 +387,8 @@ export function createWebApiAnimator(
             // handler wired at construction time.
         },
 
-        "getPlaySpeed": (): number => animations[0]?.playbackRate ?? 1,
-        "setPlaySpeed": (rate: number) => {
+        "getPlaybackSpeed": (): number => animations[0]?.playbackRate ?? 1,
+        "setPlaybackSpeed": (rate: number) => {
             // WAAPI itself accepts 0 and silently freezes; the other two engines reject it.
             // One answer everywhere (review §3) — `pause()` is how you stop.
             if (!isValidPlaybackRate(rate)) {
@@ -415,7 +414,7 @@ export function createWebApiAnimator(
         },
 
         "destroy": () => {
-            api.reset();
+            api.jumpToStart();
             animations.splice(0, animations.length);
             if (!removeCalled) {
                 removeCalled = true;
@@ -440,7 +439,7 @@ export function createWebApiAnimator(
     }
 
     // A progress-based timeline only tracks while the animation is PLAYING — start it
-    // (there is no wall clock involved; "playing" here means "bound to the timeline").
+    // (no clock of its own involved; "playing" here means "bound to the timeline").
     if (scrollTimeline) {
         animations.forEach(a => a.play());
     }

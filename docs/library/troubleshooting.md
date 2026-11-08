@@ -19,12 +19,12 @@ an absent block no longer means load (stamped files were migrated; a hand-writte
 version stamp has to say it). Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
-that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `playWhile`,
-`pauseWhile`, `playState`, `showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
+that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `play`,
+`pause`, `playState`, `showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
 change the mode.
 
-**React / Vue component with no control prop.** With none of `playUsingActionTriggers` / `playWhile` /
-`pauseWhile` / `playState` / `showAtProgress` / `showAtTime` set, the component deliberately renders the
+**React / Vue component with no control prop.** With none of `playUsingActionTriggers` / `play` /
+`pause` / `playState` / `showAtProgress` / `showAtTime` set, the component deliberately renders the
 first frame and does nothing. Add `playUsingActionTriggers`. `playerRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
@@ -53,7 +53,7 @@ inline with a changing value. Build the document once (module level or `useMemo`
 **Console: `setAttribute: No elements found for selector "#…"` on unmount.** Cosmetic — a
 late frame after teardown. Safe to ignore.
 
-**`onReset` / `onDestroy` / `onStop` fire when I pass a different `doc`.** Expected: a new
+**`onDestroy` fires when I pass a different `doc`.** Expected: a new
 document means a new player; the old one is thrown away and reports it on its way out.
 
 **Next.js: "useRef is not a function" / hooks error.** The component must be used from a client
@@ -61,12 +61,24 @@ component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
 
-**`setPlaybackRate` / `jumpToFinished` is not a function; `play` is not a prop.** Renamed in 1.21:
-`setPlaySpeed(s)` (with `getPlaySpeed()`), `jumpToEnd()`; the component props `play` / `pause` are
-`playWhile` / `pauseWhile` (or one `playState`); `timelineOptions.playDuration` is `playSpeed`
-(`playSpeed = (outTime − inTime) / playDuration`); the type `PxDocumentInput` is `PxDocumentJson`.
-`getCurrentTime()` / `setCurrentTime()` and `getCurrentProgress()` now mean the position INSIDE the
-current iteration — the run is `getTotalTime()` / `getTotalDuration()`.
+**`setPlaySpeed` / `reset` / `onReset` is not there; `playWhile` is not a prop.** Renamed in 1.22 / 1.23:
+`setPlaybackSpeed(s)` (with `getPlaybackSpeed()`), `get/setPlaybackDuration()`, `getTotalPlaybackDuration()`,
+`getCurrentPlaybackTime()`; `reset()` is `jumpToStart()` (it reports nothing — `onReset` is gone; the
+state is `getPlayState() === 'idle'`); `onWarn` is `onWarning`; the component props `playWhile` /
+`pauseWhile` are back to `play` / `pause` (or one `playState`); `timelineOptions.playSpeed` is
+`playbackSpeed`; the action words `reset` / `rewind` / `restart` are `jumpToStart` / `animateToStart` /
+`jumpToStart`, and `stop.completeIteration: true` is `stop: 'animateToEnd'`; the types `PxPatch` /
+`PxTimelinePatch` / `PxActionsPatch` are `PxRecursivePartial` / `PxTimelineOptions` / `PxActionsOptions`,
+and `null` no longer deletes a key — set the value you want. Stamped files are migrated on read.
+
+**`setPlaybackRate` / `jumpToFinished` is not a function.** Renamed in 1.21: `setPlaybackRate` became
+the speed (now `setPlaybackSpeed(s)`), `jumpToFinished()` is `jumpToEnd()`; the type `PxDocumentInput`
+is `PxDocumentJson`. `getCurrentTime()` / `setCurrentTime()` and `getCurrentProgress()` now mean the
+position INSIDE the current iteration — the run is `getTotalTime()` / `getTotalDuration()`.
+
+**Two control props do not compile together.** Expected: `PxControlProps` takes ONE driver family at a
+time — `showAtProgress` · `showAtTime` · `play` + `pause` · `playState` · `playUsingActionTriggers`.
+Pick the one that drives; from JavaScript the highest-priority family wins with a warning (PX1501).
 
 **A JSON import is flagged on `doc`.** It shouldn't be: `doc` is typed `PxDocumentJson`,
 which is exactly the shape a JSON import produces — so first enable `"resolveJsonModule"` in
@@ -86,26 +98,31 @@ there and replaced by `fallback` (nothing by default).
 works around on device; if you hit it, keep `startOffset` at 0 on closed paths or use an open
 path. Details in [React Native → Feature support](./react-native.md#motion-timing-references).
 
-**Hover does nothing.** `hoverIn` / `hoverOut` have no touch equivalent; use `click` or drive `playWhile`
+**Hover does nothing.** `hoverIn` / `hoverOut` have no touch equivalent; use `click` or drive `play`
 yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.actions.finish.behavior: "reset"` — at its
-natural end the animation jumps back to the start state (`"rewind"` plays back to it instead; the
-default `"hold"` keeps the last frame). The start state is the SVG as authored; a hand-authored
+**It holds the last frame — I want it to go back to the start.** Set `timeline.actions.finish: "jumpToStart"` —
+at its end the animation jumps back to the idle pose (`"animateToStart"` plays back to it instead; the
+default `"hold"` keeps the last frame). The idle pose is the SVG as authored; a hand-authored
 file whose static attributes differ from its first keyframe can show the first frame instead with
 `timeline.whenIdle: "firstFrame"`
 (see [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
-For one mount only, pass the same thing as an override: `actions={{ finish: 'reset' }}`.
+For one mount only, pass the same thing as an override: `actions={{ finish: 'jumpToStart' }}`.
 
-**How do I play backwards?** `player.setPlaySpeed(-1); player.play();` — or let a stop play
-back by itself: `actions: { stop: 'rewind' }` in the timeline, with the event that
-stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and `playWhile={false}` rewind the same way.
+**How do I stop after the current pass, not mid-beat?** `actions: { stop: 'animateToEnd' }` — a stop
+plays on to the end of the pass, and arriving there runs `actions.finish` (`hold` rests there).
 
-**How do I play faster or slower?** `timeline.playSpeed` in the file (`2` = twice as fast), the same
-key in `timelineOptions`, or `setPlaySpeed(2)` on the handle — `setPlayDuration(ms)` asks for the same
-thing as a length. A speed of `0` is rejected: `pause()` is how you stop.
+**How do I play backwards?** `player.setPlaybackSpeed(-1); player.play();` (on a `reverse` pass the two
+multiply, so it plays forwards) — or let a stop play back by itself: `actions: { stop: 'animateToStart' }`
+in the timeline, with the event that stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and
+`play={false}` play back the same way.
+
+**How do I play faster or slower?** `timeline.playbackSpeed` in the file (`2` = twice as fast), the same
+key in `timelineOptions`, or `setPlaybackSpeed(2)` on the handle — `setPlaybackDuration(ms)` asks for the same
+thing as a length. A speed of `0` is rejected: `pause()` is how you stop. On a scroll or view timeline
+the scroll position owns the playhead, so the playback calls do nothing there (PX1505).
 
 **A trigger event does nothing, or the console warns about the triggers.** Each list names only
 the events that make sense for it — `start` never `hoverOut`, `stop` never `load` or `hoverIn`,

@@ -8,12 +8,12 @@ createApp({
     const paused = ref(false);
     return () => [
       h('div', { class: 'controls' }, [
-        h('button', { id: 'play', onClick: () => { playing.value = !playing.value; } }, `playWhile = ${playing.value}`),
-        h('button', { id: 'pause', onClick: () => { paused.value = !paused.value; } }, `pauseWhile = ${paused.value}`),
+        h('button', { id: 'play', onClick: () => { playing.value = !playing.value; } }, `play = ${playing.value}`),
+        h('button', { id: 'pause', onClick: () => { paused.value = !paused.value; } }, `pause = ${paused.value}`),
       ]),
       h('div', { class: 'stage' }, [
-        // two LEVELS: plays while `playWhile` holds, frozen while `pauseWhile` holds — or one word: playState
-        h(SvgAnimationPlayer as any, { doc: animation, playWhile: playing.value, pauseWhile: paused.value }),
+        // two LEVELS: plays while `play` holds, frozen while `pause` holds — or one word: playState
+        h(SvgAnimationPlayer as any, { doc: animation, play: playing.value, pause: paused.value }),
       ]),
     ];
   },

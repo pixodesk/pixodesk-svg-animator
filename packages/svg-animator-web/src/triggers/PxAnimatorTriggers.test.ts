@@ -22,14 +22,12 @@ function createMockApi(overrides: Partial<PxEngineAnimationPlayerApi> = {}) {
         isPlaying: vi.fn(() => playing),
         play: vi.fn(() => { playing = true; }),
         pause: vi.fn(() => { playing = false; }),
-        reset: vi.fn(() => { playing = false; }),
+        jumpToStart: vi.fn(() => { playing = false; }),
         jumpToEnd: vi.fn(() => { playing = false; }),
-        setPlaySpeed: vi.fn(),
-        getPlaySpeed: vi.fn(() => 1),
+        setPlaybackSpeed: vi.fn(),
+        getPlaybackSpeed: vi.fn(() => 1),
         getTotalTime: vi.fn(() => 0),
         setTotalTime: vi.fn(),
-        getCurrentProgress: vi.fn(() => 0),
-        setCurrentProgress: vi.fn(),
         destroy: vi.fn(),
         ...overrides,
     };
@@ -107,8 +105,8 @@ describe('setupAnimationTriggers', () => {
         root.dispatchEvent(new Event('click'));
 
         expect(api.pause).toHaveBeenCalledTimes(1);
-        expect(api.reset).not.toHaveBeenCalled();
-        expect(api.setPlaySpeed).not.toHaveBeenCalled();
+        expect(api.jumpToStart).not.toHaveBeenCalled();
+        expect(api.setPlaybackSpeed).not.toHaveBeenCalled();
     });
 
     it("start 'hoverIn': mouseenter plays", () => {
@@ -121,10 +119,10 @@ describe('setupAnimationTriggers', () => {
     });
 
     it.each([
-        { name: 'pause hoverOut (pause)', config: HOVER_PAUSES, expected: { pause: 1, reset: 0, setPlaySpeed: 0, play: 1 } },
-        { name: 'stop hoverOut (reset)', config: { actionTriggers: { start: 'hoverIn', stop: 'hoverOut' } }, expected: { pause: 0, reset: 1, setPlaySpeed: 0, play: 1 } },
-        { name: 'stop hoverOut + a rewinding stop', config: { actionTriggers: { start: 'hoverIn', stop: 'hoverOut' }, actions: { stop: { behavior: 'rewind' } } }, expected: { pause: 0, reset: 0, setPlaySpeed: 1, play: 2 } },
-        { name: 'hoverOut not listed (continue)', config: { actionTriggers: { start: 'hoverIn' } }, expected: { pause: 0, reset: 0, setPlaySpeed: 0, play: 1 } },
+        { name: 'pause hoverOut (pause)', config: HOVER_PAUSES, expected: { pause: 1, jumpToStart: 0, setPlaybackSpeed: 0, play: 1 } },
+        { name: 'stop hoverOut (jumpToStart)', config: { actionTriggers: { start: 'hoverIn', stop: 'hoverOut' } }, expected: { pause: 0, jumpToStart: 1, setPlaybackSpeed: 0, play: 1 } },
+        { name: 'stop hoverOut + an animateToStart stop', config: { actionTriggers: { start: 'hoverIn', stop: 'hoverOut' }, actions: { stop: { behavior: 'animateToStart' } } }, expected: { pause: 0, jumpToStart: 0, setPlaybackSpeed: 1, play: 2 } },
+        { name: 'hoverOut not listed (continue)', config: { actionTriggers: { start: 'hoverIn' } }, expected: { pause: 0, jumpToStart: 0, setPlaybackSpeed: 0, play: 1 } },
     ] satisfies Array<{ name: string; config: PxAnimatorRuntimeConfig; expected: Record<string, number> }>)("hoverIn plays; mouseleave with $name", ({ config, expected }) => {
         const { api, root } = createMockApi();
         setup(api, config);
@@ -133,11 +131,11 @@ describe('setupAnimationTriggers', () => {
         root.dispatchEvent(new Event('mouseleave'));
 
         expect(api.pause).toHaveBeenCalledTimes(expected.pause);
-        expect(api.reset).toHaveBeenCalledTimes(expected.reset);
-        expect(api.setPlaySpeed).toHaveBeenCalledTimes(expected.setPlaySpeed);
+        expect(api.jumpToStart).toHaveBeenCalledTimes(expected.jumpToStart);
+        expect(api.setPlaybackSpeed).toHaveBeenCalledTimes(expected.setPlaybackSpeed);
         expect(api.play).toHaveBeenCalledTimes(expected.play);
-        if (actionSettingsOf(config.actions?.stop)?.behavior === 'rewind') {
-            expect(api.setPlaySpeed).toHaveBeenCalledWith(-1);
+        if (actionSettingsOf(config.actions?.stop)?.behavior === 'animateToStart') {
+            expect(api.setPlaybackSpeed).toHaveBeenCalledWith(-1);
         }
     });
 
@@ -163,7 +161,7 @@ describe('setupAnimationTriggers', () => {
             isPlaying: vi.fn(() => playing),
             play: vi.fn(() => { playing = true; order.push('play'); }),
             pause: vi.fn(() => { playing = false; order.push('pause'); }),
-            setPlaySpeed: vi.fn((rate: number) => order.push('rate:' + rate)),
+            setPlaybackSpeed: vi.fn((rate: number) => order.push('rate:' + rate)),
         });
         setup(api, CLICK_TOGGLE);
 
@@ -183,7 +181,7 @@ describe('setupAnimationTriggers', () => {
 
         expect(api.play).not.toHaveBeenCalled();
         expect(api.pause).not.toHaveBeenCalled();
-        expect(api.reset).not.toHaveBeenCalled();
+        expect(api.jumpToStart).not.toHaveBeenCalled();
     });
 
     it('a list holds one event or several: a click and a hover both play; hover out pauses, either resumes', () => {
@@ -206,12 +204,12 @@ describe('setupAnimationTriggers', () => {
 
         root.dispatchEvent(new Event('mouseenter'));
         root.dispatchEvent(new Event('mouseleave'));        // stopped: not in start → nothing
-        expect(api.reset).not.toHaveBeenCalled();
+        expect(api.jumpToStart).not.toHaveBeenCalled();
 
         root.dispatchEvent(new Event('click'));             // play
         root.dispatchEvent(new Event('click'));             // pause
         root.dispatchEvent(new Event('mouseleave'));        // paused: stop → the off
-        expect(api.reset).toHaveBeenCalledTimes(1);
+        expect(api.jumpToStart).toHaveBeenCalledTimes(1);
     });
 
     it('an event in both stop and pause is reported (PX1109), and pause wins', () => {
@@ -225,7 +223,7 @@ describe('setupAnimationTriggers', () => {
         root.dispatchEvent(new Event('mouseenter'));
         root.dispatchEvent(new Event('mouseleave'));
         expect(api.pause).toHaveBeenCalledTimes(1);
-        expect(api.reset).not.toHaveBeenCalled();
+        expect(api.jumpToStart).not.toHaveBeenCalled();
     });
 
     it('a disallowed event (PX1110) and a named resume that differs from the derivation (PX1111, once per difference) are reported; the disallowed event is not listened for', () => {
@@ -247,13 +245,13 @@ describe('setupAnimationTriggers', () => {
         const { api, root } = createMockApi({
             getTotalTime: vi.fn(() => 300),
             play: vi.fn(() => order.push('play')),
-            reset: vi.fn(() => order.push('reset')),
+            jumpToStart: vi.fn(() => order.push('jumpToStart')),
         });
-        setup(api, { actionTriggers: { start: 'click' }, actions: { start: { behavior: 'restart' } } });
+        setup(api, { actionTriggers: { start: 'click' }, actions: { start: { behavior: 'jumpToStart' } } });
 
         root.dispatchEvent(new Event('click'));
 
-        expect(order).toEqual(['reset', 'play']);
+        expect(order).toEqual(['jumpToStart', 'play']);
     });
 
     it('attaches the executor to the api, so the composed api and the triggers share ONE state', () => {
@@ -353,15 +351,15 @@ describe('setupAnimationTriggers', () => {
             expect(api.pause).toHaveBeenCalledTimes(1);
         });
 
-        it("outOfView 'reset' replays from the start on the next entry", () => {
+        it("outOfView 'jumpToStart' replays from the start on the next entry", () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { start: 'load' }, actions: { outOfView: { behavior: 'reset' } }, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { start: 'load' }, actions: { outOfView: { behavior: 'jumpToStart' } }, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
             io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
-            expect(api.reset).toHaveBeenCalledTimes(1);
+            expect(api.jumpToStart).toHaveBeenCalledTimes(1);
             expect(api.pause).not.toHaveBeenCalled();
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -451,7 +449,7 @@ describe('setupAnimationTriggers', () => {
         it('a graphic scrolled straight past never plays a frame', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { start: 'load' }, actionTriggers: { start: 'load' } });   // default 150ms
+            setup(api, { actionTriggers: { start: 'load' } });   // default 150ms
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -466,7 +464,7 @@ describe('setupAnimationTriggers', () => {
         it('one that stays plays when the dwell has elapsed, and not before', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { start: 'load' }, actionTriggers: { start: 'load' } });
+            setup(api, { actionTriggers: { start: 'load' } });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -530,7 +528,7 @@ describe('setupAnimationTriggers', () => {
 
         expect(api.play).toHaveBeenCalledTimes(1);
         expect(api.pause).toHaveBeenCalledTimes(2);
-        expect(api.setPlaySpeed).not.toHaveBeenCalled();
+        expect(api.setPlaybackSpeed).not.toHaveBeenCalled();
     });
 
     it('hover-out rewind: a hover-in during the rewind turns it around — FORWARD before play', () => {
@@ -539,10 +537,10 @@ describe('setupAnimationTriggers', () => {
         const { api, root } = createMockApi({
             isPlaying: vi.fn(() => playing),
             play: vi.fn(() => { playing = true; order.push('play'); }),
-            reset: vi.fn(() => { playing = false; order.push('reset'); }),
-            setPlaySpeed: vi.fn((rate: number) => order.push('rate:' + rate)),
+            jumpToStart: vi.fn(() => { playing = false; order.push('jumpToStart'); }),
+            setPlaybackSpeed: vi.fn((rate: number) => order.push('rate:' + rate)),
         });
-        setup(api, { actionTriggers: { start: 'hoverIn', stop: 'hoverOut' }, actions: { stop: { behavior: 'rewind' } } });
+        setup(api, { actionTriggers: { start: 'hoverIn', stop: 'hoverOut' }, actions: { stop: { behavior: 'animateToStart' } } });
 
         root.dispatchEvent(new Event('mouseenter'));   // start (forward, no rate call)
         root.dispatchEvent(new Event('mouseleave'));   // rewind: rate -1, play
@@ -559,7 +557,7 @@ describe('setupAnimationTriggers', () => {
         root.dispatchEvent(new Event('mouseleave'));
         root.dispatchEvent(new Event('mouseenter'));
 
-        expect(api.setPlaySpeed).not.toHaveBeenCalled();
+        expect(api.setPlaybackSpeed).not.toHaveBeenCalled();
         expect(api.play).toHaveBeenCalledTimes(2);
     });
 
@@ -574,7 +572,7 @@ describe('setupAnimationTriggers', () => {
         io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
 
         expect(api.pause).toHaveBeenCalledTimes(1);
-        expect(api.reset).not.toHaveBeenCalled();   // resume, never restart
+        expect(api.jumpToStart).not.toHaveBeenCalled();   // resume, never restart
         expect(api.play).toHaveBeenCalledTimes(2);
     });
 

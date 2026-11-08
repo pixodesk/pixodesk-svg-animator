@@ -28,8 +28,8 @@ export {
 export { applyPlaybackOverride, withActionTriggers, withoutTriggerDriver } from './playback/PxAnimatorConfigPatch';
 
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text
-export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger, playLevelsOf } from './format/PxAnimatorConstants';
-export type { PxControlProps, PxPlayStateRequest } from './format/PxAnimatorConstants';
+export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger, playStateToLevels } from './format/PxAnimatorConstants';
+export type { PxAnyControlProps, PxControlProps, PxPlayStateRequest } from './format/PxAnimatorConstants';
 export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createPlayExecutor, ensurePlayExecutor, executorConfigOf, composeApiExtras } from './playback/PxDeclarativePlayback';
 export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeTarget, PxPlayTarget, PxPlayExecutorConfig, PxApiExtrasConfig, PxApiExtrasTarget, PxApiExtras } from './playback/PxDeclarativePlayback';
 

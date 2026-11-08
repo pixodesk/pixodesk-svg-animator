@@ -128,7 +128,7 @@ describe('createSvgAnimationPlayer', () => {
 
         api.stop();
         expect(onStop).toHaveBeenCalledTimes(1);   // the configured stop — this one
-        api.reset();
+        api.jumpToStart();
         expect(onStop).toHaveBeenCalledTimes(1);   // reset-now bypasses the stop action
     });
 
@@ -268,13 +268,13 @@ describe('createSvgAnimationPlayer', () => {
         expect(errorSpy).toHaveBeenCalledTimes(1);             // …unless muted
     });
 
-    it('an unknown key is a document diagnostic: it reaches onWarn (PX1112) and suppressWarnings silences the console — never a console line of its own', () => {
+    it('an unknown key is a document diagnostic: it reaches onWarning (PX1112) and suppressWarnings silences the console — never a console line of its own', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { /* silence */ });
         // a hand-written (or mangled) file: one key this build does not know
         const doc = untyped<PxDocument>({ ...makeDoc(), animator: { timeline: { engine: 'js', outTime: DUR, somethingAddedLater: 42 } } });
-        const onWarn = vi.fn();
-        createSvgAnimationPlayer({ doc, container: document.createElement('div'), onWarn });
-        expect(onWarn).toHaveBeenCalledWith(expect.objectContaining({ kind: 'document', code: PxDiagnosticCode.documentSchemaMismatch }));
+        const onWarning = vi.fn();
+        createSvgAnimationPlayer({ doc, container: document.createElement('div'), onWarning });
+        expect(onWarning).toHaveBeenCalledWith(expect.objectContaining({ kind: 'document', code: PxDiagnosticCode.documentSchemaMismatch }));
         expect(warnSpy).not.toHaveBeenCalled();                 // a handler was given: the console stays out of it
         createSvgAnimationPlayer({ doc, container: document.createElement('div'), suppressWarnings: true });
         expect(warnSpy).not.toHaveBeenCalled();                 // …and so does the switch

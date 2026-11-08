@@ -13,6 +13,8 @@ Status **2026-10-25 — planning.** Decisions land here; the trying and the find
 surfaces share — React, Vue, React Native, the web `createSvgAnimationPlayer` — and the CSS
 components; kf consumes all of them. Nothing here is implemented.
 
+> **Since 1.23 (2026-11-05)** — decided in `dev-docs/reviews/schema-and-props--improvements.md` §0: `playSpeed` → `playbackSpeed` (1.22) and the handle's `play…` family → `playback…`; the action words name where and how (1.23) — `reset` → `jumpToStart`, `rewind` → `animateToStart`, `restart` → `jumpToStart`, `stop.completeIteration: true` → `stop: 'animateToEnd'` (plus `stop: 'jumpToEnd'`), and reaching the end by any route runs `finish`; `reset()` → `jumpToStart()` (reports nothing), `onReset` removed, `onWarn` → `onWarning`; the props are `play` / `pause` again beside `playState`, one driver family at a time in TypeScript; `null` no longer deletes in an override.
+
 ## Decisions
 
 ### D1. Reuse the document schema

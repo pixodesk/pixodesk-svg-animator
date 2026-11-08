@@ -1,5 +1,5 @@
 import './style.css';
-import { type PxActionsPatch, type PxDocument, type PxTimelinePatch, type PxActionTriggers } from '@pixodesk/svg-animator-web';
+import { type PxActionsOptions, type PxDocument, type PxTimelineOptions, type PxActionTriggers } from '@pixodesk/svg-animator-web';
 import {
   getAnimatorConfig,
   isPxDocument,
@@ -267,7 +267,7 @@ function currentTriggerOption(): PlayerOptions['actionTriggers'] {
 /** The timeline merge for this mount: the Loop picker's `iterations`, and — with custom
  *  triggers — the gate's two visibility numbers (timeline keys), only while there IS a gate.
  *  `undefined` = the document's own values. */
-function currentTimelineOverride(): PxTimelinePatch | undefined {
+function currentTimelineOverride(): PxTimelineOptions | undefined {
   const override: Pick<TimeTimeline, 'iterations' | 'inViewThreshold' | 'inViewDebounce'> = {};
   const iterations = loopModeToIterations(currentLoop);
   if (iterations !== undefined) override.iterations = iterations;
@@ -280,7 +280,7 @@ function currentTimelineOverride(): PxTimelinePatch | undefined {
 
 /** The actions merge for this mount: with custom triggers, the gate's `outOfView` behavior.
  *  `undefined` = the document's own actions. */
-function currentActionsOverride(): PxActionsPatch | undefined {
+function currentActionsOverride(): PxActionsOptions | undefined {
   if (!useTrigger || useFileConfig) return undefined;
   return { outOfView: { behavior: selectedOutOfViewBehavior() } };
 }
@@ -452,7 +452,7 @@ function loadDocument(doc: PxDocument, sourceLabel: string): void {
 btnPlay.addEventListener('click', () => handle?.play());
 btnPause.addEventListener('click', () => handle?.pause());
 btnStop.addEventListener('click', () => {
-  handle?.reset();
+  handle?.jumpToStart();
   seek.value = '0';
 });
 btnRestart.addEventListener('click', () => {
@@ -465,7 +465,7 @@ btnFinish.addEventListener('click', () => handle?.finish());   // PlayerHandle.f
 btnDemo.addEventListener('click', () => loadDocument(demoDoc, 'demo (built-in)'));
 
 rateSel.addEventListener('change', () => {
-  handle?.setPlaySpeed?.(Number(rateSel.value));
+  handle?.setPlaybackSpeed?.(Number(rateSel.value));
 });
 
 // Player picker

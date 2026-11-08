@@ -72,7 +72,7 @@ const fromObject = createSvgAnimationPlayer({ doc: animationDoc, container: '#co
 player.play();
 player.pause();
 player.setCurrentTime(500);   // jump to 0.5 s into the current iteration
-player.setPlaySpeed(2);       // 2x speed (-1 plays in reverse)
+player.setPlaybackSpeed(2);   // 2x speed (-1 plays in reverse)
 player.jumpToEnd();           // the end pose, no motion
 player.destroy();             // cleanup
 ```
@@ -88,11 +88,11 @@ player.destroy();             // cleanup
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxDocumentJson`          | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
-| `onReady` · `onPlay` · `onPause` · `onReset` · `onFinish` · `onDestroy` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarn`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onReset,onFinish,onDestroy,onStop,onWarn,onError,suppressWarnings,suppressErrors -->
-| `timelineOptions` | `PxTimelinePatch` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: 'rewind' }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `onReady` · `onPlay` · `onPause` · `onStop` · `onFinish` · `onDestroy` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarning`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onStop,onFinish,onDestroy,onWarning,onError,suppressWarnings,suppressErrors -->
+| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), deep-merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actions` | `PxActionsOptions` | per-instance override of how the built-in actions look — `{ stop: 'animateToStart' }` — deep-merged over the document's `timeline.actions`. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 
-The document plays the way it was designed with no configuration at all; `timeline` and `actions` are for when
+The document plays the way it was designed with no configuration at all; `timelineOptions` and `actions` are for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file
 that autostarts everywhere except inside your own transport UI:
 
@@ -112,15 +112,16 @@ It returns a `PxAnimationPlayerApi`:
 | ----------------------- | ----------------------------------------------------------------- |
 | `play()`                | Resume when paused, else the built-in `start`, per `actions.start` |
 | `pause()`               | Pause at the current time                                         |
-| `stop()`                | The built-in `stop`, per `actions.stop`: its `behavior` (reset / rewind), after the iteration when `completeIteration` |
-| `reset()`               | The unconditional reset-now: stop and show the start state        |
-| `jumpToEnd()`           | The end pose, no motion — rests in `finished`, fires `onFinish` (advanced: the `jumpToEnd` preset as a call) |
+| `stop()`                | The built-in `stop`, per `actions.stop.behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd`; reports `onStop` |
+| `jumpToStart()`         | The unconditional jump to the idle pose — reports nothing, like a seek |
+| `jumpToEnd()`           | The end pose, no motion — runs `actions.finish`, fires `onFinish` (advanced: the `jumpToEnd` preset as a call) |
 | `playOnce()`            | One fresh pass from the start, whatever `iterations` say          |
-| `getPlayState()`        | The one state read: `idle` · `playing` · `paused` · `finished` · `destroyed` |
-| `getPlaySpeed()` / `setPlaySpeed(speed)` | The speed: 1 normal, 2 double, 0.5 half, negative = reverse; starts at the file's `timeline.playSpeed`, the setter replaces it (0 is rejected — use `pause()`) | <!-- px names=getPlaySpeed,setPlaySpeed -->
-| `getPlayDuration()` / `setPlayDuration(ms)` | One pass in REAL ms at the current speed; the setter sets the speed so one pass takes `ms` | <!-- px names=getPlayDuration,setPlayDuration -->
-| `getTotalPlayDuration()` | The whole run in real ms; `null` when `iterations` is `'infinite'` |
-| `getCurrentPlayTime()`  | The playhead in real ms: `getCurrentTime() / |speed|`             |
+| `getPlayState()`        | The one state read: `idle` · `playing` · `paused` · `finished` · `destroyed`; a move in flight reads `idle` |
+| `getPlaybackSpeed()` / `setPlaybackSpeed(speed)` | The speed: 1 normal, 2 double, 0.5 half, negative = reverse (it multiplies with `iterationDirection`); starts at the file's `timeline.playbackSpeed`, the setter replaces it (0 is rejected — use `pause()`) | <!-- px names=getPlaybackSpeed,setPlaybackSpeed -->
+| `getPlaybackDuration()` / `setPlaybackDuration(ms)` | One pass in playback ms at the current speed; the setter sets the speed so one pass takes `ms` | <!-- px names=getPlaybackDuration,setPlaybackDuration -->
+| `getTotalPlaybackDuration()` | The whole run in playback ms; `null` when `iterations` is `'infinite'` |
+| `getCurrentPlaybackTime()` | The playhead in the pass, playback ms: `getCurrentTime() / \|speed\|` |
+| `getTotalPlaybackTime()` | The playhead on the run, playback ms: `getTotalTime() / \|speed\|` |
 | `getDuration()`         | One pass of the content window, ms — a looping file's slider maximum (`null` before a `src` loads) |
 | `getCurrentTime()`      | The frame on screen: ms inside the current iteration, `0..getDuration()`; a reversed pass of `alternate` counts down |
 | `setCurrentTime(ms)`    | Seek inside the current iteration; clamped to `[0, getDuration()]` |
@@ -129,14 +130,16 @@ It returns a `PxAnimationPlayerApi`:
 | `getCurrentIteration()` | Which pass is playing, 0-based                                    |
 | `getTotalDuration()`    | The whole run, ms: one pass × iterations; `null` when infinite — a finite run's slider maximum |
 | `getTotalTime()` / `setTotalTime(ms)` | The playhead on the whole run, every iteration included (0 while the delay waits); the setter seeks on it | <!-- px names=getTotalTime,setTotalTime -->
+| `getTotalProgress()`    | The playhead as 0–1 of the whole run (GSAP's `totalProgress`); `null` when endless |
 | `isPlaying()`           | Whether the animation is currently playing                        |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) |
 | `getRootElement()`      | The rendered SVG DOM element                                      |
 | `destroy()`             | Remove the animation and clean up; every later call is ignored (PX1504) |
 
-Plain names are model ms **inside the iteration**, `total…` names span the **whole run**, the `play…`
-family is **real time** at the current speed — the one contract on every player
-([Time axes](../../docs/library/playback-and-triggers.md#time-axes)).
+Plain names are model ms **inside the iteration**, `total…` names span the **whole run** (including
+repeats — GSAP's words), the `playback…` family is **playback time** — model time ÷ the speed — the
+one contract on every player ([Two clocks](../../docs/library/playback-and-triggers.md#two-clocks)). On a
+scroll or view timeline the playback verbs are no-ops (PX1505): the scroll position owns the playhead.
 
 ### Callbacks
 
@@ -146,8 +149,8 @@ createSvgAnimationPlayer({
   container: '#container',
   onPlay:   () => { /* started/resumed */ },
   onPause:  () => { /* paused */ },
-  onReset:  () => { /* back at the start pose */ },
-  onFinish: () => { /* finished naturally (or via finish()) */ },
+  onStop:   () => { /* the stop action was performed */ },
+  onFinish: () => { /* reached the end (or via jumpToEnd()) */ },
   onDestroy: () => { /* destroyed / cleaned up */ },
 });
 ```

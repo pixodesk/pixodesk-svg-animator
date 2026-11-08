@@ -1,12 +1,12 @@
-import type { PxActionsPatch, PxDocument, PxTimelinePatch, PxActionTriggers } from '@pixodesk/svg-animator-web';
+import type { PxActionsOptions, PxDocument, PxTimelineOptions, PxActionTriggers } from '@pixodesk/svg-animator-web';
 
 /**
  * A framework-agnostic handle over a mounted animation player.
  *
  * The Web (`@pixodesk/svg-animator-web`), React (`@pixodesk/svg-animator-react`)
  * and Vue (`@pixodesk/svg-animator-vue`) packages all expose the same imperative
- * surface (`play` / `pause` / `reset` / `jumpToEnd` / `getCurrentTime` /
- * `setCurrentTime` / `setPlaySpeed`). Each adapter wraps one of them behind this interface so the
+ * surface (`play` / `pause` / `jumpToStart` / `jumpToEnd` / `getCurrentTime` /
+ * `setCurrentTime` / `setPlaybackSpeed`). Each adapter wraps one of them behind this interface so the
  * UI can drive any of them uniformly.
  */
 export interface PlayerHandle {
@@ -14,8 +14,8 @@ export interface PlayerHandle {
   play(): void;
   /** Pauses at the current frame. */
   pause(): void;
-  /** Stops and resets to the initial state. */
-  reset(): void;
+  /** Back to the idle pose at once, unconditionally (the handle's `jumpToStart()`). */
+  jumpToStart(): void;
   /** Jumps to the end and holds the final frame (the handle's `jumpToEnd()`). */
   finish(): void;
   /** Whether the animation is currently running. */
@@ -25,7 +25,7 @@ export interface PlayerHandle {
   /** Seeks inside the current iteration, ms. */
   setCurrentTime(ms: number): void;
   /** Changes the play speed (1 = normal, 2 = double, negative = backwards). Wired for the Web player only in this UI. */
-  setPlaySpeed?(speed: number): void;
+  setPlaybackSpeed?(speed: number): void;
   /** Tears down the player and removes it from the DOM. */
   destroy(): void;
 }
@@ -47,12 +47,12 @@ export interface PlayerOptions {
    * visibility numbers (`inViewThreshold`, `inViewDebounce`) of custom triggers.
    * When omitted, the values declared in the document are used unchanged.
    */
-  timelineOptions?: PxTimelinePatch;
+  timelineOptions?: PxTimelineOptions;
   /**
    * A merge over the document's `animator.timeline.actions`: the gate's `outOfView` behavior of
    * custom triggers. When omitted, the document's own actions are used unchanged.
    */
-  actions?: PxActionsPatch;
+  actions?: PxActionsOptions;
   /**
    * Trigger handling:
    *  - `undefined`  → programmatic (the UI transport owns start; default);

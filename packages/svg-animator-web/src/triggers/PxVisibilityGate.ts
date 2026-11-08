@@ -39,8 +39,8 @@ export interface PxGateHost {
     hold(): void;
     /** Back on screen after a hold: continue from there. */
     release(): void;
-    /** Off screen with a `reset` out-of-view behavior: back to the start pose; `release` replays. */
-    reset(): void;
+    /** Off screen with a `jumpToStart` out-of-view behavior: back to the idle pose; `release` replays. */
+    jumpToStart(): void;
 }
 
 /** Permission to run, wired by `setupAnimationTriggers` for every document. @internal */
@@ -111,7 +111,7 @@ export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: 
     let isOpen: boolean | undefined = undefined;
     /** A trigger fired while the gate was shut; it is owed a play once the gate opens. */
     let startPending = false;
-    /** The gate paused (or reset) a running animation, so it owes it a play. */
+    /** The gate paused (or jumped back) a running animation, so it owes it a play. */
     let pausedByGate = false;
     /** The most recent measurement, kept so `visibilitychange` can re-decide without one. */
     let lastRatio = 0;
@@ -146,8 +146,8 @@ export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: 
         // Only act on something that is actually running — including an animation the HOST
         // started through the API, which is why this asks rather than tracking its own flag.
         if (!host.isPlaying()) return;
-        if (gate.outOfView === PxOutOfViewBehavior.reset) {
-            host.reset();    // progress back to 0; the next open replays from the start
+        if (gate.outOfView === PxOutOfViewBehavior.jumpToStart) {
+            host.jumpToStart();    // progress back to 0; the next open replays from the start
         } else {
             host.hold();
         }

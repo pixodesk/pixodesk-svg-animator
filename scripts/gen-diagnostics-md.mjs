@@ -84,8 +84,8 @@ function render(codes) {
     rows.push('createSvgAnimationPlayer({');
     rows.push('  src: \'/animation.json\',');
     rows.push('  container: \'#stage\',');
-    rows.push('  onWarn:  d => console.log(d.code, d.data),   // 1204, [\'#missing\']');
-    rows.push('  onError: d => report(d.code, d.error),');
+    rows.push('  onWarning: d => console.log(d.code, d.data),   // 1204, [\'#missing\']');
+    rows.push('  onError:   d => report(d.code, d.error),');
     rows.push('});');
     rows.push('```');
     rows.push('');

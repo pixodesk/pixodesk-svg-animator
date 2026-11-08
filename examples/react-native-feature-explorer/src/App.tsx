@@ -79,7 +79,7 @@ const CaseRow = memo(function CaseRow({
                 <Text style={[styles.caseId, { color: t.fg }]} numberOfLines={1}>{item.id}</Text>
                 <Pressable
                     hitSlop={8}
-                    onPress={() => { api.current?.reset(); api.current?.play(); }}
+                    onPress={() => { api.current?.jumpToStart(); api.current?.play(); }}
                 >
                     <Text style={[styles.replay, { color: t.accent }]}>↺</Text>
                 </Pressable>

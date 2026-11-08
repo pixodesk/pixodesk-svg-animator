@@ -2287,7 +2287,7 @@
             "outTime": {
               "type": "number"
             },
-            "playSpeed": {
+            "playbackSpeed": {
               "type": "number"
             },
             "actionTriggers": {
@@ -2407,7 +2407,7 @@
                     {
                       "enum": [
                         "continue",
-                        "restart",
+                        "jumpToStart",
                         "jumpToEnd"
                       ]
                     },
@@ -2417,7 +2417,7 @@
                         "behavior": {
                           "enum": [
                             "continue",
-                            "restart",
+                            "jumpToStart",
                             "jumpToEnd"
                           ]
                         }
@@ -2430,8 +2430,10 @@
                   "anyOf": [
                     {
                       "enum": [
-                        "reset",
-                        "rewind"
+                        "jumpToStart",
+                        "animateToStart",
+                        "jumpToEnd",
+                        "animateToEnd"
                       ]
                     },
                     {
@@ -2439,12 +2441,11 @@
                       "properties": {
                         "behavior": {
                           "enum": [
-                            "reset",
-                            "rewind"
+                            "jumpToStart",
+                            "animateToStart",
+                            "jumpToEnd",
+                            "animateToEnd"
                           ]
-                        },
-                        "completeIteration": {
-                          "type": "boolean"
                         }
                       },
                       "additionalProperties": false
@@ -2456,8 +2457,8 @@
                     {
                       "enum": [
                         "hold",
-                        "reset",
-                        "rewind"
+                        "jumpToStart",
+                        "animateToStart"
                       ]
                     },
                     {
@@ -2466,8 +2467,8 @@
                         "behavior": {
                           "enum": [
                             "hold",
-                            "reset",
-                            "rewind"
+                            "jumpToStart",
+                            "animateToStart"
                           ]
                         }
                       },
@@ -2481,7 +2482,7 @@
                       "enum": [
                         "pause",
                         "continue",
-                        "reset"
+                        "jumpToStart"
                       ]
                     },
                     {
@@ -2491,7 +2492,7 @@
                           "enum": [
                             "pause",
                             "continue",
-                            "reset"
+                            "jumpToStart"
                           ]
                         }
                       },

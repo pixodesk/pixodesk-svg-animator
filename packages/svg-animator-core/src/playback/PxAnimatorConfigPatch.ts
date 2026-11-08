@@ -10,10 +10,10 @@
  * One document, played twice on a page with different timing — without editing the document.
  * The host supplies a partial `animator` config; this merges it over the document's own.
  *
- * Base semantics are JSON Merge Patch (RFC 7386): objects merge per level, primitives and
- * arrays REPLACE, and `null` DELETES. `null` is the right sentinel because it is not a legal
- * value anywhere in the schema, and deleting is the only way to restore a meaningful ABSENCE
- * (`timeline.type` absent = time, `engine` absent = auto, `actions.finish` absent = hold).
+ * Base semantics are a RECURSIVE PARTIAL: objects merge per level, primitives and arrays REPLACE, and a key left
+ * out (`undefined`, or `null` from JavaScript) changes nothing. There is no delete: to get a default, set it
+ * (`finish: 'hold'`). WHY no `null` delete (RFC 7386 had it until 1.22): nobody resets one key to "absent" from a
+ * page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway.
  *
  * Six places need more than that — see the RULE comments below.
  *
@@ -27,23 +27,23 @@ import type { PxDocument, PxAnimatorConfig, PxTimeline, PxActionTriggersInput, P
 import { legacyAnimatorOf } from '../format/PxDocStage';
 
 /**
- * A JSON merge patch over a wire type `T`, the way {@link mergeAnimatorConfig} applies one (RFC 7386):
- * every key optional at every depth, `null` at a key deletes it, arrays and primitives replace.
- * Distributes over a union, so a patch of `PxTimeline` is a patch of the time OR the scroll member —
- * and TypeScript names a misspelled key or a wrong value where a plain record said nothing.
+ * A deep partial of a wire type `T`, the way {@link mergeAnimatorConfig} applies one: every key optional at every
+ * depth, arrays and primitives replaced whole. Distributes over a union, so a partial of `PxTimeline` is a partial
+ * of the time OR the scroll member — and TypeScript names a misspelled key or a wrong value where a plain record
+ * said nothing. WHY the name (`PxPatch` until 1.22): it says what the type IS — the common `RecursivePartial`.
  * @public
  */
-export type PxPatch<T> =
+export type PxRecursivePartial<T> =
     T extends ReadonlyArray<unknown> ? T :
-    T extends object ? { [K in keyof T]?: PxPatch<T[K]> | null } :
+    T extends object ? { [K in keyof T]?: PxRecursivePartial<T[K]> } :
     T;
 
 /** `Omit` applied to each member of a union, so a discriminated union keeps its members. */
 type PxDistributiveOmit<T, K extends PropertyKey> = T extends object ? Omit<T, K> : never;
 
 /** A deep-partial of the WIRE animator config (`timeline` — its `actionTriggers` and `actions` included at this level —,
- *  `definitions`, `bindings`, `version`), typed from the schema; `null` at any slot deletes it. @public */
-export type PxAnimatorConfigPatch = PxPatch<PxAnimatorConfig> | null;
+ *  `definitions`, `bindings`, `version`), typed from the schema. @public */
+export type PxAnimatorConfigPatch = PxRecursivePartial<PxAnimatorConfig>;
 
 /** @public */
 export interface PxAnimatorConfigMergeResult {
@@ -80,7 +80,7 @@ function mergePlain(base: unknown, patch: JsonRecord): JsonRecord {
     const out: JsonRecord = isPlainObject(base) ? { ...base } : {};
     for (const key of Object.keys(patch)) {
         const value = patch[key];
-        if (value === null) { delete out[key]; continue; }          // RULE 7: null deletes
+        if (value === null || value === undefined) continue;        // RULE 7: left out changes nothing (no delete)
         if (isPlainObject(value)) { out[key] = mergePlain(out[key], value); continue; }
         out[key] = value;                                            // RULE 6: arrays/primitives replace
     }
@@ -100,8 +100,8 @@ function mergePlain(base: unknown, patch: JsonRecord): JsonRecord {
  *          same way the wire has no slot for them.
  * RULE 4 — `iterations: 'infinite'` cannot map onto a scroll range.
  */
-/** An `actions` block with every string slot expanded to its settings — `'rewind'` is exactly `{ behavior: 'rewind' }`
- *  (RULE 5), so a merge over it keeps the other settings (`completeIteration`). */
+/** An `actions` block with every string slot expanded to its settings — `'animateToStart'` is exactly
+ *  `{ behavior: 'animateToStart' }` (RULE 5), so a merge over it keeps the slot's other settings. */
 function expandActionSlots(actions: unknown): unknown {
     if (!isPlainObject(actions)) return actions;
     const out: JsonRecord = {};
@@ -167,14 +167,14 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
  *  (the file nests them): `timelineOptions` patches this, `playUsingActionTriggers` carries the triggers, `actions` the actions. @public */
 export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' | 'actions'>;
 
-/** A deep-partial of the WIRE timing block, typed from the schema; `null` at any slot deletes it,
- *  `null` for the whole block deletes the block. No `actionTriggers` / `actions` here — those are their props'. @public */
-export type PxTimelinePatch = PxPatch<PxTimelineTiming> | null;
+/** The `timelineOptions` prop: a deep-partial of the WIRE timing block, typed from the schema, merged over the file's.
+ *  No `actionTriggers` / `actions` here — those are their props'. WHY the name (`PxTimelinePatch` until 1.22): the
+ *  prop's own word. @public */
+export type PxTimelineOptions = PxRecursivePartial<PxTimelineTiming>;
 
-/** A deep-partial of the timeline's `actions` block — merged over the file's, `null` at a slot deletes it. A slot
- *  may be the preset word (`stop: 'rewind'`): it is exactly `{ behavior: 'rewind' }`, so the file's other settings of
- *  that action (`completeIteration`) survive the merge. @public */
-export type PxActionsPatch = PxPatch<PxActions> | null;
+/** The `actions` prop: a deep-partial of the timeline's `actions` block, merged over the file's. A slot may be the
+ *  preset word (`stop: 'animateToStart'`): it is exactly `{ behavior: 'animateToStart' }`. @public */
+export type PxActionsOptions = PxRecursivePartial<PxActions>;
 
 /**
  * The playback-override props every surface takes — `createSvgAnimationPlayer` and the three components
@@ -188,24 +188,24 @@ export interface PxPlaybackOverride {
     /**
      * Per-instance adjustment of the document's `animator.timeline` — its shape minus `actionTriggers` and
      * `actions` (docs/format/README.md), deep-merged over what the document says, so one file can play twice on a
-     * page with different timing. `null` at a slot DELETES that key, restoring the default its absence means (an
-     * absent `outTime` is the content's end, an absent `playSpeed` speed 1).
+     * page with different timing. A key left out keeps the file's value; to get a default, set it
+     * (`{ playbackSpeed: 1 }`).
      *
      * WHY `timelineOptions`, not `timeline`: it is NOT the file's `timeline` object — two of its keys live on other
      * props — and a prop that shares a file key's name promises the same shape (outside review 2026-11-01, §2.5).
      * `actions` keeps the file's name because it IS a partial of that block.
      *
-     * MERGE vs REPLACE, the one rule for the three override props: `timelineOptions` and `actions` are patches
-     * (objects merge, values replace, `null` deletes); a `playUsingActionTriggers` block REPLACES the file's
+     * MERGE vs REPLACE, the one rule for the three override props: `timelineOptions` and `actions` are recursive
+     * partials (objects merge, values replace); a `playUsingActionTriggers` block REPLACES the file's
      * `actionTriggers` as a whole — its lists belong together.
      */
-    timelineOptions?: PxTimelinePatch;
+    timelineOptions?: PxTimelineOptions;
     /**
-     * Per-instance adjustment of HOW the built-in actions look — `{ stop: 'rewind' }`, or
-     * `{ stop: { behavior: 'rewind', completeIteration: true } }` — deep-merged over the document's `timeline.actions`;
-     * `null` at a slot deletes it.
+     * Per-instance adjustment of HOW the built-in actions look — `{ stop: 'animateToStart' }`, or
+     * `{ stop: 'animateToEnd', finish: 'jumpToStart' }` ("stop after this pass, then snap back") — deep-merged over the
+     * document's `timeline.actions`.
      */
-    actions?: PxActionsPatch;
+    actions?: PxActionsOptions;
 }
 
 /** What {@link applyPlaybackOverride} reads: the patches, and the trigger driver's object form. @public @advanced */
@@ -240,12 +240,12 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
     };
     if (timeline !== undefined) {
         // a JS caller can still hand over the old JSON string — reported, never written into the document
-        if (timeline === null || isPlainObject(timeline)) apply({ timeline });
-        else warnings.push('timelineOptions: not an object — ignored');
+        if (isPlainObject(timeline)) apply({ timeline });
+        else if (timeline !== null) warnings.push('timelineOptions: not an object — ignored');
     }
     if (actions !== undefined) {
-        if (actions === null || isPlainObject(actions)) apply({ timeline: { actions } });
-        else warnings.push('actions: not an object — ignored');
+        if (isPlainObject(actions)) apply({ timeline: { actions } });
+        else if (actions !== null) warnings.push('actions: not an object — ignored');
     }
     if (typeof playUsingActionTriggers === 'object' && playUsingActionTriggers !== null) doc = withActionTriggers(doc, playUsingActionTriggers);   // a SET, not a merge
     return { doc, warnings };
@@ -296,7 +296,6 @@ export function mergeAnimatorConfig(
     patch: PxAnimatorConfigPatch,
 ): PxAnimatorConfigMergeResult {
     const warnings: Array<string> = [];
-    if (patch === null) return { config: undefined, warnings };
     if (!isPlainObject(patch) || Object.keys(patch).length === 0) {
         return { config: base, warnings };                            // nothing to do: same identity
     }
@@ -310,7 +309,7 @@ const uncheckedConfig = (merged: JsonRecord): PxAnimatorConfig => merged as PxAn
 function mergeConfigRecord(base: unknown, patch: JsonRecord, warn: (m: string) => void): JsonRecord {
     // RULE 5 — a base in the flat runtime spelling cannot take a wire patch soundly:
     // `resolveAnimatorTimeline` copies the flat keys first and then overwrites them from
-    // `timeline`, so a flat `delay` would survive a `timeline.delay: null` deletion.
+    // `timeline`, so a flat `delay` would win over the patch's `timeline.delay`.
     const out: JsonRecord = isPlainObject(base) ? { ...base } : {};
     const flatInBase = FLAT_ONLY_KEYS.filter(k => out[k] !== undefined);
     if (flatInBase.length) {
@@ -320,7 +319,7 @@ function mergeConfigRecord(base: unknown, patch: JsonRecord, warn: (m: string) =
 
     for (const key of Object.keys(patch)) {
         const value = patch[key];
-        if (value === null) { delete out[key]; continue; }
+        if (value === null || value === undefined) continue;          // left out changes nothing (no delete)
         if (key === 'timeline') {
             out.timeline = isPlainObject(value) ? mergeTimeline(out.timeline, value, warn) : value;
             continue;
@@ -343,7 +342,7 @@ export function applyAnimatorConfig(
     doc: PxDocument,
     patch: PxAnimatorConfigPatch,
 ): { doc: PxDocument; warnings: Array<string> } {
-    if (!doc || patch === undefined || patch === null || !isPlainObject(patch) || !Object.keys(patch).length) {
+    if (!doc || !isPlainObject(patch) || !Object.keys(patch).length) {
         return { doc, warnings: [] };
     }
 

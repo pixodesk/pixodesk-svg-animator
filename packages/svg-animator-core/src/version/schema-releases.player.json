@@ -369,5 +369,25 @@
    "effects.clone.retime.timeCrop"
   ],
   "note": "`effects.clone.retime` spells its window like the timeline does (dev-docs/reviews/schema-and-props--manual-review.md B5): `timeCrop: [a, b]` becomes `inTime: a, outTime: b` (Lottie's own `ip` / `op`; tuples are for vectors and points, a window is two named points everywhere else), and `start` becomes `offset` (`start` is a trigger list and an action elsewhere). `stretch` is unchanged."
+ },
+ {
+  "version": "1.22",
+  "date": "2026-11-05",
+  "added": [
+   "animator.timeline|time.playbackSpeed"
+  ],
+  "removed": [
+   "animator.timeline|time.playSpeed"
+  ],
+  "note": "`timeline.playSpeed` becomes `timeline.playbackSpeed` (dev-docs/reviews/schema-and-props--improvements.md §0): \"playback speed\" is how media players say it, and the handle's family reads the same (`getPlaybackSpeed()`, `getPlaybackDuration()`, `getCurrentPlaybackTime()`). The value is unchanged."
+ },
+ {
+  "version": "1.23",
+  "date": "2026-11-05",
+  "added": [],
+  "removed": [
+   "animator.timeline|time.actions.stop|1.completeIteration"
+  ],
+  "note": "The action words name WHERE a move goes and HOW (dev-docs/reviews/schema-and-props--improvements.md §0): `reset` → `jumpToStart`, `rewind` → `animateToStart`, `actions.start: 'restart'` → `'jumpToStart'`; `actions.stop` gains `jumpToEnd` / `animateToEnd`, and arriving at the end runs `finish` — so `stop.completeIteration: true` becomes `stop: 'animateToEnd'` (an endless timeline takes the old stop word as its `finish`, which only a stop could reach; a finite one keeps its `finish`)."
  }
 ]

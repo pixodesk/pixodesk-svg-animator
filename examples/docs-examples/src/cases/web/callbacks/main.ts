@@ -9,7 +9,7 @@ const animator = createSvgAnimationPlayer({
   container: '#box',
   onPlay:   () => say('onPlay'),    // started or resumed
   onPause:  () => say('onPause'),
-  onReset: () => say('onReset'),    // back at the start pose
+  onStop:   () => say('onStop'),    // the stop action was performed — stop()
   onFinish: () => say('onFinish'),  // natural end, or jumpToEnd()
   onDestroy: () => say('onDestroy'),  // destroyed
 });
@@ -17,6 +17,6 @@ const animator = createSvgAnimationPlayer({
 const $ = (id: string) => document.getElementById(id)!;
 $('play').onclick = () => animator.play();
 $('pause').onclick = () => animator.pause();
-$('reset').onclick = () => animator.reset();
+$('stop').onclick = () => animator.stop();
 $('finish').onclick = () => animator.jumpToEnd();
 $('destroy').onclick = () => animator.destroy();

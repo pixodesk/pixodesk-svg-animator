@@ -23,12 +23,12 @@ export function createWebPlayer(
   return {
     play: () => api.play(),
     pause: () => api.pause(),
-    reset: () => api.reset(),
+    jumpToStart: () => api.jumpToStart(),
     finish: () => api.jumpToEnd(),
     isPlaying: () => api.isPlaying(),
     getCurrentTime: () => api.getCurrentTime(),
     setCurrentTime: (ms) => api.setCurrentTime(ms),
-    setPlaySpeed: (speed) => api.setPlaySpeed(speed),
+    setPlaybackSpeed: (speed) => api.setPlaybackSpeed(speed),
     destroy: () => api.destroy(),
   };
 }

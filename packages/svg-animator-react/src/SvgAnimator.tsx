@@ -8,7 +8,7 @@ import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxActio
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxFinishBehavior, PxPlayState, PxWhenIdle, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, playLevelsOf, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, playStateToLevels, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
@@ -92,19 +92,19 @@ export interface SvgAnimatorImplProps {
 }
 
 /**
- * The six lifecycle callbacks — a subset of {@link SvgAnimationPlayerProps}, derived from core's
+ * The lifecycle callbacks — a subset of {@link SvgAnimationPlayerProps}, derived from core's
  * `PxAnimationPlayerCallbacks` (review §9). Kept under its own name because the inner component indexes
  * it with `keyof` and invokes every member, which the diagnostics members would not allow.
  * @public
  */
 export type SvgAnimationPlayerCallbacks =
-    Pick<PxAnimationPlayerCallbacks, 'onReady' | 'onPlay' | 'onStop' | 'onPause' | 'onReset' | 'onFinish' | 'onDestroy'>;
+    Pick<PxAnimationPlayerCallbacks, 'onReady' | 'onPlay' | 'onStop' | 'onPause' | 'onFinish' | 'onDestroy'>;
 
 /**
  * The component's props. The playback override, the control props and every callback are
  * core's shared shapes (review §9) — `PxPlaybackOverride`, `PxControlProps` and
  * `PxAnimationPlayerCallbacks` — so React, Vue and React Native cannot drift apart. Only what is
- * React-specific is declared here.
+ * React-specific is declared here. `SvgCssAnimationPlayerProps` derives from this type — a change here is checked there.
  * @public
  */
 export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxAnimationPlayerCallbacks & {
@@ -194,7 +194,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
         // props are invoked even though this component never re-renders.
         const cb = (name: keyof SvgAnimationPlayerCallbacks) => () => { callbacksRef.current?.[name]?.(); };
         // The player's own diagnostics reach the same handlers as the component's (§5). Spread
-        // the CURRENT values rather than wrapping them: `(m, d) => diagRef.current?.onWarn?.(m, d)`
+        // the CURRENT values rather than wrapping them: `(m, d) => diagRef.current?.onWarning?.(m, d)`
         // would always be a function, so the channel would never fall back to the console.
         //
         // The callbacks go INLINE, under the same names as the props (review §9). `onStop` is
@@ -212,11 +212,10 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             onReady:  cb('onReady'),
             onPlay:   cb('onPlay'),
             onPause:  cb('onPause'),
-            onReset: cb('onReset'),
             onFinish: cb('onFinish'),
             onDestroy: cb('onDestroy'),
             onStop:   cb('onStop'),
-            onWarn:   diagRef.current?.onWarn,
+            onWarning:   diagRef.current?.onWarning,
             onError:  diagRef.current?.onError,
             suppressWarnings:  diagRef.current?.suppressWarnings,
             suppressErrors: diagRef.current?.suppressErrors,
@@ -245,14 +244,14 @@ const SvgAnimatorImplOnce = React.memo(
 /**
  * React component for rendering and controlling Pixodesk SVG animations.
  *
- * Supports four mutually-exclusive control modes:
+ * Supports four mutually-exclusive control modes — TypeScript accepts one at a time (`PxControlProps`):
  *
  * 1. **Play on trigger** – the document's own triggers, or an object with the triggers to use instead.
  *    ```tsx
  *    <SvgAnimationPlayer doc={animation} playUsingActionTriggers />
  *    ```
  *
- * 2. **Declarative playWhile/pauseWhile** (or one `playState`) – controlled props.
+ * 2. **Declarative play/pause** (or one `playState`) – controlled props.
  *    ```tsx
  *    <SvgAnimationPlayer doc={animation} play pause={false} />
  *    ```
@@ -269,19 +268,22 @@ const SvgAnimatorImplOnce = React.memo(
  *    <SvgAnimationPlayer doc={animation} showAtProgress={0.5} />
  *    <SvgAnimationPlayer doc={animation} showAtTime={500} />
  *    ```
+ *
+ * A script-free SVG + CSS export plays with the sibling {@link SvgCssAnimationPlayer}: the same prop names, fewer of
+ * them ({@link SvgCssAnimationPlayerProps} is derived from these props and checked against them).
  * @public
  */
 const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     className, style,
-    doc: docInput, playUsingActionTriggers, playWhile, pauseWhile, playState, showAtProgress, showAtTime, playerRef,
+    doc: docInput, playUsingActionTriggers, play, pause, playState, showAtProgress, showAtTime, playerRef,
 
     // Override — the file's timing and actions, adjusted (D4, playback-layers.md); the triggers travel with `playUsingActionTriggers`
     timelineOptions, actions,
 
-    onReady, onPlay, onStop, onPause, onReset, onFinish, onDestroy,
+    onReady, onPlay, onStop, onPause, onFinish, onDestroy,
 
     // Diagnostics (API review §5)
-    onWarn, onError, suppressWarnings, suppressErrors
+    onWarning, onError, suppressWarnings, suppressErrors
 }) => {
     // ONE type-level narrowing from the JSON-import shape (§5); the runtime validates values.
     // `let`: the timeline overrides below replace it with the patched copy.
@@ -292,16 +294,16 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // every mode, so `<SvgAnimationPlayer playUsingActionTriggers playerRef={api} />` autostarts AND gives
     // you the handle, instead of the ref silently forcing `start: 'manual'`.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAtProgress, showAtTime, playWhile, pauseWhile, playState, playUsingActionTriggers });
+        resolveControlMode({ showAtProgress, showAtTime, play, pause, playState, playUsingActionTriggers });
 
     /**
      * The diagnostics channel, built from the CURRENT props each time (API review §5).
-     * Deliberately not hoisted into a wrapper closure: `(m, d) => onWarn?.(m, d)` would always
+     * Deliberately not hoisted into a wrapper closure: `(m, d) => onWarning?.(m, d)` would always
      * be a function, so the channel would believe a handler exists and the console fallback
      * would never fire for anyone who passed nothing.
      */
     const makeDiag = (): PxDiagnostics =>
-        createDiagnostics({ onWarn, onError, suppressWarnings, suppressErrors }, '[SvgAnimationPlayer]');
+        createDiagnostics({ onWarning, onError, suppressWarnings, suppressErrors }, '[SvgAnimationPlayer]');
 
     // Warn once per distinct conflict, not once per render — a parent re-rendering on unrelated
     // state must not repeat the sentence. React Native guards it the same way.
@@ -323,15 +325,15 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     if (controlModeTakesOverTrigger(compMode)) doc = withoutTriggerDriver(doc);
 
     // §10: the EFFECTIVE iterations (file + the `iterations` prop, folded into the patched doc
-    // above) decide what `playWhile` drives — a POSE (one pass) or a RUN (loop).
+    // above) decide what `play` drives — a POSE (one pass) or a RUN (loop).
     const animatorView = getAnimatorConfig(doc) || {};
     const world = resolvePlaybackWorld(animatorView.iterations);
     const passMs = animatorView.duration ?? PX_DEFAULT_DURATION_MS;
     const totalMs = animatorView.iterations === 'infinite' ? Infinity
         : passMs * (typeof animatorView.iterations === 'number' && animatorView.iterations >= 1 ? animatorView.iterations : 1);
     if (compMode === PxControlMode.play && world === PxPlaybackWorld.oneShot) {
-        // The pose contract beats the file's rest poses (§10, D5): while `playWhile` names a pose, the held
-        // poses must be the same on every file — a `finish: reset` document would revert to its
+        // The pose contract beats the file's rest poses (§10, D5): while `play` names a pose, the held
+        // poses must be the same on every file — a `finish: jumpToStart` document would revert to its
         // static attrs after the run. Pin both sides: the first frame before, the last frame after.
         doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
     }
@@ -356,16 +358,16 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
 
     // Keep the latest callback props readable by the memoised inner component.
     const callbacksRef = useRef<SvgAnimationPlayerCallbacks>({});
-    callbacksRef.current = { onReady, onPlay, onStop, onPause, onReset, onFinish, onDestroy };
+    callbacksRef.current = { onReady, onPlay, onStop, onPause, onFinish, onDestroy };
 
     // Same idea for the diagnostics props, so the player and the adapter report where the
     // component does (§5).
     const diagRef = useRef<PxDiagnosticsConfig>({});
-    diagRef.current = { onWarn, onError, suppressWarnings, suppressErrors };
+    diagRef.current = { onWarning, onError, suppressWarnings, suppressErrors };
 
     // Expose the imperative API via the consumer-provided ref. The ref is an ambient
     // CAPABILITY, never a mode (§10) — but a WRITE call landing while a declarative driver
-    // (`playWhile`/`pauseWhile`/`playState` or `showAtProgress`/`showAtTime`) owns playback is the actual collision, so it warns
+    // (`play`/`pause`/`playState` or `showAtProgress`/`showAtTime`) owns playback is the actual collision, so it warns
     // (PX1503) and is applied; the next prop change reasserts the props.
     useImperativeHandle(playerRef, () => {
         const guardWrite = (call: string): void => {
@@ -379,18 +381,20 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
             play: () => { guardWrite('play()'); apiHolderRef.current?.play(); },
             pause: () => { guardWrite('pause()'); apiHolderRef.current?.pause(); },
             stop: () => { guardWrite('stop()'); apiHolderRef.current?.stop(); },
-            reset: () => { guardWrite('reset()'); apiHolderRef.current?.reset(); },
+            jumpToStart: () => { guardWrite('jumpToStart()'); apiHolderRef.current?.jumpToStart(); },
             jumpToEnd: () => { guardWrite('jumpToEnd()'); apiHolderRef.current?.jumpToEnd(); },
             playOnce: () => { guardWrite('playOnce()'); apiHolderRef.current?.playOnce(); },
             getPlayState: () => apiHolderRef.current?.getPlayState() ?? PxPlayState.idle,
-            getPlaySpeed: () => apiHolderRef.current?.getPlaySpeed() ?? 1,
-            setPlaySpeed: (speed: number) => {{ guardWrite('setPlaySpeed()'); apiHolderRef.current?.setPlaySpeed(speed); }},
-            getPlayDuration: () => apiHolderRef.current?.getPlayDuration() ?? null,
-            setPlayDuration: (ms: number) => {{ guardWrite('setPlayDuration()'); apiHolderRef.current?.setPlayDuration(ms); }},
-            getTotalPlayDuration: () => apiHolderRef.current?.getTotalPlayDuration() ?? null,
-            getCurrentPlayTime: () => apiHolderRef.current?.getCurrentPlayTime() ?? null,
+            getPlaybackSpeed: () => apiHolderRef.current?.getPlaybackSpeed() ?? 1,
+            setPlaybackSpeed: (speed: number) => {{ guardWrite('setPlaybackSpeed()'); apiHolderRef.current?.setPlaybackSpeed(speed); }},
+            getPlaybackDuration: () => apiHolderRef.current?.getPlaybackDuration() ?? null,
+            setPlaybackDuration: (ms: number) => {{ guardWrite('setPlaybackDuration()'); apiHolderRef.current?.setPlaybackDuration(ms); }},
+            getTotalPlaybackDuration: () => apiHolderRef.current?.getTotalPlaybackDuration() ?? null,
+            getCurrentPlaybackTime: () => apiHolderRef.current?.getCurrentPlaybackTime() ?? null,
+            getTotalPlaybackTime: () => apiHolderRef.current?.getTotalPlaybackTime() ?? null,
             getDuration: () => apiHolderRef.current?.getDuration() ?? null,
             getTotalDuration: () => apiHolderRef.current?.getTotalDuration() ?? null,
+            getTotalProgress: () => apiHolderRef.current?.getTotalProgress() ?? null,
             getCurrentTime: () => apiHolderRef.current?.getCurrentTime() ?? null,
             setCurrentTime: (time: number) => {{ guardWrite('setCurrentTime()'); apiHolderRef.current?.setCurrentTime(time); }},
             getCurrentProgress: () => apiHolderRef.current?.getCurrentProgress() ?? null,
@@ -408,10 +412,10 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // Sync the declarative props with the animator — ONE shared rule (§10,
     // `resolveDeclarativePlayback` in core, same in Vue and React Native). `prevPlaybackRef`
     // carries the last applied props; a remount (`key` change) clears it, so the fresh animator
-    // renders the named state from scratch — a mount never animates.
+    // renders the named state from scratch — a mount with `play` true plays (a one-shot to its end), `play={false}` does nothing.
     const prevPlaybackRef = useRef<{ key: number; props: PxDeclarativeProps } | null>(null);
     // `playState` folds into the two levels the resolver judges (core's one rule)
-    const levels = playLevelsOf({ playWhile, pauseWhile, playState });
+    const levels = playStateToLevels({ play, pause, playState });
     useEffect(() => {
         if (compMode === PxControlMode.play) {
             const api = apiHolderRef.current;
@@ -427,7 +431,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         }
         prevPlaybackRef.current = { key, props: levels };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compMode, playWhile, pauseWhile, playState, key]);
+    }, [compMode, play, pause, playState, key]);
 
     // Controlled-time mode: seek through the animator API. Scrubbing `showAtProgress` /
     // `showAtTime` only re-runs this effect — the animator is NOT recreated.

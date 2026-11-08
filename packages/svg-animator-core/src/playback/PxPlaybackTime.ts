@@ -8,7 +8,7 @@ import { PxPlaybackDirection } from '../format/PxAnimatorConstants';
 // ONE time contract for every engine (API review §3). The same three calls used to mean three
 // different things:
 //
-//   | engine          | getCurrentTime()        | setCurrentTime(t) | speed 0 (now setPlaySpeed) |
+//   | engine          | getCurrentTime()        | setCurrentTime(t) | speed 0 (now setPlaybackSpeed) |
 //   |-----------------|-------------------------|-------------------|--------------------|
 //   | web, WAAPI      | ms across the whole run | NOT clamped       | accepted           |
 //   | web, frame loop | ms across the whole run | clamped           | rejected + warn    |
@@ -25,7 +25,7 @@ import { PxPlaybackDirection } from '../format/PxAnimatorConstants';
 //   - a speed of 0 is rejected everywhere, with this one message.
 
 /** The one message every engine prints for a rejected speed. @public @advanced */
-export const PX_RATE_REJECTED = 'setPlaySpeed: speed must be finite and non-zero';
+export const PX_RATE_REJECTED = 'setPlaybackSpeed: speed must be finite and non-zero';
 
 /**
  * A playback rate is usable when it is finite and non-zero.

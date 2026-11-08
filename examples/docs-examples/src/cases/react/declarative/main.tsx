@@ -9,12 +9,12 @@ function App() {
   return (
     <>
       <div className="controls">
-        <button id="play" onClick={() => setPlaying(p => !p)}>playWhile = {String(playing)}</button>
-        <button id="pause" onClick={() => setPaused(p => !p)}>pauseWhile = {String(paused)}</button>
+        <button id="play" onClick={() => setPlaying(p => !p)}>play = {String(playing)}</button>
+        <button id="pause" onClick={() => setPaused(p => !p)}>pause = {String(paused)}</button>
       </div>
       <div className="stage">
-        {/* two LEVELS: plays while `playWhile` holds, frozen while `pauseWhile` holds — or one word: playState={paused ? 'paused' : playing ? 'playing' : 'idle'} */}
-        <SvgAnimationPlayer doc={animation as any} playWhile={playing} pauseWhile={paused} />
+        {/* two LEVELS: plays while `play` holds, frozen while `pause` holds — or one word: playState={paused ? 'paused' : playing ? 'playing' : 'idle'} */}
+        <SvgAnimationPlayer doc={animation as any} play={playing} pause={paused} />
       </div>
     </>
   );

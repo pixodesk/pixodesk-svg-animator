@@ -20,10 +20,10 @@
 //     throwing at the caller — a throw would land in a fetch callback or a render, where no
 //     one can catch it. (A wrong CALL — `createSvgAnimationPlayer()` with neither `src` nor `doc` — still
 //     throws: that is a bug at the call site, found the moment the line runs.)
-//   - `onWarn`: IT PLAYS, but something was ignored, degraded or misspelled — an unknown
+//   - `onWarning`: IT PLAYS, but something was ignored, degraded or misspelled — an unknown
 //     easing, an override that could not apply, an attribute the platform will not animate.
 //
-//   - a handler takes over from the console: give `onWarn` / `onError` and the console stays
+//   - a handler takes over from the console: give `onWarning` / `onError` and the console stays
 //     out of it; give none and the console is the fallback, so nothing is lost by default;
 //   - `suppressWarnings` / `suppressErrors` switch that console fallback off — for a host that knows
 //     about the warnings and is prepared to tolerate them. A handler you passed still fires.
@@ -112,7 +112,7 @@ export interface PxDiagnosticsConfig {
      * WHO can act on it via `kind` (`document` / `host` / `platform` / `usage` / `internal`);
      * `data` carries the values the site had. Without this: `console.warn`.
      */
-    onWarn?: (diagnostic: PxDiagnostic) => void;
+    onWarning?: (diagnostic: PxDiagnostic) => void;
 
     /**
      * THIS INSTANCE WILL NOT PLAY — the document failed to load, parse or build, or the render
@@ -126,7 +126,7 @@ export interface PxDiagnosticsConfig {
     /**
      * Switch the `console.warn` fallback off. For a host that knows the player has something
      * to say about this document and is prepared to tolerate it — a chatty player is not what
-     * an end user's console is for. A handler you passed (`onWarn`) still fires: this is
+     * an end user's console is for. A handler you passed (`onWarning`) still fires: this is
      * about the console, not about you. WHY `suppressWarnings`: React's own `suppressHydrationWarning` /
      * `suppressContentEditableWarning` set the word; it was `muteWarn` until 1.15 (a verb muted reads oddly).
      */
@@ -166,7 +166,7 @@ export function createDiagnostics(config?: PxDiagnosticsConfig, prefix?: string)
     return {
         warn: (kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void => {
             const message = codeLine(code);
-            if (config?.onWarn) { config.onWarn({ code, kind, data, message }); return; }
+            if (config?.onWarning) { config.onWarning({ code, kind, data, message }); return; }
             if (config?.suppressWarnings) return;
             console.warn(tag + kind + ' ' + message, ...data);
         },

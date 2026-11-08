@@ -21,8 +21,8 @@ import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
  * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
  */
 export function toEngineCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
-    const { onPlay, onPause, onReset, onFinish, onDestroy, onStop, onWarn, onError, suppressWarnings, suppressErrors } = inline ?? {};
-    return { onPlay, onPause, onReset, onFinish, onDestroy, onStop, onWarn, onError, suppressWarnings, suppressErrors };
+    const { onPlay, onPause, onFinish, onDestroy, onStop, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
+    return { onPlay, onPause, onFinish, onDestroy, onStop, onWarning, onError, suppressWarnings, suppressErrors };
 }
 
 /**
@@ -38,18 +38,20 @@ export function createInertAnimator(): PxAnimationPlayerApi {
         play: () => {},
         pause: () => {},
         stop: () => {},
-        reset: () => {},
+        jumpToStart: () => {},
         jumpToEnd: () => {},
         playOnce: () => {},
         getPlayState: () => PxPlayState.idle,
-        getPlaySpeed: () => 1,
-        setPlaySpeed: () => {},
-        getPlayDuration: () => null,
-        setPlayDuration: () => {},
-        getTotalPlayDuration: () => null,
-        getCurrentPlayTime: () => null,
+        getPlaybackSpeed: () => 1,
+        setPlaybackSpeed: () => {},
+        getPlaybackDuration: () => null,
+        setPlaybackDuration: () => {},
+        getTotalPlaybackDuration: () => null,
+        getCurrentPlaybackTime: () => null,
+        getTotalPlaybackTime: () => null,
         getDuration: () => null,
         getTotalDuration: () => null,
+        getTotalProgress: () => null,
         getCurrentTime: () => null,
         setCurrentTime: () => {},
         getCurrentProgress: () => null,

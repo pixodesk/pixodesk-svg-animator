@@ -421,6 +421,29 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: (doc) => forEachRawNode(doc, upRetimeWindow),
         down: (doc) => forEachRawNode(doc, downRetimeWindow),   // exactly invertible for a complete window
     },
+    {
+        from: '1.21',
+        to: '1.22',
+        reason: '`timeline.playSpeed` becomes `timeline.playbackSpeed` (dev-docs/reviews/schema-and-props--improvements.md §0): '
+            + '"playback speed" is how media players say it, and the handle\'s family reads the same '
+            + '(`getPlaybackSpeed()`, `getPlaybackDuration()`, `getCurrentPlaybackTime()`). The value is unchanged.',
+        kind: PxWireStepKind.converted,
+        up: (doc) => renameTimelineKey(doc, 'playSpeed', 'playbackSpeed'),
+        down: (doc) => renameTimelineKey(doc, 'playbackSpeed', 'playSpeed'),   // exactly invertible: a key rename
+    },
+    {
+        from: '1.22',
+        to: '1.23',
+        reason: 'The action words name WHERE a move goes and HOW (dev-docs/reviews/schema-and-props--improvements.md §0): '
+            + '`reset` → `jumpToStart`, `rewind` → `animateToStart`, `actions.start: \'restart\'` → `\'jumpToStart\'`; '
+            + '`actions.stop` gains `jumpToEnd` / `animateToEnd`, and arriving at the end runs `finish` — so '
+            + '`stop.completeIteration: true` becomes `stop: \'animateToEnd\'` (an endless timeline takes the old stop '
+            + 'word as its `finish`, which only a stop could reach; a finite one keeps its `finish`).',
+        kind: PxWireStepKind.converted,
+        up: upActionWords,
+        // exact for every 1.22 spelling; the two new stop words have none, and an older reader takes them as its default
+        down: downActionWords,
+    },
 ];
 
 /** The content window's length, ms, of a time timeline — `outTime − inTime`; an absent `outTime` is WRITTEN first
@@ -544,6 +567,66 @@ function renameActionValue(doc: Record<string, unknown>, slotKey: string, from: 
     if (actions[slotKey] === from) { actions[slotKey] = to; return; }
     const slot = readObjectProp(actions, slotKey);
     if (slot && slot['behavior'] === from) slot['behavior'] = to;
+}
+
+/** The 1.22 → 1.23 word renames per action slot (old → new); a slot's word or its `behavior` is renamed. */
+const ACTION_WORDS_1_23: ReadonlyArray<readonly [slot: string, from: string, to: string]> = [
+    ['start', 'restart', 'jumpToStart'],
+    ['stop', 'reset', 'jumpToStart'], ['stop', 'rewind', 'animateToStart'],
+    ['finish', 'reset', 'jumpToStart'], ['finish', 'rewind', 'animateToStart'],
+    ['outOfView', 'reset', 'jumpToStart'],
+];
+
+/** The `animator.timeline.actions` block of a document, when there is one. */
+function actionsBlockOf(doc: Record<string, unknown>): { timeline: Record<string, unknown>; actions: Record<string, unknown> } | undefined {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    const actions = timeline ? readObjectProp(timeline, 'actions') : undefined;
+    return timeline && actions ? { timeline, actions } : undefined;
+}
+
+/** The word a slot names — the string form, or its settings' `behavior`. */
+function slotWordOf(actions: Record<string, unknown>, slot: string): string | undefined {
+    const value = actions[slot];
+    if (typeof value === 'string') return value;
+    const settings = readObjectProp(actions, slot);
+    return settings && typeof settings['behavior'] === 'string' ? settings['behavior'] : undefined;
+}
+
+/** 1.22 → 1.23: `completeIteration` folds into `stop: 'animateToEnd'` (an endless timeline's `finish` takes the old
+ *  stop word), then every slot's word is renamed. */
+function upActionWords(doc: Record<string, unknown>): void {
+    const block = actionsBlockOf(doc);
+    if (!block) return;
+    const { timeline, actions } = block;
+    const stop = readObjectProp(actions, 'stop');
+    if (stop && stop['completeIteration'] !== undefined) {
+        const completes = stop['completeIteration'] === true;
+        delete stop['completeIteration'];
+        if (completes) {
+            const oldWord = typeof stop['behavior'] === 'string' ? stop['behavior'] : 'reset';
+            if (timeline['iterations'] === 'infinite') actions['finish'] = oldWord;   // renamed below with the rest
+            actions['stop'] = 'animateToEnd';
+        } else if (Object.keys(stop).length === 1 && typeof stop['behavior'] === 'string') {
+            actions['stop'] = stop['behavior'];                                       // the shortest spelling
+        } else if (Object.keys(stop).length === 0) {
+            delete actions['stop'];
+        }
+    }
+    for (const [slot, from, to] of ACTION_WORDS_1_23) renameActionValue(doc, slot, from, to);
+}
+
+/** 1.23 → 1.22: the words renamed back; `stop: 'animateToEnd'` becomes `completeIteration` with the finish's way
+ *  back as its word (`jumpToStart` when it holds). `stop: 'jumpToEnd'` stays — 1.22 has no spelling for it. */
+function downActionWords(doc: Record<string, unknown>): void {
+    const block = actionsBlockOf(doc);
+    if (!block) return;
+    const { actions } = block;
+    if (slotWordOf(actions, 'stop') === 'animateToEnd') {
+        const finish = slotWordOf(actions, 'finish');
+        actions['stop'] = { behavior: finish === 'animateToStart' ? 'rewind' : 'reset', completeIteration: true };
+    }
+    for (const [slot, from, to] of ACTION_WORDS_1_23) renameActionValue(doc, slot, to, from);
 }
 
 /** Renames one `animator.timeline` key, value untouched; nothing to do when it is absent. */

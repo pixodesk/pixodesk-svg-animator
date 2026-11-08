@@ -402,8 +402,6 @@ export function createAdapterSvgAnimationPlayer(
         finishCalled = false;
 
         renderFrame(timeBeforeLastStartMs);
-
-        callbacks?.onReset?.();
     };
 
     const finishAnim = (callOnFinish = true) => {
@@ -451,17 +449,16 @@ export function createAdapterSvgAnimationPlayer(
             pauseAnim();
             callbacks?.onPause?.();
         },
-        "reset": () => {
+        "jumpToStart": () => {
             cancelAnim();
-            // onReset already called in cancelAnim
         },
         "jumpToEnd": () => {
             finishAnim(true);
         },
 
-        "getPlaySpeed": (): number => playbackRate,
+        "getPlaybackSpeed": (): number => playbackRate,
 
-        "setPlaySpeed": (rate: number) => {
+        "setPlaybackSpeed": (rate: number) => {
             if (!isValidPlaybackRate(rate)) {
                 console.warn(PX_RATE_REJECTED);
                 return;
@@ -493,7 +490,7 @@ export function createAdapterSvgAnimationPlayer(
         },
 
         "destroy": () => {
-            api.reset();
+            api.jumpToStart();
             callbacks?.onDestroy?.();
         }
     };
