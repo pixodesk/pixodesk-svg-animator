@@ -5,16 +5,16 @@ import type { PxActionsOptions, PxDocument, PxTimelineOptions, PxActionTriggers 
  *
  * The Web (`@pixodesk/svg-animator-web`), React (`@pixodesk/svg-animator-react`)
  * and Vue (`@pixodesk/svg-animator-vue`) packages all expose the same imperative
- * surface (`play` / `pause` / `jumpToStart` / `jumpToEnd` / `getCurrentTime` /
+ * surface (`startRun` / `pauseRun` / `jumpToStart` / `jumpToEnd` / `getCurrentTime` /
  * `setCurrentTime` / `setPlaybackSpeed`). Each adapter wraps one of them behind this interface so the
  * UI can drive any of them uniformly.
  */
 export interface PlayerHandle {
-  /** Starts or resumes playback. */
-  play(): void;
-  /** Pauses at the current frame. */
-  pause(): void;
-  /** Back to the idle pose at once, unconditionally (the handle's `jumpToStart()`). */
+  /** Starts a run — or, while paused, unfreezes it (the handle's `startRun()`). */
+  startRun(): void;
+  /** Freezes the run at the current frame (the handle's `pauseRun()`). */
+  pauseRun(): void;
+  /** Back to the rest pose at once, unconditionally (the handle's `jumpToStart()`). */
   jumpToStart(): void;
   /** Jumps to the end and holds the final frame (the handle's `jumpToEnd()`). */
   finish(): void;

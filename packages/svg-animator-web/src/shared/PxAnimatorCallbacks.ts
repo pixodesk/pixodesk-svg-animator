@@ -4,25 +4,34 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlayState, type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
+import { PxRunState, type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
 
-/** The engine's callbacks plus `onStop`, carried along to the player's executor (it is not the engine's to fire). */
-export type PxPlayerCallbacks = PxEngineCallbacks & Pick<PxAnimationPlayerCallbacks, 'onStop'>;
+/** The player's callbacks as they travel through the web builders — the public set: the four run events (the
+ *  executor's to tell), the end, the teardown, the diagnostics channel. The ENGINES get a slice of it
+ *  ({@link toEngineCallbacks}); their raw `onPlay` / `onPause` never come from here. */
+export type PxPlayerCallbacks = PxAnimationPlayerCallbacks;
 import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
 
 /**
- * The engines take ONE callbacks object; every public surface takes the callbacks INLINE —
- * `createSvgAnimationPlayer({ onFinish })`, `createSvgAnimationPlayersFromPage({ onFinish })`, `<SvgAnimationPlayer
- * onFinish />`. This builds the one from the other. `onStop` is NOT an engine callback: it is the built-in
- * `stop` action's, told by the player's executor (`composeApiExtras`' `onStop`) — a pause is `onPause`, the
- * natural end `onFinish`. Defined HERE, once, so the web player and the components cannot disagree.
+ * Every public surface takes the callbacks INLINE — `createSvgAnimationPlayer({ onFinish })`,
+ * `createSvgAnimationPlayersFromPage({ onFinish })`, `<SvgAnimationPlayer onFinish />`. This picks the player's set out
+ * of the options (the rest of the options are not callbacks). Defined HERE, once, so the web player and the
+ * components cannot disagree.
  *
  * A wrapper is only made when there is something to call — an engine tests
  * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
  */
-export function toEngineCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
-    const { onPlay, onPause, onFinish, onDestroy, onStop, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
-    return { onPlay, onPause, onFinish, onDestroy, onStop, onWarning, onError, suppressWarnings, suppressErrors };
+export function toPlayerCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
+    const { onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
+    return { onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
+}
+
+/** The slice an ENGINE takes: the end, the teardown and the diagnostics channel. The run events are the executor's
+ *  (`composeApiExtras`' `runListeners`), and the engine's own `onPlay` / `onPause` stay unwired — the gate's hold and
+ *  a jump's internal pause are not the user's. */
+export function toEngineCallbacks(callbacks: PxPlayerCallbacks | undefined): PxEngineCallbacks {
+    const { onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = callbacks ?? {};
+    return { onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
 }
 
 /**
@@ -35,13 +44,17 @@ export function createInertAnimator(): PxAnimationPlayerApi {
         isReady: () => false,
         getRootElement: () => null,
         isPlaying: () => false,
+        startRun: () => {},
+        stopRun: () => {},
+        pauseRun: () => {},
+        resumeRun: () => {},
         play: () => {},
         pause: () => {},
-        stop: () => {},
         jumpToStart: () => {},
         jumpToEnd: () => {},
-        playOnce: () => {},
-        getPlayState: () => PxPlayState.idle,
+        runOnce: () => {},
+        getRunState: () => PxRunState.off,
+        isRunActive: () => false,
         getPlaybackSpeed: () => 1,
         setPlaybackSpeed: () => {},
         getPlaybackDuration: () => null,

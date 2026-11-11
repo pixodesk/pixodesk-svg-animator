@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxActionsOptions, type PxActionTriggersInput, type PxTimelineOptions } from '@pixodesk/svg-animator-core';
+import { PxRunState, PxTriggerAction, PxTriggerEvent, type PxActionsOptions, type PxActionTriggersInput, type PxTimelineOptions } from '@pixodesk/svg-animator-core';
 import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type ExtractPropTypes, type PropType } from 'vue';
@@ -53,7 +53,7 @@ type AssertNever<T extends never> = T;
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer :playUsingActionTriggers="{ start: 'hoverIn', pause: 'hoverOut' }">
+ *   <SvgCssAnimationPlayer :playUsingActionTriggers="{ startRun: 'hoverIn', pauseRun: 'hoverOut' }">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>
@@ -64,8 +64,8 @@ type AssertNever<T extends never> = T;
  * - `px-anim-enabled`                   — paused
  * - `px-anim-enabled px-anim-playing`   — playing
  *
- * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
- * `pause` (resume is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `startRun`, `stopRun`,
+ * `pauseRun` (`resumeRun` is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
  * (`createVisibilityGate`), so the two players cannot drift. No `playUsingActionTriggers`, or an empty block: nothing
  * starts it.
@@ -88,8 +88,8 @@ const SvgCssAnimationPlayer = defineComponent({
         const gateConfig = computed(() => resolveGate({
             actions: props.actions, inViewThreshold: props.timelineOptions?.inViewThreshold, inViewDebounce: props.timelineOptions?.inViewDebounce,
         }));
-        const playsOnLoad = computed(() => resolved.value.start.includes(PxTriggerEvent.load));
-        const state = ref<PxPlayState>(PxPlayState.idle);
+        const playsOnLoad = computed(() => resolved.value.startRun.includes(PxTriggerEvent.load));
+        const state = ref<PxRunState>(PxRunState.off);
         const el = ref<HTMLDivElement | null>(null);
         let gate: PxVisibilityGate | null = null;
 
@@ -99,11 +99,11 @@ const SvgCssAnimationPlayer = defineComponent({
             const node = el.value;
             if (!node) return;
             gate = createVisibilityGate(node, gateConfig.value, {
-                isPlaying: () => state.value === PxPlayState.playing,
-                start: () => { state.value = PxPlayState.playing; },
-                hold: () => { state.value = PxPlayState.paused; },
-                release: () => { state.value = PxPlayState.playing; },
-                jumpToStart: () => { state.value = PxPlayState.idle; },
+                isPlaying: () => state.value === PxRunState.playing,
+                start: () => { state.value = PxRunState.playing; },
+                hold: () => { state.value = PxRunState.paused; },
+                release: () => { state.value = PxRunState.playing; },
+                jumpToStart: () => { state.value = PxRunState.off; },
             });
             // Only `load` is held by the gate; a hover or a click is aimed at something seen.
             if (playsOnLoad.value) gate.requestStart(false);
@@ -116,18 +116,19 @@ const SvgCssAnimationPlayer = defineComponent({
         /** The state rule — the player's own, on the class state. */
         const fire = (event: PxTriggerEvent): void => {
             switch (triggerActionFor(resolved.value, state.value, event)) {
-                case PxTriggerAction.play:
+                case PxTriggerAction.startRun:
                     if (gate) gate.requestStart(true);
-                    else state.value = PxPlayState.playing;
+                    else state.value = PxRunState.playing;
                     break;
-                case PxTriggerAction.pause: state.value = PxPlayState.paused; break;
-                case PxTriggerAction.stop: state.value = PxPlayState.idle; break;
+                case PxTriggerAction.resumeRun: state.value = PxRunState.playing; break;
+                case PxTriggerAction.pauseRun: state.value = PxRunState.paused; break;
+                case PxTriggerAction.stopRun: state.value = PxRunState.off; break;
             }
         };
 
         const cssClass = computed(() =>
-            state.value === PxPlayState.playing ? 'px-anim-enabled px-anim-playing' :
-            state.value === PxPlayState.paused ? 'px-anim-enabled' : ''
+            state.value === PxRunState.playing ? 'px-anim-enabled px-anim-playing' :
+            state.value === PxRunState.paused ? 'px-anim-enabled' : ''
         );
 
         const handlers = computed(() => {

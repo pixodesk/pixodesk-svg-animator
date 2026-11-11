@@ -32,8 +32,8 @@ export function createReactPlayer(
 
   const api = () => playerRef.current;
   return {
-    play: () => api()?.play(),
-    pause: () => api()?.pause(),
+    startRun: () => api()?.startRun(),
+    pauseRun: () => api()?.pauseRun(),
     jumpToStart: () => api()?.jumpToStart(),
     finish: () => api()?.jumpToEnd(),
     isPlaying: () => api()?.isPlaying() ?? false,

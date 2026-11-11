@@ -55,9 +55,9 @@ export type {
     PxActions,
     PxTriggerEvent,
     PxTriggerEvents,
-    PxStartBehavior,
-    PxStopBehavior,
-    PxFinishBehavior,
+    PxStartRunBehavior,
+    PxStopRunBehavior,
+    PxAtEndBehavior,
     PxOutOfViewBehavior,
     PxWhenIdle,
     PxPlayExecutor,
@@ -89,7 +89,7 @@ export {
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // The page-wide registry — every live player in the window, whoever made it, plus its
-// play / pause / cancel / finish announcements (also `globalThis.__pixodeskSvgAnimationPlayers`).
+// runStart / runStop / runPause / runResume / finish announcements (also `globalThis.__pixodeskSvgAnimationPlayers`).
 export { getAllSvgAnimationPlayers, onSvgAnimationPlayersChange, PX_ANIMATION_PLAYER_REGISTRY_GLOBAL } from './registry/PxAnimatorRegistry';
 export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPlayersListener } from './registry/PxAnimatorRegistry';
 

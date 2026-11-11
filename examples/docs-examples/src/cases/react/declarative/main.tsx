@@ -13,8 +13,8 @@ function App() {
         <button id="pause" onClick={() => setPaused(p => !p)}>pause = {String(paused)}</button>
       </div>
       <div className="stage">
-        {/* two LEVELS: plays while `play` holds, frozen while `pause` holds — or one word: playState={paused ? 'paused' : playing ? 'playing' : 'idle'} */}
-        <SvgAnimationPlayer doc={animation as any} play={playing} pause={paused} />
+        {/* ONE lever: `playRun` holds a position — 'off' · 'on' · 'paused'; each change presses one button */}
+        <SvgAnimationPlayer doc={animation as any} playRun={paused ? 'paused' : playing ? 'on' : 'off'} />
       </div>
     </>
   );

@@ -28,7 +28,7 @@ comments, so a real file has none.)
       "iterationDirection": "alternate",
       // Plays as soon as half of it is on screen; pauses while it is scrolled away
       "actions": { "outOfView": "pause" }, "inViewThreshold": 0.5,
-      "actionTriggers": { "start": "load" }
+      "actionTriggers": { "startRun": "load" }
     }
   },
   "children": [
@@ -55,31 +55,56 @@ now two seconds per bounce and waiting until half of it has scrolled into view.
 ## Two blocks — requests and moments
 
 Three things make an animation go: the **triggers** (the user hovers or clicks), a component's
-**`play` / `pause` props** (your app's state — or `playState`, the same control in one
-word), and the **player API** (`play()`, `pause()`, `stop()` from your code). All three call the same **built-in actions**, so the format writes down
-**how** each action looks exactly once, in the timeline's `actions` block, and all three honour
-it. The two blocks are not mirror images of each other:
+**`playRun` prop** (your app's state — `off` · `on` · `paused`), and the **player API**
+(`startRun()`, `stopRun()`, `pauseRun()`, `resumeRun()` from your code). All three press the same
+four **buttons**, so the format writes down **how** a start and a stop look exactly once, in the
+timeline's `actions` block, and all three honour it.
 
-- `actionTriggers` keys are the **requests** a page event can make — `start`, `stop`, `pause`
-  (`resume` is derived unless the file names it).
-- `actions` keys are the **moments** whose outcome is configurable — `start`, `stop`, `finish`,
+A **run** is one instance of the animation being in effect: it begins with `startRun`, lasts while
+the animation is `playing`, `paused` or `finished`, and is retired by `stopRun` — or by the end of
+the pass, when `atEnd` says to go back. `startRun` / `stopRun` are the run's two buttons,
+`pauseRun` / `resumeRun` the freeze inside it; `off` is no run. The two blocks are not mirror images
+of each other:
+
+- `actionTriggers` keys are the **requests** a page event can make — `startRun`, `stopRun`,
+  `pauseRun` (`resumeRun` is derived unless the file names it).
+- `actions` keys are the **moments** whose outcome is configurable — `startRun`, `stopRun`,
   `outOfView`.
-- `start` and `stop` are in both because each is both a request and a moment; `pause` has one
-  behaviour (freeze), so there is no `actions.pause`; `finish` and `outOfView` are not page events,
-  so they have no list.
+- `startRun` and `stopRun` are in both because each is both a request and a moment; `pauseRun` has
+  one behaviour (freeze), so there is no `actions.pauseRun`; `outOfView` is not a page event, so it
+  has no list. The end of the pass is nobody's request either — it is the clock's rule, the timeline
+  key `atEnd` beside `whenIdle`, not a button.
 
 <!-- px-check off the two-blocks overview — each key and list is checked in its own table below -->
-| action | does | how it looks (`actions`) | requested by (`actionTriggers`) |
+| button / moment | does | how it looks | requested by (`actionTriggers`) |
 |---|---|---|---|
-| **start** | idle or finished → playing | `start.behavior`: `continue` · `jumpToStart` · `jumpToEnd` | `start` |
-| **stop** | playing or paused → idle, or on to the end | `stop.behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` | `stop` |
-| **pause** / **resume** | freeze, and carry on | nothing to configure | `pause`; `resume` — derived unless the file names it |
-| **finish** | the end is reached — by itself, or by a `…ToEnd` move | `finish.behavior`: `hold` · `jumpToStart` · `animateToStart` | — (the player) |
-| **outOfView** / **wake** | nobody can see it / seen again | `outOfView.behavior`: `pause` · `continue` · `jumpToStart` | — (the view sensor: a condition, not an event) |
+| **startRun** | off, finished or returning → playing | `actions.startRun.behavior`: `continue` · `jumpToStart` · `jumpToEnd` | `startRun` |
+| **stopRun** | playing, paused or finished → off, or on to the end | `actions.stopRun.behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` | `stopRun` |
+| **pauseRun** / **resumeRun** | freeze, and carry on | nothing to configure | `pauseRun`; `resumeRun` — derived unless the file names it |
+| **atEnd** | the end of the pass is reached — by itself, or by a `…ToEnd` move | `timeline.atEnd`: `hold` · `jumpToStart` · `animateToStart` | — (the clock) |
+| **outOfView** / **wake** | nobody can see it / seen again | `actions.outOfView.behavior`: `pause` · `continue` · `jumpToStart` | — (the view sensor: a condition, not an event) |
 
-So `player.stop()` on a looping heartbeat with `actions: { stop: 'animateToEnd' }` finishes the
-beat and then rests — and so does a `hoverOut` listed in `actionTriggers.stop`, and so does
-`play={false}` on the React component. One vocabulary, learnt once — [the action words](#the-action-words).
+So `player.stopRun()` on a looping heartbeat with `actions: { stopRun: 'animateToEnd' }` finishes the
+beat and then rests — and so does a `hoverOut` listed in `actionTriggers.stopRun`, and so does
+`playRun="off"` on the React component. One vocabulary, learnt once — [the action words](#the-action-words).
+
+### The run's states
+
+What the player reports is the **run's** state — `getRunState()` on every handle, the same words
+on every player; `isRunActive()` is true while a run exists (`playing` · `paused` · `finished`):
+
+<!-- px-check values PxRunState pkg=core -->
+| `getRunState()` | Means |
+|---|---|
+| `off` | no run: before the first `startRun`, or back at the rest pose after a stop |
+| `playing` | the run is on and the clock moves — `isPlaying()` |
+| `paused` | the run is on, frozen by `pauseRun` (`resumeRun` carries on) |
+| `finished` | the run reached its end and rests there (`atEnd: hold`); `stopRun` still acts on it, `startRun` makes a fresh run |
+| `returning` | no run, but the picture still plays back to the rest pose — `stopRun: 'animateToStart'` or `atEnd: 'animateToStart'` on its way; `startRun()` turns it around |
+| `destroyed` | after `destroy()` — every call is a no-op ([PX1504](../diagnostics.md#the-props-a-component-was-given)) |
+
+The gate's off-screen hold is none of these: it is the sensor's freeze, not the user's pause — it
+reports no callback and `getRunState()` does not change.
 
 ## The `timeline` — what advances the playhead
 
@@ -90,7 +115,7 @@ API timeline. Its `type` picks the kind, mirroring WAAPI's `DocumentTimeline` /
 <!-- px-check schema PxTimelineSchema values=type -->
 | `timeline.type` | The playhead follows… |
 |---|---|
-| `time` (default — may be omitted) | the player's clock — something *starts* it (the `actionTriggers`), and it has the playback dynamics below |
+| `time` (default — may be omitted) | the player's clock — something *starts* a run (the `actionTriggers`), and it has the playback dynamics below |
 | `scroll` | a scroll container's offset — [Scroll-driven playback](#scroll-driven-playback-in-development) |
 | `view` | the SVG's journey through the viewport — [Scroll-driven playback](#scroll-driven-playback-in-development) |
 
@@ -144,13 +169,13 @@ are plain ms (the delay is scaled by the speed, as WAAPI's is).
 ## Triggers — WHEN it plays
 
 The `actionTriggers` block — inside the time timeline — names the user interactions that call the
-built-in actions. One list per request — `start`, `stop`, `pause`, and `resume` when the file
-names it — over one open vocabulary of events:
+built-in buttons. One list per request — `startRun`, `stopRun`, `pauseRun`, and `resumeRun` when the
+file names it — over one open vocabulary of events:
 
 ```json
 "timeline": {
-  "actions": { "stop": "animateToEnd" },
-  "actionTriggers": { "start": ["hoverIn", "click"], "stop": "hoverOut", "pause": "click" }
+  "actions": { "stopRun": "animateToEnd" },
+  "actionTriggers": { "startRun": ["hoverIn", "click"], "stopRun": "hoverOut", "pauseRun": "click" }
 }
 ```
 
@@ -159,20 +184,20 @@ pauses and the next click carries on. Each list is a single event or an array of
 style of `animate`'s references — and the editor writes the shortest exact spelling.
 
 <!-- px-check schema PxActionTriggersSchema -->
-| List | Calls | Acts while the player is… | Editor label |
+| List | Presses | Acts while the run is… | Editor label |
 |---|---|---|---|
-| `start` | `start`, per `actions.start` | **idle** (or finished) | *Play on* |
-| `stop` | `stop`, per `actions.stop` | **playing or paused** | *Stop on* |
-| `pause` | `pause` — freezes the current frame | **playing** | *Pause on* |
-| `resume` | `resume` — carries on from there. **Derived unless the file names it** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume on* (shown, not edited) |
+| `startRun` | `startRun`, per `actions.startRun` | **off** (or finished, or returning) | *Start run on* |
+| `stopRun` | `stopRun`, per `actions.stopRun` | **playing, paused or finished** | *Stop run on* |
+| `pauseRun` | `pauseRun` — freezes the current frame | **playing** | *Pause run on* |
+| `resumeRun` | `resumeRun` — carries on from there. **Derived unless the file names it** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume run on* (shown, not edited) |
 
 Two clicks make two toggles — spelt with the lists themselves, no extra key:
 
 <!-- px-check off the two click toggles, prose -->
 | Click toggles | `actionTriggers` | A click while… |
 |---|---|---|
-| start / stop | `{ "start": "click", "stop": "click" }` | idle starts it; playing or paused stops it |
-| play / pause | `{ "start": "click", "pause": "click" }` | idle starts it; playing pauses it; paused resumes it |
+| start / stop | `{ "startRun": "click", "stopRun": "click" }` | off starts it; playing or paused stops it |
+| play / pause | `{ "startRun": "click", "pauseRun": "click" }` | off starts it; playing pauses it; paused resumes it |
 
 <!-- px-check values PxTriggerEvent pkg=core -->
 | Event | Fires when… |
@@ -193,43 +218,43 @@ warning ([PX1110](../diagnostics.md#what-the-document-says)).
 <!-- px-check values PxTriggerList pkg=core -->
 | List | `load` | `hoverIn` | `hoverOut` | `click` | Why |
 |---|---|---|---|---|---|
-| `start` | ✓ | ✓ | — | ✓ | starting when the pointer *leaves* makes no sense |
-| `stop` | — | — | ✓ | ✓ | stopping on load, or when the pointer *arrives*, makes no sense |
-| `pause` | — | ✓ | ✓ | ✓ | a marquee pauses on hover-in, a hover animation on hover-out |
-| `resume` | — | ✓ | ✓ | ✓ | derived unless the file names it — see below |
+| `startRun` | ✓ | ✓ | — | ✓ | starting when the pointer *leaves* makes no sense |
+| `stopRun` | — | — | ✓ | ✓ | stopping on load, or when the pointer *arrives*, makes no sense |
+| `pauseRun` | — | ✓ | ✓ | ✓ | a marquee pauses on hover-in, a hover animation on hover-out |
+| `resumeRun` | — | ✓ | ✓ | ✓ | derived unless the file names it — see below |
 
 ### What resumes a pause — derived unless named
 
-`resume` need not be written: when the file does not name it, the player derives it from `start`,
-`stop` and `pause`. A paused animation then resumes on
+`resumeRun` need not be written: when the file does not name it, the player derives it from
+`startRun`, `stopRun` and `pauseRun`. A paused animation then resumes on
 
-1. the **counterpart** of each `pause` event — `hoverIn` ↔ `hoverOut`, `click` → `click`
+1. the **counterpart** of each `pauseRun` event — `hoverIn` ↔ `hoverOut`, `click` → `click`
    (`load` has none), and
-2. the `start` events that do not also stop it — so a click that starts *and* stops
-   (`"start": "click", "stop": "click"`) stops a paused animation, as the lists say.
+2. the `startRun` events that do not also stop it — so a click that starts *and* stops
+   (`"startRun": "click", "stopRun": "click"`) stops a paused animation, as the lists say.
 
 <!-- px-check off worked examples of the derived resume — the lists are checked in the tables above -->
-| `actionTriggers` | Resume on | Plays as… |
+| `actionTriggers` | Resume run on | Plays as… |
 |---|---|---|
-| `{ "start": "load", "pause": "hoverIn" }` | `hoverOut` (and `load`, which has fired by then) | a marquee: runs on load, holds while the pointer is over it, carries on when it leaves |
-| `{ "start": "hoverIn", "pause": "hoverOut" }` | `hoverIn` | a hover animation that holds where it is when the pointer leaves |
-| `{ "start": "click", "pause": "click" }` | `click` | the play / pause click toggle: start → pause → resume → pause … |
-| `{ "start": "click", "stop": "click" }` | — | the start / stop click toggle: one click starts it, the next stops it — also while paused |
+| `{ "startRun": "load", "pauseRun": "hoverIn" }` | `hoverOut` (and `load`, which has fired by then) | a marquee: runs on load, holds while the pointer is over it, carries on when it leaves |
+| `{ "startRun": "hoverIn", "pauseRun": "hoverOut" }` | `hoverIn` | a hover animation that holds where it is when the pointer leaves |
+| `{ "startRun": "click", "pauseRun": "click" }` | `click` | the play / pause click toggle: start → pause → resume → pause … |
+| `{ "startRun": "click", "stopRun": "click" }` | — | the start / stop click toggle: one click starts it, the next stops it — also while paused |
 
-A `resume` list the file **does** name is honoured as written. Where it differs from the
+A `resumeRun` list the file **does** name is honoured as written. Where it differs from the
 derivation — it names an event the derivation would not, or leaves out one it would (that pause
-then waits for `start` or `stop`) — the player notes it
+then waits for `startRun` or `stopRun`) — the player notes it
 ([PX1111](../diagnostics.md#what-the-document-says)), so a surprising resume is no mystery.
 
 ### One event, several lists
 
 An event may be listed under several lists. The player's **state** picks the list it is read
-from — `start` when idle, `pause` when playing, the derived resume when paused, `stop` when
-playing or paused — and every action checks the state **as it was when the event arrived**.
+from — `startRun` when off, `pauseRun` when playing, the derived resume when paused, `stopRun` when
+playing or paused — and every button checks the state **as it was when the event arrived**.
 
-- `{ "start": "click", "pause": "click" }`: a click while idle starts, while playing pauses,
+- `{ "startRun": "click", "pauseRun": "click" }`: a click while off starts, while playing pauses,
   while paused resumes.
-- Add `actions: { start: 'jumpToStart' }` and a click while idle (or finished) starts from the
+- Add `actions: { startRun: 'jumpToStart' }` and a click while off (or finished) starts from the
   top, while a click while paused still resumes.
 
 Two lists that react to the same event **in the same state** are a **collision**: the players
@@ -238,47 +263,48 @@ report it ([PX1109](../diagnostics.md#what-the-document-says)) and one of them w
 <!-- px-check off collision cases — the lists are checked in the tables above -->
 | `actionTriggers` | Collision? | What happens |
 |---|---|---|
-| `{ "stop": "click", "pause": "click" }` | **yes** — `stop` with `pause` | while playing, `pause` wins |
-| `{ "start": "load", "pause": "hoverIn", "stop": "hoverOut" }` | **yes** — `stop` with the counterpart of a `pause` event | while paused, `hoverOut` resumes rather than stops |
-| `{ "start": "click", "pause": "click" }` | no | the normal play / pause toggle — each list acts in another state |
-| `{ "start": "click", "stop": "click" }` | no | the start / stop click toggle — each list acts in another state |
-| `{ "start": "hoverIn", "stop": "hoverOut" }` | no | start on hover-in, stop on hover-out |
+| `{ "stopRun": "click", "pauseRun": "click" }` | **yes** — `stopRun` with `pauseRun` | while playing, `pauseRun` wins |
+| `{ "startRun": "load", "pauseRun": "hoverIn", "stopRun": "hoverOut" }` | **yes** — `stopRun` with the counterpart of a `pauseRun` event | while paused, `hoverOut` resumes rather than stops |
+| `{ "startRun": "click", "pauseRun": "click" }` | no | the normal play / pause toggle — each list acts in another state |
+| `{ "startRun": "click", "stopRun": "click" }` | no | the start / stop click toggle — each list acts in another state |
+| `{ "startRun": "hoverIn", "stopRun": "hoverOut" }` | no | start on hover-in, stop on hover-out |
 
 Every warning the players give about a triggers block, by kind:
 
 <!-- px-check values PxTriggerIssueKind pkg=core -->
 | Kind | Example | The player… | Code |
 |---|---|---|---|
-| `eventNotAllowed` | `"stop": "load"` | ignores the event (in a file, the document repair drops it from the list first — [PX1108](../diagnostics.md#what-the-document-says)) | [PX1110](../diagnostics.md#what-the-document-says) |
-| `collision` | `"stop": "click", "pause": "click"` | lets `pause` win while playing, the resume while paused | [PX1109](../diagnostics.md#what-the-document-says) |
-| `resumeExtra` | `"start": "load", "pause": "hoverIn", "resume": ["hoverOut", "click"]` | honours the list as written; `click` is the event the derivation would not name | [PX1111](../diagnostics.md#what-the-document-says) |
-| `resumeMissing` | `"start": "load", "pause": ["hoverIn", "click"], "resume": "hoverOut"` | honours the list as written; a pause by `click` then waits for `start` or `stop` | [PX1111](../diagnostics.md#what-the-document-says) |
+| `eventNotAllowed` | `"stopRun": "load"` | ignores the event (in a file, the document repair drops it from the list first — [PX1108](../diagnostics.md#what-the-document-says)) | [PX1110](../diagnostics.md#what-the-document-says) |
+| `collision` | `"stopRun": "click", "pauseRun": "click"` | lets `pauseRun` win while playing, the resume while paused | [PX1109](../diagnostics.md#what-the-document-says) |
+| `resumeExtra` | `"startRun": "load", "pauseRun": "hoverIn", "resumeRun": ["hoverOut", "click"]` | honours the list as written; `click` is the event the derivation would not name | [PX1111](../diagnostics.md#what-the-document-says) |
+| `resumeMissing` | `"startRun": "load", "pauseRun": ["hoverIn", "click"], "resumeRun": "hoverOut"` | honours the list as written; a pause by `click` then waits for `startRun` or `stopRun` | [PX1111](../diagnostics.md#what-the-document-says) |
 
 ### Absent, or empty
 
 An absent `actionTriggers` block and an empty one, `"actionTriggers": {}`, mean the same thing:
-nothing is listed, so nothing starts the animation until something drives it — your code's `play()`,
-a component's `play` prop, or a `playUsingActionTriggers` object. A file that plays by itself
-says so: `"actionTriggers": { "start": "load" }`. The editor always writes it, and files saved before
+nothing is listed, so nothing starts the animation until something drives it — your code's
+`startRun()`, a component's `playRun` prop, or a `playUsingActionTriggers` object. A file that plays by
+itself says so: `"actionTriggers": { "startRun": "load" }`. The editor always writes it, and files saved before
 schema 1.17 — when an absent block still meant `load` — get the line written in when they are
 migrated. WHY: a default nobody wrote is a guess, and an absent block meaning something other than an
 empty one trapped every merge patch, hand edit and tool that drops empty objects. A list that is
 absent is simply not listed.
 
 **Pause and carry on need no setting.** "Pause when the pointer leaves" is `hoverOut` listed under
-`pause` (hover-in resumes it — derived); "keep playing" is `hoverOut` not listed at all. That is
-what the editor does for you: ticking *Hover in* under *Play on* adds *Hover out* under *Pause
+`pauseRun` (hover-in resumes it — derived); "keep playing" is `hoverOut` not listed at all. That is
+what the editor does for you: ticking *Hover in* under *Start run on* adds *Hover out* under *Pause run
 on*, editable.
 
-## Actions — how start, stop and finish look
+## Actions — how a start and a stop look
 
-`timeline.actions` gives the built-in actions their settings — one slot per moment. `behavior` names a
+`timeline.actions` gives the two run buttons their settings — one slot per moment. `behavior` names a
 **preset**: one word for where the move goes and how it gets there — and a slot that says only
-`behavior` is written as the word itself: `"stop": "animateToStart"` is exactly
-`"stop": { "behavior": "animateToStart" }`. Every setting has a stated default, so a document that says
-nothing plays the way it always did: a start continues, a stop jumps back to the start, the end holds.
-A key here names a moment; `start` and `stop` are requests too, so they appear in `actionTriggers` as
-well ([Two blocks](#two-blocks--requests-and-moments)).
+`behavior` is written as the word itself: `"stopRun": "animateToStart"` is exactly
+`"stopRun": { "behavior": "animateToStart" }`. Every setting has a stated default, so a document that says
+nothing plays the way it always did: a start continues, a stop jumps back to the start, the end holds
+(`atEnd`, [below](#the-end-of-the-pass--atend)). A key here names a moment; `startRun` and `stopRun`
+are requests too, so they appear in `actionTriggers` as well
+([Two blocks](#two-blocks--requests-and-moments)).
 
 ### The action words
 
@@ -288,15 +314,15 @@ Every move names **where** it goes (`…ToStart` / `…ToEnd`) and **how** (`jum
 <!-- px-check off the one table of action words — each slot's values are checked in its own table below -->
 | Word | Means | Taken by |
 |---|---|---|
-| `jumpToStart` | at once to the idle pose (`whenIdle`: the file's static look, or the first frame) | `start` · `stop` · `finish` · `outOfView` |
-| `animateToStart` | plays backwards to the idle pose | `stop` · `finish` |
-| `jumpToEnd` | at once to the end of the pass (a one-shot: the run's end) | `start` · `stop` |
-| `animateToEnd` | plays on to the end of the pass | `stop` |
-| `continue` | keeps going from where it is | `start` · `outOfView` |
-| `hold` | stays where it is | `finish` |
+| `jumpToStart` | at once to the rest pose (`whenIdle`: the file's static look, or the first frame) | `startRun` · `stopRun` · `atEnd` · `outOfView` |
+| `animateToStart` | plays backwards to the rest pose — the `returning` state | `stopRun` · `atEnd` |
+| `jumpToEnd` | at once to the end of the pass (a one-shot: the run's end) | `startRun` · `stopRun` |
+| `animateToEnd` | plays on to the end of the pass | `stopRun` |
+| `continue` | keeps going from where it is | `startRun` · `outOfView` |
+| `hold` | stays where it is | `atEnd` |
 | `pause` | freezes where it is (the gate only) | `outOfView` |
 
-**Reaching the end runs `actions.finish`** — by any route: the natural end, a stop that goes there
+**Reaching the end runs `atEnd`** — by any route: the natural end, a stop that goes there
 (`jumpToEnd`, `animateToEnd`), a start that goes there (`jumpToEnd`), or the handle's `jumpToEnd()`.
 "The end" is the end of the **current pass**; on a one-shot that is the run's end. WHY these words
 (`reset` / `rewind` / `restart` / `completeIteration` until 1.22): one destination word and one manner
@@ -305,84 +331,94 @@ word say what a reader had to look up — "reset to where?", "rewind how?", "com
 <!-- px-check off worked examples — the words are checked in the tables below -->
 | You want | `actions` | What happens |
 |---|---|---|
-| stop after this pass — a heartbeat should not die mid-beat | `{ stop: 'animateToEnd' }` | a stop plays on to the end of the current pass; arriving there runs `finish` — `hold` rests on that frame |
-| …then snap back | `{ stop: 'animateToEnd', finish: 'jumpToStart' }` | the beat completes, then the idle pose |
-| …then undo it smoothly | `{ stop: 'animateToEnd', finish: 'animateToStart' }` | the beat completes, then plays back to the idle pose — an explicit two-leg chain |
-| a lid that opens on hover-in and closes animated on hover-out | `{ stop: 'animateToStart' }` | a stop plays backwards from wherever it is |
-| an overlay that appears at once and leaves animated | `{ start: 'jumpToEnd', stop: 'animateToStart' }` | a start shows the end pose with no motion (then `finish`: `hold`); a stop plays it back out |
-| a splash that replays on every click | `{ start: 'jumpToStart' }` | a start always plays from the top |
+| stop after this pass — a heartbeat should not die mid-beat | `{ stopRun: 'animateToEnd' }` | a stop plays on to the end of the current pass; arriving there runs `atEnd` — `hold` rests on that frame |
+| …then snap back | `{ stopRun: 'animateToEnd' }` + `atEnd: 'jumpToStart'` | the beat completes, then the rest pose |
+| …then undo it smoothly | `{ stopRun: 'animateToEnd' }` + `atEnd: 'animateToStart'` | the beat completes, then plays back to the rest pose — an explicit two-leg chain |
+| a lid that opens on hover-in and closes animated on hover-out | `{ stopRun: 'animateToStart' }` | a stop plays backwards from wherever it is |
+| an overlay that appears at once and leaves animated | `{ startRun: 'jumpToEnd', stopRun: 'animateToStart' }` | a start shows the end pose with no motion (then `atEnd`: `hold`); a stop plays it back out |
+| a splash that replays on every click | `{ startRun: 'jumpToStart' }` | a start always plays from the top |
 
 <!-- px-check schema PxActionsSchema -->
 | Field | Values | Default |
 |---|---|---|
-| `start.behavior` | `continue` · `jumpToStart` · `jumpToEnd` | `continue` |
-| `stop.behavior` | `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` | `jumpToStart` |
-| `finish.behavior` | `hold` · `jumpToStart` · `animateToStart` | `hold` |
+| `startRun.behavior` | `continue` · `jumpToStart` · `jumpToEnd` | `continue` |
+| `stopRun.behavior` | `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` | `jumpToStart` |
 | `outOfView.behavior` | `pause` · `continue` · `jumpToStart` | `pause` — [the visibility gate](#whether-it-may-run--the-visibility-gate) |
 
-`pause`, `resume` and `wake` have nothing to configure.
+`pauseRun`, `resumeRun` and `wake` have nothing to configure.
 
-<!-- px-check values PxStartBehavior pkg=core -->
-| `actions.start.behavior` | A start (a `start` event, `play={true}`, `play()`)… |
+<!-- px-check values PxStartRunBehavior pkg=core -->
+| `actions.startRun.behavior` | A start (a `startRun` event, `playRun="on"`, `startRun()`)… |
 |---|---|
-| `continue` (default) | continues from the current position. At the start or the end, that is a fresh run from the beginning |
+| `continue` (default) | continues from the current position. At the start or the end, that is a fresh run from the beginning; while playing it changes nothing, while paused it unfreezes, while returning it turns around |
 | `jumpToStart` | starts from the beginning every time — a splash that must replay on every click (was `restart`) |
-| `jumpToEnd` | lands at the end pose with no motion, then runs `finish` — overlay art that appears instantly and retreats animated with `stop: 'animateToStart'`. `iterationDirection: 'reverse'` cannot replace it: a reversed one-shot still *plays* when started |
+| `jumpToEnd` | lands at the end pose with no motion, then runs `atEnd` — overlay art that appears instantly and retreats animated with `stopRun: 'animateToStart'`. `iterationDirection: 'reverse'` cannot replace it: a reversed one-shot still *plays* when started |
 
-<!-- px-check values PxStopBehavior pkg=core -->
-| `actions.stop.behavior` | A stop (a `stop` event, `play={false}`, `stop()`)… |
+<!-- px-check values PxStopRunBehavior pkg=core -->
+| `actions.stopRun.behavior` | A stop (a `stopRun` event, `playRun="off"`, `stopRun()`)… |
 |---|---|
-| `jumpToStart` (default) | jumps back to the idle pose at once (was `reset`) |
-| `animateToStart` | plays backwards to the idle pose (was `rewind`) — the trash-can lid: opens on hover-in, closes animated on hover-out |
-| `jumpToEnd` | jumps to the end of the current pass, then runs `finish` |
-| `animateToEnd` | plays on to the end of the current pass, then runs `finish` — "stop after this pass" (was `stop.completeIteration: true`); a one-shot runs to its end first |
+| `jumpToStart` (default) | jumps back to the rest pose at once (was `reset`) |
+| `animateToStart` | plays backwards to the rest pose — the `returning` state (was `rewind`) — the trash-can lid: opens on hover-in, closes animated on hover-out |
+| `jumpToEnd` | jumps to the end of the current pass, then runs `atEnd` |
+| `animateToEnd` | plays on to the end of the current pass, then runs `atEnd` — "stop after this pass" (was `stop.completeIteration: true`); a one-shot runs to its end first |
 
-<!-- px-check values PxFinishBehavior pkg=core -->
-| `actions.finish.behavior` | At the end — every iteration played, or a `…ToEnd` move arrived… |
+### The end of the pass — `atEnd`
+
+Nobody presses the end of a pass: the clock gets there, so what happens next is the timeline's own
+rule — `timeline.atEnd`, a plain key beside `whenIdle`, not an `actions` slot (`actions.finish` until
+1.23). It runs on **every** arrival at the end — the natural one, a `…ToEnd` stop or start, the
+handle's `jumpToEnd()`:
+
+<!-- px-check values PxAtEndBehavior pkg=core -->
+| `timeline.atEnd` | At the end — every iteration played, or a `…ToEnd` move arrived… |
 |---|---|
-| `hold` (default) | keeps the last frame showing (the `finished` state) |
-| `jumpToStart` | jumps back to the idle pose (was `reset`) |
-| `animateToStart` | plays backwards to the idle pose (was `rewind`) |
+| `hold` (default) | keeps the last frame showing — the run rests in the `finished` state |
+| `jumpToStart` | jumps back to the rest pose (was `reset`) — the run is over, `off` |
+| `animateToStart` | plays backwards to the rest pose (was `rewind`) — `returning` on the way, then `off` |
 
-### What shows while idle — `whenIdle`
+In a file: `"timeline": { "atEnd": "hold" }`; per mount, the same key inside `timelineOptions`
+(`timelineOptions={{ atEnd: 'jumpToStart' }}`).
 
-`jumpToStart` and `animateToStart` land on ONE picture wherever they appear: the **idle pose** — by
+### What shows while off — `whenIdle`
+
+`jumpToStart` and `animateToStart` land on ONE picture wherever they appear: the **rest pose** — by
 default the SVG as authored. A hand-authored file whose static attributes differ from its first
 keyframe can ask for the **first frame** instead with `timeline.whenIdle`, which governs the whole
-**idle** state — before the first start, after `jumpToStart()`, after a stop or finish that went back
+**off** state — before the first start, after `jumpToStart()`, after a stop or an `atEnd` that went back
 to the start (a paused animation shows its paused frame, a finished one its held frame).
 
 It is CSS's `animation-fill-mode`, split in two: what shows **before** the run is `whenIdle`, what
-stays **after** it is `actions.finish`.
+stays **after** it is `atEnd`.
 
 <!-- px-check off the fill-mode correspondence, prose -->
 | CSS `animation-fill-mode` | SVGA |
 |---|---|
 | `backwards` | `whenIdle: 'firstFrame'` |
-| `forwards` | `finish: 'hold'` (the default) |
+| `forwards` | `atEnd: 'hold'` (the default) |
 | `both` | both of the above |
-| `none` | neither — `whenIdle: 'static'` and a finish that goes back to the start |
+| `none` | neither — `whenIdle: 'static'` and an `atEnd` that goes back to the start |
 
 WHY `whenIdle` (`showWhenStopped` until 1.18): "stopped" read as played-then-stopped, "before start"
-as the first start only; `idle` is WAAPI's word for exactly this state, so the key, the `PxPlayState`
-value and `getPlayState()` now say one word:
+as the first start only; `idle` is WAAPI's word for the state with no run. The run's own readout says
+`off` since 1.24 (`getRunState()`, `PxRunState` — `idle` until 1.23); the key keeps WAAPI's word for
+what shows while there is no run:
 
 <!-- px-check values PxWhenIdle pkg=core -->
-| `timeline.whenIdle` | What is shown while idle |
+| `timeline.whenIdle` | What is shown while off |
 |---|---|
 | `static` (default) | the SVG as authored |
 | `firstFrame` | the first frame's values. The editor never writes it: in its files the two are the same picture |
 
-A **one-shot document** driven by a component's `play` prop reads these settings too:
-`play={true}` is a start (the default `continue` plays to the end and holds there, per finish
-`hold`), `play={false}` a stop (`jumpToStart` snaps back, `animateToStart` plays back). The trash-can
-lid that closes animated is `actions={{ stop: 'animateToStart' }}`; overlay art that appears at once
-and retreats animated is `actions={{ start: 'jumpToEnd', stop: 'animateToStart' }}`.
+A **one-shot document** driven by a component's `playRun` prop reads these settings too:
+`playRun="on"` is a start (the default `continue` plays to the end and holds there, per `atEnd`
+`hold`), `playRun="off"` a stop (`jumpToStart` snaps back, `animateToStart` plays back). The trash-can
+lid that closes animated is `actions={{ stopRun: 'animateToStart' }}`; overlay art that appears at once
+and retreats animated is `actions={{ startRun: 'jumpToEnd', stopRun: 'animateToStart' }}`.
 
 ### Whether it may run — the visibility gate
 
 An animation nobody can see does not play, whatever started it. The gate is a **condition on
-every driver** — the triggers, a component's `play` prop and the API alike — not an event: once
+every driver** — the triggers, a component's `playRun` prop and the API alike — not an event: once
 none of it is on screen the player performs the built-in `outOfView` moment, and once it is seen
 again `wake`, which carries on whatever was meant to run. `outOfView` has one setting; the two
 numbers that say when the sensor counts it as seen are plain timeline keys:
@@ -392,9 +428,9 @@ numbers that say when the sensor counts it as seen are plain timeline keys:
 |---|---|
 | `pause` (default) | pause where it is; it resumes when the element comes back |
 | `continue` | keep playing — and start without waiting to be seen at all |
-| `jumpToStart` | jump back to the idle pose, so the next entry replays it from the beginning (was `reset`) |
+| `jumpToStart` | jump back to the rest pose, so the next entry replays it from the beginning (was `reset`) |
 
-`continue` reads differently in the two slots that take it: under `actions.start` it means "from
+`continue` reads differently in the two slots that take it: under `actions.startRun` it means "from
 where it rests", here "keep running".
 
 <!-- px-check off two plain numbers, not a closed value list — the schema block in the format guide carries their types -->
@@ -404,13 +440,14 @@ where it rests", here "keep running".
 | `timeline.inViewDebounce` | `150` | and for how long, in ms. Scrolling straight past an animation therefore starts nothing; `0` starts the moment the threshold is met |
 
 `wake` needs no setting: if it was meant to run, it runs again — from the paused position after
-`pause`, from the start after `jumpToStart`; `continue` never stopped. A hidden browser tab counts as
+`pause`, from the start after `jumpToStart`; `continue` never stopped. The hold is the sensor's, not
+a `pauseRun`: no callback reports it and `getRunState()` does not change. A hidden browser tab counts as
 out of view. An element taller than the screen counts as fully visible once it fills the screen,
 so a threshold of `0.5` or `1` can always be met. Where nothing can measure visibility — a server
 render, a test environment without `IntersectionObserver` — the animation plays as if fully
 visible, rather than silently never playing.
 
-**To play an animation when it scrolls into view**, nothing has to be set: `start: load` behind
+**To play an animation when it scrolls into view**, nothing has to be set: `startRun: load` behind
 the default gate IS that behaviour — it waits on its first frame until half of it is on screen
 for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 
@@ -446,9 +483,9 @@ player takes the **same three overrides**, and the file on disk is never modifie
 <!-- px-check off the three override props, prose — their types are checked in each player's signature block -->
 | | prop / option | what it carries |
 |---|---|---|
-| the timing | `timelineOptions` | corrections to the file's `timeline` block, minus its `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, the gate numbers — as an object shaped like the file; whoever needs more edits the document |
-| the actions | `actions` | corrections to the file's `timeline.actions`, setting by setting — `{ stop: 'animateToStart' }` changes how a stop looks and leaves the rest as the file has it |
-| the triggers | `playUsingActionTriggers` | `true` plays on the file's own triggers; an **object** is the whole `actionTriggers` block to use instead — `resume` included (derived when left out), so the override has the file's power. Lists left out are simply not listed, never the file's values |
+| the timing | `timelineOptions` | corrections to the file's `timeline` block, minus its `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, `atEnd`, the gate numbers — as an object shaped like the file; whoever needs more edits the document |
+| the actions | `actions` | corrections to the file's `timeline.actions`, setting by setting — `{ stopRun: 'animateToStart' }` changes how a stop looks and leaves the rest as the file has it |
+| the triggers | `playUsingActionTriggers` | `true` plays on the file's own triggers; an **object** is the whole `actionTriggers` block to use instead — `resumeRun` included (derived when left out), so the override has the file's power. Lists left out are simply not listed, never the file's values |
 
 Merge or replace — the one rule for the three:
 
@@ -475,10 +512,10 @@ const a = createSvgAnimationPlayer({
   src: '/bouncing-ball.json',
   container: '#box',
   timelineOptions: { iterations: 'infinite' },
-  actions: { stop: 'animateToEnd' },   // no `playUsingActionTriggers`: nothing starts until a.play()
+  actions: { stopRun: 'animateToEnd' },   // no `playUsingActionTriggers`: nothing starts until a.startRun()
 });
-a.play();
-a.stop();      // plays on to the end of the current pass, then rests — the actions said so
+a.startRun();
+a.stopRun();   // plays on to the end of the current pass, then rests — the actions said so
 ```
 
 **React / Vue / React Native** — the same objects, as props:
@@ -488,14 +525,14 @@ a.stop();      // plays on to the end of the current pass, then rests — the ac
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers timelineOptions={{ iterations: 'infinite' }} />
 
 // these triggers instead of the file's: starts on hover-in, plays back on hover-out
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'hoverIn', stop: 'hoverOut' }}
-  actions={{ stop: 'animateToStart' }} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ startRun: 'hoverIn', stopRun: 'hoverOut' }}
+  actions={{ stopRun: 'animateToStart' }} />
 
 // one click starts it, the next stops it
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'click', stop: 'click' }} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ startRun: 'click', stopRun: 'click' }} />
 
 // driven by your state — the same actions, the same settings
-<SvgAnimationPlayer doc={spinner} play={busy} actions={{ stop: 'animateToEnd' }} />
+<SvgAnimationPlayer doc={spinner} playRun={busy ? 'on' : 'off'} actions={{ stopRun: 'animateToEnd' }} />
 ```
 
 ### How the merge works
@@ -503,11 +540,11 @@ a.stop();      // plays on to the end of the current pass, then rests — the ac
 <!-- px-check off the merge rules, prose -->
 | | |
 | --- | --- |
-| **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them; `actions: { stop: 'animateToStart' }` leaves the other actions alone |
+| **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them; `actions: { stopRun: 'animateToStart' }` leaves the other actions alone |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
-| **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0 } }`, `{ actions: { finish: 'hold' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
+| **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0, atEnd: 'hold' } }`, `{ actions: { stopRun: 'jumpToStart' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
 | **`actionTriggers` and `actions` are not timeline keys here** | the file nests them, the props lift them: only `playUsingActionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error |
-| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `delay`, `playbackSpeed`, `iterationDirection`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning |
+| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `atEnd`, `delay`, `playbackSpeed`, `iterationDirection`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning |
 
 Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions, playUsingActionTriggers })`
 is the one implementation the web player and the three components call: the timing and the
@@ -528,16 +565,19 @@ block and a replacement that drops keys are things a merge cannot say).
 
 ### A note on the components' control props
 
-When you control a component with `play` / `pause`, `playState`, `showAtProgress` or `showAtTime`,
-the component ignores the triggers saved in the file: core's `withoutTriggerDriver` replaces them
-with an **empty** `actionTriggers` block, so nothing starts the animation by itself — the same patch the
+When you control a component with `playRun`, `showAtProgress` or `showAtTime`, the component
+ignores the triggers saved in the file: core's `withoutTriggerDriver` replaces them with an
+**empty** `actionTriggers` block, so nothing starts the animation by itself — the same patch the
 web player applies when `playUsingActionTriggers` is absent. Only `playUsingActionTriggers` mode follows the file's
-triggers. The `play` / `pause` props (and `playState`) call the built-in actions, so the file's `actions` (and the
-`actions` prop) still say how each move looks. `playerRef` is not a control prop: the handle is
-filled in every mode and never changes which one you are in.
+triggers. The `playRun` prop presses the built-in buttons — a change of position is one press: `off` → `on`
+is `startRun()`, `on` → `paused` is `pauseRun()`, `paused` → `on` is `resumeRun()`, anything → `off` is
+`stopRun()` — so the file's `actions` (and the `actions` prop) still say how each move looks; a mount with
+`"off"` presses nothing, a mount with `"paused"` starts the run frozen. Its positions are `PxPlayRun`
+(`off` · `on` · `paused`). `playerRef` is not a control prop: the handle is filled in every mode and
+never changes which one you are in.
 
 **One driver family at a time.** The React and React Native components type their control props as
-`PxControlProps`, a union: `showAtProgress` · `showAtTime` · `play` + `pause` · `playState` · `playUsingActionTriggers` —
+`PxControlProps`, a union: `showAtProgress` · `showAtTime` · `playRun` · `playUsingActionTriggers` —
 two families together do not compile. Vue's runtime props, or a JavaScript caller, can still pass any mix (`PxAnyControlProps`
 is every control prop, in any mix): React, Vue and React Native decide it with the same core
 function, so they always agree. `resolveControlMode` reads the props you passed and returns the mode
@@ -552,49 +592,52 @@ Everything above is decided by functions in `@pixodesk/svg-animator-core`, so a 
 write yourself cannot drift from the four shipped ones:
 
 - **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means
-  (the behaviors `continue` · `jumpToStart` · `hold` · `pause`,
-  `whenIdle: 'static'`, 0.5, 150 ms — and no `start`: an absent trigger block names no event).
+  (`startRunBehavior: 'continue'` · `stopRunBehavior: 'jumpToStart'` · `atEnd: 'hold'` · `outOfViewBehavior: 'pause'`,
+  `whenIdle: 'static'`, 0.5, 150 ms — and no `startRun`: an absent trigger block names no event).
   `resolveTriggers(triggers)` returns a `PxResolvedTriggers` —
-  every list an array of the events it may name (`triggerEventList` normalises one), `resume`
+  every list an array of the events it may name (`triggerEventList` normalises one), `resumeRun`
   derived unless the file names it, an absent block and an empty one both nothing.
-  `resolveActions(actions)` returns a
-  `PxResolvedActions` — every setting defaulted; `actionSettingsOf(slot)` reads one slot however it
+  `resolveActions(actions, atEnd?)` returns a
+  `PxResolvedActions` — `startRun`, `stopRun` and `outOfView` settings plus `atEnd`, every one defaulted; `actionSettingsOf(slot)` reads one slot however it
   is written (the word `'animateToStart'` is exactly `{ behavior: 'animateToStart' }`). `resolveGate(view)` returns a `PxResolvedGate`:
   the `outOfView` behavior and the two sensor numbers, defaulted.
-- **The lists.** `PxTriggerList` names them (`start` · `stop` · `pause` · `resume`);
+- **The lists.** `PxTriggerList` names them (`startRun` · `stopRun` · `pauseRun` · `resumeRun`);
   `allowedTriggerEvents(list)` is the table of events each may name (the schema is built from it);
   `counterpartTriggerEvent(event)` is the event that undoes another (`hoverIn` ↔ `hoverOut`,
-  `click` → `click`, none for `load`); `derivedResume(start, stop, pause)` is the derived resume.
+  `click` → `click`, none for `load`); `derivedResume(startRun, stopRun, pauseRun)` is the derived resume.
 - **Schemas.** `PxActionTriggersSchema` (fixed lists, each limited to its events) and `PxActionsSchema`, one fixed sub-schema per
-  action — `PxStartActionSchema`, `PxStopActionSchema`, `PxFinishActionSchema`,
-  `PxOutOfViewActionSchema` — each stating its defaults.
-- **The event rule.** `triggerActionFor(triggers, state, event)` — the player's state (`PxPlayState`:
-  idle · playing · paused · finished — and `destroyed`, which answers nothing) picks the list, and the answer is a `PxTriggerAction`: `play`,
-  `pause` or `stop`. `triggerListsEvent` says which listeners to attach at all.
+  slot — `PxStartRunActionSchema`, `PxStopRunActionSchema`, `PxOutOfViewActionSchema` — each stating its
+  defaults; `PxAtEndSchema` is the `atEnd` enum on the timeline (`hold` · `jumpToStart` · `animateToStart`, default `hold`).
+- **The event rule.** `triggerActionFor(triggers, state, event)` — the run's state (`PxRunState`:
+  off · playing · paused · finished · returning — and `destroyed`, which answers nothing) picks the list, and the answer is a `PxTriggerAction`: `startRun`,
+  `stopRun`, `pauseRun` or `resumeRun`. `triggerListsEvent` says which listeners to attach at all.
 - **The warnings.** `triggerIssues(triggers)` returns every problem with a block as a
   `PxTriggerIssue` — `{ kind, list, event, otherList? }`, its `kind` a `PxTriggerIssueKind`
   (`eventNotAllowed` · `collision` · `resumeExtra` · `resumeMissing`); an empty array is a clean block. The web
   player reports them as PX1110, PX1109 and PX1111 (both resume kinds).
 - **Where they live.** The trigger functions (`resolveTriggers` … `triggerIssues`) and their types
   (`PxResolvedTriggers`, `PxTriggerIssue`) come from `@pixodesk/svg-animator-core/engine`; the
-  consts `PxTriggerList`, `PxTriggerIssueKind`, `PxPlayState` and `PxTriggerAction` from the main entry.
-- **The executor.** One `PxPlayExecutor` per player performs every built-in action — `start()` per
-  `actions.start`, `stop()` per `actions.stop`, `pause()` / `resume()`, the state-rule `play()`,
-  `jumpToStart()` (the unconditional jump to the idle pose), `animateToStart()`, and
-  `onNaturalFinish()`, which performs `actions.finish` when the engine reports the end (or a jump
-  there). It owns the one state engines cannot report: paused versus idle.
-  `playStateToLevels(props)` (`/engine`) turns the `playState` word into the two levels the executor
-  is driven by — `{ play, pause }` — so every framework component resolves `playState` the same way. `createPlayExecutor(api, config, raf)` builds
+  consts `PxTriggerList`, `PxTriggerIssueKind`, `PxRunState` and `PxTriggerAction` from the main entry.
+- **The executor.** One `PxPlayExecutor` per player performs every button — `startRun()` per
+  `actions.startRun`, `stopRun()` per `actions.stopRun`, `pauseRun()` / `resumeRun()`, the alias `play()`,
+  `jumpToStart()` (the unconditional jump to the rest pose), `animateToStart()` (the `returning` leg),
+  `runOnce()`, and `onNaturalFinish()`, which performs `atEnd` when the engine reports the end (or a jump
+  there). It owns the states engines cannot report — paused versus off, finished, returning — and tells
+  the run events (`setListeners(PxRunListeners)`: `onRunStart` · `onRunStop` · `onRunPause` · `onRunResume`, the
+  run subset of `PxAnimationPlayerCallbacks`).
+  `resolveDeclarativePlayback(args)` (`/engine`) turns a change of the `playRun` prop (`PxDeclarativeProps`) into
+  the buttons to press — `PxDeclarativeAction`: `startRun` · `stopRun` · `pauseRun` · `resumeRun` — so every
+  framework component resolves `playRun` the same way (a mount with `"off"` presses nothing; no position pair is
+  invalid). `createPlayExecutor(api, config, raf)` builds
   one over any `PxPlayTarget` (the slice of the API it drives) from a `PxPlayExecutorConfig` (the
-  run's geometry and the `actions` — `executorConfigOf(view)` reads them from the runtime view, a
+  run's geometry, the `actions` and `atEnd` — `executorConfigOf(view)` reads them from the runtime view, a
   `PxApiExtrasConfig`); `ensurePlayExecutor` reuses the one an engine attached. `composeApiExtras(api, cfg, raf)`
-  then completes an engine's api (a `PxApiExtrasTarget`) with the composed members — `play()`,
-  `stop()`, `jumpToStart()`, `playOnce()`, `getDuration()`, `getPlayState()` and every per-iteration and
+  then completes an engine's api (a `PxApiExtrasTarget`) with the composed members — the four buttons, the
+  `play()` / `pause()` aliases, `jumpToStart()`, `runOnce()`, `getDuration()`, `getRunState()`, `isRunActive()` and every per-iteration and
   playback read (`getCurrentTime()`, `getCurrentIteration()`, `getPlaybackDuration()`, …) — as `PxApiExtras`,
   so one engine keeps one run clock and no rule can drift between engines. `applyDeclarativeAction`
-  drives a `PxDeclarativeTarget` (the public api, or a component's proxy to it) from the
-  declarative resolver's actions.
-- **CSS.** `fillModeOf(whenIdle, finishBehavior)` is the `animation-fill-mode` the two
+  presses one of them on a `PxDeclarativeTarget` (the public api, or a component's proxy to it).
+- **CSS.** `fillModeOf(whenIdle, atEnd)` is the `animation-fill-mode` the two
   settings spell — (`static`, `hold`) `forwards`, (`firstFrame`, `hold`) `both`, (`static`, `jumpToStart`)
   `none`, (`firstFrame`, `jumpToStart`) `backwards` — what the CSS export and the WAAPI engine hand to the browser.
 
@@ -605,12 +648,14 @@ What the names alone do not settle — each row is a test in the packages:
 <!-- px-check off behaviour rules, prose -->
 | Rule | What it means |
 |---|---|
-| A stop that reaches the end runs `finish` | `stop: 'jumpToEnd'` or `'animateToEnd'` arrives at the end of the current pass and performs `actions.finish` — `hold` rests there (`finished`), `jumpToStart` / `animateToStart` go back. `onStop` fires when the stop is performed: at once, or on arrival for `animateToEnd`. A loop stopped at a pass end reports `onStop` only — its run never ended, so there is no `onFinish` |
-| The state during a move reads `idle` | while an `animateToStart` or `animateToEnd` move is on its way, `getPlayState()` reads `idle` |
+| A stop that reaches the end runs `atEnd` | `stopRun: 'jumpToEnd'` or `'animateToEnd'` arrives at the end of the current pass and performs `atEnd` — `hold` rests there (`finished`), `jumpToStart` / `animateToStart` go back. `onRunStop` fires when the stop is performed: at once, or on arrival for `animateToEnd`. A loop stopped at a pass end reports `onRunStop` only — its run never ended, so there is no `onFinish` |
+| The state during a return leg reads `returning` | while an `animateToStart` move is on its way — a `stopRun: 'animateToStart'` or an `atEnd: 'animateToStart'` — `getRunState()` reads `returning`: the run is over, `isRunActive()` is false, the picture still moves; `startRun()` turns it around. An `animateToEnd` stop in flight is still the run — `playing` — until it arrives |
 | A negative speed multiplies with `iterationDirection` | `setPlaybackSpeed(-1)` plays a `reverse` pass forwards. A file's `playbackSpeed` must be positive — in a file the direction is `iterationDirection` |
-| Playback verbs do nothing on a scroll or view timeline | the scroll position owns the playhead: `play()`, `pause()`, `stop()`, `playOnce()`, `setPlaybackSpeed()` and `setPlaybackDuration()` are no-ops with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); a seek still applies until the next scroll moves it |
-| `play={false}` on mount does nothing | a component mounted with `play={false}` performs no stop action — there is nothing to stop yet; a change from `true` to `false` stops |
-| `jumpToStart()` reports nothing | the handle's unconditional jump to the idle pose fires no callback — like a seek (`setCurrentTime()`); `stop()` runs the file's stop action and reports `onStop` |
+| Playback verbs do nothing on a scroll or view timeline | the scroll position owns the playhead: `startRun()`, `stopRun()`, `pauseRun()`, `resumeRun()`, `runOnce()` (and the aliases `play()` / `pause()`), `setPlaybackSpeed()` and `setPlaybackDuration()` are no-ops with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); a seek still applies until the next scroll moves it |
+| `playRun="off"` on mount does nothing | a component mounted with `playRun="off"` presses no button — there is nothing to stop yet; a change from `"on"` to `"off"` stops. A mount with `"on"` starts the run, with `"paused"` starts it frozen |
+| `play()` and `pause()` are aliases | `play()` is `getRunState() === 'paused' ? resumeRun() : startRun()`, `pause()` is `pauseRun()` — the media words for a `<video>`-minded page; the model's buttons are the four |
+| The gate's hold reports nothing | an animation scrolled out of view is frozen by the sensor, not paused by the user: no callback fires and `getRunState()` keeps reading `playing` |
+| `jumpToStart()` reports nothing | the handle's unconditional jump to the rest pose fires no callback — like a seek (`setCurrentTime()`); `stopRun()` runs the file's stop action and reports `onRunStop` |
 
 ## Scroll-driven playback (in development)
 

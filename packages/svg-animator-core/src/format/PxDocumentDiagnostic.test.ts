@@ -18,7 +18,7 @@ import { createDiagnostics, PxDiagnosticKind } from '../playback/PxDiagnostics';
 /** The current wire spelling — nothing to report. */
 const sound = {
     type: 'svg',
-    animator: { timeline: { outTime: 1000, frameRate: 30, actionTriggers: { start: 'load' } } },
+    animator: { timeline: { outTime: 1000, frameRate: 30, actionTriggers: { startRun: 'load' } } },
     children: [{ type: 'rect', id: 'r', width: 10, height: 10 }],
 };
 

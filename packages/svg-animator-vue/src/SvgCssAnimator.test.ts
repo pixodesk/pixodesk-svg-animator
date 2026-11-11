@@ -25,7 +25,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("plays with start='load' once the gate has measured (an absent block is manual since 1.17)", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { playUsingActionTriggers: { start: 'load' } },
+            props: { playUsingActionTriggers: { startRun: 'load' } },
             slots: { default: '<svg></svg>' },
         });
         // The visibility gate decides after mount — it has to measure before it can allow
@@ -37,7 +37,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("joins a fallthrough class correctly ('foo px-anim-enabled px-anim-playing')", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { playUsingActionTriggers: { start: 'load' } },
+            props: { playUsingActionTriggers: { startRun: 'load' } },
             attrs: { class: 'foo' },
             slots: { default: '<svg></svg>' },
         });
@@ -48,7 +48,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("has no 'undefined' prefix when no class is passed", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { playUsingActionTriggers: { start: 'load' } },
+            props: { playUsingActionTriggers: { startRun: 'load' } },
             slots: { default: '<svg></svg>' },
         });
         await nextTick();
@@ -68,7 +68,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("toggles classes for start 'hoverIn' + pause 'hoverOut'", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { playUsingActionTriggers: { start: 'hoverIn', pause: 'hoverOut' } },
+            props: { playUsingActionTriggers: { startRun: 'hoverIn', pauseRun: 'hoverOut' } },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;
@@ -87,7 +87,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("resets to idle on mouse-out when hoverOut is a stop", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { playUsingActionTriggers: { start: 'hoverIn', stop: 'hoverOut' } },
+            props: { playUsingActionTriggers: { startRun: 'hoverIn', stopRun: 'hoverOut' } },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;

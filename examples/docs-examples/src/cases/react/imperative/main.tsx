@@ -8,8 +8,8 @@ function App() {
   return (
     <>
       <div className="controls">
-        <button onClick={() => api.current?.play()}>play()</button>
-        <button onClick={() => api.current?.pause()}>pause()</button>
+        <button onClick={() => api.current?.startRun()}>startRun()</button>
+        <button onClick={() => api.current?.pauseRun()}>pauseRun()</button>
         <button onClick={() => api.current?.jumpToStart()}>jumpToStart()</button>
         <button onClick={() => api.current?.jumpToEnd()}>jumpToEnd()</button>
       </div>

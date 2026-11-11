@@ -4,10 +4,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
 import { composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, withoutTriggerDriver, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
-import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
+import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
@@ -29,28 +29,31 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * Applies the two `animator` config behaviors that are engine-independent, then hands
  * off to `make` for the actual engine.
  *
- * `actions.finish` is composed here so BOTH engines get it: after a NATURAL finish the player's
+ * `atEnd` is composed here so BOTH engines get it: after a NATURAL finish the player's
  * executor holds, resets or rewinds. The caller's own `onFinish` still fires first. The
  * executor is taken right after creation — a finish always happens asynchronously later.
  */
 export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
     callbacks: PxPlayerCallbacks | undefined,
-    make: (effectiveCallbacks?: PxPlayerCallbacks) => PxEngineAnimationPlayerApi<Element>
+    make: (engineCallbacks?: PxEngineCallbacks) => PxEngineAnimationPlayerApi<Element>
 ): PxAnimationPlayerApi {
 
     let executor: PxPlayExecutor | undefined;
-    const effectiveCallbacks: PxPlayerCallbacks = {
-        ...callbacks,
+    const engineCallbacks: PxEngineCallbacks = {
+        ...toEngineCallbacks(callbacks),
+        // the run events ride along for the executor the engine's own triggers press (a `load` start happens inside
+        // `make`, before `composeApiExtras` could attach them); the engine never fires them itself
+        runListeners: callbacks,
         onFinish: () => {
             callbacks?.onFinish?.();
             executor?.onNaturalFinish();
         },
     };
 
-    // `play()` / `stop()` / `playOnce()` are composed ON TOP of the engine — the one shared rule (review §10, D5);
-    // `onStop` is the executor's to tell (the built-in stop), never the engine's
-    const res = composeApiExtras(make(effectiveCallbacks), { ...animatorConfig, onStop: callbacks?.onStop }, webRaf);
+    // the four buttons, the aliases and `runOnce()` are composed ON TOP of the engine — the one shared rule (review
+    // §10, D5); the run events are the executor's to tell (when it performs the act), never the engine's
+    const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, runListeners: callbacks }, webRaf);
     executor = res.playExecutor;
 
     // the file's `playbackSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
@@ -158,10 +161,13 @@ export function bindWithEngineChoice(
  *  (PX1505 `scrollOwnsPlayhead`); seeks still apply until the next scroll moves the playhead. */
 function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxAnimationPlayerApi): PxAnimationPlayerApi {
     const ignored = (call: string) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
+    api.startRun = ignored('startRun()');
+    api.stopRun = ignored('stopRun()');
+    api.pauseRun = ignored('pauseRun()');
+    api.resumeRun = ignored('resumeRun()');
     api.play = ignored('play()');
     api.pause = ignored('pause()');
-    api.stop = ignored('stop()');
-    api.playOnce = ignored('playOnce()');
+    api.runOnce = ignored('runOnce()');
     api.setPlaybackSpeed = ignored('setPlaybackSpeed()');
     api.setPlaybackDuration = ignored('setPlaybackDuration()');
     return api;
@@ -234,11 +240,11 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerO
 /**
  * The page-wide registry (`getAllSvgAnimationPlayers()`) for the pre-rendered builds: the returned
  * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
- * play / pause / cancel / finish through the callbacks the engine is given.
+ * the run events and the finish through the callbacks the player is given.
  */
 function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxPlayerCallbacks) => PxAnimationPlayerApi): PxAnimationPlayerApi {
     let apiRef: PxAnimationPlayerApi | undefined;
-    const api = build(withRegistryEvents(toEngineCallbacks(options), () => apiRef));
+    const api = build(withRegistryEvents(toPlayerCallbacks(options), () => apiRef));
     if (api.isReady()) {
         apiRef = api;
         registerAnimator(api);

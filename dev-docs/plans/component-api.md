@@ -3,6 +3,17 @@
 Status **2026-10-25 — planning.** Decisions land here; the trying and the findings stay in
 [../reviews/react-api-hands-on.md](../reviews/react-api-hands-on.md).
 
+> **Since 1.24 (2026-11-11) — the run model.** The words below moved; this document keeps the ones it was written
+> with (`dev-docs/plans/animation-state.brainstorm.md` §0 is the ledger). File `actionTriggers` / `actions` keys
+> `start` · `stop` · `pause` · `resume` → `startRun` · `stopRun` · `pauseRun` · `resumeRun` (values unchanged;
+> `resumeRun` still derived); `actions.finish` → the timeline key `atEnd`; props `play` / `pause` / `playState` →
+> one `playRun="off" | "on" | "paused"`; handle `play()` → `startRun()` (+ `stopRun()` · `pauseRun()` · `resumeRun()`;
+> `play()` / `pause()` stay as aliases), `stop()` → `stopRun()`, `playOnce()` → `runOnce()`, `getPlayState()` →
+> `getRunState()` (`idle` → `off`, new `returning`), new `isRunActive()`; callbacks `onPlay` → `onRunStart` +
+> `onRunResume`, `onPause` → `onRunPause`, `onStop` → `onRunStop`; types `PxPlayState` → `PxRunState`,
+> `Px{Start,Stop,Finish}Behavior` → `PxStartRunBehavior` / `PxStopRunBehavior` / `PxAtEndBehavior`,
+> `PxPlayStateRequest` → `PxPlayRun`; `playStateToLevels` and PX1502 retired.
+
 > **Since 1.21 (2026-11-04)** — the shipped names differ from this plan's where the manual review
 > (`../reviews/schema-and-props--manual-review.md`) decided otherwise: `playDuration` → `playSpeed` (a factor, 1.16);
 > an absent `actionTriggers` block ≡ `{}` — nothing starts it, autoplay is written `start: 'load'` (1.17);

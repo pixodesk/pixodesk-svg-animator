@@ -22,13 +22,13 @@ describe('resolveControlMode — precedence', () => {
     it('progress / time win over everything', () => {
         expect(resolveControlMode({ showAtProgress: 0.5 }).mode).toBe(PxControlMode.fixedTime);
         expect(resolveControlMode({ showAtTime: 250 }).mode).toBe(PxControlMode.fixedTime);
-        expect(resolveControlMode({ showAtProgress: 0.5, play: true, playUsingActionTriggers: true }).mode).toBe(PxControlMode.fixedTime);
+        expect(resolveControlMode({ showAtProgress: 0.5, playRun: 'on', playUsingActionTriggers: true }).mode).toBe(PxControlMode.fixedTime);
     });
 
-    it('play / pause win over playUsingActionTriggers', () => {
-        expect(resolveControlMode({ play: true }).mode).toBe(PxControlMode.play);
-        expect(resolveControlMode({ pause: true }).mode).toBe(PxControlMode.play);
-        expect(resolveControlMode({ play: false, playUsingActionTriggers: true }).mode).toBe(PxControlMode.play);
+    it('playRun wins over playUsingActionTriggers', () => {
+        expect(resolveControlMode({ playRun: 'on' }).mode).toBe(PxControlMode.playRun);
+        expect(resolveControlMode({ playRun: 'paused' }).mode).toBe(PxControlMode.playRun);
+        expect(resolveControlMode({ playRun: 'off', playUsingActionTriggers: true }).mode).toBe(PxControlMode.playRun);
     });
 
     it('playUsingActionTriggers alone is playUsingActionTriggers', () => {
@@ -39,8 +39,8 @@ describe('resolveControlMode — precedence', () => {
         expect(resolveControlMode({ playUsingActionTriggers: false }).mode).toBe(PxControlMode.static);
     });
 
-    it('a FALSE play still claims the mode — it is an explicit instruction', () => {
-        expect(resolveControlMode({ play: false }).mode).toBe(PxControlMode.play);
+    it('an "off" playRun still claims the mode — it is an explicit instruction', () => {
+        expect(resolveControlMode({ playRun: 'off' }).mode).toBe(PxControlMode.playRun);
     });
 });
 
@@ -48,7 +48,7 @@ describe('resolveControlMode — conflict warnings', () => {
 
     it('says nothing when only one tier is used', () => {
         expect(resolveControlMode({ showAtProgress: 0.5 }).warnings).toEqual([]);
-        expect(resolveControlMode({ play: true }).warnings).toEqual([]);
+        expect(resolveControlMode({ playRun: 'on' }).warnings).toEqual([]);
         expect(resolveControlMode({ playUsingActionTriggers: true }).warnings).toEqual([]);
     });
 
@@ -61,14 +61,14 @@ describe('resolveControlMode — conflict warnings', () => {
     });
 
     it('reports EVERY losing tier, not just the first', () => {
-        const { warnings } = resolveControlMode({ showAtProgress: 0.5, play: true, playUsingActionTriggers: true });
+        const { warnings } = resolveControlMode({ showAtProgress: 0.5, playRun: 'on', playUsingActionTriggers: true });
         expect(warnings).toHaveLength(2);
-        expect(warnings.join('\n')).toContain('play/pause');
+        expect(warnings.join('\n')).toContain('playRun');
         expect(warnings.join('\n')).toContain('playUsingActionTriggers');
     });
 
-    it('play/pause over playUsingActionTriggers warns once', () => {
-        expect(resolveControlMode({ pause: true, playUsingActionTriggers: true }).warnings).toHaveLength(1);
+    it('playRun over playUsingActionTriggers warns once', () => {
+        expect(resolveControlMode({ playRun: 'paused', playUsingActionTriggers: true }).warnings).toHaveLength(1);
     });
 });
 
@@ -86,7 +86,7 @@ describe('controlModeTakesOverTrigger', () => {
 
     it('every mode EXCEPT playUsingActionTriggers takes the trigger over', () => {
         expect(controlModeTakesOverTrigger(PxControlMode.fixedTime)).toBe(true);
-        expect(controlModeTakesOverTrigger(PxControlMode.play)).toBe(true);
+        expect(controlModeTakesOverTrigger(PxControlMode.playRun)).toBe(true);
         // `static` too: a component with no control props must not start on its own —
         // both React and Vue assert exactly that ("is static without control props").
         expect(controlModeTakesOverTrigger(PxControlMode.static)).toBe(true);
@@ -97,13 +97,13 @@ describe('controlModeTakesOverTrigger', () => {
 describe('PxControlProps — one driver family at a time, checked by TypeScript (improvements.md §0 #11)', () => {
     it('each family alone compiles; two at once do not; the JavaScript reader still warns on any mix', () => {
         const ok: Array<PxControlProps> = [
-            {}, { play: true, pause: false }, { playState: 'paused' }, { showAtProgress: 0.5 }, { showAtTime: 100 },
-            { playUsingActionTriggers: true }, { playUsingActionTriggers: { start: 'hoverIn', resume: 'hoverIn' } },
+            {}, { playRun: 'on' }, { playRun: 'paused' }, { playRun: 'off' }, { showAtProgress: 0.5 }, { showAtTime: 100 },
+            { playUsingActionTriggers: true }, { playUsingActionTriggers: { startRun: 'hoverIn', resumeRun: 'hoverIn' } },
         ];
-        // @ts-expect-error — the play levels and the triggers are two drivers
-        const two: PxControlProps = { play: true, playUsingActionTriggers: true };
-        // @ts-expect-error — playState beside the booleans
-        const state: PxControlProps = { playState: 'playing', play: true };
+        // @ts-expect-error — the lever and the triggers are two drivers
+        const two: PxControlProps = { playRun: 'on', playUsingActionTriggers: true };
+        // @ts-expect-error — a position that is not one of the three (the readout's `playing` is not a request)
+        const state: PxControlProps = { playRun: 'playing' };
         // @ts-expect-error — both showAt props
         const show: PxControlProps = { showAtProgress: 0.5, showAtTime: 100 };
         expect([ok, two, state, show]).toHaveLength(4);

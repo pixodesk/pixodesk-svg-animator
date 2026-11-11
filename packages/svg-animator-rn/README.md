@@ -22,8 +22,8 @@ native SVG, driven on the UI thread.
 
 - **One prop to render:** put the `.json` next to your component, import it, pass
   it as `doc`.
-- **Playback control:** declarative props (`playUsingActionTriggers`, `play`, `pause`,
-  `playState`, `showAtTime`) or an imperative ref (`play()`, `pause()`, `stop()`, `setCurrentTime()`, …).
+- **Playback control:** declarative props (`playUsingActionTriggers`, `playRun`, `showAtTime`) or an
+  imperative ref (`startRun()`, `pauseRun()`, `stopRun()`, `setCurrentTime()`, …).
 - **No size of its own:** it fills whatever `View` you put it in — give that `View` a `width` and `height`.
 
 ## Quick start
@@ -50,7 +50,7 @@ document says so.
 ### Typical cases
 
 ```tsx
-// Play once when a screen opens, then hold the last frame (one pass; the finish behavior `hold` is the default)
+// Play once when a screen opens, then hold the last frame (one pass; `atEnd: 'hold'` is the default)
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers timelineOptions={{ iterations: 1 }} />
 
 // Loop forever regardless of what the document says
@@ -59,8 +59,8 @@ document says so.
 // Static — first frame only, no playback
 <SvgAnimationPlayer doc={doc} />
 
-// Toggle from your own state
-<SvgAnimationPlayer doc={doc} play={isPlaying} />
+// Toggle from your own state — the `playRun` lever: 'off' · 'on' · 'paused'
+<SvgAnimationPlayer doc={doc} playRun={isPlaying ? 'on' : 'off'} />
 
 // Tie the position to a gesture / slider (no playback, just a frame)
 <SvgAnimationPlayer doc={doc} showAtProgress={scrollProgress} />
@@ -111,33 +111,30 @@ every one of them.
 
 ### Autoplay
 
-Uses the triggers defined in the animation document (`start: 'load'` plays once enough of it is
+Uses the triggers defined in the animation document (`startRun: 'load'` plays once enough of it is
 on screen; `click` is a tap; `hoverIn` / `hoverOut` never fire — there is no hover on a touch
 screen), or the triggers object you pass instead of `true`:
 
 ```tsx
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers />
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'click', pause: 'click' }} />   {/* tap plays, tap again pauses */}
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'click', stop: 'click' }} />  {/* tap plays, tap again stops */}
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ startRun: 'click', pauseRun: 'click' }} />   {/* tap plays, tap again pauses */}
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ startRun: 'click', stopRun: 'click' }} />  {/* tap plays, tap again stops */}
 ```
 
-### Declarative play/pause
+### Declarative playback — `playRun`
 
-Control playback with two levels — `play` plays while true (`true` calls the built-in `start`,
-`false` the built-in `stop`), `pause` freezes on top; how each looks is the file's
-`timeline.actions`, adjusted through the `actions` prop. `playState` is the same control in one word
-(`'idle' | 'playing' | 'paused'`):
+Control playback with one lever — `playRun` holds a position, `'off'` (no run) · `'on'` (a run) ·
+`'paused'` (the run, frozen); a change of position presses one built-in button (`startRun` · `pauseRun` ·
+`resumeRun` · `stopRun`), and how a start or a stop looks is the file's `timeline.actions`, adjusted
+through the `actions` prop:
 
 ```tsx
 const [playing, setPlaying] = useState(false);
 const [paused, setPaused] = useState(false);
 
-<SvgAnimationPlayer doc={doc} play={playing} pause={paused} />
-<Button title={playing ? 'Play (on)' : 'Play (off)'} onPress={() => setPlaying(p => !p)} />
-<Button title={paused ? 'Pause (on)' : 'Pause (off)'} onPress={() => setPaused(p => !p)} />
-
-// the same as one state word
-<SvgAnimationPlayer doc={doc} playState={paused ? 'paused' : playing ? 'playing' : 'idle'} />
+<SvgAnimationPlayer doc={doc} playRun={paused ? 'paused' : playing ? 'on' : 'off'} />
+<Button title={playing ? 'Run (on)' : 'Run (off)'} onPress={() => setPlaying(p => !p)} />
+<Button title={paused ? 'Frozen' : 'Freeze'} onPress={() => setPaused(p => !p)} />
 ```
 
 ### Imperative API
@@ -151,16 +148,17 @@ import type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
 const playerRef = useRef<PxAnimationPlayerHandle>(null);
 
 <SvgAnimationPlayer doc={doc} playerRef={playerRef} />
-<Button title="Play"   onPress={() => playerRef.current?.play()} />
-<Button title="Pause"  onPress={() => playerRef.current?.pause()} />
-<Button title="Stop"   onPress={() => playerRef.current?.stop()} />
+<Button title="Start"  onPress={() => playerRef.current?.startRun()} />
+<Button title="Pause"  onPress={() => playerRef.current?.pauseRun()} />
+<Button title="Stop"   onPress={() => playerRef.current?.stopRun()} />
 <Button title="Finish" onPress={() => playerRef.current?.jumpToEnd()} />
 ```
 
-`PxAnimationPlayerHandle` methods: `play()` (paused → resume, otherwise the configured start),
-`pause()`, `stop()` (the configured stop, `actions.stop` — `animateToEnd` stops after the current
-pass), `jumpToStart()` (to the idle pose now, unconditionally — reports nothing), `jumpToEnd()`,
-`playOnce()`, `isPlaying()`, `getPlayState()`; playback time — `getPlaybackSpeed()` /
+`PxAnimationPlayerHandle` methods: the four buttons — `startRun()` (the configured start, `actions.startRun`),
+`stopRun()` (the configured stop, `actions.stopRun` — `animateToEnd` stops after the current pass),
+`pauseRun()`, `resumeRun()` — and the aliases `play()` / `pause()`; `jumpToStart()` (to the rest pose now,
+unconditionally — reports nothing), `jumpToEnd()`, `runOnce()`, `isPlaying()`, `isRunActive()`,
+`getRunState()` (off · playing · paused · finished · returning · destroyed); playback time — `getPlaybackSpeed()` /
 `setPlaybackSpeed(speed)`, `getPlaybackDuration()` / `setPlaybackDuration(ms)`,
 `getTotalPlaybackDuration()`, `getCurrentPlaybackTime()`, `getTotalPlaybackTime()`; one
 iteration — `getDuration()`, `getCurrentTime()` / `setCurrentTime(ms)` (the frame inside the current
@@ -185,28 +183,27 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is |
-| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause, resume }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived when left out). `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
-| `play` | `boolean` | A level: plays while `true` (the built-in `start`), `false` performs the built-in `stop` (a mount with `false` does nothing). How each looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-start-stop-and-finish-look) |
-| `pause` | `boolean` | A level on top: freeze the current frame while `true` / resume; only while `play` is true |
-| `playState` | `'idle' \| 'playing' \| 'paused'` | The same control as one state word (`PxPlayStateRequest`): `idle` = the stop action, `paused` = frozen; set beside the booleans it wins (PX1501) |
+| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ startRun, stopRun, pauseRun, resumeRun }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resumeRun` is derived when left out). `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `playRun` | `'off' \| 'on' \| 'paused'` | A lever (`PxPlayRun`): its position is held, and a change presses one button — `off` → `on` `startRun()`, `on` → `paused` `pauseRun()`, `paused` → `on` `resumeRun()`, → `off` `stopRun()`. How each looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-a-start-and-a-stop-look). A mount with `'off'` presses nothing; with `'paused'` starts the run frozen |
 | `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |
 | `showAtProgress` | `number` | show the frame at this position in ONE iteration: `0` is the first frame, `0.5` the middle, `1` the last |
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `getDuration()`) |
 | `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, deep-merged over it — same shape as the file; a key left out keeps the file's value. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsOptions` | per-instance override of how the built-in actions look — `{ stop: 'animateToStart' }` — deep-merged over the document's `timeline.actions`. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actions` | `PxActionsOptions` | per-instance override of how a start and a stop look — `{ stopRun: 'animateToStart' }` — deep-merged over the document's `timeline.actions` (the end of the pass, `atEnd`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `onReady` | `() => void` | The player exists and the tree is rendered — once, async |
-| `onPlay` | `() => void` | Called on play/resume |
-| `onPause` | `() => void` | Called on pause |
-| `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `jumpToEnd()` was called (a loop stopped at a pass end reports `onStop` only) |
+| `onRunStart` | `() => void` | A run began — `startRun()`, a `startRun` trigger, `playRun` to `'on'` / `'paused'` from `'off'`, `runOnce()` |
+| `onRunResume` | `() => void` | The run carried on after a freeze — `resumeRun()`, a `resumeRun` trigger, `playRun` back to `'on'` |
+| `onRunPause` | `() => void` | The run was frozen — `pauseRun()`, a `pauseRun` trigger, `playRun` `'paused'` (not the gate's hold, which reports nothing) |
+| `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `jumpToEnd()` was called (a loop stopped at a pass end reports `onRunStop` only) |
 | `onDestroy` | `() => void` | Called when the player is thrown away — the component unmounted, or a new `doc` replaced it |
-| `onStop` | `() => void` | The built-in `stop` action was performed — a `stop` trigger, `play` false or `stop()`; at once, or on arrival for `animateToEnd`. A pause, the end and a destroy each fire their own; `jumpToStart()` reports nothing |
+| `onRunStop` | `() => void` | The run was stopped — a `stopRun` trigger, `playRun` `'off'` or `stopRun()`; at once, or on arrival for `animateToEnd`. A pause, the end and a destroy each fire their own; `jumpToStart()` reports nothing |
 | `onError` | `(diagnostic) => void` | this instance will not play — the document could not be compiled or rendered; `fallback` shows instead. `diagnostic.error` is the Error, `diagnostic.detail.componentStack` when the error boundary caught it |
 | `onWarning` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
 | `suppressWarnings` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarning`, if you gave it, still fires: this is about the console, not about you |
 | `suppressErrors` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
-With none of `playUsingActionTriggers` / `play` / `pause` / `playState` / `showAtProgress` / `showAtTime` set, the component
+With none of `playUsingActionTriggers` / `playRun` / `showAtProgress` / `showAtTime` set, the component
 renders the animation statically (initial state, no playback). TypeScript accepts one driver family at a time
 (`PxControlProps` is a union).
 
@@ -338,14 +335,14 @@ player sees plain nodes. **All are supported:**
 |---|---|---|
 | `inTime` / `outTime` / `playbackSpeed`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |
 | `iterationDirection` — all four values | ✅ | |
-| `actions` — the start, stop and finish behaviors | ✅ | `animateToStart` plays back natively; the run clock behind `getTotalTime()` / `getCurrentTime()` is approximate while it plays back |
-| `play` / `pause` / `stop` / `jumpToStart` / `jumpToEnd` | ✅ | |
+| `actions` — the start and stop behaviors, `atEnd` | ✅ | `animateToStart` plays back natively; the run clock behind `getTotalTime()` / `getCurrentTime()` is approximate while it plays back |
+| `startRun` / `stopRun` / `pauseRun` / `resumeRun` / `jumpToStart` / `jumpToEnd` | ✅ | |
 | `setCurrentTime` — jump to a time, including **while playing** | ✅ | playback continues from the new point |
 | `setPlaybackSpeed` — faster, slower and **reverse** (negative) | ✅ | multiplies with `iterationDirection`; `timeline.playbackSpeed` is the initial value |
 | Trigger event `load` | ✅ | |
-| Trigger event `click` | ✅ | a tap — the animation is wrapped in a `Pressable`; listed in `pause` too, a second tap pauses |
+| Trigger event `click` | ✅ | a tap — the animation is wrapped in a `Pressable`; listed in `pauseRun` too, a second tap pauses |
 | The gate — `actions.outOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`) |
-| Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
+| Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent — use `click`, or drive `playRun` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
 

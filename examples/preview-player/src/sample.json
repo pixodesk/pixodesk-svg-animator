@@ -13,7 +13,7 @@
       "iterations": "infinite",
       "iterationDirection": "alternate",
       "actionTriggers": {
-        "start": "load"
+        "startRun": "load"
       }
     }
   },

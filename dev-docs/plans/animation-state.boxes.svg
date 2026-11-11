@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="12">
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#333"/></marker>
+    <style>
+      .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+      .t { fill: #111; }
+      .h { fill: #111; font-weight: 600; font-size: 13px; }
+      .k { fill: #555; font-size: 11px; letter-spacing: .4px; }
+      .n { fill: #555; font-size: 11px; }
+      .s { fill: #333; font-size: 10px; }
+      .arrow { stroke: #333; stroke-width: 1.3; fill: none; marker-end: url(#a); }
+      .bus { stroke: #333; stroke-width: 1.3; fill: none; }
+    </style>
+  </defs>
+  <rect width="960" height="600" fill="#fff"/>
+  <text x="16" y="22" class="h">The machinery as boxes — the candidate's words (A-run, 2026-11-10)</text>
+
+  <!-- page -->
+  <rect x="16" y="36" width="928" height="548" rx="10" fill="none" stroke="#888" stroke-dasharray="6 4"/>
+  <text x="28" y="56" class="k">PAGE / APP</text>
+
+  <!-- component wrapper -->
+  <rect x="36" y="72" width="260" height="212" rx="8" fill="#f5f7fb" stroke="#4a6fa5"/>
+  <text x="48" y="94" class="h">Component wrapper · React / Vue</text>
+  <text x="48" y="112" class="mono t">SvgAnimationPlayer</text>
+  <text x="48" y="136" class="k">LEVER — one driver prop, three positions</text>
+  <g>
+    <rect x="48" y="146" width="150" height="16" rx="8" fill="#dde3ee"/>
+    <circle cx="60" cy="154" r="4" fill="#9aa7bd"/><circle cx="123" cy="154" r="7" fill="#4a6fa5"/><circle cx="186" cy="154" r="4" fill="#9aa7bd"/>
+    <text x="50" y="176" class="s">off</text><text x="116" y="176" class="s">on</text><text x="172" y="176" class="s">paused</text>
+    <text x="210" y="158" class="mono t">playRun</text>
+  </g>
+  <text x="48" y="200" class="mono n">showAtProgress · showAtTime</text>
+  <text x="48" y="222" class="n">a prop change = an edge → a button:</text>
+  <text x="48" y="236" class="mono t" font-size="11">off→on      startRun()</text>
+  <text x="48" y="249" class="mono t" font-size="11">on→paused   pauseRun()</text>
+  <text x="48" y="262" class="mono t" font-size="11">paused→on   resumeRun()</text>
+  <text x="48" y="275" class="mono t" font-size="11">→off        stopRun()</text>
+
+  <!-- player box -->
+  <rect x="330" y="72" width="596" height="340" rx="8" fill="#fbfaf5" stroke="#a5784a"/>
+  <text x="342" y="94" class="h">Player box · one instance of createSvgAnimationPlayer()</text>
+  <text x="342" y="116" class="k">BUTTONS — pressed by code (the handle)</text>
+  <g class="mono" font-size="11" text-anchor="middle">
+    <rect x="342" y="124" width="78" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="381" y="141" class="t">startRun()</text>
+    <rect x="424" y="124" width="72" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="460" y="141" class="t">stopRun()</text>
+    <rect x="500" y="124" width="78" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="539" y="141" class="t">pauseRun()</text>
+    <rect x="582" y="124" width="84" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="624" y="141" class="t">resumeRun()</text>
+    <rect x="670" y="124" width="92" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="716" y="141" class="t">jumpToStart()</text>
+    <rect x="766" y="124" width="82" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="807" y="141" class="t">jumpToEnd()</text>
+    <rect x="852" y="124" width="68" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="886" y="141" class="t">runOnce()</text>
+  </g>
+  <text x="342" y="162" class="n">solid = a lever's edge · dashed = momentary · documented aliases: play() (resumeRun or startRun by state), pause()</text>
+  <text x="342" y="182" class="k">SETTINGS — how a press moves the playhead (file: actions · atEnd · outOfView)</text>
+  <text x="342" y="200" class="mono t">startRun</text><text x="420" y="200" class="mono n">continue · jumpToStart · jumpToEnd</text>
+  <text x="342" y="214" class="mono t">stopRun</text><text x="420" y="214" class="mono n">jumpToStart · animateToStart · jumpToEnd · animateToEnd</text>
+  <text x="342" y="228" class="mono t">atEnd</text><text x="420" y="228" class="mono n">hold · jumpToStart · animateToStart</text><text x="700" y="228" class="n">← no button: the clock presses it</text>
+  <text x="342" y="242" class="mono t">outOfView</text><text x="420" y="242" class="mono n">pause · continue · jumpToStart</text><text x="700" y="242" class="n">← no button: the gate presses it</text>
+
+  <!-- state machine -->
+  <rect x="342" y="252" width="360" height="150" rx="8" fill="#fff" stroke="#a5784a" stroke-dasharray="3 3"/>
+  <text x="354" y="270" class="k">STATE — the run (getRunState)</text>
+  <g class="mono" font-size="12" text-anchor="middle">
+    <rect x="350" y="300" width="70" height="24" rx="12" fill="#eee" stroke="#777"/><text x="385" y="316" class="t">off</text>
+    <rect x="470" y="300" width="70" height="24" rx="12" fill="#e4f2e6" stroke="#4a8a5a"/><text x="505" y="316" class="t">playing</text>
+    <rect x="590" y="300" width="70" height="24" rx="12" fill="#fdf1dc" stroke="#b58a2a"/><text x="625" y="316" class="t">paused</text>
+    <rect x="470" y="360" width="70" height="24" rx="12" fill="#e4f2e6" stroke="#4a8a5a"/><text x="505" y="376" class="t">finished</text>
+  </g>
+  <path class="arrow" d="M420,306 L468,306"/><text x="444" y="300" class="s" text-anchor="middle">startRun</text>
+  <path class="arrow" d="M470,318 L422,318"/><text x="444" y="332" class="s" text-anchor="middle">stopRun</text>
+  <path class="arrow" d="M540,306 L588,306"/><text x="564" y="299" class="s" text-anchor="middle" font-size="9">pauseRun</text>
+  <path class="arrow" d="M590,318 L542,318"/><text x="564" y="333" class="s" text-anchor="middle" font-size="9">resumeRun</text>
+  <path class="arrow" d="M505,324 L505,358"/><text x="511" y="345" class="s">run ends · stopRun →End</text>
+  <path class="arrow" d="M470,368 L398,326"/><text x="352" y="352" class="s">atEnd · stopRun</text>
+  <text x="560" y="376" class="s">green = the run is active</text>
+
+  <!-- readouts -->
+  <rect x="714" y="252" width="200" height="150" rx="8" fill="#fff" stroke="#a5784a" stroke-dasharray="3 3"/>
+  <text x="726" y="270" class="k">READOUTS</text>
+  <text x="726" y="292" class="mono t">getRunState()</text>
+  <text x="726" y="308" class="mono t">isRunActive()</text>
+  <text x="726" y="332" class="n">callbacks</text>
+  <text x="726" y="348" class="mono t">onRunStart · onRunStop</text>
+  <text x="726" y="364" class="mono t" font-size="11">onRunPause · onRunResume</text>
+  <text x="726" y="380" class="mono t">onFinish</text>
+  <text x="726" y="396" class="n">registry events (same names)</text>
+
+  <!-- wiring -->
+  <rect x="36" y="292" width="260" height="130" rx="8" fill="#f3faf4" stroke="#4a8a5a"/>
+  <text x="48" y="312" class="h">Wiring · file timeline.actionTriggers</text>
+  <text x="48" y="332" class="k">EVENT → BUTTON (the state picks the list)</text>
+  <text x="48" y="352" class="mono t">load · hoverIn · hoverOut · click</text>
+  <text x="48" y="370" class="n">↓ listed under</text>
+  <text x="48" y="386" class="mono t" font-size="11">startRun · stopRun</text>
+  <text x="48" y="400" class="mono t" font-size="11">pauseRun · resumeRun</text>
+  <text x="48" y="416" class="n">resumeRun derived unless the file names it</text>
+
+  <!-- sensors -->
+  <rect x="330" y="432" width="596" height="130" rx="8" fill="#faf3f7" stroke="#9a4a7a"/>
+  <text x="342" y="452" class="h">Sensors · the box presses its own buttons</text>
+  <text x="342" y="474" class="t">visibility gate</text><text x="450" y="474" class="mono n">outOfView → hold / jumpToStart    inView → release / startRun</text>
+  <text x="342" y="494" class="t">clock</text><text x="450" y="494" class="mono n">run ends → atEnd (hold · jumpToStart · animateToStart)</text>
+  <text x="342" y="514" class="t">pointer</text><text x="450" y="514" class="mono n">hoverIn · hoverOut · click → the wiring (left)</text>
+  <text x="342" y="540" class="n">a hold is the engine's freeze, not the user's pause (dotLottie keeps freeze ≠ pause)</text>
+
+  <!-- page events -->
+  <rect x="36" y="452" width="260" height="110" rx="8" fill="#fff" stroke="#888"/>
+  <text x="48" y="472" class="h">Page · what happens outside</text>
+  <text x="48" y="494" class="mono t">load · pointer · scroll</text>
+  <text x="48" y="512" class="n">app state (hovered, frozen, …)</text>
+  <text x="48" y="536" class="n">→ props (lever) · → events (wiring)</text>
+  <text x="48" y="552" class="n">→ playerRef (buttons)</text>
+
+  <!-- arrows -->
+  <path class="bus" d="M296,245 L314,245 L314,137"/>
+  <path class="bus" d="M296,388 L314,388"/>
+  <path class="arrow" d="M314,137 L328,137"/>
+  <path class="arrow" d="M166,452 L166,424"/>
+  <path class="arrow" d="M520,432 L520,414"/>
+</svg>

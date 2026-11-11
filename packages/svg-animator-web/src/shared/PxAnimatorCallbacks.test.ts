@@ -6,29 +6,31 @@
 // Inline callbacks → the one object the engines take, plus `onStop` (API review §9 / §5).
 
 import { describe, expect, it, vi } from 'vitest';
-import { toEngineCallbacks } from './PxAnimatorCallbacks';
+import { toEngineCallbacks, toPlayerCallbacks } from './PxAnimatorCallbacks';
 
-describe('toEngineCallbacks', () => {
+describe('toPlayerCallbacks / toEngineCallbacks', () => {
 
-    it('passes each lifecycle callback through', () => {
-        const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onDestroy = vi.fn();
-        const out = toEngineCallbacks({ onPlay, onPause, onFinish, onDestroy });
+    it('toPlayerCallbacks passes each lifecycle callback through', () => {
+        const onRunStart = vi.fn(), onRunPause = vi.fn(), onRunResume = vi.fn(), onRunStop = vi.fn(), onFinish = vi.fn(), onDestroy = vi.fn();
+        const out = toPlayerCallbacks({ onRunStart, onRunPause, onRunResume, onRunStop, onFinish, onDestroy });
 
-        out.onPlay?.(); out.onPause?.(); out.onFinish?.(); out.onDestroy?.();
+        out.onRunStart?.(); out.onRunPause?.(); out.onRunResume?.(); out.onRunStop?.(); out.onFinish?.(); out.onDestroy?.();
 
-        for (const fn of [onPlay, onPause, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
+        for (const fn of [onRunStart, onRunPause, onRunResume, onRunStop, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
     });
 
-    it('onStop is carried through untouched — it is the executor\'s to fire (the built-in stop), never a pause, finish or removal', () => {
-        const onStop = vi.fn();
-        const out = toEngineCallbacks({ onStop, onPause: () => {} });
-        expect(out.onStop).toBe(onStop);
-
-        out.onPause?.(); out.onFinish?.(); out.onDestroy?.();
-        expect(onStop).not.toHaveBeenCalled();
+    it('the run events never reach an ENGINE — they are the executor\'s to fire; the engine gets the end, the teardown and the diagnostics', () => {
+        const onRunStart = vi.fn(), onRunStop = vi.fn(), onFinish = vi.fn();
+        const out = toEngineCallbacks({ onRunStart, onRunStop, onFinish });
+        expect(out.onPlay).toBeUndefined();
+        expect(out.onPause).toBeUndefined();
+        expect(out.onFinish).toBe(onFinish);
+        expect(Object.keys(out)).not.toContain('onRunStart');
+        expect(onRunStart).not.toHaveBeenCalled();
+        expect(onRunStop).not.toHaveBeenCalled();
     });
 
-    it('makes NO wrapper when neither the callback nor onStop is given', () => {
+    it('makes NO wrapper when the callback is not given', () => {
         // The WAAPI engine wires `anim.onfinish` only if `callbacks.onFinish` EXISTS — an
         // always-present function would change what it does. Absence must stay absence.
         const out = toEngineCallbacks({});

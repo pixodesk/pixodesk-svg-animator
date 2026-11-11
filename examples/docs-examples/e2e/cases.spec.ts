@@ -33,7 +33,7 @@ async function expectAnimating(page: Page, sel = 'svg', ms = 350): Promise<void>
 }
 
 async function expectFrozen(page: Page, sel = 'svg', ms = 350): Promise<void> {
-  // A pause() issued a moment ago commits on the browser's next animation frame
+  // A pauseRun() issued a moment ago commits on the browser's next animation frame
   // (WAAPI's "pending pause"), and under a parallel test run that frame can be
   // late. So the first interval is a settling period; only the second is asserted.
   await page.waitForTimeout(ms);
@@ -81,10 +81,16 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
 
   'web/callbacks': async page => {
     const log = page.locator('#log');
+    // The file starts its run on load; the buttons then walk every run event in order. Stop first:
+    // startRun() on a running run is a no-op (`continue`), so the start event is only told from `off`.
+    await page.click('#stop');
+    await expect(log).toContainText('onRunStop');
     await page.click('#play');
-    await expect(log).toContainText('onPlay');
+    await expect(log).toContainText('onRunStart');
     await page.click('#pause');
-    await expect(log).toContainText('onPause');
+    await expect(log).toContainText('onRunPause');
+    await page.click('#resume');
+    await expect(log).toContainText('onRunResume');
     await page.click('#finish');
     await expect(log).toContainText('onFinish');
     await page.click('#destroy');
@@ -93,10 +99,10 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   'web/triggers': async page => {
-    await expectFrozen(page);                       // start: 'click' — nothing until clicked
+    await expectFrozen(page);                       // startRun: 'click' — nothing until clicked
     await page.click('#box svg');
-    await expectAnimating(page);                    // idle + click → plays (the state rule)
-    await page.click('#box svg');                   // pause: 'click' — playing + click → pauses
+    await expectAnimating(page);                    // off + click → plays (the state rule)
+    await page.click('#box svg');                   // pauseRun: 'click' — playing + click → pauses
     await expectFrozen(page);
   },
 
@@ -118,9 +124,9 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
 
   'react/imperative': async page => {
     await expectFrozen(page);                       // playerRef alone = programmatic
-    await page.click('text=play()');
+    await page.click('text=startRun()');
     await expectAnimating(page);
-    await page.click('text=pause()');
+    await page.click('text=pauseRun()');
     await expectFrozen(page);
   },
   'vue/imperative': async page => CHECKS['react/imperative'](page),
@@ -145,14 +151,14 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'vue/declarative': async page => CHECKS['react/declarative'](page),
 
   'react/css-svgr': async page => {
-    await expectFrozen(page);                       // start: 'click'
+    await expectFrozen(page);                       // startRun: 'click'
     await page.click('svg');
     await expectAnimating(page);
   },
   'vue/css-loader': async page => CHECKS['react/css-svgr'](page),
 
   'playback/override-web': async page => {
-    await expectFrozen(page);                       // no playUsingActionTriggers — nothing starts it but play()
+    await expectFrozen(page);                       // no playUsingActionTriggers — nothing starts it but startRun()
     await page.click('#play');
     await expectAnimating(page);
   },

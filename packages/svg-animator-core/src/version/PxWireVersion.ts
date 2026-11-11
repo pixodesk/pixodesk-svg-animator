@@ -444,7 +444,71 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // exact for every 1.22 spelling; the two new stop words have none, and an older reader takes them as its default
         down: downActionWords,
     },
+    {
+        from: '1.23',
+        to: '1.24',
+        reason: 'The run model (dev-docs/plans/animation-state.brainstorm.md §0): the four buttons of the player box name '
+            + 'the trigger lists and the actions — `start` → `startRun`, `stop` → `stopRun`, `pause` → `pauseRun`, '
+            + '`resume` → `resumeRun` (the handle\'s methods and the `playRun` prop\'s edges say the same) — and '
+            + '`actions.finish` moves beside `whenIdle` as `timeline.atEnd`: the clock\'s rule, not a button\'s. '
+            + 'Every value is unchanged.',
+        kind: PxWireStepKind.converted,
+        up: upRunWords,
+        down: downRunWords,   // exactly invertible: key renames, and `atEnd` back to `actions.finish`
+    },
 ];
+
+/** The 1.23 → 1.24 key renames of the trigger lists and the action slots (old → new). */
+const RUN_KEYS_1_24: ReadonlyArray<readonly [from: string, to: string]> = [
+    ['start', 'startRun'], ['stop', 'stopRun'], ['pause', 'pauseRun'], ['resume', 'resumeRun'],
+];
+
+/** Renames one key of a plain object, value untouched; nothing to do when it is absent. */
+function renameKey(obj: Record<string, unknown>, from: string, to: string): void {
+    if (obj[from] === undefined) return;
+    obj[to] = obj[from];
+    delete obj[from];
+}
+
+/** 1.23 → 1.24: the lists and the slots renamed; `actions.finish` (its word, or its settings' `behavior`) becomes
+ *  `timeline.atEnd`; an `actions` block left empty is dropped. */
+function upRunWords(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    const triggers = readObjectProp(timeline, 'actionTriggers');
+    if (triggers) for (const [from, to] of RUN_KEYS_1_24) renameKey(triggers, from, to);
+    const actions = readObjectProp(timeline, 'actions');
+    if (!actions) return;
+    renameKey(actions, 'start', 'startRun');
+    renameKey(actions, 'stop', 'stopRun');
+    if (actions['finish'] !== undefined) {
+        const word = slotWordOf(actions, 'finish');
+        delete actions['finish'];
+        if (word !== undefined) timeline['atEnd'] = word;
+    }
+    if (Object.keys(actions).length === 0) delete timeline['actions'];
+}
+
+/** 1.24 → 1.23: the keys back; `atEnd` back into `actions.finish` as the word. */
+function downRunWords(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    const triggers = readObjectProp(timeline, 'actionTriggers');
+    if (triggers) for (const [from, to] of RUN_KEYS_1_24) renameKey(triggers, to, from);
+    const actions = readObjectProp(timeline, 'actions');
+    if (actions) {
+        renameKey(actions, 'startRun', 'start');
+        renameKey(actions, 'stopRun', 'stop');
+    }
+    if (typeof timeline['atEnd'] === 'string') {
+        const block = actions ?? {};
+        block['finish'] = timeline['atEnd'];
+        delete timeline['atEnd'];
+        timeline['actions'] = block;
+    }
+}
 
 /** The content window's length, ms, of a time timeline — `outTime − inTime`; an absent `outTime` is WRITTEN first
  *  (the max keyframe time the player derives, else the 1000 ms default), so a conversion through the length stays

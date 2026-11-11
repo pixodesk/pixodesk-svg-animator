@@ -111,10 +111,10 @@ export default function App() {
                 {/* -- Transport ----------------------------------------------- */}
                 <View style={styles.transport}>
                     {([
-                        ['▶ Play', call(a => a.play())],
-                        ['❚❚ Pause', call(a => a.pause())],
+                        ['▶ Play', call(a => a.startRun())],
+                        ['❚❚ Pause', call(a => a.pauseRun())],
                         ['◼ Stop', call(a => a.jumpToStart())],
-                        ['↺ Restart', call(a => { a.jumpToStart(); a.play(); })],
+                        ['↺ Restart', call(a => { a.jumpToStart(); a.startRun(); })],
                         ['⤓ Finish', call(a => a.jumpToEnd())],
                     ] as Array<[string, () => void]>).map(([label, onPress]) => (
                         <Pressable
@@ -133,7 +133,7 @@ export default function App() {
                     max={duration}
                     accent={t.accent}
                     track={t.border}
-                    onScrubStart={call(a => a.pause())}
+                    onScrubStart={call(a => a.pauseRun())}
                     onSeek={(v) => { setTimeMs(v); api.current?.setCurrentTime(v); }}
                 />
                 <View style={styles.timeRow}>
@@ -141,7 +141,7 @@ export default function App() {
                         {Math.round(timeMs)} / {Math.round(duration)} ms
                     </Text>
                     <Text style={[styles.mono, { color: playing ? t.accent : t.dim }]}>
-                        {playing ? 'playing' : 'idle'}
+                        {playing ? 'playing' : 'off'}
                     </Text>
                 </View>
 

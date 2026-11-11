@@ -330,17 +330,17 @@ describe('wire step 1.14 → 1.15 — `timeline.beforeStart` → `showWhenStoppe
     it('a 1.9 document converts through every step to the current version: the whole chain in one read', () => {
         const old = { type: 'svg', animator: { version: '1.9.0', timeline: { outTime: 1000, trigger: { playStart: 'click', playStop: 'click' }, playStopAction: 'rewind', outOfViewAction: 'reset', showFirstFrameBeforePlayStart: true } }, children: [] };
         expect(timelineOf(convertWireDocument(old).doc)).toEqual({
-            outTime: 1000, actionTriggers: { start: 'click', stop: 'click' }, actions: { stop: 'animateToStart', outOfView: 'jumpToStart' }, whenIdle: 'firstFrame',
+            outTime: 1000, actionTriggers: { startRun: 'click', stopRun: 'click' }, actions: { stopRun: 'animateToStart', outOfView: 'jumpToStart' }, whenIdle: 'firstFrame',
         });
     });
 
     it('a current document is left alone', () => {
-        const current = { type: 'svg', animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timeline: { outTime: 1000, actionTriggers: { start: 'load' } } }, children: [] };
+        const current = { type: 'svg', animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timeline: { outTime: 1000, actionTriggers: { startRun: 'load' } } }, children: [] };
         expect(convertWireDocument(current).applied).toEqual([]);
     });
 });
 
-describe('wire steps 1.21 → 1.22 → 1.23 — `playbackSpeed`, and the action words jump / animate to the start or the end (schema-and-props--improvements.md §0)', () => {
+describe('wire steps 1.21 → 1.22 → 1.23 → 1.24 — `playbackSpeed`, the action words jump / animate to the start or the end, the run model (schema-and-props--improvements.md §0, animation-state.brainstorm.md §0)', () => {
     const at = (version: string, timeline: Record<string, unknown>) => ({ type: 'svg', animator: { version, timeline: { outTime: 1000, ...timeline } }, children: [] });
     const down = (doc: unknown, b: number) => {
         const result = applyWireStepsDown(doc, { steps: PX_WIRE_STEPS, target: { a: 1, b, c: 0 }, readerReadsEditorPart: false });
@@ -356,19 +356,20 @@ describe('wire steps 1.21 → 1.22 → 1.23 — `playbackSpeed`, and the action 
 
     it('1.23: every slot\'s word is renamed — the word form and the settings form', () => {
         const up = convertWireDocument(at('1.22.0', { actions: { start: 'restart', stop: { behavior: 'rewind' }, finish: 'reset', outOfView: 'reset' } })).doc;
-        expect(timelineOf(up)).toEqual({ outTime: 1000, actions: { start: 'jumpToStart', stop: { behavior: 'animateToStart' }, finish: 'jumpToStart', outOfView: 'jumpToStart' } });
+        // read to the CURRENT version: the 1.24 keys and `atEnd`
+        expect(timelineOf(up)).toEqual({ outTime: 1000, actions: { startRun: 'jumpToStart', stopRun: { behavior: 'animateToStart' }, outOfView: 'jumpToStart' }, atEnd: 'jumpToStart' });
         expect(timelineOf(down(up, 22))).toEqual({ outTime: 1000, actions: { start: 'restart', stop: { behavior: 'rewind' }, finish: 'reset', outOfView: 'reset' } });
     });
 
     it('1.23: `completeIteration: true` becomes `stop: animateToEnd`; an ENDLESS timeline takes the old stop word as its finish', () => {
         const endless = convertWireDocument(at('1.22.0', { iterations: 'infinite', actions: { stop: { behavior: 'rewind', completeIteration: true } } })).doc;
-        expect(timelineOf(endless)).toEqual({ outTime: 1000, iterations: 'infinite', actions: { stop: 'animateToEnd', finish: 'animateToStart' } });
+        expect(timelineOf(endless)).toEqual({ outTime: 1000, iterations: 'infinite', actions: { stopRun: 'animateToEnd' }, atEnd: 'animateToStart' });
         // a finite one keeps its finish (accepted limit: the completed stop then ends the way the natural end does)
         const finite = convertWireDocument(at('1.22.0', { iterations: 3, actions: { stop: { completeIteration: true }, finish: 'hold' } })).doc;
-        expect(timelineOf(finite)).toEqual({ outTime: 1000, iterations: 3, actions: { stop: 'animateToEnd', finish: 'hold' } });
+        expect(timelineOf(finite)).toEqual({ outTime: 1000, iterations: 3, actions: { stopRun: 'animateToEnd' }, atEnd: 'hold' });
         // `completeIteration: false` is the default — dropped, the slot keeps its word
         const off = convertWireDocument(at('1.22.0', { actions: { stop: { behavior: 'rewind', completeIteration: false } } })).doc;
-        expect(timelineOf(off)).toEqual({ outTime: 1000, actions: { stop: 'animateToStart' } });
+        expect(timelineOf(off)).toEqual({ outTime: 1000, actions: { stopRun: 'animateToStart' } });
     });
 
     it('1.23 down: `animateToEnd` becomes `completeIteration` with the finish\'s way back; `stop: jumpToEnd` stays for the older reader to default', () => {
@@ -376,6 +377,31 @@ describe('wire steps 1.21 → 1.22 → 1.23 — `playbackSpeed`, and the action 
         expect(timelineOf(back)).toEqual({ outTime: 1000, iterations: 'infinite', actions: { stop: { behavior: 'rewind', completeIteration: true }, finish: 'rewind' } });
         const jump = down(at('1.23.0', { actions: { stop: 'jumpToEnd' } }), 22);
         expect(timelineOf(jump)).toEqual({ outTime: 1000, actions: { stop: 'jumpToEnd' } });
+    });
+
+    it('1.24: the four lists and the two slots take the buttons\' names; `actions.finish` becomes `timeline.atEnd`; values unchanged', () => {
+        const up = convertWireDocument(at('1.23.0', {
+            actionTriggers: { start: ['load', 'click'], stop: 'hoverOut', pause: 'click', resume: 'click' },
+            actions: { start: 'jumpToStart', stop: { behavior: 'animateToEnd' }, finish: { behavior: 'animateToStart' }, outOfView: 'continue' },
+        })).doc;
+        expect(timelineOf(up)).toEqual({
+            outTime: 1000,
+            actionTriggers: { startRun: ['load', 'click'], stopRun: 'hoverOut', pauseRun: 'click', resumeRun: 'click' },
+            actions: { startRun: 'jumpToStart', stopRun: { behavior: 'animateToEnd' }, outOfView: 'continue' },
+            atEnd: 'animateToStart',
+        });
+        expect(timelineOf(down(up, 23))).toEqual({
+            outTime: 1000,
+            actionTriggers: { start: ['load', 'click'], stop: 'hoverOut', pause: 'click', resume: 'click' },
+            actions: { start: 'jumpToStart', stop: { behavior: 'animateToEnd' }, outOfView: 'continue', finish: 'animateToStart' },
+        });
+    });
+
+    it('1.24: an `actions` block that held only `finish` disappears; `atEnd` alone goes back into a new `actions` block', () => {
+        const up = convertWireDocument(at('1.23.0', { actions: { finish: 'jumpToStart' } })).doc;
+        expect(timelineOf(up)).toEqual({ outTime: 1000, atEnd: 'jumpToStart' });
+        expect(timelineOf(down(up, 23))).toEqual({ outTime: 1000, actions: { finish: 'jumpToStart' } });
+        expect(timelineOf(convertWireDocument(at('1.23.0', { actionTriggers: { start: 'load' } })).doc)).toEqual({ outTime: 1000, actionTriggers: { startRun: 'load' } });
     });
 });
 

@@ -4,11 +4,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlayState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxRunState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
 import { withoutTriggerDriver, applyPlaybackOverride, resolveTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
-import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
+import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
@@ -47,7 +47,7 @@ function createAnimatorFromConfig(
  * loop, `native` and `js` force one — see `resolveTimelineEngine`.
  *
  * @param doc The animated SVG document.
- * @param callbacks Optional object with callback functions for animation lifecycle events (play, pause, finish, etc.).
+ * @param callbacks Optional object with callback functions for the lifecycle events (the run events, finish, etc.).
  * @param containerElement Optional selector or element to render the SVG into.
  * @param providedRoot The root `<svg>` a caller rendered itself — used when there is no container.
  * @returns An PxAnimationPlayerApi instance to programmatically control the animation.
@@ -232,10 +232,10 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const { src, doc, container } = options;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
     const providedRoot = isInternalOptions(options) ? options.rootElement : undefined;
-    // The registry hears play / pause / … through the engine callbacks, and names the PROXY
+    // The registry hears the run events and the finish through the player callbacks, and names the PROXY
     // below — the object the caller holds — never the engine API behind it.
     let proxy: PxAnimationPlayerApi | undefined;
-    const callbacks = withRegistryEvents(toEngineCallbacks(options), () => proxy);
+    const callbacks = withRegistryEvents(toPlayerCallbacks(options), () => proxy);
 
     // A wrong CALL throws — a bug at the call site, found the moment the line runs. A document
     // or environment that cannot play is reported through `onError` instead (the rule in core's
@@ -258,7 +258,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
 
     const enqueue = (call: (api: PxAnimationPlayerApi) => void) => {
         if (destroyed) {
-            // a call on a destroyed player is a no-op, said once per call — `getPlayState()` reads `destroyed`
+            // a call on a destroyed player is a no-op, said once per call — `getRunState()` reads `destroyed`
             diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.callAfterDestroy, call.name || 'call');
         } else if (animator) {
             call(animator);
@@ -301,13 +301,17 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         "isReady": () => !!animator,
         "getRootElement": () => animator ? animator.getRootElement() : null,
         "isPlaying": () => animator?.isPlaying() || false,
+        "startRun": () => { enqueue(api => api.startRun()); },
+        "stopRun": () => { enqueue(api => api.stopRun()); },
+        "pauseRun": () => { enqueue(api => api.pauseRun()); },
+        "resumeRun": () => { enqueue(api => api.resumeRun()); },
         "play": () => { enqueue(api => api.play()); },
         "pause": () => { enqueue(api => api.pause()); },
-        "stop": () => { enqueue(api => api.stop()); },
         "jumpToStart": () => { enqueue(api => api.jumpToStart()); },
         "jumpToEnd": () => { enqueue(api => api.jumpToEnd()); },
-        "playOnce": () => { enqueue(api => api.playOnce()); },
-        "getPlayState": () => destroyed ? PxPlayState.destroyed : (animator ? animator.getPlayState() : PxPlayState.idle),
+        "runOnce": () => { enqueue(api => api.runOnce()); },
+        "getRunState": () => destroyed ? PxRunState.destroyed : (animator ? animator.getRunState() : PxRunState.off),
+        "isRunActive": () => animator ? animator.isRunActive() : false,
         "getPlaybackSpeed": () => animator ? animator.getPlaybackSpeed() : 1,
         "setPlaybackSpeed": (speed: number) => { enqueue(api => api.setPlaybackSpeed(speed)); },
         "getPlaybackDuration": () => animator ? animator.getPlaybackDuration() : null,

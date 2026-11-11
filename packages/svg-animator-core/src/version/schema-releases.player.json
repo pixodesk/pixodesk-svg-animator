@@ -389,5 +389,33 @@
    "animator.timeline|time.actions.stop|1.completeIteration"
   ],
   "note": "The action words name WHERE a move goes and HOW (dev-docs/reviews/schema-and-props--improvements.md §0): `reset` → `jumpToStart`, `rewind` → `animateToStart`, `actions.start: 'restart'` → `'jumpToStart'`; `actions.stop` gains `jumpToEnd` / `animateToEnd`, and arriving at the end runs `finish` — so `stop.completeIteration: true` becomes `stop: 'animateToEnd'` (an endless timeline takes the old stop word as its `finish`, which only a stop could reach; a finite one keeps its `finish`)."
+ },
+ {
+  "version": "1.24",
+  "date": "2026-11-10",
+  "added": [
+   "animator.timeline|time.actionTriggers.pauseRun",
+   "animator.timeline|time.actionTriggers.resumeRun",
+   "animator.timeline|time.actionTriggers.startRun",
+   "animator.timeline|time.actionTriggers.stopRun",
+   "animator.timeline|time.actions.startRun",
+   "animator.timeline|time.actions.startRun|1.behavior",
+   "animator.timeline|time.actions.stopRun",
+   "animator.timeline|time.actions.stopRun|1.behavior",
+   "animator.timeline|time.atEnd"
+  ],
+  "removed": [
+   "animator.timeline|time.actionTriggers.pause",
+   "animator.timeline|time.actionTriggers.resume",
+   "animator.timeline|time.actionTriggers.start",
+   "animator.timeline|time.actionTriggers.stop",
+   "animator.timeline|time.actions.finish",
+   "animator.timeline|time.actions.finish|1.behavior",
+   "animator.timeline|time.actions.start",
+   "animator.timeline|time.actions.start|1.behavior",
+   "animator.timeline|time.actions.stop",
+   "animator.timeline|time.actions.stop|1.behavior"
+  ],
+  "note": "The run model (dev-docs/plans/animation-state.brainstorm.md §0): the four buttons of the player box name the trigger lists and the actions — `start` → `startRun`, `stop` → `stopRun`, `pause` → `pauseRun`, `resume` → `resumeRun` (the handle's methods and the `playRun` prop's edges say the same) — and `actions.finish` moves beside `whenIdle` as `timeline.atEnd`: the clock's rule, not a button's. Every value is unchanged."
  }
 ]

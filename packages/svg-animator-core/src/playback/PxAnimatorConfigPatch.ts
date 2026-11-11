@@ -12,7 +12,7 @@
  *
  * Base semantics are a RECURSIVE PARTIAL: objects merge per level, primitives and arrays REPLACE, and a key left
  * out (`undefined`, or `null` from JavaScript) changes nothing. There is no delete: to get a default, set it
- * (`finish: 'hold'`). WHY no `null` delete (RFC 7386 had it until 1.22): nobody resets one key to "absent" from a
+ * (`stopRun: 'animateToStart'`). WHY no `null` delete (RFC 7386 had it until 1.22): nobody resets one key to "absent" from a
  * page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway.
  *
  * Six places need more than that — see the RULE comments below.
@@ -173,7 +173,7 @@ export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' |
 export type PxTimelineOptions = PxRecursivePartial<PxTimelineTiming>;
 
 /** The `actions` prop: a deep-partial of the timeline's `actions` block, merged over the file's. A slot may be the
- *  preset word (`stop: 'animateToStart'`): it is exactly `{ behavior: 'animateToStart' }`. @public */
+ *  preset word (`stopRun: 'animateToStart'`): it is exactly `{ behavior: 'animateToStart' }`. @public */
 export type PxActionsOptions = PxRecursivePartial<PxActions>;
 
 /**
@@ -201,9 +201,9 @@ export interface PxPlaybackOverride {
      */
     timelineOptions?: PxTimelineOptions;
     /**
-     * Per-instance adjustment of HOW the built-in actions look — `{ stop: 'animateToStart' }`, or
-     * `{ stop: 'animateToEnd', finish: 'jumpToStart' }` ("stop after this pass, then snap back") — deep-merged over the
-     * document's `timeline.actions`.
+     * Per-instance adjustment of HOW the buttons move the playhead — `{ stopRun: 'animateToStart' }`, or
+     * `{ stopRun: 'animateToEnd' }` with `timelineOptions: { atEnd: 'jumpToStart' }` ("stop after this pass, then snap
+     * back") — deep-merged over the document's `timeline.actions`.
      */
     actions?: PxActionsOptions;
 }

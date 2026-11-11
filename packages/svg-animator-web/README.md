@@ -69,8 +69,8 @@ const player = createSvgAnimationPlayer({
 // Or from an already-loaded document object
 const fromObject = createSvgAnimationPlayer({ doc: animationDoc, container: '#container' });
 
-player.play();
-player.pause();
+player.startRun();
+player.pauseRun();
 player.setCurrentTime(500);   // jump to 0.5 s into the current iteration
 player.setPlaybackSpeed(2);   // 2x speed (-1 plays in reverse)
 player.jumpToEnd();           // the end pose, no motion
@@ -88,9 +88,9 @@ player.destroy();             // cleanup
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxDocumentJson`          | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
-| `onReady` · `onPlay` · `onPause` · `onStop` · `onFinish` · `onDestroy` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarning`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onStop,onFinish,onDestroy,onWarning,onError,suppressWarnings,suppressErrors -->
+| `onReady` · `onRunStart` · `onRunStop` · `onRunPause` · `onRunResume` · `onFinish` · `onDestroy` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`; the four `onRun…` are the buttons' events, told when the act is performed); plus `onWarning`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onRunStart,onRunStop,onRunPause,onRunResume,onFinish,onDestroy,onWarning,onError,suppressWarnings,suppressErrors -->
 | `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), deep-merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsOptions` | per-instance override of how the built-in actions look — `{ stop: 'animateToStart' }` — deep-merged over the document's `timeline.actions`. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actions` | `PxActionsOptions` | per-instance override of how a start and a stop look — `{ stopRun: 'animateToStart' }` — deep-merged over the document's `timeline.actions` (the end of the pass, `atEnd`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 
 The document plays the way it was designed with no configuration at all; `timelineOptions` and `actions` are for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file
@@ -100,9 +100,9 @@ that autostarts everywhere except inside your own transport UI:
 const player = createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#box',
-  timelineOptions: { iterations: 'infinite' },   // no `playUsingActionTriggers`: nothing starts until play()
+  timelineOptions: { iterations: 'infinite' },   // no `playUsingActionTriggers`: nothing starts until startRun()
 });
-player.play();
+player.startRun();
 ```
 
 It returns a `PxAnimationPlayerApi`:
@@ -110,14 +110,18 @@ It returns a `PxAnimationPlayerApi`:
 <!-- px-check props PxAnimationPlayerApi pkg=web -->
 | Method                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
-| `play()`                | Resume when paused, else the built-in `start`, per `actions.start` |
-| `pause()`               | Pause at the current time                                         |
-| `stop()`                | The built-in `stop`, per `actions.stop.behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd`; reports `onStop` |
-| `jumpToStart()`         | The unconditional jump to the idle pose — reports nothing, like a seek |
-| `jumpToEnd()`           | The end pose, no motion — runs `actions.finish`, fires `onFinish` (advanced: the `jumpToEnd` preset as a call) |
-| `playOnce()`            | One fresh pass from the start, whatever `iterations` say          |
-| `getPlayState()`        | The one state read: `idle` · `playing` · `paused` · `finished` · `destroyed`; a move in flight reads `idle` |
-| `getPlaybackSpeed()` / `setPlaybackSpeed(speed)` | The speed: 1 normal, 2 double, 0.5 half, negative = reverse (it multiplies with `iterationDirection`); starts at the file's `timeline.playbackSpeed`, the setter replaces it (0 is rejected — use `pause()`) | <!-- px names=getPlaybackSpeed,setPlaybackSpeed -->
+| `startRun()`            | The run's on button — the built-in start, per `actions.startRun` (`continue` · `jumpToStart` · `jumpToEnd`); a paused run unfreezes, a returning one turns around; reports `onRunStart` |
+| `stopRun()`             | The run's off button — the built-in stop, per `actions.stopRun.behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd`; reports `onRunStop` |
+| `pauseRun()`            | Freeze the run at the current frame (only while playing); reports `onRunPause` |
+| `resumeRun()`           | Carry on from the frozen frame (only while paused); reports `onRunResume` |
+| `play()`                | ALIAS: `getRunState() === 'paused' ? resumeRun() : startRun()` — the media word |
+| `pause()`               | ALIAS of `pauseRun()`                                             |
+| `jumpToStart()`         | The unconditional jump to the rest pose — reports nothing, like a seek |
+| `jumpToEnd()`           | The end pose, no motion — runs the timeline's `atEnd`, fires `onFinish` (advanced: the `jumpToEnd` preset as a call) |
+| `runOnce()`             | One fresh pass from the start, whatever `iterations` say          |
+| `getRunState()`         | The one state read — the run's: `off` · `playing` · `paused` · `finished` · `returning` · `destroyed`; an `animateToStart` leg on its way back reads `returning` |
+| `isRunActive()`         | A run exists: `playing` · `paused` · `finished`                   |
+| `getPlaybackSpeed()` / `setPlaybackSpeed(speed)` | The speed: 1 normal, 2 double, 0.5 half, negative = reverse (it multiplies with `iterationDirection`); starts at the file's `timeline.playbackSpeed`, the setter replaces it (0 is rejected — use `pauseRun()`) | <!-- px names=getPlaybackSpeed,setPlaybackSpeed -->
 | `getPlaybackDuration()` / `setPlaybackDuration(ms)` | One pass in playback ms at the current speed; the setter sets the speed so one pass takes `ms` | <!-- px names=getPlaybackDuration,setPlaybackDuration -->
 | `getTotalPlaybackDuration()` | The whole run in playback ms; `null` when `iterations` is `'infinite'` |
 | `getCurrentPlaybackTime()` | The playhead in the pass, playback ms: `getCurrentTime() / \|speed\|` |
@@ -147,9 +151,10 @@ scroll or view timeline the playback verbs are no-ops (PX1505): the scroll posit
 createSvgAnimationPlayer({
   doc: doc,
   container: '#container',
-  onPlay:   () => { /* started/resumed */ },
-  onPause:  () => { /* paused */ },
-  onStop:   () => { /* the stop action was performed */ },
+  onRunStart:  () => { /* a run began */ },
+  onRunResume: () => { /* the run carried on after a freeze */ },
+  onRunPause:  () => { /* the run was frozen (not the gate's hold) */ },
+  onRunStop:   () => { /* the run was stopped */ },
   onFinish: () => { /* reached the end (or via jumpToEnd()) */ },
   onDestroy: () => { /* destroyed / cleaned up */ },
 });

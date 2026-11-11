@@ -2,13 +2,13 @@
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
-// §10 (dev-docs/reviews/first-use-review.md) + D5 (dev-docs/plans/component-api.md): `play` names a
-// STATE — a pose for a one-shot document, running-or-not for a looping one; `pause` freezes the clock
-// only and is forcibly lifted by `play: false`. HOW an on / off is performed is the timeline's own
-// (`actions.start`, `actions.stop`, `actions.finish` — jump / animate to the start or the end) and lives in ONE executor that the
-// props, the trigger's event lists and the imperative api share.
+// §10 (dev-docs/reviews/first-use-review.md) + D5 (dev-docs/plans/component-api.md) + the run model
+// (dev-docs/plans/animation-state.brainstorm.md): `playRun` names the lever's POSITION — `off` · `on` · `paused`; a
+// change between two positions presses one or two of the four buttons. HOW a button moves the playhead is the
+// timeline's own (`actions.startRun`, `actions.stopRun`, `atEnd` — jump / animate to the start or the end) and lives in
+// ONE executor that the prop, the trigger's event lists and the imperative api share.
 import { describe, expect, it } from 'vitest';
-import { PxFinishBehavior, PxStopBehavior, PxStartBehavior } from '../index';
+import { PxAtEndBehavior, PxStopRunBehavior, PxStartRunBehavior, PxPlayRun, type PxRunListeners } from '../index';
 import {
     PxDeclarativeAction,
     PxPlaybackWorld,
@@ -21,7 +21,7 @@ import {
     type PxPlayTarget,
 } from '../engine';
 
-type Props = { play?: boolean; pause?: boolean };
+type Props = { playRun?: PxPlayRun };
 const oneShot = (next: Props, prev?: Props) => resolveDeclarativePlayback({ world: PxPlaybackWorld.oneShot, prev, next });
 const loop = (next: Props, prev?: Props) => resolveDeclarativePlayback({ world: PxPlaybackWorld.loop, prev, next });
 
@@ -58,6 +58,14 @@ class FakeEngine implements PxPlayTarget {
 const executorOf = (engine: FakeEngine, cfg: Partial<PxPlayExecutorConfig> = {}) =>
     createPlayExecutor(engine, { passMs: 1000, totalMs: engine.totalMs, ...cfg }, engine.raf);
 
+/** A listener set that writes every run event into `events`. */
+const listening = (events: Array<string>): PxRunListeners => ({
+    onRunStart: () => events.push('runStart'),
+    onRunStop: () => events.push('runStop'),
+    onRunPause: () => events.push('runPause'),
+    onRunResume: () => events.push('runResume'),
+});
+
 describe('the playback world', () => {
     it('splits on the effective iterations', () => {
         expect(resolvePlaybackWorld(undefined)).toBe(PxPlaybackWorld.oneShot);
@@ -67,48 +75,48 @@ describe('the playback world', () => {
     });
 });
 
-describe('one-shot: play plays it', () => {
-    it('a mount with play STARTS — a one-shot plays to its end (the pose without motion is showAtProgress)', () => {
-        expect(oneShot({ play: true }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(oneShot({ play: true, pause: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
-        expect(oneShot({ play: false }).actions).toEqual([]);
+describe('one-shot: playRun names the position', () => {
+    it('a mount with "on" STARTS — a one-shot plays to its end (the pose without motion is showAtProgress); "paused" starts it frozen', () => {
+        expect(oneShot({ playRun: 'on' }).actions).toEqual([PxDeclarativeAction.startRun]);
+        expect(oneShot({ playRun: 'paused' }).actions).toEqual([PxDeclarativeAction.startRun, PxDeclarativeAction.pauseRun]);
+        expect(oneShot({ playRun: 'off' }).actions).toEqual([]);
         expect(oneShot({}).actions).toEqual([]);
     });
 
     it("a change asks for the configured on and off — HOW is the timeline's, never the prop's", () => {
-        expect(oneShot({ play: true }, { play: false }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(oneShot({ play: false }, { play: true }).actions).toEqual([PxDeclarativeAction.stop]);
+        expect(oneShot({ playRun: 'on' }, { playRun: 'off' }).actions).toEqual([PxDeclarativeAction.startRun]);
+        expect(oneShot({ playRun: 'off' }, { playRun: 'on' }).actions).toEqual([PxDeclarativeAction.stopRun]);
+        expect(oneShot({ playRun: 'on' }, { playRun: 'on' }).actions).toEqual([]);
     });
 
-    it('pause freezes the clock while play is true, and resumes toward the current target', () => {
-        expect(oneShot({ play: true, pause: true }, { play: true }).actions).toEqual([PxDeclarativeAction.pause]);
-        expect(oneShot({ play: true, pause: false }, { play: true, pause: true }).actions).toEqual([PxDeclarativeAction.resume]);
-        // a retarget while frozen: the on starts, then freezes again — the clock stays held
-        expect(oneShot({ play: true, pause: true }, { play: false, pause: true }).actions)
-            .toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
+    it('"paused" freezes the clock inside a run, and "on" resumes toward the current target', () => {
+        expect(oneShot({ playRun: 'paused' }, { playRun: 'on' }).actions).toEqual([PxDeclarativeAction.pauseRun]);
+        expect(oneShot({ playRun: 'on' }, { playRun: 'paused' }).actions).toEqual([PxDeclarativeAction.resumeRun]);
+        // a retarget from off while frozen is asked for: the run starts, then freezes again — the clock stays held
+        expect(oneShot({ playRun: 'paused' }, { playRun: 'off' }).actions)
+            .toEqual([PxDeclarativeAction.startRun, PxDeclarativeAction.pauseRun]);
     });
 
-    it('play: false forcibly unfreezes — the off happens as if nothing had been frozen', () => {
-        expect(oneShot({ play: false, pause: true }, { play: true, pause: true }).actions).toEqual([PxDeclarativeAction.stop]);
+    it('"off" from "paused" stops — the off happens as if nothing had been frozen', () => {
+        expect(oneShot({ playRun: 'off' }, { playRun: 'paused' }).actions).toEqual([PxDeclarativeAction.stopRun]);
     });
 
-    it('pause without play warns and does nothing', () => {
-        const r = oneShot({ pause: true }, {});
-        expect(r.actions).toEqual([]);
-        expect(r.warnings.join(' ')).toContain('pause');
+    it('the prop appearing as "off" on a later render stops; a mount with "off" does not (no run to stop)', () => {
+        expect(oneShot({ playRun: 'off' }, {}).actions).toEqual([PxDeclarativeAction.stopRun]);
+        expect(oneShot({ playRun: 'off' }).actions).toEqual([]);
     });
 });
 
-describe('loop: play is a RUN switch', () => {
-    it('on runs, off stops; mount with play runs (running IS the named state)', () => {
-        expect(loop({ play: true }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(loop({ play: true }, { play: false }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(loop({ play: false }, { play: true }).actions).toEqual([PxDeclarativeAction.stop]);
+describe('loop: the run switch', () => {
+    it('on runs, off stops; mount with "on" runs (running IS the named state)', () => {
+        expect(loop({ playRun: 'on' }).actions).toEqual([PxDeclarativeAction.startRun]);
+        expect(loop({ playRun: 'on' }, { playRun: 'off' }).actions).toEqual([PxDeclarativeAction.startRun]);
+        expect(loop({ playRun: 'off' }, { playRun: 'on' }).actions).toEqual([PxDeclarativeAction.stopRun]);
     });
 
-    it('a mount with play and pause starts and freezes at once; unpausing runs', () => {
-        expect(loop({ play: true, pause: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
-        expect(loop({ play: true, pause: false }, { play: true, pause: true }).actions).toEqual([PxDeclarativeAction.resume]);
+    it('a mount with "paused" starts and freezes at once; unpausing runs', () => {
+        expect(loop({ playRun: 'paused' }).actions).toEqual([PxDeclarativeAction.startRun, PxDeclarativeAction.pauseRun]);
+        expect(loop({ playRun: 'on' }, { playRun: 'paused' }).actions).toEqual([PxDeclarativeAction.resumeRun]);
     });
 });
 
@@ -116,157 +124,186 @@ describe("the executor performs the timeline's play keys on any engine", () => {
     it('the defaults: on plays from where it is, off resets to the start pose at once', () => {
         const e = new FakeEngine(1000);
         const x = executorOf(e);
-        x.start();
+        x.startRun();
         expect(e.playing).toBe(true);
         e.frames(30);
         expect(e.time).toBe(300);
-        x.stop();
+        x.stopRun();
         expect(e.playing).toBe(false);
         expect(e.time).toBe(0);
-        expect(x.state()).toBe('idle');
+        expect(x.state()).toBe('off');
     });
 
     it('off on a STOPPED player elsewhere than the start (the end pose) still rests it; at the start it is a no-op', () => {
         const atEnd = new FakeEngine(1000);
         atEnd.time = 1000;
-        executorOf(atEnd).stop();
+        executorOf(atEnd).stopRun();
         expect(atEnd.log).toEqual(['jumpToStart']);
         const rewound = new FakeEngine(1000);
         rewound.time = 1000;
-        executorOf(rewound, { actions: { stop: { behavior: PxStopBehavior.animateToStart } } }).stop();
+        executorOf(rewound, { actions: { stopRun: { behavior: PxStopRunBehavior.animateToStart } } }).stopRun();
         expect(rewound.rate).toBe(-1);                   // travels back from the end pose
         expect(rewound.playing).toBe(true);
         const resting = new FakeEngine(1000);
-        executorOf(resting).stop();
+        executorOf(resting).stopRun();
         expect(resting.log).toEqual([]);
     });
 
-    it('start behavior restart begins a fresh run; the default continue at the END of a one-shot is a fresh run too', () => {
+    it('start behavior jumpToStart begins a fresh run; the default continue at the END of a one-shot is a fresh run too', () => {
         const restart = new FakeEngine(1000);
-        executorOf(restart, { actions: { start: { behavior: PxStartBehavior.jumpToStart } } }).start();
+        executorOf(restart, { actions: { startRun: { behavior: PxStartRunBehavior.jumpToStart } } }).startRun();
         restart.frames(30);
         restart.log.length = 0;
-        executorOf(restart, { actions: { start: { behavior: PxStartBehavior.jumpToStart } } }).start();
+        executorOf(restart, { actions: { startRun: { behavior: PxStartRunBehavior.jumpToStart } } }).startRun();
         expect(restart.log).toEqual(['jumpToStart', 'play']);
         const ended = new FakeEngine(1000);
         ended.time = 1000;
-        executorOf(ended).start();
+        executorOf(ended).startRun();
         expect(ended.log).toEqual(['jumpToStart', 'play']);
         const midway = new FakeEngine(1000);
         midway.time = 300;
-        executorOf(midway).start();
-        expect(midway.log).toEqual(['play']);              // resume: no reset
+        executorOf(midway).startRun();
+        expect(midway.log).toEqual(['play']);              // continue: no reset
     });
 
     it('start behavior jumpToEnd shows the end pose without motion; a loop shows the end of its first pass', () => {
         const one = new FakeEngine(1000);
-        executorOf(one, { actions: { start: { behavior: PxStartBehavior.jumpToEnd } } }).start();
+        executorOf(one, { actions: { startRun: { behavior: PxStartRunBehavior.jumpToEnd } } }).startRun();
         expect(one.log).toEqual(['jumpToEnd']);
         expect(one.time).toBe(1000);
         const endless = new FakeEngine(Infinity);
-        executorOf(endless, { actions: { start: { behavior: PxStartBehavior.jumpToEnd } } }).start();
+        executorOf(endless, { actions: { startRun: { behavior: PxStartRunBehavior.jumpToEnd } } }).startRun();
         expect(endless.log).toEqual(['pause', 'seek:1000']);
     });
 
-    it('stop behavior rewind plays back to the start; a loop rewinds the iteration it is in, then rests', () => {
+    it('stop behavior animateToStart plays back to the start (the RETURNING state); a loop plays back the iteration it is in, then rests', () => {
         const one = new FakeEngine(1000);
-        const x = executorOf(one, { actions: { stop: { behavior: PxStopBehavior.animateToStart } } });
-        x.start();
+        const x = executorOf(one, { actions: { stopRun: { behavior: PxStopRunBehavior.animateToStart } } });
+        x.startRun();
         one.frames(30);
-        x.stop();
+        x.stopRun();
         expect(one.rate).toBe(-1);
         expect(one.playing).toBe(true);
+        expect(x.state()).toBe('returning');
         one.frames(40);
         expect(one.time).toBe(0);
         expect(one.playing).toBe(false);
+        x.onNaturalFinish();                               // the engine announces the leg's end
+        expect(x.state()).toBe('off');
 
         const endless = new FakeEngine(Infinity);
-        const y = executorOf(endless, { actions: { stop: { behavior: PxStopBehavior.animateToStart } } });
-        y.start();
+        const y = executorOf(endless, { actions: { stopRun: { behavior: PxStopRunBehavior.animateToStart } } });
+        y.startRun();
         endless.frames(130);
         expect(endless.time).toBe(1300);
-        y.stop();
+        y.stopRun();
         endless.frames(25);
         expect(endless.playing).toBe(true);                // still on its way back to 1000
+        expect(y.state()).toBe('returning');
         endless.frames(10);
         expect(endless.log.at(-1)).toBe('jumpToStart');   // rested at the iteration's start
         expect(endless.playing).toBe(false);
         expect(endless.rate).toBe(1);
+        expect(y.state()).toBe('off');
     });
 
-    it('stop animateToEnd on a loop plays on to the pass end, then finish (jumpToStart rests); an on before it cancels the pending stop', () => {
+    it('a RETURNING run turns around on startRun, and ignores stopRun / pauseRun / resumeRun', () => {
+        const e = new FakeEngine(1000);
+        const x = executorOf(e, { actions: { stopRun: 'animateToStart' } });
+        const events: Array<string> = [];
+        x.setListeners(listening(events));
+        x.startRun();
+        e.frames(50);
+        x.stopRun();
+        expect(x.state()).toBe('returning');
+        x.pauseRun();
+        x.resumeRun();
+        x.stopRun();
+        expect(e.playing).toBe(true);
+        expect(e.rate).toBe(-1);
+        expect(events).toEqual(['runStart', 'runStop']);
+        e.frames(20);
+        x.startRun();                                      // the hover-in during the hover-out leg
+        expect(e.rate).toBe(1);
+        expect(e.playing).toBe(true);
+        expect(x.state()).toBe('playing');
+        expect(events).toEqual(['runStart', 'runStop', 'runStart']);
+    });
+
+    it('stop animateToEnd on a loop plays on to the pass end, then atEnd (jumpToStart rests); an on before it cancels the pending stop', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { actions: { stop: 'animateToEnd', finish: 'jumpToStart' } });
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'animateToEnd' }, atEnd: 'jumpToStart' });
+        x.startRun();
         e.frames(30);
-        x.stop();
+        x.stopRun();
         expect(e.playing).toBe(true);
         e.frames(60);
         expect(e.playing).toBe(true);                      // 900: not yet
         e.frames(15);
-        expect(e.playing).toBe(false);                     // the boundary reached → finish: jumpToStart
+        expect(e.playing).toBe(false);                     // the boundary reached → atEnd: jumpToStart
         expect(e.time).toBe(0);
 
-        x.start();
+        x.startRun();
         e.frames(30);
-        x.stop();
-        x.start();                                            // takes the pending off back
+        x.stopRun();
+        x.startRun();                                         // takes the pending off back
         e.frames(100);
         expect(e.playing).toBe(true);
         expect(e.time).toBe(1300);
     });
 
-    it('stop animateToEnd on a one-shot completes the run, THEN finish runs — animateToStart included', () => {
+    it('stop animateToEnd on a one-shot completes the run, THEN atEnd runs — animateToStart included', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { stop: 'animateToEnd', finish: PxFinishBehavior.animateToStart } });
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'animateToEnd' }, atEnd: PxAtEndBehavior.animateToStart });
+        x.startRun();
         e.frames(30);
-        x.stop();
+        x.stopRun();
         e.frames(70);
         expect(e.time).toBe(1000);                         // ran to the end first…
         e.frame(10);
-        expect(e.rate).toBe(-1);                           // …then the finish played back
+        expect(e.rate).toBe(-1);                           // …then atEnd played back
         expect(e.playing).toBe(true);
         e.frames(110);
         expect(e.time).toBe(0);
         expect(e.playing).toBe(false);
     });
 
-    it('pause / resume own the PAUSED state the engines cannot tell apart; play() resumes a pause, jumpToStart() is the hard jump', () => {
+    it('pauseRun / resumeRun own the PAUSED state the engines cannot tell apart; play() resumes a pause, jumpToStart() is the hard jump', () => {
         const e = new FakeEngine(1000);
         const x = executorOf(e);
-        x.start();
+        x.startRun();
         e.frames(30);
-        x.pause();
+        x.pauseRun();
         expect(x.state()).toBe('paused');
         expect(e.time).toBe(300);
-        x.resume();
+        x.resumeRun();
         expect(x.state()).toBe('playing');
-        x.pause();
+        x.pauseRun();
         e.log.length = 0;
         x.play();
         expect(e.log).toEqual(['play']);                   // a resume, not a restart
         expect(e.time).toBe(300);
         x.jumpToStart();
-        expect(x.state()).toBe('idle');
+        expect(x.state()).toBe('off');
         expect(e.time).toBe(0);
     });
 
-    it('onNaturalFinish performs actions.finish: hold leaves the end pose, jumpToStart rests at the start, animateToStart plays back then rests', () => {
+    it('onNaturalFinish performs atEnd: hold leaves the end pose, jumpToStart rests at the start, animateToStart plays back then rests', () => {
         const hold = new FakeEngine(1000);
         hold.time = 1000;
         executorOf(hold).onNaturalFinish();
         expect(hold.log).toEqual([]);
         const reset = new FakeEngine(1000);
         reset.time = 1000;
-        executorOf(reset, { actions: { finish: { behavior: PxFinishBehavior.jumpToStart } } }).onNaturalFinish();
+        executorOf(reset, { atEnd: PxAtEndBehavior.jumpToStart }).onNaturalFinish();
         expect(reset.log).toEqual(['jumpToStart']);
         const rewind = new FakeEngine(1000);
         rewind.time = 1000;
-        const x = executorOf(rewind, { actions: { finish: { behavior: PxFinishBehavior.animateToStart } } });
+        const x = executorOf(rewind, { atEnd: PxAtEndBehavior.animateToStart });
         x.onNaturalFinish();
         expect(rewind.rate).toBe(-1);
         expect(rewind.playing).toBe(true);
+        expect(x.state()).toBe('returning');
         rewind.frames(100);
         expect(rewind.time).toBe(0);                     // the engine announces this end too…
         x.onNaturalFinish();
@@ -274,98 +311,129 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(rewind.log.at(-1)).toBe('jumpToStart');
     });
 
-    it('applyDeclarativeAction maps the four verbs onto the public api — play / pause / stop', () => {
+    it('applyDeclarativeAction maps the four buttons onto the public api', () => {
         const calls: Array<string> = [];
-        const api = { play: () => calls.push('play'), pause: () => calls.push('pause'), stop: () => calls.push('stop') };
-        for (const action of [PxDeclarativeAction.start, PxDeclarativeAction.pause, PxDeclarativeAction.resume, PxDeclarativeAction.stop]) {
+        const api = {
+            startRun: () => calls.push('startRun'), stopRun: () => calls.push('stopRun'),
+            pauseRun: () => calls.push('pauseRun'), resumeRun: () => calls.push('resumeRun'),
+        };
+        for (const action of [PxDeclarativeAction.startRun, PxDeclarativeAction.pauseRun, PxDeclarativeAction.resumeRun, PxDeclarativeAction.stopRun]) {
             applyDeclarativeAction(api, action);
         }
-        expect(calls).toEqual(['play', 'pause', 'play', 'stop']);
+        expect(calls).toEqual(['startRun', 'pauseRun', 'resumeRun', 'stopRun']);
     });
 
-    it('a finished one-shot is FINISHED, not idle: a stop still acts on it (animateToStart from the end), a start is a fresh run', () => {
+    it('a finished one-shot is FINISHED, not off: a stop still acts on it (animateToStart from the end), a start is a fresh run', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { stop: 'animateToStart' } });
-        const stops: Array<string> = [];
-        x.setOnStop(() => stops.push('stop'));
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'animateToStart' } });
+        const events: Array<string> = [];
+        x.setListeners(listening(events));
+        x.startRun();
         e.frames(110);
         expect(e.time).toBe(1000);
         expect(x.state()).toBe('finished');
-        x.stop();                                          // the lid: hover out after it opened fully
-        expect(stops).toEqual(['stop']);
+        x.stopRun();                                       // the lid: hover out after it opened fully
+        expect(events).toEqual(['runStart', 'runStop']);
         expect(e.rate).toBe(-1);
         e.frames(110);
         expect(e.time).toBe(0);
-        expect(x.state()).toBe('idle');
-        x.start();
+        x.onNaturalFinish();
+        expect(x.state()).toBe('off');
+        x.startRun();
         e.frames(110);
         expect(x.state()).toBe('finished');
-        x.pause();                                         // not a stop: onStop is not told
-        expect(stops).toEqual(['stop']);
-        x.start();                                         // from finished: a fresh run from the beginning
+        x.pauseRun();                                      // nothing to freeze on a finished run: not told
+        expect(events).toEqual(['runStart', 'runStop', 'runStart']);
+        x.startRun();                                      // from finished: a fresh run from the beginning
         expect(e.log.at(-2)).toBe('jumpToStart');
         expect(e.playing).toBe(true);
     });
+
+    it('the run events are told when the act is performed — never for the engine\'s own pause (the gate\'s hold) or a no-op press', () => {
+        const e = new FakeEngine(1000);
+        const x = executorOf(e);
+        const events: Array<string> = [];
+        x.setListeners(listening(events));
+        x.startRun();
+        x.startRun();                                      // continue while playing: nothing changed, nothing told
+        e.frames(10);
+        e.pause();                                         // the engine's raw pause — the gate's hold
+        expect(events).toEqual(['runStart']);
+        e.play();                                          // the gate's release
+        x.pauseRun();
+        x.pauseRun();                                      // already paused: not told twice
+        x.resumeRun();
+        x.resumeRun();
+        x.pauseRun();
+        x.play();                                          // the alias: a resume
+        x.stopRun();
+        x.stopRun();                                       // at rest: nothing to stop
+        expect(events).toEqual(['runStart', 'runPause', 'runResume', 'runPause', 'runResume', 'runStop']);
+        x.startRun();
+        e.frames(10);
+        x.pauseRun();
+        x.startRun();                                      // continue on a paused run: it unfreezes — a resume
+        expect(events.slice(-3)).toEqual(['runStart', 'runPause', 'runResume']);
+    });
 });
 
-describe('the action model: jump / animate to the start or the end; arriving at the end runs finish (1.23)', () => {
-    it('stop jumpToEnd on a one-shot: the engine\'s jump, onStop at once, and the engine\'s finish runs actions.finish', () => {
+describe('the action model: jump / animate to the start or the end; arriving at the end runs atEnd (1.23)', () => {
+    it('stop jumpToEnd on a one-shot: the engine\'s jump, onRunStop at once, and the engine\'s finish runs atEnd', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { stop: 'jumpToEnd', finish: 'jumpToStart' } });
-        const stops: Array<string> = [];
-        x.setOnStop(() => stops.push('stop'));
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'jumpToEnd' }, atEnd: 'jumpToStart' });
+        const events: Array<string> = [];
+        x.setListeners(listening(events));
+        x.startRun();
         e.frames(30);
-        x.stop();
+        x.stopRun();
         expect(e.log.at(-1)).toBe('jumpToEnd');
         expect(e.time).toBe(1000);
-        expect(stops).toEqual(['stop']);
+        expect(events).toEqual(['runStart', 'runStop']);
         x.onNaturalFinish();                                  // what the engine reports after its jump
-        expect(e.time).toBe(0);                               // finish: jumpToStart
-        expect(x.state()).toBe('idle');
+        expect(e.time).toBe(0);                               // atEnd: jumpToStart
+        expect(x.state()).toBe('off');
     });
 
-    it('stop jumpToEnd on a loop holds on the end of the CURRENT pass, FINISHED; finish hold is the default', () => {
+    it('stop jumpToEnd on a loop holds on the end of the CURRENT pass, FINISHED; atEnd hold is the default', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { actions: { stop: 'jumpToEnd' } });
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'jumpToEnd' } });
+        x.startRun();
         e.frames(130);
-        x.stop();
+        x.stopRun();
         expect(e.time).toBe(2000);
         expect(e.playing).toBe(false);
         expect(x.state()).toBe('finished');
-        x.stop();                                             // already at the end: nothing to do
+        x.stopRun();                                          // already at the end: nothing to do
         expect(e.time).toBe(2000);
-        x.start();                                            // continue: plays on from there
+        x.startRun();                                         // continue: plays on from there
         e.frames(10);
         expect(e.time).toBe(2100);
     });
 
-    it('stop animateToEnd on a loop with finish hold rests on the pass end, FINISHED; while on its way it reads IDLE', () => {
+    it('stop animateToEnd on a loop with atEnd hold rests on the pass end, FINISHED; while on its way it still reads PLAYING', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { actions: { stop: 'animateToEnd' } });
-        const stops: Array<string> = [];
-        x.setOnStop(() => stops.push('stop'));
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'animateToEnd' } });
+        const events: Array<string> = [];
+        x.setListeners(listening(events));
+        x.startRun();
         e.frames(30);
-        x.stop();
-        expect(x.state()).toBe('idle');                       // a move in flight — a start event turns it around
-        expect(stops).toEqual([]);                            // told on arrival
+        x.stopRun();
+        expect(x.state()).toBe('playing');                    // a move in flight — the run is still on
+        expect(events).toEqual(['runStart']);                 // told on arrival
         e.frames(80);
         expect(e.time).toBe(1000);
         expect(e.playing).toBe(false);
         expect(x.state()).toBe('finished');
-        expect(stops).toEqual(['stop']);
+        expect(events).toEqual(['runStart', 'runStop']);
     });
 
     it('stop animateToEnd on a PAUSED run resumes it and plays there', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { stop: 'animateToEnd' } });
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'animateToEnd' } });
+        x.startRun();
         e.frames(30);
-        x.pause();
-        x.stop();
+        x.pauseRun();
+        x.stopRun();
         expect(e.playing).toBe(true);
         e.frames(80);
         expect(e.time).toBe(1000);
@@ -374,60 +442,69 @@ describe('the action model: jump / animate to the start or the end; arriving at 
 
     it('a one-shot animateToEnd arrives with the engine\'s natural end even when the time read never shows the end', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { stop: 'animateToEnd', finish: 'jumpToStart' } });
-        const stops: Array<string> = [];
-        x.setOnStop(() => stops.push('stop'));
-        x.start();
+        const x = executorOf(e, { actions: { stopRun: 'animateToEnd' }, atEnd: 'jumpToStart' });
+        const events: Array<string> = [];
+        x.setListeners(listening(events));
+        x.startRun();
         e.frames(30);
-        x.stop();
+        x.stopRun();
         x.onNaturalFinish();                                  // an engine whose clock already reverted (fill none)
-        expect(stops).toEqual(['stop']);
+        expect(events).toEqual(['runStart', 'runStop']);
         expect(e.time).toBe(0);
         e.frames(5);
-        expect(stops).toEqual(['stop']);                      // told once
+        expect(events).toEqual(['runStart', 'runStop']);      // told once
     });
 
     it('start jumpToStart (was restart) always plays from the beginning', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { start: PxStartBehavior.jumpToStart } });
-        x.start();
+        const x = executorOf(e, { actions: { startRun: PxStartRunBehavior.jumpToStart } });
+        x.startRun();
         e.frames(30);
-        x.pause();
+        x.pauseRun();
         e.log.length = 0;
-        x.start();
+        x.startRun();
         expect(e.log).toEqual(['jumpToStart', 'play']);
     });
 });
 
 describe('composeApiExtras — the public api on top of the same executor', () => {
-    it('play() / pause() / stop() / jumpToStart() go through ONE executor, reused by every later composition', () => {
+    it('the four buttons, the aliases and jumpToStart() go through ONE executor, reused by every later composition', () => {
         const e = new FakeEngine(2000);
-        const api = composeApiExtras(e, { duration: 1000, iterations: 2, actions: { stop: { behavior: PxStopBehavior.animateToStart } } }, e.raf);
+        const events: Array<string> = [];
+        const api = composeApiExtras(e, { duration: 1000, iterations: 2, actions: { stopRun: { behavior: PxStopRunBehavior.animateToStart } }, runListeners: listening(events) }, e.raf);
         api.play();
         e.frames(30);
         api.pause();
-        expect(api.playExecutor.state()).toBe('paused');
+        expect(api.getRunState()).toBe('paused');
+        expect(api.isRunActive()).toBe(true);
         e.log.length = 0;
         api.play();
-        expect(e.log).toEqual(['play']);                   // the state rule: a pause resumes
-        api.stop();
+        expect(e.log).toEqual(['play']);                   // the alias: a pause resumes
+        api.stopRun();
         expect(e.rate).toBe(-1);                           // the configured off
+        expect(api.getRunState()).toBe('returning');
+        expect(api.isRunActive()).toBe(false);
         e.frames(40);
         expect(e.time).toBe(0);
         api.jumpToStart();
-        expect(api.playExecutor.state()).toBe('idle');
+        expect(api.getRunState()).toBe('off');
         expect(api.getDuration()).toBe(1000);
+        expect(events).toEqual(['runStart', 'runPause', 'runResume', 'runStop']);
         expect(composeApiExtras(e, { duration: 1000 }, e.raf).playExecutor).toBe(api.playExecutor);
     });
 
-    it('playOnce runs ONE pass of a multi-pass document and settles at the end of that pass', () => {
+    it('runOnce runs ONE pass of a multi-pass document and settles at the end of that pass, per atEnd; it tells onRunStart', () => {
         const hold = new FakeEngine(Infinity);
-        composeApiExtras(hold, { duration: 1000, iterations: 'infinite' }, hold.raf).playOnce();
+        const events: Array<string> = [];
+        const api = composeApiExtras(hold, { duration: 1000, iterations: 'infinite', runListeners: listening(events) }, hold.raf);
+        api.runOnce();
         hold.frames(105);
         expect(hold.time).toBe(1000);
         expect(hold.playing).toBe(false);
+        expect(api.getRunState()).toBe('finished');
+        expect(events).toEqual(['runStart']);
         const reset = new FakeEngine(Infinity);
-        composeApiExtras(reset, { duration: 1000, iterations: 'infinite', actions: { finish: { behavior: PxFinishBehavior.jumpToStart } } }, reset.raf).playOnce();
+        composeApiExtras(reset, { duration: 1000, iterations: 'infinite', atEnd: PxAtEndBehavior.jumpToStart }, reset.raf).runOnce();
         reset.frames(105);
         expect(reset.time).toBe(0);
         expect(reset.playing).toBe(false);

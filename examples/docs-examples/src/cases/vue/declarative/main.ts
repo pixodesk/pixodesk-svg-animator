@@ -12,8 +12,8 @@ createApp({
         h('button', { id: 'pause', onClick: () => { paused.value = !paused.value; } }, `pause = ${paused.value}`),
       ]),
       h('div', { class: 'stage' }, [
-        // two LEVELS: plays while `play` holds, frozen while `pause` holds — or one word: playState
-        h(SvgAnimationPlayer as any, { doc: animation, play: playing.value, pause: paused.value }),
+        // ONE lever: `playRun` holds a position — 'off' · 'on' · 'paused'; each change presses one button
+        h(SvgAnimationPlayer as any, { doc: animation, playRun: paused.value ? 'paused' : playing.value ? 'on' : 'off' }),
       ]),
     ];
   },

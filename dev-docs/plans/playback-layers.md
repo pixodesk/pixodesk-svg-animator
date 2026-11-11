@@ -2,6 +2,17 @@
 
 Status **2026-10-28 — layers 0–1 implemented** (schema 1.10; see [Implementation log](#implementation-log-2026-10-28)).
 
+> **Since 1.24 (2026-11-11) — the run model.** The words below moved; this document keeps the ones it was written
+> with (`dev-docs/plans/animation-state.brainstorm.md` §0 is the ledger). File `actionTriggers` / `actions` keys
+> `start` · `stop` · `pause` · `resume` → `startRun` · `stopRun` · `pauseRun` · `resumeRun` (values unchanged;
+> `resumeRun` still derived); `actions.finish` → the timeline key `atEnd`; props `play` / `pause` / `playState` →
+> one `playRun="off" | "on" | "paused"`; handle `play()` → `startRun()` (+ `stopRun()` · `pauseRun()` · `resumeRun()`;
+> `play()` / `pause()` stay as aliases), `stop()` → `stopRun()`, `playOnce()` → `runOnce()`, `getPlayState()` →
+> `getRunState()` (`idle` → `off`, new `returning`), new `isRunActive()`; callbacks `onPlay` → `onRunStart` +
+> `onRunResume`, `onPause` → `onRunPause`, `onStop` → `onRunStop`; types `PxPlayState` → `PxRunState`,
+> `Px{Start,Stop,Finish}Behavior` → `PxStartRunBehavior` / `PxStopRunBehavior` / `PxAtEndBehavior`,
+> `PxPlayStateRequest` → `PxPlayRun`; `playStateToLevels` and PX1502 retired.
+
 > **Since 1.21 (2026-11-04)** — this document keeps the words of the version it was written for; the current contract
 > differs in these points (`dev-docs/reviews/schema-and-props--manual-review.md` has the reasoning): an absent
 > `actionTriggers` block ≡ `{}` ≡ nothing starts it — autoplay is always written `start: 'load'` (1.17; the "block

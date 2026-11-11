@@ -2,7 +2,7 @@
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
-// `playOnce()` (review §10): always ONE fresh pass from the start, whatever `iterations` say —
+// `runOnce()` (review §10; `playOnce()` until 1.23): always ONE fresh pass from the start, whatever `iterations` say —
 // the one-shot verb behind "plays once on click". Frame-loop engine under fake timers, like
 // PxAnimatorWindow.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,16 +22,16 @@ function doc(extra: Record<string, unknown> = {}): PxDocumentJson {
 
 const opacity = () => Number(document.querySelector('rect')?.getAttribute('opacity'));
 
-describe('playOnce (§10)', () => {
+describe('runOnce (§10)', () => {
     beforeEach(() => { document.body.innerHTML = '<div id="box"></div>'; vi.useFakeTimers(); });
     afterEach(() => vi.useRealTimers());
 
     it('plays one fresh pass mid-flight — re-entrant restart', () => {
         const api = createSvgAnimationPlayer({ doc: doc(), container: '#box' });
-        api.playOnce();
+        api.runOnce();
         vi.advanceTimersByTime(500);
         expect(api.getCurrentTime()).toBeCloseTo(500, -2);
-        api.playOnce();                                   // restart from 0, no juggling
+        api.runOnce();                                   // restart from 0, no juggling
         vi.advanceTimersByTime(32);
         expect(api.getCurrentTime()).toBeLessThan(100);
         api.destroy();
@@ -39,7 +39,7 @@ describe('playOnce (§10)', () => {
 
     it('caps a loop-configured document at ONE pass and holds the pass-end pose', () => {
         const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite' }), container: '#box' });
-        api.playOnce();
+        api.runOnce();
         vi.advanceTimersByTime(1400);                     // well past one pass; watcher settles it
         vi.advanceTimersByTime(200);
         expect(api.isPlaying()).toBe(false);
@@ -47,9 +47,9 @@ describe('playOnce (§10)', () => {
         expect(opacity()).toBe(1);
     });
 
-    it("a loop document with finish 'jumpToStart' snaps to rest after the pass", () => {
-        const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite', actionTriggers: {}, actions: { finish: { behavior: 'jumpToStart' } } }), container: '#box' });
-        api.playOnce();
+    it("a loop document with atEnd 'jumpToStart' snaps to rest after the pass", () => {
+        const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite', actionTriggers: {}, atEnd: 'jumpToStart' }), container: '#box' });
+        api.runOnce();
         vi.advanceTimersByTime(1600);
         expect(api.isPlaying()).toBe(false);
         expect(opacity()).toBe(0);

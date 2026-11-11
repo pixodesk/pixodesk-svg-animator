@@ -20,7 +20,7 @@ function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: DUR, actionTriggers: { start: 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: DUR, actionTriggers: { startRun: 'load' } } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: DUR, value: 1 }] } },
@@ -61,7 +61,7 @@ describe('the page-wide animator registry', () => {
         expect(getAllSvgAnimationPlayers().length).toBe(before);
     });
 
-    it('announces add, play, pause, stop and remove for the object the caller holds — after its own callbacks', () => {
+    it('announces add, runStart, runPause, runStop and remove for the object the caller holds — after its own callbacks', () => {
         const events: Array<string> = [];
         const subjects = new Set<PxAnimationPlayerApi>();
         const own: Array<string> = [];
@@ -69,12 +69,12 @@ describe('the page-wide animator registry', () => {
         const off = onSvgAnimationPlayersChange((event: PxAnimationPlayersEvent, a: PxAnimationPlayerApi) => { events.push(event); subjects.add(a); });
         const api = createSvgAnimationPlayer({
             doc: makeDoc(), container,
-            onPlay: () => own.push('play'), onPause: () => own.push('pause'), onStop: () => own.push('stop'),
+            onRunStart: () => own.push('runStart'), onRunPause: () => own.push('runPause'), onRunStop: () => own.push('runStop'),
         });
         made.push(api);
-        api.play();
-        api.pause();
-        api.stop();
+        api.startRun();
+        api.pauseRun();
+        api.stopRun();
         api.destroy();
         off();
         // Listed first, gone last …
@@ -84,9 +84,9 @@ describe('the page-wide animator registry', () => {
         // (the `load` trigger plays once at creation — it reaches the caller and the registry alike; `destroy()`
         // reports `remove` only, no `reset` any more since 1.22).
         expect(events.slice(1, -1)).toEqual(own);
-        expect(own).toContain('play');
-        expect(own).toContain('pause');
-        expect(own).toContain('stop');
+        expect(own).toContain('runStart');
+        expect(own).toContain('runPause');
+        expect(own).toContain('runStop');
         // Every event named the proxy `createSvgAnimationPlayer` returned — never the engine behind it.
         expect([...subjects]).toEqual([api]);
     });
@@ -107,9 +107,9 @@ describe('the page-wide animator registry', () => {
         const offGood = onSvgAnimationPlayersChange(event => { heard.push(event); });
         const api = make();
         expect(() => api.play()).not.toThrow();
-        // `add`, then every `play` (the `load` trigger's at creation and the explicit one).
+        // `add`, then every `runStart` (the `load` trigger's at creation and the explicit one).
         expect(heard[0]).toBe('add');
-        expect(heard.slice(1).every(e => e === 'play')).toBe(true);
+        expect(heard.slice(1).every(e => e === 'runStart')).toBe(true);
         expect(heard.length).toBeGreaterThanOrEqual(2);
         offBad(); offGood();
         // The error surfaces on its own tick, not inside the engine.
@@ -134,8 +134,9 @@ describe('the page-wide animator registry', () => {
         const events: Array<string> = [];
         assert(byName, 'the registry is not reachable by name');
         const off = byName.subscribe(event => { events.push(event); });
-        api.pause();
+        api.startRun();
+        api.pause();                                  // the alias of pauseRun()
         off();
-        expect(events).toEqual(['pause']);
+        expect(events).toEqual(['runStart', 'runPause']);
     });
 });

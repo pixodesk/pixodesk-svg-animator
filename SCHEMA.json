@@ -2293,7 +2293,7 @@
             "actionTriggers": {
               "type": "object",
               "properties": {
-                "start": {
+                "startRun": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2314,7 +2314,7 @@
                     }
                   ]
                 },
-                "stop": {
+                "stopRun": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2333,7 +2333,7 @@
                     }
                   ]
                 },
-                "pause": {
+                "pauseRun": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2354,7 +2354,7 @@
                     }
                   ]
                 },
-                "resume": {
+                "resumeRun": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2402,7 +2402,7 @@
             "actions": {
               "type": "object",
               "properties": {
-                "start": {
+                "startRun": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2426,7 +2426,7 @@
                     }
                   ]
                 },
-                "stop": {
+                "stopRun": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2445,30 +2445,6 @@
                             "animateToStart",
                             "jumpToEnd",
                             "animateToEnd"
-                          ]
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "finish": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "hold",
-                        "jumpToStart",
-                        "animateToStart"
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "behavior": {
-                          "enum": [
-                            "hold",
-                            "jumpToStart",
-                            "animateToStart"
                           ]
                         }
                       },
@@ -2502,6 +2478,13 @@
                 }
               },
               "additionalProperties": false
+            },
+            "atEnd": {
+              "enum": [
+                "hold",
+                "jumpToStart",
+                "animateToStart"
+              ]
             },
             "whenIdle": {
               "enum": [

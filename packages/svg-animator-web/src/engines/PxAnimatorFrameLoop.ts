@@ -99,7 +99,7 @@ export function createFrameLoopAnimator(
         if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
-        const detachTriggers = setupAnimationTriggers(api, config, diag);
+        const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.runListeners);
         const destroyEngine = api.destroy.bind(api);
         api.destroy = () => { detachTriggers(); destroyEngine(); };
     }

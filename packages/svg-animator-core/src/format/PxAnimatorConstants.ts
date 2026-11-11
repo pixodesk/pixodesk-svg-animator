@@ -93,28 +93,30 @@ export type PxTriggerEvent = typeof PxTriggerEvent[keyof typeof PxTriggerEvent];
 /** One event, or several — the house style of `animate`'s references. @public */
 export type PxTriggerEvents = PxTriggerEvent | Array<PxTriggerEvent>;
 
-/** The trigger lists, by their `timeline.actionTriggers` key (playback-layers.md, layer 0). @public @advanced */
+/** The trigger lists, by their `timeline.actionTriggers` key (playback-layers.md, layer 0) — the four buttons of the
+ *  player box, one list each: `startRun` / `stopRun` bracket a RUN, `pauseRun` / `resumeRun` bracket a FREEZE inside
+ *  it (dev-docs/plans/animation-state.brainstorm.md). @public @advanced */
 export const PxTriggerList = {
-    start:      'start',
-    stop:       'stop',
-    pause:      'pause',
-    resume:     'resume',
+    startRun:   'startRun',
+    stopRun:    'stopRun',
+    pauseRun:   'pauseRun',
+    resumeRun:  'resumeRun',
 } as const;
 
 export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
 
 // @px-area control
 /** The events a list may name — the schema is built from it, and an event outside it is dropped and warned:
- *   - `start`: load · hoverIn · click (starting when the pointer LEAVES makes no sense)
- *   - `stop`: hoverOut · click (stopping on load or when the pointer ARRIVES makes no sense)
- *   - `pause` / `resume`: hoverIn · hoverOut · click (a marquee pauses on hover in, a hover animation on hover out)
+ *   - `startRun`: load · hoverIn · click (starting when the pointer LEAVES makes no sense)
+ *   - `stopRun`: hoverOut · click (stopping on load or when the pointer ARRIVES makes no sense)
+ *   - `pauseRun` / `resumeRun`: hoverIn · hoverOut · click (a marquee pauses on hover in, a hover animation on hover out)
  *  @public @advanced */
 export function allowedTriggerEvents(list: PxTriggerList): ReadonlyArray<PxTriggerEvent> {
     switch (list) {
-        case PxTriggerList.start: return [PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.click];
-        case PxTriggerList.stop: return [PxTriggerEvent.hoverOut, PxTriggerEvent.click];
-        case PxTriggerList.pause:
-        case PxTriggerList.resume: return [PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click];
+        case PxTriggerList.startRun: return [PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.click];
+        case PxTriggerList.stopRun: return [PxTriggerEvent.hoverOut, PxTriggerEvent.click];
+        case PxTriggerList.pauseRun:
+        case PxTriggerList.resumeRun: return [PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click];
     }
 }
 
@@ -143,44 +145,52 @@ export function counterpartTriggerEvent(event: PxTriggerEvent): PxTriggerEvent |
  *   | `hold`           | stays where it is                                                        |
  *   | `pause`          | freezes where it is (the gate only)                                      |
  *
- * Reaching the end — naturally or by a `…ToEnd` move — runs `actions.finish`. WHY these words (`reset` /
+ * Reaching the end — naturally or by a `…ToEnd` move — runs the timeline's `atEnd` rule. WHY these words (`reset` /
  * `rewind` / `restart` / `completeIteration` until 1.22): one destination word and one manner word say what a
  * reader had to look up — "reset to where?", "rewind how?", "complete what?".
+ *
+ * THE RUN (schema 1.24, dev-docs/plans/animation-state.brainstorm.md): one instance of the animation being in effect —
+ * it begins with `startRun`, lasts while `playing` · `paused` · `finished`, and is retired by `stopRun` or by
+ * `atEnd: jumpToStart` / `animateToStart`. `off` = no run. The four buttons `startRun` / `stopRun` (the run) and
+ * `pauseRun` / `resumeRun` (the freeze inside it) are the lists of `actionTriggers`, the handle's methods and the
+ * edges of the components' `playRun` prop.
  */
 
-/** `actions.start` (`behavior`) — what a start does before it plays: `continue` from the current position (from the
- *  beginning when it rests at the start or the end), `jumpToStart` from the beginning always (was `restart`),
- *  `jumpToEnd` to the end pose with no motion and then `finish` (overlay art that appears instantly and retreats
- *  animated with `stop: 'animateToStart'`). @public */
-export const PxStartBehavior = {
+/** `actions.startRun` (`behavior`) — what a run's start does before it plays: `continue` from the current position
+ *  (from the beginning when it rests at the start or the end), `jumpToStart` from the beginning always (was `restart`),
+ *  `jumpToEnd` to the end pose with no motion and then `atEnd` (overlay art that appears instantly and retreats
+ *  animated with `stopRun: 'animateToStart'`). @public */
+export const PxStartRunBehavior = {
     continue:    'continue',
     jumpToStart: 'jumpToStart',
     jumpToEnd:   'jumpToEnd',
 } as const;
 
-export type PxStartBehavior = typeof PxStartBehavior[keyof typeof PxStartBehavior];
+export type PxStartRunBehavior = typeof PxStartRunBehavior[keyof typeof PxStartRunBehavior];
 
-/** `actions.stop` (`behavior`) — where a stop goes and how: back to the idle pose at once (`jumpToStart`, the default)
- *  or playing backwards (`animateToStart`), or on to the end of the pass at once (`jumpToEnd`) or playing there
- *  (`animateToEnd` — "stop after this pass"); arriving at the end runs `actions.finish`. @public */
-export const PxStopBehavior = {
+/** `actions.stopRun` (`behavior`) — where the run's stop goes and how: back to the rest pose at once (`jumpToStart`,
+ *  the default) or playing backwards (`animateToStart`, the `returning` state), or on to the end of the pass at once
+ *  (`jumpToEnd`) or playing there (`animateToEnd` — "stop after this pass"); arriving at the end runs `atEnd`. @public */
+export const PxStopRunBehavior = {
     jumpToStart:    'jumpToStart',
     animateToStart: 'animateToStart',
     jumpToEnd:      'jumpToEnd',
     animateToEnd:   'animateToEnd',
 } as const;
 
-export type PxStopBehavior = typeof PxStopBehavior[keyof typeof PxStopBehavior];
+export type PxStopRunBehavior = typeof PxStopRunBehavior[keyof typeof PxStopRunBehavior];
 
-/** `actions.finish` (`behavior`) — at the end (the natural end, or a stop that went there): stay on the last frame
- *  (`hold`, the default), back to the idle pose at once (`jumpToStart`) or playing backwards (`animateToStart`). @public */
-export const PxFinishBehavior = {
+/** `timeline.atEnd` — at the end of the pass (the natural end, or a stop that went there): stay on the last frame
+ *  (`hold`, the default — the run rests `finished`), back to the rest pose at once (`jumpToStart`) or playing
+ *  backwards (`animateToStart`) — both retire the run. A sensor's rule beside `whenIdle`, not an action: nobody
+ *  presses it, the clock does (`actions.finish` until 1.23). @public */
+export const PxAtEndBehavior = {
     hold:           'hold',
     jumpToStart:    'jumpToStart',
     animateToStart: 'animateToStart',
 } as const;
 
-export type PxFinishBehavior = typeof PxFinishBehavior[keyof typeof PxFinishBehavior];
+export type PxAtEndBehavior = typeof PxAtEndBehavior[keyof typeof PxAtEndBehavior];
 
 /** `actions.outOfView` (`behavior`) — what happens once none of the graphic is on screen (the visibility gate's closing
  *  edge; coming back into view is its partner): freeze where it is (`pause`), keep playing (`continue` — here "keep
@@ -195,14 +205,14 @@ export const PxOutOfViewBehavior = {
 
 export type PxOutOfViewBehavior = typeof PxOutOfViewBehavior[keyof typeof PxOutOfViewBehavior];
 
-/** `timeline.whenIdle` — what is shown while IDLE ({@link PxPlayState}): before the first play, after `jumpToStart()`,
- *  after a stop or finish that went back to the start. `static` (default) = the SVG as it is in the file, no animation
- *  applied; `firstFrame` = the first frame's values (hand-authored files; the Editor never writes it — its static look
- *  IS the first frame). It is CSS's `animation-fill-mode` split in two: `whenIdle: 'firstFrame'` = `backwards`, finish
- *  `hold` = `forwards`, both = `both` ({@link fillModeOf}). WHY `whenIdle`: `idle` is WAAPI's word for exactly this
- *  state (`playState: idle · running · paused · finished`) — `beforeStart` (until 1.14) read as the first start only,
- *  `showWhenStopped` (until 1.18) as played-then-stopped. A paused animation shows its paused frame, a finished one its
- *  held frame. @public */
+/** `timeline.whenIdle` — what is shown while there is no run (`off`, {@link PxRunState}): before the first run, after
+ *  `jumpToStart()`, after a stop or an `atEnd` that went back to the start. `static` (default) = the SVG as it is in
+ *  the file, no animation applied; `firstFrame` = the first frame's values (hand-authored files; the Editor never
+ *  writes it — its static look IS the first frame). It is CSS's `animation-fill-mode` split in two: `whenIdle:
+ *  'firstFrame'` = `backwards`, `atEnd: 'hold'` = `forwards`, both = `both` ({@link fillModeOf}). WHY `whenIdle`:
+ *  `idle` is WAAPI's word for exactly this state — `beforeStart` (until 1.14) read as the first start only,
+ *  `showWhenStopped` (until 1.18) as played-then-stopped; the run state reads `off` since 1.24, the key keeps its
+ *  word. A paused animation shows its paused frame, a finished one its held frame. @public */
 export const PxWhenIdle = {
     static:     'static',
     firstFrame: 'firstFrame',
@@ -337,6 +347,7 @@ export const PX_FLAT_RUNTIME_VIEW_KEYS: ReadonlyArray<string> = [
     ...PX_TIMELINE_SHARED_KEYS, ...PX_TIME_ONLY_TIMELINE_KEYS,
     'duration', 'fill', 'resetOnFinish', 'direction', 'timelineSource', 'scroll',
 ];
+// `atEnd` is a TIMELINE key copied to the view as it is, so it is not listed here
 
 /**
  * THE ENGINES — the two things that can actually update an animated attribute: hand it to the
@@ -402,18 +413,18 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
  * stated by the schemas and applied by {@link resolveTriggers} / {@link resolveActions} / {@link resolveGate},
  * which every player calls — so a file behaves the same everywhere. No `start` row: an absent `actionTriggers`
  * block, like an empty one, names NO event (schema 1.17) — a file that plays by itself says `start: 'load'`.
- *   - start `continue` · stop `jumpToStart` · finish `hold` — the three moves' presets
+ *   - startRun `continue` · stopRun `jumpToStart` · atEnd `hold` — the three moves' presets
  *   - outOfView `pause` — an animation nobody can see does not run
  *   - `whenIdle` 'static' — idle, it shows the SVG as it is in the file
  *   - `inViewThreshold` 0.5 / `inViewDebounce` 150 — half of it on screen, that long, before it counts as seen
  * @public @advanced
  */
 export const PX_PLAYBACK_DEFAULTS = {
-    // no `start`: an absent `actionTriggers` block, like an empty one, names NO event — nothing plays until something
-    // drives it; a file that plays by itself says `start: 'load'` (schema 1.17, dev-docs/reviews/schema-and-props--manual-review.md B2)
-    startBehavior: 'continue',
-    stopBehavior: 'jumpToStart',
-    finishBehavior: 'hold',
+    // no `startRun`: an absent `actionTriggers` block, like an empty one, names NO event — nothing plays until something
+    // drives it; a file that plays by itself says `startRun: 'load'` (schema 1.17, dev-docs/reviews/schema-and-props--manual-review.md B2)
+    startRunBehavior: 'continue',
+    stopRunBehavior: 'jumpToStart',
+    atEnd: 'hold',
     outOfViewBehavior: 'pause',
     whenIdle: 'static',
     inViewThreshold: 0.5,
@@ -436,22 +447,23 @@ export const PX_DEFAULT_ITERATIONS = 1;
 /** What an absent `unitsPerEm` of a glyph font means — see `PX_DEFAULT_DURATION_MS`. @internal */
 export const PX_DEFAULT_UNITS_PER_EM = 1000;
 
-/** The triggers with their lists normalised: every list an array of ALLOWED events, `resume` DERIVED unless the
+/** The triggers with their lists normalised: every list an array of ALLOWED events, `resumeRun` DERIVED unless the
  *  file names it ({@link derivedResume}); an absent block and an empty one are the same thing — nothing starts it
- *  (the manual document); a file that plays by itself names `start: 'load'`. @public @advanced */
+ *  (the manual document); a file that plays by itself names `startRun: 'load'`. @public @advanced */
 export interface PxResolvedTriggers {
-    readonly start: ReadonlyArray<PxTriggerEvent>;
-    readonly stop: ReadonlyArray<PxTriggerEvent>;
-    readonly pause: ReadonlyArray<PxTriggerEvent>;
-    readonly resume: ReadonlyArray<PxTriggerEvent>;
+    readonly startRun: ReadonlyArray<PxTriggerEvent>;
+    readonly stopRun: ReadonlyArray<PxTriggerEvent>;
+    readonly pauseRun: ReadonlyArray<PxTriggerEvent>;
+    readonly resumeRun: ReadonlyArray<PxTriggerEvent>;
 }
 
-/** The four built-in actions' settings with every default applied — see {@link resolveActions}. @public @advanced */
+/** The built-in actions' settings with every default applied — see {@link resolveActions}; `atEnd` is the timeline's
+ *  own rule (a sensor's, not a button's) and is resolved beside them from `timeline.atEnd`. @public @advanced */
 export interface PxResolvedActions {
-    readonly start:   { readonly behavior: PxStartBehavior };
-    readonly stop:    { readonly behavior: PxStopBehavior };
-    readonly finish:  { readonly behavior: PxFinishBehavior };
+    readonly startRun:  { readonly behavior: PxStartRunBehavior };
+    readonly stopRun:   { readonly behavior: PxStopRunBehavior };
     readonly outOfView: { readonly behavior: PxOutOfViewBehavior };
+    readonly atEnd: PxAtEndBehavior;
 }
 
 // ── CONTROL MODE (API review §1 / §7; `autoplay` → `playUsingActionTriggers` (first-use §1+2) → `playUsingActionTriggers`
@@ -472,8 +484,8 @@ export const PxControlMode = {
     static:    'static',
     /** `showAtProgress` / `showAtTime` — the host holds the frame; the component seeks and stays paused. */
     fixedTime: 'fixedTime',
-    /** `play` / `pause`, or `playState` — the host holds the playback state. */
-    play:      'play',
+    /** `playRun` — the host holds the run's position: `off` · `on` · `paused`. */
+    playRun:   'playRun',
     /** `playUsingActionTriggers` — the document's `actionTriggers` drive it, or the block given instead. */
     playUsingActionTriggers: 'playUsingActionTriggers',
 } as const;
@@ -496,19 +508,15 @@ export interface PxAnyControlProps {
      *  every time on this API (WAAPI's unit), so not `showAtMs`; `show…` because a driver is named by its verb — it
      *  shows a frame, it never plays. */
     showAtTime?: number;
-    /** A LEVEL, held as long as it is true: the animation plays — the built-in `start` (or `resume` when paused), a
-     *  mount included: a one-shot plays to its end and rests there (the pose without motion is `showAtProgress={1}`).
-     *  `false` performs the STOP action (`actions.stop`) — it does NOT pause; freeze with `pause`. A MOUNT with
-     *  `false` does nothing. WHY two booleans beside `playState`: `play={hovered}` and `pause={!inView}` compose from
-     *  two sources — the CSS model (`animation-name` applied × `animation-play-state`). */
-    play?: boolean;
-    /** A level on top of `play`: freeze the current frame while true, resume toward the current target when it
-     *  drops. Only meaningful while `play` is true — `play: false` forcibly unfreezes. Never deferred. */
-    pause?: boolean;
-    /** The same control as `play` / `pause` in ONE state word — `playing`, `paused` (frozen), `idle` (the file's
-     *  stop action) — for a host that holds the state as one value. It takes the three states a host can ASK for;
-     *  `getPlayState()` also reports the two the player reaches by itself (`finished`, `destroyed`). */
-    playState?: PxPlayStateRequest;
+    /** THE LEVER — the run's position, held: `off` (no run — a change to it presses `stopRun()`, a mount with it
+     *  presses nothing), `on` (a run: from `off` or `finished` `startRun()` — a one-shot plays to its end and rests
+     *  there, the pose without motion is `showAtProgress={1}`; from `paused` `resumeRun()`), `paused` (the run frozen
+     *  where it is: from `on` `pauseRun()`; from `off` `startRun()` + `pauseRun()` — the first frame, held). The two
+     *  levers of the box (the run on / off, the freeze on / off) folded into ONE word with no invalid pair: `paused`
+     *  without a run cannot be written. `play` because a driver prop starts with its verb (`play…` plays, `show…`
+     *  shows a frame), `Run` for what it holds (`play` / `pause` / `playState` until 1.23). The readout is
+     *  `getRunState()`: the request says `on`, the result says `playing` or `finished`. */
+    playRun?: PxPlayRun;
     /**
      * Play using action triggers — when each built-in action fires. `true`: the document's own `actionTriggers`
      * block decides (the way the editor saved it). An OBJECT: that block instead, as a WHOLE (the lists belong
@@ -530,31 +538,26 @@ type PxOnlyControlProps<K extends keyof PxAnyControlProps> =
 
 /**
  * The control props every framework component takes — ONE driver family at a time, checked by TypeScript:
- * `showAtProgress` · `showAtTime` · `play` + `pause` · `playState` · `playUsingActionTriggers`. Two families at
- * once do not compile; a JavaScript caller gets the precedence of {@link resolveControlMode} and a PX1501 warning.
+ * `showAtProgress` · `showAtTime` · `playRun` · `playUsingActionTriggers`. Two families at once do not compile; a
+ * JavaScript caller gets the precedence of {@link resolveControlMode} and a PX1501 warning.
  * ONE definition (review §9) — React, Vue and React Native take it, so the hover text is what their users see.
  * @public
  */
 export type PxControlProps =
     | PxOnlyControlProps<'showAtProgress'>
     | PxOnlyControlProps<'showAtTime'>
-    | PxOnlyControlProps<'play' | 'pause'>
-    | PxOnlyControlProps<'playState'>
+    | PxOnlyControlProps<'playRun'>
     | PxOnlyControlProps<'playUsingActionTriggers'>;
 
-/** The states a host can ASK for through the `playState` prop — the player's own words minus the two it reaches by
- *  itself (`finished`, `destroyed`). @public */
-export type PxPlayStateRequest = Extract<PxPlayState, 'idle' | 'playing' | 'paused'>;
-
-/** The `playState` prop as the two levels the executor is driven by — `playing` → `play`, `paused` → `play` + `pause`,
- *  `idle` → `play: false` (the stop); without `playState` the booleans as given. For player authors: every framework
- *  component resolves `playState` this one way. @public @advanced */
-export function playStateToLevels(props: Pick<PxAnyControlProps, 'play' | 'pause' | 'playState'>): { play?: boolean; pause?: boolean } {
-    if (props.playState !== undefined) {
-        return { play: props.playState !== PxPlayState.idle, pause: props.playState === PxPlayState.paused };
-    }
-    return { play: props.play, pause: props.pause };
-}
+/** The positions of the `playRun` prop — what a host can ASK for: `off` (no run), `on` (a run), `paused` (the run
+ *  frozen). The player's own readout, {@link PxRunState}, says what it IS (`playing` or `finished` for `on`, plus the
+ *  states it reaches by itself). @public */
+export const PxPlayRun = {
+    off:    'off',
+    on:     'on',
+    paused: 'paused',
+} as const;
+export type PxPlayRun = typeof PxPlayRun[keyof typeof PxPlayRun];
 
 /** The chosen mode plus any conflict warnings — ready-made sentences, so three components
  *  cannot word the same conflict three ways. * @public
@@ -570,7 +573,7 @@ export interface PxResolvedControlMode {
  *
  * PRECEDENCE, most specific first:
  *   1. `showAtProgress` / `showAtTime` — an explicit position is the most precise instruction there is
- *   2. `play` / `pause`, or `playState` — explicit playback state
+ *   2. `playRun` — the run's position, held by the host
  *   3. `playUsingActionTriggers` — the document's triggers, or the block given
  *   4. otherwise `static`   — nothing plays; the triggers are taken over
  *
@@ -583,26 +586,22 @@ export interface PxResolvedControlMode {
  */
 export function resolveControlMode(props: PxAnyControlProps): PxResolvedControlMode {
     const hasFixedTime = props.showAtProgress !== undefined || props.showAtTime !== undefined;
-    const hasPlayLevels = props.play !== undefined || props.pause !== undefined;
-    const hasPlayState = props.playState !== undefined;
-    const hasPlayPause = hasPlayLevels || hasPlayState;
+    const hasPlayRun = props.playRun !== undefined;
     const hasTriggers = !!props.playUsingActionTriggers;
 
     const warnings: Array<string> = [];
     const named = (a: string, b: string, winner: string): string =>
         a + ' and ' + b + ' were both set — ' + winner + ' wins, ' + (winner === a ? b : a) + ' is ignored.';
-    const playWords = hasPlayState ? 'playState' : 'play/pause';
 
     if (hasFixedTime) {
         if (props.showAtProgress !== undefined && props.showAtTime !== undefined) warnings.push(named('showAtProgress', 'showAtTime', 'showAtProgress'));
-        if (hasPlayPause) warnings.push(named('showAtProgress/showAtTime', playWords, 'showAtProgress/showAtTime'));
+        if (hasPlayRun) warnings.push(named('showAtProgress/showAtTime', 'playRun', 'showAtProgress/showAtTime'));
         if (hasTriggers) warnings.push(named('showAtProgress/showAtTime', 'playUsingActionTriggers', 'showAtProgress/showAtTime'));
         return { mode: PxControlMode.fixedTime, warnings };
     }
-    if (hasPlayPause) {
-        if (hasPlayState && hasPlayLevels) warnings.push(named('playState', 'play/pause', 'playState'));
-        if (hasTriggers) warnings.push(named(playWords, 'playUsingActionTriggers', playWords));
-        return { mode: PxControlMode.play, warnings };
+    if (hasPlayRun) {
+        if (hasTriggers) warnings.push(named('playRun', 'playUsingActionTriggers', 'playRun'));
+        return { mode: PxControlMode.playRun, warnings };
     }
     if (hasTriggers) return { mode: PxControlMode.playUsingActionTriggers, warnings };
     return { mode: PxControlMode.static, warnings };
@@ -642,44 +641,44 @@ function unionEvents(list: ReadonlyArray<PxTriggerEvent>, more: ReadonlyArray<Px
 }
 
 // @px-area control
-/** What resumes a paused animation — derived, never configured for the built-in events: the counterpart of
- *  each `pause` event (hoverIn ↔ hoverOut, click → click), plus the `start` events that do not also STOP it
- *  (so a click listed under both `start` and `stop` stops a paused one, as it says). @public @advanced */
-export function derivedResume(start: ReadonlyArray<PxTriggerEvent>, stop: ReadonlyArray<PxTriggerEvent>,
-    pause: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> {
+/** What resumes a paused run (`resumeRun`) — derived, never configured for the built-in events: the counterpart of
+ *  each `pauseRun` event (hoverIn ↔ hoverOut, click → click), plus the `startRun` events that do not also STOP it
+ *  (so a click listed under both `startRun` and `stopRun` stops a paused one, as it says). @public @advanced */
+export function derivedResume(startRun: ReadonlyArray<PxTriggerEvent>, stopRun: ReadonlyArray<PxTriggerEvent>,
+    pauseRun: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> {
     const counterparts: Array<PxTriggerEvent> = [];
-    for (const event of pause) {
+    for (const event of pauseRun) {
         const counterpart = counterpartTriggerEvent(event);
         if (counterpart !== undefined && !counterparts.includes(counterpart)) counterparts.push(counterpart);
     }
-    return unionEvents(counterparts, start.filter(e => !stop.includes(e)));
+    return unionEvents(counterparts, startRun.filter(e => !stopRun.includes(e)));
 }
 
 // @px-area control
 /** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. Events a list may not
- *  name are dropped ({@link triggerIssues} says which). `resume` is {@link derivedResume} unless the file names
+ *  name are dropped ({@link triggerIssues} says which). `resumeRun` is {@link derivedResume} unless the file names
  *  the list — then the file's list is used as written ({@link triggerIssues} notes where it differs). @public @advanced */
 export function resolveTriggers(triggers: PxActionTriggers | undefined): PxResolvedTriggers {
-    if (triggers === undefined) return { start: [], stop: [], pause: [], resume: [] };
-    const start = allowedEventsOf(PxTriggerList.start, triggers.start);
-    const stop = allowedEventsOf(PxTriggerList.stop, triggers.stop);
-    const pause = allowedEventsOf(PxTriggerList.pause, triggers.pause);
-    const resume = triggers.resume !== undefined ? allowedEventsOf(PxTriggerList.resume, triggers.resume) : derivedResume(start, stop, pause);
-    return { start, stop, pause, resume };
+    if (triggers === undefined) return { startRun: [], stopRun: [], pauseRun: [], resumeRun: [] };
+    const startRun = allowedEventsOf(PxTriggerList.startRun, triggers.startRun);
+    const stopRun = allowedEventsOf(PxTriggerList.stopRun, triggers.stopRun);
+    const pauseRun = allowedEventsOf(PxTriggerList.pauseRun, triggers.pauseRun);
+    const resumeRun = triggers.resumeRun !== undefined ? allowedEventsOf(PxTriggerList.resumeRun, triggers.resumeRun) : derivedResume(startRun, stopRun, pauseRun);
+    return { startRun, stopRun, pauseRun, resumeRun };
 }
 
 /** What {@link triggerIssues} reports. @public @advanced */
 export const PxTriggerIssueKind = {
     /** The list may not name the event ({@link allowedTriggerEvents}) — it is dropped. */
     eventNotAllowed: 'eventNotAllowed',
-    /** Two lists react to the event in the same state: `stop` with `pause` (playing — pause wins), or `stop`
-     *  with a pause's counterpart (paused — resume wins). The file should name one. */
+    /** Two lists react to the event in the same state: `stopRun` with `pauseRun` (playing — the pause wins), or
+     *  `stopRun` with a pause's counterpart (paused — the resume wins). The file should name one. */
     collision:       'collision',
-    /** The file's `resume` list names an event the derivation would not (no `pause` event's counterpart, no `start`
-     *  event that does not stop) — honoured as written, noted so a surprising resume is no mystery. */
+    /** The file's `resumeRun` list names an event the derivation would not (no `pauseRun` event's counterpart, no
+     *  `startRun` event that does not stop) — honoured as written, noted so a surprising resume is no mystery. */
     resumeExtra:     'resumeExtra',
-    /** The file's `resume` list leaves out an event the derivation would name — a `pause` event whose counterpart no
-     *  longer resumes it (that pause then waits for `start` or `stop`). Honoured as written. */
+    /** The file's `resumeRun` list leaves out an event the derivation would name — a `pauseRun` event whose
+     *  counterpart no longer resumes it (that pause then waits for `startRun` or `stopRun`). Honoured as written. */
     resumeMissing:   'resumeMissing',
 } as const;
 
@@ -688,10 +687,10 @@ export type PxTriggerIssueKind = typeof PxTriggerIssueKind[keyof typeof PxTrigge
 /** One problem with a triggers block — structured, so a caller decides on `kind`, never on text. @public @advanced */
 export interface PxTriggerIssue {
     readonly kind: PxTriggerIssueKind;
-    /** The list that names the event (`stop` for a collision). */
+    /** The list that names the event (`stopRun` for a collision). */
     readonly list: PxTriggerList;
     readonly event: PxTriggerEvent;
-    /** A collision's other list — `pause` or `resume`. */
+    /** A collision's other list — `pauseRun` or `resumeRun`. */
     readonly otherList?: PxTriggerList;
 }
 
@@ -702,8 +701,8 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
     if (triggers === undefined) return [];
     const issues: Array<PxTriggerIssue> = [];
     const lists: ReadonlyArray<[PxTriggerList, PxTriggerEvents | undefined]> = [
-        [PxTriggerList.start, triggers.start], [PxTriggerList.stop, triggers.stop],
-        [PxTriggerList.pause, triggers.pause], [PxTriggerList.resume, triggers.resume],
+        [PxTriggerList.startRun, triggers.startRun], [PxTriggerList.stopRun, triggers.stopRun],
+        [PxTriggerList.pauseRun, triggers.pauseRun], [PxTriggerList.resumeRun, triggers.resumeRun],
     ];
     for (const [list, events] of lists) {
         const allowed = allowedTriggerEvents(list);
@@ -712,20 +711,20 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
         }
     }
     const resolved = resolveTriggers(triggers);
-    if (triggers.resume !== undefined) {
+    if (triggers.resumeRun !== undefined) {
         // only the events a resume list may name count — `load` is derived (a start that does not stop) but never listable
-        const derived = derivedResume(resolved.start, resolved.stop, resolved.pause).filter(e => allowedTriggerEvents(PxTriggerList.resume).includes(e));
-        for (const event of resolved.resume) {
-            if (!derived.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeExtra, list: PxTriggerList.resume, event });
+        const derived = derivedResume(resolved.startRun, resolved.stopRun, resolved.pauseRun).filter(e => allowedTriggerEvents(PxTriggerList.resumeRun).includes(e));
+        for (const event of resolved.resumeRun) {
+            if (!derived.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeExtra, list: PxTriggerList.resumeRun, event });
         }
         for (const event of derived) {
-            if (!resolved.resume.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeMissing, list: PxTriggerList.resume, event });
+            if (!resolved.resumeRun.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeMissing, list: PxTriggerList.resumeRun, event });
         }
     }
-    const counterparts = derivedResume([], [], resolved.pause);
-    for (const event of resolved.stop) {
-        if (resolved.pause.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stop, event, otherList: PxTriggerList.pause });
-        if (counterparts.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stop, event, otherList: PxTriggerList.resume });
+    const counterparts = derivedResume([], [], resolved.pauseRun);
+    for (const event of resolved.stopRun) {
+        if (resolved.pauseRun.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stopRun, event, otherList: PxTriggerList.pauseRun });
+        if (counterparts.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stopRun, event, otherList: PxTriggerList.resumeRun });
     }
     return issues;
 }
@@ -733,26 +732,24 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
 // @px-area control
 /** An action slot's settings: the word form (`'animateToStart'`) is exactly `{ behavior: 'animateToStart' }`; an absent slot stays absent.
  *  The one reader of the shorthand — every consumer goes through it (or {@link resolveActions}). @public @advanced */
-export function actionSettingsOf(slot: PxActions['start']): { behavior?: PxStartBehavior } | undefined;
-export function actionSettingsOf(slot: PxActions['stop']): { behavior?: PxStopBehavior } | undefined;
-export function actionSettingsOf(slot: PxActions['finish']): { behavior?: PxFinishBehavior } | undefined;
+export function actionSettingsOf(slot: PxActions['startRun']): { behavior?: PxStartRunBehavior } | undefined;
+export function actionSettingsOf(slot: PxActions['stopRun']): { behavior?: PxStopRunBehavior } | undefined;
 export function actionSettingsOf(slot: PxActions['outOfView']): { behavior?: PxOutOfViewBehavior } | undefined;
 export function actionSettingsOf(slot: string | { behavior?: string } | undefined): { behavior?: string } | undefined {
     return typeof slot === 'string' ? { behavior: slot } : slot;
 }
 
 // @px-area control
-/** A document's `actions` with every default applied — see {@link PxResolvedActions}. @public @advanced */
-export function resolveActions(actions: PxActions | undefined): PxResolvedActions {
-    const start = actionSettingsOf(actions?.start);
-    const stop = actionSettingsOf(actions?.stop);
-    const finish = actionSettingsOf(actions?.finish);
+/** A document's `actions` (and its `atEnd`) with every default applied — see {@link PxResolvedActions}. @public @advanced */
+export function resolveActions(actions: PxActions | undefined, atEnd?: PxAtEndBehavior): PxResolvedActions {
+    const startRun = actionSettingsOf(actions?.startRun);
+    const stopRun = actionSettingsOf(actions?.stopRun);
     const outOfView = actionSettingsOf(actions?.outOfView);
     return {
-        start:   { behavior: start?.behavior ?? PX_PLAYBACK_DEFAULTS.startBehavior },
-        stop:    { behavior: stop?.behavior ?? PX_PLAYBACK_DEFAULTS.stopBehavior },
-        finish:  { behavior: finish?.behavior ?? PX_PLAYBACK_DEFAULTS.finishBehavior },
+        startRun:  { behavior: startRun?.behavior ?? PX_PLAYBACK_DEFAULTS.startRunBehavior },
+        stopRun:   { behavior: stopRun?.behavior ?? PX_PLAYBACK_DEFAULTS.stopRunBehavior },
         outOfView: { behavior: outOfView?.behavior ?? PX_PLAYBACK_DEFAULTS.outOfViewBehavior },
+        atEnd: atEnd ?? PX_PLAYBACK_DEFAULTS.atEnd,
     };
 }
 
@@ -775,56 +772,60 @@ export function resolveGate(cfg: Pick<PxAnimatorRuntimeConfig, 'actions' | 'inVi
     };
 }
 
-/** The states the state rule distinguishes: `start` acts when idle or finished, `pause` when playing, `resume` when
- *  paused, `stop` when playing, paused or finished. `idle` (WAAPI's word; `stopped` until 1.18) is before the first
- *  play and back at the start (a jump or an animate there); `finished` is a run that reached its end and rests there (playback-layers.md, layer 2);
- *  `destroyed` is after `destroy()` — every call is a no-op from then on. @public @advanced */
-export const PxPlayState = {
-    idle:      'idle',
+/** The run's state — the one readout (`getRunState()`): `off` = no run (before the first, back at the rest pose;
+ *  WAAPI's `idle`, `idle` here until 1.23); `playing` · `paused` · `finished` = a run (`finished` reached its end and
+ *  rests there under `atEnd: hold`); `returning` = no run, but the picture still plays back to the rest pose
+ *  (`stopRun` / `atEnd: 'animateToStart'` — SVGator's `rollback`); `destroyed` = after `destroy()`, every call a
+ *  no-op. The state rule: `startRun` acts when off, finished or returning (it turns a return around), `pauseRun` when
+ *  playing, `resumeRun` when paused, `stopRun` when playing, paused or finished. @public @advanced */
+export const PxRunState = {
+    off:       'off',
     playing:   'playing',
     paused:    'paused',
     finished:  'finished',
+    returning: 'returning',
     destroyed: 'destroyed',
 } as const;
-export type PxPlayState = typeof PxPlayState[keyof typeof PxPlayState];
+export type PxRunState = typeof PxRunState[keyof typeof PxRunState];
 
-/** What the state rule asks for when an event arrives. @public @advanced */
+/** What the state rule asks for when an event arrives — one of the four buttons. @public @advanced */
 export const PxTriggerAction = {
-    /** The configured start, or a resume — the executor's state-rule `play()`. */
-    play:  'play',
-    pause: 'pause',
-    /** The configured stop. */
-    stop:  'stop',
+    startRun:  'startRun',
+    stopRun:   'stopRun',
+    pauseRun:  'pauseRun',
+    resumeRun: 'resumeRun',
 } as const;
 export type PxTriggerAction = typeof PxTriggerAction[keyof typeof PxTriggerAction];
 
 // @px-area control
 /** Whether any of the four lists names the event — the wiring listens only for those. @public @advanced */
 export function triggerListsEvent(triggers: PxResolvedTriggers, event: PxTriggerEvent): boolean {
-    return triggers.start.includes(event) || triggers.stop.includes(event) || triggers.pause.includes(event) || triggers.resume.includes(event);
+    return triggers.startRun.includes(event) || triggers.stopRun.includes(event) || triggers.pauseRun.includes(event) || triggers.resumeRun.includes(event);
 }
 
 // @px-area control
 /** THE STATE RULE, decided once for every wiring — the web triggers, the CSS components, React Native: the
- *  player's state picks the list an event is read from. `pause` wins over `stop` while playing, `resume` wins
- *  over `stop` while paused (both reported as collisions, {@link triggerIssues}); `stop` wins over `start`
- *  while FINISHED — an event in both lists (a click toggle) undoes a finished one-shot rather than replaying
- *  it; a replay on every event is `start` alone. @public @advanced */
-export function triggerActionFor(triggers: PxResolvedTriggers, state: PxPlayState, event: PxTriggerEvent): PxTriggerAction | undefined {
+ *  player's state picks the list an event is read from. `pauseRun` wins over `stopRun` while playing, `resumeRun`
+ *  wins over `stopRun` while paused (both reported as collisions, {@link triggerIssues}); `stopRun` wins over
+ *  `startRun` while FINISHED — an event in both lists (a click toggle) undoes a finished one-shot rather than
+ *  replaying it; a replay on every event is `startRun` alone. A `returning` run reads only `startRun` (it turns the
+ *  return around). @public @advanced */
+export function triggerActionFor(triggers: PxResolvedTriggers, state: PxRunState, event: PxTriggerEvent): PxTriggerAction | undefined {
     switch (state) {
-        case PxPlayState.idle:
-            return triggers.start.includes(event) ? PxTriggerAction.play : undefined;
-        case PxPlayState.destroyed:
+        case PxRunState.off:
+        case PxRunState.returning:
+            return triggers.startRun.includes(event) ? PxTriggerAction.startRun : undefined;
+        case PxRunState.destroyed:
             return undefined;
-        case PxPlayState.finished:
-            if (triggers.stop.includes(event)) return PxTriggerAction.stop;
-            return triggers.start.includes(event) ? PxTriggerAction.play : undefined;
-        case PxPlayState.paused:
-            if (triggers.resume.includes(event)) return PxTriggerAction.play;
-            return triggers.stop.includes(event) ? PxTriggerAction.stop : undefined;
-        case PxPlayState.playing:
-            if (triggers.pause.includes(event)) return PxTriggerAction.pause;
-            return triggers.stop.includes(event) ? PxTriggerAction.stop : undefined;
+        case PxRunState.finished:
+            if (triggers.stopRun.includes(event)) return PxTriggerAction.stopRun;
+            return triggers.startRun.includes(event) ? PxTriggerAction.startRun : undefined;
+        case PxRunState.paused:
+            if (triggers.resumeRun.includes(event)) return PxTriggerAction.resumeRun;
+            return triggers.stopRun.includes(event) ? PxTriggerAction.stopRun : undefined;
+        case PxRunState.playing:
+            if (triggers.pauseRun.includes(event)) return PxTriggerAction.pauseRun;
+            return triggers.stopRun.includes(event) ? PxTriggerAction.stopRun : undefined;
     }
 }
 
@@ -1223,10 +1224,9 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         // two of them: `fill` (CSS animation-fill-mode) and `resetOnFinish`
         const actions = timeline.actions !== undefined ? expandedActions(timeline.actions) : undefined;
         if (actions !== undefined && Object.keys(actions).length > 0) flat.actions = actions;
-        const finishBehavior = actionSettingsOf(timeline.actions?.finish)?.behavior;
-        if (finishBehavior !== undefined) flat.resetOnFinish = finishBehavior === PxFinishBehavior.jumpToStart;
+        if (timeline.atEnd !== undefined) { flat.atEnd = timeline.atEnd; flat.resetOnFinish = timeline.atEnd === PxAtEndBehavior.jumpToStart; }
         if (timeline.whenIdle !== undefined) flat.whenIdle = timeline.whenIdle;
-        if (timeline.whenIdle !== undefined || finishBehavior !== undefined) flat.fill = fillModeOf(timeline.whenIdle, finishBehavior);
+        if (timeline.whenIdle !== undefined || timeline.atEnd !== undefined) flat.fill = fillModeOf(timeline.whenIdle, timeline.atEnd);
         if (timeline.inViewThreshold !== undefined) flat.inViewThreshold = timeline.inViewThreshold;
         if (timeline.inViewDebounce !== undefined) flat.inViewDebounce = timeline.inViewDebounce;
     }
@@ -1235,11 +1235,11 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
 }
 
 /** The engines' CSS-style fill mode from the two settings that say it: the first frame before play
- *  (`whenIdle: firstFrame` → `backwards` / `both`) and the last frame after a natural end (finish `hold` →
+ *  (`whenIdle: firstFrame` → `backwards` / `both`) and the last frame after a natural end (`atEnd: hold` →
  *  `forwards` / `both`). @public @advanced */
-export function fillModeOf(whenIdle: PxWhenIdle | undefined, finishBehavior: PxFinishBehavior | undefined): PxFillMode {
+export function fillModeOf(whenIdle: PxWhenIdle | undefined, atEnd: PxAtEndBehavior | undefined): PxFillMode {
     const before = (whenIdle ?? PX_PLAYBACK_DEFAULTS.whenIdle) === PxWhenIdle.firstFrame;
-    const after = (finishBehavior ?? PX_PLAYBACK_DEFAULTS.finishBehavior) === PxFinishBehavior.hold;
+    const after = (atEnd ?? PX_PLAYBACK_DEFAULTS.atEnd) === PxAtEndBehavior.hold;
     return before ? (after ? PxFillMode.both : PxFillMode.backwards) : (after ? PxFillMode.forwards : PxFillMode.none);
 }
 
@@ -1252,9 +1252,8 @@ export type PxActionsSettings = { [K in keyof PxActions]?: Exclude<NonNullable<P
 function expandedActions(actions: PxActions): PxActionsSettings {
     const copy: PxActionsSettings = {};
     const said = <T extends object>(slot: T | undefined): slot is T => slot !== undefined && Object.keys(slot).length > 0;
-    const start = actionSettingsOf(actions.start); if (said(start)) copy.start = { ...start };
-    const stop = actionSettingsOf(actions.stop); if (said(stop)) copy.stop = { ...stop };
-    const finish = actionSettingsOf(actions.finish); if (said(finish)) copy.finish = { ...finish };
+    const startRun = actionSettingsOf(actions.startRun); if (said(startRun)) copy.startRun = { ...startRun };
+    const stopRun = actionSettingsOf(actions.stopRun); if (said(stopRun)) copy.stopRun = { ...stopRun };
     const outOfView = actionSettingsOf(actions.outOfView); if (said(outOfView)) copy.outOfView = { ...outOfView };
     return copy;
 }
@@ -1265,9 +1264,8 @@ function compactedActions(actions: PxActions): PxActions {
     const settings = expandedActions(actions);
     const onlyBehavior = (slot: { behavior?: string }): boolean => slot.behavior !== undefined && Object.keys(slot).length === 1;
     const copy: PxActions = {};
-    if (settings.start !== undefined) copy.start = onlyBehavior(settings.start) ? settings.start.behavior : settings.start;
-    if (settings.stop !== undefined) copy.stop = onlyBehavior(settings.stop) ? settings.stop.behavior : settings.stop;
-    if (settings.finish !== undefined) copy.finish = onlyBehavior(settings.finish) ? settings.finish.behavior : settings.finish;
+    if (settings.startRun !== undefined) copy.startRun = onlyBehavior(settings.startRun) ? settings.startRun.behavior : settings.startRun;
+    if (settings.stopRun !== undefined) copy.stopRun = onlyBehavior(settings.stopRun) ? settings.stopRun.behavior : settings.stopRun;
     if (settings.outOfView !== undefined) copy.outOfView = onlyBehavior(settings.outOfView) ? settings.outOfView.behavior : settings.outOfView;
     return copy;
 }
@@ -1295,7 +1293,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (!cfg || cfg.timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, actionTriggers, actions, delay, iterations, direction, fill, resetOnFinish,
-            whenIdle, inViewThreshold, inViewDebounce,
+            atEnd, whenIdle, inViewThreshold, inViewDebounce,
             duration, inTime, playbackSpeed, engine, frameRate, ...shared } = cfg;
     // flat `duration` is the WINDOW LENGTH; on the wire the window is written as its two points
     const writeWindow = (timeline: { inTime?: number; outTime?: number }) => {
@@ -1341,13 +1339,11 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (delay !== undefined) timeline.delay = delay;
     if (iterations !== undefined) timeline.iterations = iterations;
     if (direction !== undefined) timeline.iterationDirection = direction;
-    // the actions block; the rest-pose view back to its two settings: `fill` / `resetOnFinish` → the finish
-    // transition and the rest pose
+    // the actions block; the rest-pose view back to its two settings: `fill` / `resetOnFinish` → `atEnd` and the rest pose
     const nested: PxActions = actions !== undefined ? compactedActions(actions) : {};
-    if (actionSettingsOf(nested.finish)?.behavior === undefined && (resetOnFinish || fill === PxFillMode.none || fill === PxFillMode.backwards)) {
-        nested.finish = PxFinishBehavior.jumpToStart;
-    }
     if (Object.keys(nested).length > 0) timeline.actions = nested;
+    if (atEnd !== undefined) timeline.atEnd = atEnd;
+    else if (resetOnFinish || fill === PxFillMode.none || fill === PxFillMode.backwards) timeline.atEnd = PxAtEndBehavior.jumpToStart;
     if (whenIdle !== undefined) timeline.whenIdle = whenIdle;
     else if (fill === PxFillMode.backwards || fill === PxFillMode.both) timeline.whenIdle = PxWhenIdle.firstFrame;
     if (inViewThreshold !== undefined) timeline.inViewThreshold = inViewThreshold;

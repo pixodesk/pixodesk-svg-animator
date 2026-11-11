@@ -14,7 +14,7 @@ export const attrNumberStrokeWidth: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 1000,
             "actionTriggers": {
-                "start": "load"
+                "startRun": "load"
             },
             "actions": {
                 "outOfView": {

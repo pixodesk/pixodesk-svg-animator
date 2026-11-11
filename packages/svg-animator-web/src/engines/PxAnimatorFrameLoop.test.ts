@@ -119,7 +119,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, whenIdle: 'firstFrame', actions: { finish: { behavior: 'jumpToStart' } } });
+        const { api, calls, opacity } = setup({ delay: 160, whenIdle: 'firstFrame', atEnd: 'jumpToStart' });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ actions: { finish: { behavior: 'jumpToStart' } } });
+        const { api, calls } = setup({ atEnd: 'jumpToStart' });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -389,7 +389,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ actions: { finish: { behavior: 'jumpToStart' } } });
+        const { api, calls } = setup({ atEnd: 'jumpToStart' });
 
         api.play();
         vi.advanceTimersByTime(64);

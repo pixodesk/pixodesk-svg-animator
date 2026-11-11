@@ -7,8 +7,8 @@ createApp({
     const api = ref<PxAnimationPlayerHandle | null>(null);
     return () => [
       h('div', { class: 'controls' }, [
-        h('button', { onClick: () => api.value?.play() }, 'play()'),
-        h('button', { onClick: () => api.value?.pause() }, 'pause()'),
+        h('button', { onClick: () => api.value?.startRun() }, 'startRun()'),
+        h('button', { onClick: () => api.value?.pauseRun() }, 'pauseRun()'),
         h('button', { onClick: () => api.value?.jumpToStart() }, 'jumpToStart()'),
         h('button', { onClick: () => api.value?.jumpToEnd() }, 'jumpToEnd()'),
       ]),

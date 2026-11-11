@@ -114,8 +114,9 @@ Other types you may want by name:
 - `PxAnimationPlayerHandle` — the handle the components give you through `playerRef` (every framework
   package exports this one name).
 - `PxPlaybackOverride` — the playback override every player accepts.
-- `PxPlayStateRequest` — what the components' `playState` prop accepts: `'idle' | 'playing' | 'paused'`,
-  the `PxPlayState` values a host can ask for (`finished` and `destroyed` are reached by the player alone).
+- `PxPlayRun` — what the components' `playRun` prop accepts: `'off' | 'on' | 'paused'`, the positions a
+  host can ask for; `PxRunState` is what the player reports back through `getRunState()` (`finished`,
+  `returning` and `destroyed` are reached by the player alone).
 
 Hearing back from it: `PxAnimationPlayerCallbacks` is the single callback shape — the playback lifecycle
 plus `onWarning` / `onError` — and `PxDiagnosticsConfig` is the diagnostics half of it on its own. A

@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxFinishBehavior, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, playStateToLevels, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
+import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxAtEndBehavior, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -259,9 +259,9 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
 
     // §10 / D5: in the play tier's ONE-SHOT world the pose contract beats the file's rest poses — pin
     // both sides (the first frame before, the last frame after), so the held poses are the same on
-    // every file (a `finish: jumpToStart` document would otherwise revert to its static attrs).
+    // every file (an `atEnd: jumpToStart` document would otherwise revert to its static attrs).
     if (pinPoseFill && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
-        doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, atEnd: PxAtEndBehavior.hold } }).doc;
     }
 
     // `native` = the FULLY-FLATTENED materialization: effects + loops +
@@ -304,8 +304,8 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
  */
 export function SvgAnimationPlayer({
     doc, timelineOptions, actions,
-    playUsingActionTriggers, play, pause, playState, playerRef, showAtProgress, showAtTime,
-    onReady, onPlay, onStop, onPause, onFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
+    playUsingActionTriggers, playRun, playerRef, showAtProgress, showAtTime,
+    onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
@@ -331,21 +331,21 @@ export function SvgAnimationPlayer({
      * built them, so callbacks and diagnostics are read through `latest` — refreshed every render
      * (as React's `callbacksRef`) — never the props they closed over.
      */
-    const latest = useRef({ onReady, onPlay, onPause, onFinish, onStop, onDestroy, onWarning, onError, suppressWarnings, suppressErrors });
-    latest.current = { onReady, onPlay, onPause, onFinish, onStop, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
+    const latest = useRef({ onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors });
+    latest.current = { onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
     const makeDiag = (): PxDiagnostics => createDiagnostics(latest.current, '[SvgAnimationPlayer]');
 
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAtProgress, showAtTime, play, pause, playState, playUsingActionTriggers });
+        resolveControlMode({ showAtProgress, showAtTime, playRun, playUsingActionTriggers });
 
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
                 toPxDocument(stableDoc),
                 { timelineOptions, actions, playUsingActionTriggers },
-                compMode === PxControlMode.play,
+                compMode === PxControlMode.playRun,
                 makeDiag(),
             );
         } catch (e) {
@@ -399,7 +399,7 @@ export function SvgAnimationPlayer({
         runClock.stop();
         progress.value = restingPosition();
         latest.current.onFinish?.();
-        executor?.onNaturalFinish();              // `actions.finish`: hold / jumpToStart / animateToStart
+        executor?.onNaturalFinish();              // `atEnd`: hold / jumpToStart / animateToStart
     };
 
     const startFrom = (fromMs: number) => {
@@ -452,13 +452,11 @@ export function SvgAnimationPlayer({
             if (Number.isFinite(seekCeiling) && runClock.now() >= seekCeiling) runClock.seek(0);
             runClock.start(rateRef.current);
             startFrom(progress.value);
-            latest.current.onPlay?.();
         },
         pause: () => {
             cancelAnimation(progress);
             playingRef.current = false;
             runClock.stop();
-            latest.current.onPause?.();
         },
         jumpToStart: () => {
             cancelAnimation(progress);
@@ -474,7 +472,7 @@ export function SvgAnimationPlayer({
             runClock.stop();
             progress.value = restingPosition();
             latest.current.onFinish?.();
-            executor?.onNaturalFinish();          // arriving at the end runs `actions.finish`, as on the web engines
+            executor?.onNaturalFinish();          // arriving at the end runs `atEnd`, as on the web engines
         },
         getPlaybackSpeed: () => rateRef.current,
         setPlaybackSpeed: (rate: number) => {
@@ -514,10 +512,16 @@ export function SvgAnimationPlayer({
     } as PxAnimationPlayerHandle;
     // The engine's own play / pause before the executor's versions replace them — the gate's hold and release.
     const engine = { play: api.play, pause: api.pause };
-    // `play()` / `stop()` / `playOnce()` — the one shared rule (review §10, D5), same composer as the web
-    // engines; the play keys come off the compiled document's runtime view.
+    // the four buttons, the aliases and `runOnce()` — the one shared rule (review §10, D5), same composer as the web
+    // engines; the play keys come off the compiled document's runtime view; the run events are the executor's.
     const view = compiled.doc ? getAnimatorConfig(compiled.doc) : undefined;
-    const player = composeApiExtras(api, { ...view, onStop: () => latest.current.onStop?.(), duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations }, (cb) => { requestAnimationFrame(cb); });
+    const runListeners = {
+        onRunStart: () => latest.current.onRunStart?.(),
+        onRunStop: () => latest.current.onRunStop?.(),
+        onRunPause: () => latest.current.onRunPause?.(),
+        onRunResume: () => latest.current.onRunResume?.(),
+    };
+    const player = composeApiExtras(api, { ...view, runListeners, duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations }, (cb) => { requestAnimationFrame(cb); });
     executor = player.playExecutor;
 
     // `onReady` (review §14): the animator exists and the tree is rendered — once per compiled
@@ -533,18 +537,21 @@ export function SvgAnimationPlayer({
     // declarative driver owns playback is the actual collision: warn (PX1503) and apply.
     useImperativeHandle(playerRef, () => {
         const guardWrite = (call: string): void => {
-            if (compMode === PxControlMode.play || compMode === PxControlMode.fixedTime) {
+            if (compMode === PxControlMode.playRun || compMode === PxControlMode.fixedTime) {
                 makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.imperativeOverDeclarative, call);
             }
         };
         return {
             ...api,
+            startRun: () => { guardWrite('startRun()'); api.startRun(); },
+            stopRun: () => { guardWrite('stopRun()'); api.stopRun(); },
+            pauseRun: () => { guardWrite('pauseRun()'); api.pauseRun(); },
+            resumeRun: () => { guardWrite('resumeRun()'); api.resumeRun(); },
             play: () => { guardWrite('play()'); api.play(); },
             pause: () => { guardWrite('pause()'); api.pause(); },
-            stop: () => { guardWrite('stop()'); api.stop(); },
             jumpToStart: () => { guardWrite('jumpToStart()'); api.jumpToStart(); },
             jumpToEnd: () => { guardWrite('jumpToEnd()'); api.jumpToEnd(); },
-            playOnce: () => { guardWrite('playOnce()'); api.playOnce(); },
+            runOnce: () => { guardWrite('runOnce()'); api.runOnce(); },
             setPlaybackSpeed: (speed: number) => { guardWrite('setPlaybackSpeed()'); api.setPlaybackSpeed(speed); },
             setPlaybackDuration: (ms: number) => { guardWrite('setPlaybackDuration()'); api.setPlaybackDuration(ms); },
             setCurrentTime: (t: number) => { guardWrite('setCurrentTime()'); api.setCurrentTime(t); },
@@ -580,32 +587,27 @@ export function SvgAnimationPlayer({
             api.setCurrentTime(seekMs);
             return;
         }
-        if (compMode === PxControlMode.play) {
+        if (compMode === PxControlMode.playRun) {
             // ONE shared rule (§10, `resolveDeclarativePlayback` in core — same as React and
-            // Vue): `play` is a pose switch on a one-shot document and a run switch on a looping
-            // one; `pause` freezes the clock. HOW each step moves is the timeline's `actions`,
-            // performed by the executor behind `play()` / `stop()`. A new `compiled` is a new
-            // animator — the carried-over props then apply from scratch (mount semantics: no animation).
+            // Vue): the lever's position — off · on · paused — and a change between two positions is one
+            // or two of the four buttons. HOW each step moves is the timeline's `actions`, performed by the
+            // executor behind the buttons. A new `compiled` is a new animator — the carried-over props then
+            // apply from scratch (mount semantics: no animation).
             const world = resolvePlaybackWorld(tracks.iterations === Infinity ? 'infinite' : tracks.iterations);
-            const totalMs = tracks.iterations === Infinity ? Infinity : tracks.duration * Math.max(1, tracks.iterations);
             const prev = prevPlaybackRef.current?.compiled === compiled ? prevPlaybackRef.current.props : undefined;
-            const levels = playStateToLevels({ play, pause, playState });
-            const { actions, warnings } = resolveDeclarativePlayback({ world, prev, next: levels });
-            prevPlaybackRef.current = { compiled, props: levels };
-            if (warnings.length) {
-                const diag = makeDiag();
-                for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
-            }
+            const position: PxDeclarativeProps = { playRun };
+            const { actions } = resolveDeclarativePlayback({ world, prev, next: position });
+            prevPlaybackRef.current = { compiled, props: position };
             for (const action of actions) applyDeclarativeAction(player, action);
             return;
         }
         // a listed `click` starts from its own handler below, and a GATED document starts from the
-        // visibility poll — calling play() here as well would defeat the gate.
-        if (compMode === PxControlMode.playUsingActionTriggers && trigger.start.includes(PxTriggerEvent.load) && !gated) {
-            player.play();
+        // visibility poll — calling startRun() here as well would defeat the gate.
+        if (compMode === PxControlMode.playUsingActionTriggers && trigger.startRun.includes(PxTriggerEvent.load) && !gated) {
+            player.startRun();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, compMode, playUsingActionTriggers, play, pause, playState, showAtProgress, showAtTime]);
+    }, [compiled, compMode, playUsingActionTriggers, playRun, showAtProgress, showAtTime]);
 
     // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
     // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled
@@ -619,7 +621,7 @@ export function SvgAnimationPlayer({
         inViewRef.current = false;
         /** The gate held (or reset) a run, so it owes a release; a `load` start is owed until the first entry. */
         let pausedByGate = false;
-        let startPending = trigger.start.includes(PxTriggerEvent.load);
+        let startPending = trigger.startRun.includes(PxTriggerEvent.load);
 
         const check = () => {
             const node = scrollRef.current;
@@ -634,7 +636,7 @@ export function SvgAnimationPlayer({
                 inViewRef.current = isIn;
                 if (isIn) {
                     // as the web gate: a trigger's start goes through the executor, the gate's own release is the engine's
-                    if (startPending) { startPending = false; pausedByGate = false; player.play(); }
+                    if (startPending) { startPending = false; pausedByGate = false; player.startRun(); }
                     else if (pausedByGate) { pausedByGate = false; engine.play(); }
                 } else if (player.isPlaying()) {
                     if (gate.outOfView === PxOutOfViewBehavior.jumpToStart) player.jumpToStart();
@@ -752,9 +754,10 @@ export function SvgAnimationPlayer({
             <Pressable
                 onPress={() => {
                     switch (triggerActionFor(trigger, player.playExecutor.state(), PxTriggerEvent.click)) {
-                        case PxTriggerAction.play: player.play(); break;
-                        case PxTriggerAction.pause: player.pause(); break;
-                        case PxTriggerAction.stop: player.stop(); break;
+                        case PxTriggerAction.startRun: player.startRun(); break;
+                        case PxTriggerAction.resumeRun: player.resumeRun(); break;
+                        case PxTriggerAction.pauseRun: player.pauseRun(); break;
+                        case PxTriggerAction.stopRun: player.stopRun(); break;
                     }
                 }}
             >

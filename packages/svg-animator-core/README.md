@@ -60,7 +60,7 @@ runtime crash on a non-browser platform.
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `toDomProps` (`/engine`), `sanitizeAttributeValue`, `generateNewIds` |
 | **Playback engine** (`/engine`) | `createAdapterSvgAnimationPlayer` + the `PxPlatformAdapter` interface, the time contract, the component control rules |
-| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerEvent`, `PxStartBehavior`, `PxStopBehavior`, `PxFinishBehavior`, `PxOutOfViewBehavior`, `PxWhenIdle`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneOmit`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerEvent.click` and `start?: PxTriggerEvents` come from one import |
+| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerEvent`, `PxStartRunBehavior`, `PxStopRunBehavior`, `PxAtEndBehavior`, `PxOutOfViewBehavior`, `PxWhenIdle`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneOmit`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerEvent.click` and `startRun?: PxTriggerEvents` come from one import |
 
 ### Validating a document
 
@@ -99,7 +99,7 @@ how this repo generates its published `SCHEMA.json`, and `schemaKeys` lists just
 
 The schema also says **what a field means when a document leaves it out**. Every optional choice
 states its default there (`px.enum([...], x)`, `px.number(x)`) and every object schema offers the
-stated ones as a typed `defaults` property: `PxFinishActionSchema.defaults.transition` is `hold`,
+stated ones as a typed `defaults` property: `PxStopRunActionSchema.defaults.behavior` is `jumpToStart`,
 `PxTextPathEffectSchema.defaults.pathOverflow` is `extend`, `PxTimeTimelineSchema.defaults.inViewDebounce`
 is 150 ms. Only stated fields are keys of it, so asking for a field whose absence simply means
 "unset" (such as `clone.without`), or for a key the schema has renamed, does not compile. Every
@@ -182,7 +182,7 @@ const adapter: PxPlatformAdapter = {
 const api = createAdapterSvgAnimationPlayer(flatDoc, adapter, {
     onFinish: () => console.log('done'),
 });
-api.play();
+api.startRun();
 ```
 
 Frame scheduling resolves `requestAnimationFrame` from `globalThis` at call time

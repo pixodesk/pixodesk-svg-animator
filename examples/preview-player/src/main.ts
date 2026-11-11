@@ -78,11 +78,11 @@ const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
 type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
 /** The trigger lists, with the editor's labels — typed by the resolved lists' own keys.
- *  No `resume`: the player derives it from these three. */
+ *  No `resumeRun`: the player derives it from these three. */
 const TRIGGER_LISTS: Array<{ key: keyof PxResolvedTriggers; label: string }> = [
-  { key: 'start', label: 'Play on' },
-  { key: 'stop', label: 'Stop on' },
-  { key: 'pause', label: 'Pause on' },
+  { key: 'startRun', label: 'Play on' },
+  { key: 'stopRun', label: 'Stop on' },
+  { key: 'pauseRun', label: 'Pause on' },
 ];
 const OUT_OF_VIEW_BEHAVIORS = Object.values(PxOutOfViewBehavior);
 
@@ -340,10 +340,10 @@ function userActionForTrigger(
   actionTriggers: PxActionTriggers | undefined,
   outOfView: PxOutOfViewBehavior | undefined,
 ): UserAction | undefined {
-  const { start } = resolveTriggers(actionTriggers);
-  if (start.includes(PxTriggerEvent.hoverIn)) return 'hover';
-  if (start.includes(PxTriggerEvent.click)) return 'click';
-  if (start.length === 0) return 'play';
+  const { startRun } = resolveTriggers(actionTriggers);
+  if (startRun.includes(PxTriggerEvent.hoverIn)) return 'hover';
+  if (startRun.includes(PxTriggerEvent.click)) return 'click';
+  if (startRun.length === 0) return 'play';
   // `load` — behind a visibility gate it waits to be seen; `continue` starts right away.
   return outOfView === PxOutOfViewBehavior.continue ? undefined : 'scrollIntoView';
 }
@@ -430,7 +430,7 @@ function remount(): void {
   // With a trigger driving start, DON'T auto-play — the `load` event (or the user's
   // hover/click/scroll for the others) starts it. Otherwise auto-play as before.
   // React/Vue populate their imperative API after the first commit, so play next frame.
-  if (!useTrigger) requestAnimationFrame(() => handle?.play());
+  if (!useTrigger) requestAnimationFrame(() => handle?.startRun());
 }
 
 /** Adopts a validated document and (re)mounts the current player. */
@@ -449,15 +449,15 @@ function loadDocument(doc: PxDocument, sourceLabel: string): void {
 
 // -- Transport controls ------------------------------------------------------
 
-btnPlay.addEventListener('click', () => handle?.play());
-btnPause.addEventListener('click', () => handle?.pause());
+btnPlay.addEventListener('click', () => handle?.startRun());
+btnPause.addEventListener('click', () => handle?.pauseRun());
 btnStop.addEventListener('click', () => {
   handle?.jumpToStart();
   seek.value = '0';
 });
 btnRestart.addEventListener('click', () => {
   handle?.setCurrentTime(0);
-  handle?.play();
+  handle?.startRun();
 });
 btnFinish.addEventListener('click', () => handle?.finish());   // PlayerHandle.finish → the player's jumpToEnd()
 
@@ -511,7 +511,7 @@ seek.addEventListener('pointerdown', () => {
   scrubbing = true;
 });
 seek.addEventListener('input', () => {
-  handle?.pause();
+  handle?.pauseRun();
   handle?.setCurrentTime(Number(seek.value));
   timeEl.textContent = `${seek.value} / ${duration} ms`;
 });

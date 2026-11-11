@@ -17,7 +17,7 @@ import { createSvgAnimationPlayer } from './PxAnimator';
 import type { PxDocument, PxActionTriggers } from '@pixodesk/svg-animator-core';
 
 /** A WIRE-format document (nested `timelineOptions`) — the spelling every writer emits. */
-function wireDoc(actionTriggers: PxActionTriggers = { start: 'load' }): PxDocument {
+function wireDoc(actionTriggers: PxActionTriggers = { startRun: 'load' }): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -39,7 +39,7 @@ const stage = () => {
 
 describe('createSvgAnimationPlayer — the override reaches the running animation', () => {
 
-    // The observable: a document whose trigger is `start: 'load'` plays at once; one whose trigger is
+    // The observable: a document whose trigger is `startRun: 'load'` plays at once; one whose trigger is
     // the EMPTY block does not. Unambiguous — keyframe times are absolute, so a timing override changes
     // when playback ENDS, not the value at a given instant, which makes opacity a poor witness.
 
@@ -51,13 +51,13 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
 
     it('a `playUsingActionTriggers` OBJECT is the trigger instead of the file\'s', () => {
         // the file starts on load; the block says click — so nothing plays until a click
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { start: 'click' }, doc: wireDoc(), container: stage() });
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { startRun: 'click' }, doc: wireDoc(), container: stage() });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('…as a WHOLE: a list the object leaves out is gone — the file\'s `start: load` does not survive an object that lists only `pause`', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { pause: 'click' }, doc: wireDoc({ start: 'load' }), container: stage() });
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { pauseRun: 'click' }, doc: wireDoc({ startRun: 'load' }), container: stage() });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
@@ -69,7 +69,7 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
     });
 
     it('`timelineOptions` and a `playUsingActionTriggers` object together: the timing adjusted, the trigger replaced', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { start: 'click' }, doc: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { startRun: 'click' }, doc: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });

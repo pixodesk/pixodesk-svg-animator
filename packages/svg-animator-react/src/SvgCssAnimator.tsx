@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlayState, PxTriggerAction, PxTriggerEvent } from '@pixodesk/svg-animator-core';
+import { PxRunState, PxTriggerAction, PxTriggerEvent } from '@pixodesk/svg-animator-core';
 import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { FC, ReactNode, useEffect, useRef, useState } from "react";
@@ -26,7 +26,7 @@ import type { SvgAnimationPlayerProps } from './SvgAnimator';
  * @public
  */
 export type SvgCssAnimationPlayerProps = Pick<SvgAnimationPlayerProps, 'className' | 'style'> & {
-    /** WHEN — the triggers block, as on `SvgAnimationPlayer`: `start`, `stop`, `pause`, `resume` (derived when left
+    /** WHEN — the triggers block, as on `SvgAnimationPlayer`: `startRun`, `stopRun`, `pauseRun`, `resumeRun` (derived when left
      *  out), each one event or a list. Absent: nothing starts it (the class toggle waits). */
     playUsingActionTriggers?: Exclude<SvgAnimationPlayerProps['playUsingActionTriggers'], boolean>;
     /** The visibility gate's numbers, as in `SvgAnimationPlayer`'s `timelineOptions`: how much must be on screen
@@ -61,7 +61,7 @@ type AssertNever<T extends never> = T;
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer playUsingActionTriggers={{ start: 'hoverIn', pause: 'hoverOut' }}>
+ * <SvgCssAnimationPlayer playUsingActionTriggers={{ startRun: 'hoverIn', pauseRun: 'hoverOut' }}>
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```
@@ -71,8 +71,8 @@ type AssertNever<T extends never> = T;
  * - `px-anim-enabled`                   — paused
  * - `px-anim-enabled px-anim-playing`   — playing
  *
- * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
- * `pause` (resume is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `startRun`, `stopRun`,
+ * `pauseRun` (`resumeRun` is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
  * (`createVisibilityGate`), so the two players cannot drift. No `playUsingActionTriggers`, or an empty block: nothing
  * starts it.
@@ -87,14 +87,14 @@ const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, styl
     // one rule with the JSON player: the lists normalised, the gate defaulted
     const resolved = resolveTriggers(playUsingActionTriggers);
     const gateConfig = resolveGate({ actions, inViewThreshold: timelineOptions?.inViewThreshold, inViewDebounce: timelineOptions?.inViewDebounce });
-    const playsOnLoad = resolved.start.includes(PxTriggerEvent.load);
+    const playsOnLoad = resolved.startRun.includes(PxTriggerEvent.load);
 
-    const [state, setState] = useState<PxPlayState>(PxPlayState.idle);
+    const [state, setState] = useState<PxRunState>(PxRunState.off);
 
     const ref = useRef<HTMLDivElement>(null);
     // The gate is built once per configuration and asks for the CURRENT state, which a closure
     // over `state` could not give it.
-    const stateRef = useRef<PxPlayState>(state);
+    const stateRef = useRef<PxRunState>(state);
     stateRef.current = state;
     const gateRef = useRef<PxVisibilityGate | null>(null);
 
@@ -102,11 +102,11 @@ const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, styl
         const el = ref.current;
         if (!el) return;
         const gate = createVisibilityGate(el, gateConfig, {
-            isPlaying: () => stateRef.current === PxPlayState.playing,
-            start: () => setState(PxPlayState.playing),
-            hold: () => setState(PxPlayState.paused),
-            release: () => setState(PxPlayState.playing),
-            jumpToStart: () => setState(PxPlayState.idle),
+            isPlaying: () => stateRef.current === PxRunState.playing,
+            start: () => setState(PxRunState.playing),
+            hold: () => setState(PxRunState.paused),
+            release: () => setState(PxRunState.playing),
+            jumpToStart: () => setState(PxRunState.off),
         });
         gateRef.current = gate;
         // Only `load` is held by the gate; a hover or a click is aimed at something already seen.
@@ -121,12 +121,13 @@ const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, styl
     /** The state rule — the player's own, on the class state. */
     const fire = (event: PxTriggerEvent): void => {
         switch (triggerActionFor(resolved, stateRef.current, event)) {
-            case PxTriggerAction.play:
+            case PxTriggerAction.startRun:
                 if (gateRef.current) gateRef.current.requestStart(true);
-                else setState(PxPlayState.playing);
+                else setState(PxRunState.playing);
                 break;
-            case PxTriggerAction.pause: setState(PxPlayState.paused); break;
-            case PxTriggerAction.stop: setState(PxPlayState.idle); break;
+            case PxTriggerAction.resumeRun: setState(PxRunState.playing); break;
+            case PxTriggerAction.pauseRun: setState(PxRunState.paused); break;
+            case PxTriggerAction.stopRun: setState(PxRunState.off); break;
         }
     };
 
@@ -141,8 +142,8 @@ const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, styl
             ref={ref}
             className={[
                 className,
-                state === PxPlayState.playing ? 'px-anim-enabled px-anim-playing' :
-                    state === PxPlayState.paused ? 'px-anim-enabled' : ''
+                state === PxRunState.playing ? 'px-anim-enabled px-anim-playing' :
+                    state === PxRunState.paused ? 'px-anim-enabled' : ''
             ].filter(Boolean).join(' ')}
             style={style}
             {...handlers}

@@ -12,21 +12,21 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The triggers do not list `load`.** Check `animator.timeline.actionTriggers.start` in the file (or *Play
+**The triggers do not list `load`.** Check `animator.timeline.actionTriggers.startRun` in the file (or *Play
 on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an absent or empty block (`{}`)
-waits for you to call `play()` — since schema 1.17 a file that plays by itself says `start: 'load'`,
+waits for you to call `startRun()` — since schema 1.17 a file that plays by itself says `startRun: 'load'`,
 an absent block no longer means load (stamped files were migrated; a hand-written file without a
 version stamp has to say it). Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
-that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `play`,
-`pause`, `playState`, `showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
+that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `playRun`,
+`showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
 change the mode.
 
-**React / Vue component with no control prop.** With none of `playUsingActionTriggers` / `play` /
-`pause` / `playState` / `showAtProgress` / `showAtTime` set, the component deliberately renders the
+**React / Vue component with no control prop.** With none of `playUsingActionTriggers` / `playRun` /
+`showAtProgress` / `showAtTime` set, the component deliberately renders the
 first frame and does nothing. Add `playUsingActionTriggers`. `playerRef` on its own is such a case: the ref is a handle, not an
-instruction, so nothing moves until you call `play()` on it.
+instruction, so nothing moves until you call `startRun()` on it.
 
 **`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only
@@ -36,7 +36,7 @@ creates players for elements that do not have a player yet.
 `PX1003` when the request failed — a network or CORS error is the usual cause — or `PX1002` when the
 file loaded but is not an animation document: the JSON must have `"type": "svg"` at the root (both on
 [the codes page](../diagnostics.md#building-a-player)). Calls made before the load finishes are
-queued, so `play()` is not lost.
+queued, so `startRun()` is not lost.
 
 **Scroll trigger never fires.** The element may already be fully in view at load (then it
 starts immediately), or `inViewThreshold` may be higher than the element can ever
@@ -61,13 +61,26 @@ component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
 
+**`play` / `pause` / `playState` is not a prop; `stop()` / `playOnce()` / `getPlayState()` is not a function;
+`onPlay` / `onStop` never fires; `actions.finish` is dropped.** Renamed in 1.24 — the run model: the three
+props are ONE lever, `playRun="off" | "on" | "paused"` (a change of position presses one button); the handle's
+buttons are `startRun()` · `stopRun()` · `pauseRun()` · `resumeRun()` (`play()` and `pause()` stay as aliases,
+`stop()` is `stopRun()`, `playOnce()` is `runOnce()`); the state read is `getRunState()` — `off` · `playing` ·
+`paused` · `finished` · `returning` · `destroyed` (`idle` is `off`) — plus `isRunActive()`; the callbacks are
+`onRunStart` / `onRunResume` (both were `onPlay`), `onRunPause` (the gate's hold no longer reports), `onRunStop`;
+the Vue events `runStart` · `runResume` · `runPause` · `runStop`; the registry events likewise. In the file,
+`actionTriggers` and `actions` keys are `startRun` · `stopRun` · `pauseRun` · `resumeRun` (the values are
+unchanged), and `actions.finish` is the timeline key `atEnd` (`"timeline": { "atEnd": "hold" }`). Types:
+`PxPlayState` → `PxRunState`, `PxStartBehavior` / `PxStopBehavior` / `PxFinishBehavior` → `PxStartRunBehavior` /
+`PxStopRunBehavior` / `PxAtEndBehavior`, `PxPlayStateRequest` → `PxPlayRun`. Stamped files are migrated on read.
+
 **`setPlaySpeed` / `reset` / `onReset` is not there; `playWhile` is not a prop.** Renamed in 1.22 / 1.23:
 `setPlaybackSpeed(s)` (with `getPlaybackSpeed()`), `get/setPlaybackDuration()`, `getTotalPlaybackDuration()`,
 `getCurrentPlaybackTime()`; `reset()` is `jumpToStart()` (it reports nothing — `onReset` is gone; the
-state is `getPlayState() === 'idle'`); `onWarn` is `onWarning`; the component props `playWhile` /
-`pauseWhile` are back to `play` / `pause` (or one `playState`); `timelineOptions.playSpeed` is
+state is `getRunState() === 'off'`); `onWarn` is `onWarning`; the component props `playWhile` /
+`pauseWhile` went back to `play` / `pause` (or one `playState`) — one `playRun` lever since 1.24; `timelineOptions.playSpeed` is
 `playbackSpeed`; the action words `reset` / `rewind` / `restart` are `jumpToStart` / `animateToStart` /
-`jumpToStart`, and `stop.completeIteration: true` is `stop: 'animateToEnd'`; the types `PxPatch` /
+`jumpToStart`, and `stop.completeIteration: true` is `stopRun: 'animateToEnd'`; the types `PxPatch` /
 `PxTimelinePatch` / `PxActionsPatch` are `PxRecursivePartial` / `PxTimelineOptions` / `PxActionsOptions`,
 and `null` no longer deletes a key — set the value you want. Stamped files are migrated on read.
 
@@ -77,7 +90,7 @@ is `PxDocumentJson`. `getCurrentTime()` / `setCurrentTime()` and `getCurrentProg
 position INSIDE the current iteration — the run is `getTotalTime()` / `getTotalDuration()`.
 
 **Two control props do not compile together.** Expected: `PxControlProps` takes ONE driver family at a
-time — `showAtProgress` · `showAtTime` · `play` + `pause` · `playState` · `playUsingActionTriggers`.
+time — `showAtProgress` · `showAtTime` · `playRun` · `playUsingActionTriggers`.
 Pick the one that drives; from JavaScript the highest-priority family wins with a warning (PX1501).
 
 **A JSON import is flagged on `doc`.** It shouldn't be: `doc` is typed `PxDocumentJson`,
@@ -103,34 +116,34 @@ yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to go back to the start.** Set `timeline.actions.finish: "jumpToStart"` —
-at its end the animation jumps back to the idle pose (`"animateToStart"` plays back to it instead; the
-default `"hold"` keeps the last frame). The idle pose is the SVG as authored; a hand-authored
+**It holds the last frame — I want it to go back to the start.** Set `timeline.atEnd: "jumpToStart"` —
+at its end the animation jumps back to the rest pose (`"animateToStart"` plays back to it instead; the
+default `"hold"` keeps the last frame). The rest pose is the SVG as authored; a hand-authored
 file whose static attributes differ from its first keyframe can show the first frame instead with
 `timeline.whenIdle: "firstFrame"`
-(see [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
-For one mount only, pass the same thing as an override: `actions={{ finish: 'jumpToStart' }}`.
+(see [The end of the pass](./playback-and-triggers.md#the-end-of-the-pass--atend)).
+For one mount only, pass the same thing as an override: `timelineOptions={{ atEnd: 'jumpToStart' }}`.
 
-**How do I stop after the current pass, not mid-beat?** `actions: { stop: 'animateToEnd' }` — a stop
-plays on to the end of the pass, and arriving there runs `actions.finish` (`hold` rests there).
+**How do I stop after the current pass, not mid-beat?** `actions: { stopRun: 'animateToEnd' }` — a stop
+plays on to the end of the pass, and arriving there runs `atEnd` (`hold` rests there).
 
-**How do I play backwards?** `player.setPlaybackSpeed(-1); player.play();` (on a `reverse` pass the two
-multiply, so it plays forwards) — or let a stop play back by itself: `actions: { stop: 'animateToStart' }`
-in the timeline, with the event that stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and
-`play={false}` play back the same way.
+**How do I play backwards?** `player.setPlaybackSpeed(-1); player.startRun();` (on a `reverse` pass the two
+multiply, so it plays forwards) — or let a stop play back by itself: `actions: { stopRun: 'animateToStart' }`
+in the timeline, with the event that stops it listed in the triggers (`stopRun: 'hoverOut'`); `stopRun()` and
+`playRun="off"` play back the same way (the state reads `returning` on the way).
 
 **How do I play faster or slower?** `timeline.playbackSpeed` in the file (`2` = twice as fast), the same
 key in `timelineOptions`, or `setPlaybackSpeed(2)` on the handle — `setPlaybackDuration(ms)` asks for the same
-thing as a length. A speed of `0` is rejected: `pause()` is how you stop. On a scroll or view timeline
+thing as a length. A speed of `0` is rejected: `pauseRun()` is how you stop. On a scroll or view timeline
 the scroll position owns the playhead, so the playback calls do nothing there (PX1505).
 
 **A trigger event does nothing, or the console warns about the triggers.** Each list names only
-the events that make sense for it — `start` never `hoverOut`, `stop` never `load` or `hoverIn`,
-`pause` and `resume` never `load` — and any other event is ignored (PX1110). What resumes a
-pause is derived unless the file names it (the counterpart of the `pause` event, plus the `start`
-events that do not stop it); a named `resume` list is honoured as written, and the player notes
-where it differs from that derivation (PX1111); `stop` on the
-same event as `pause`, or on its counterpart, collides (PX1109) — all three on
+the events that make sense for it — `startRun` never `hoverOut`, `stopRun` never `load` or `hoverIn`,
+`pauseRun` and `resumeRun` never `load` — and any other event is ignored (PX1110). What resumes a
+pause is derived unless the file names it (the counterpart of the `pauseRun` event, plus the `startRun`
+events that do not stop it); a named `resumeRun` list is honoured as written, and the player notes
+where it differs from that derivation (PX1111); `stopRun` on the
+same event as `pauseRun`, or on its counterpart, collides (PX1109) — all three on
 [the codes page](../diagnostics.md#what-the-document-says). See
 [Which events each list may name](./playback-and-triggers.md#which-events-each-list-may-name).
 

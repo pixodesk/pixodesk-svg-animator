@@ -13,7 +13,7 @@ import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
  *
  * Like lottie-web's `getRegisteredAnimations()`: a dev tool, a test, or a "pause everything
  * while the tab is hidden" can reach every player without holding on to each `createSvgAnimationPlayer`
- * result. A player joins when it is built and leaves on `destroy()`; play / pause / cancel /
+ * result. A player joins when it is built and leaves on `destroy()`; the four run events and the
  * finish are announced to subscribers.
  *
  * ONE registry per window, whatever the bundling: the store hangs off `globalThis` under a
@@ -27,8 +27,8 @@ import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
  * docs/library/web-player.md ("Every player on the page").
  */
 
-/** What changed for a player in the page-wide registry. Experimental — may change. @public */
-export type PxAnimationPlayersEvent = 'add' | 'remove' | 'play' | 'pause' | 'stop' | 'finish';
+/** What changed for a player in the page-wide registry — the player callbacks' set, as words. Experimental — may change. @public */
+export type PxAnimationPlayersEvent = 'add' | 'remove' | 'runStart' | 'runStop' | 'runPause' | 'runResume' | 'finish';
 
 /** Called for every {@link PxAnimationPlayersEvent} of every player in the window. Experimental — may change. @public */
 export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animator: PxAnimationPlayerApi) => void;
@@ -37,7 +37,7 @@ export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animat
 export interface PxAnimationPlayerRegistry {
     /** Every live player, in creation order. */
     getAll(): ReadonlyArray<PxAnimationPlayerApi>;
-    /** Announcements of add / remove / play / pause / stop / finish — the player callbacks' set; returns the unsubscribe. */
+    /** Announcements of add / remove / runStart / runStop / runPause / runResume / finish — the player callbacks' set; returns the unsubscribe. */
     subscribe(listener: PxAnimationPlayersListener): () => void;
 }
 
@@ -113,7 +113,7 @@ export function registerAnimator(animator: PxAnimationPlayerApi): void {
 }
 
 /**
- * @internal The engine callbacks with the registry listening in: each of the caller's own
+ * @internal The player callbacks with the registry listening in: each of the caller's own
  * handlers still runs first. `api()` resolves the animator lazily — the callbacks are built
  * before it exists.
  */
@@ -121,9 +121,10 @@ export function withRegistryEvents(callbacks: PxPlayerCallbacks | undefined, api
     const fire = (event: PxAnimationPlayersEvent): void => { const a = api(); if (a) notify(event, a); };
     return {
         ...callbacks,
-        onPlay: () => { callbacks?.onPlay?.(); fire('play'); },
-        onPause: () => { callbacks?.onPause?.(); fire('pause'); },
-        onStop: () => { callbacks?.onStop?.(); fire('stop'); },
+        onRunStart: () => { callbacks?.onRunStart?.(); fire('runStart'); },
+        onRunStop: () => { callbacks?.onRunStop?.(); fire('runStop'); },
+        onRunPause: () => { callbacks?.onRunPause?.(); fire('runPause'); },
+        onRunResume: () => { callbacks?.onRunResume?.(); fire('runResume'); },
         onFinish: () => { callbacks?.onFinish?.(); fire('finish'); },
     };
 }

@@ -48,7 +48,7 @@ describe('the content window (§4)', () => {
 
     it('playbackSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
         // window 1000 ms at speed 0.5: after 500 real ms, content time 250
-        const api = createSvgAnimationPlayer({ doc: windowDoc({ playbackSpeed: 0.5, actionTriggers: { start: 'load' } }), container: '#box', playUsingActionTriggers: true });
+        const api = createSvgAnimationPlayer({ doc: windowDoc({ playbackSpeed: 0.5, actionTriggers: { startRun: 'load' } }), container: '#box', playUsingActionTriggers: true });
         vi.advanceTimersByTime(500);
         expect(api.getPlaybackSpeed()).toBe(0.5);
         expect(api.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real

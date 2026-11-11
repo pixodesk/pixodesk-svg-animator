@@ -108,28 +108,43 @@ describe('createSvgAnimationPlayer', () => {
         expect(api.getCurrentTime()).toBe(DUR / 2);
     });
 
-    it('takes the callbacks INLINE; onStop fires on the built-in stop only — a pause is onPause, the end pose onFinish', () => {
-        const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onStop = vi.fn();
+    it('a load trigger on an ungated document reports onRunStart — the listeners are attached before the engine presses the first button', () => {
+        const onRunStart = vi.fn();
+        const doc = makeDoc();
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: { startRun: 'load' }, actions: { outOfView: 'continue' } } };
+        const api = createSvgAnimationPlayer({ doc, container: '#svg-container', playUsingActionTriggers: true, onRunStart });
+        window.dispatchEvent(new Event('load'));     // a no-op when the document was already complete at creation
+
+        expect(api.isPlaying()).toBe(true);
+        expect(onRunStart).toHaveBeenCalledTimes(1);
+    });
+
+    it('takes the callbacks INLINE; onRunStop fires on the built-in stop only — a pause is onRunPause, a resume onRunResume, the end pose onFinish', () => {
+        const onRunStart = vi.fn(), onRunPause = vi.fn(), onRunResume = vi.fn(), onFinish = vi.fn(), onRunStop = vi.fn();
         const doc = makeDoc();
         doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: {} } };
-        const api = createSvgAnimationPlayer({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
+        const api = createSvgAnimationPlayer({ doc, container: '#svg-container', onRunStart, onRunPause, onRunResume, onFinish, onRunStop });
 
-        api.play();
-        expect(onPlay).toHaveBeenCalledTimes(1);
-        expect(onStop).not.toHaveBeenCalled();
+        api.startRun();
+        expect(onRunStart).toHaveBeenCalledTimes(1);
+        expect(onRunStop).not.toHaveBeenCalled();
 
-        api.pause();
-        expect(onPause).toHaveBeenCalledTimes(1);
-        expect(onStop).not.toHaveBeenCalled();     // a pause is not a stop
+        api.pauseRun();
+        expect(onRunPause).toHaveBeenCalledTimes(1);
+        expect(onRunStop).not.toHaveBeenCalled();     // a pause is not a stop
+
+        api.play();                                   // the alias: a resume
+        expect(onRunResume).toHaveBeenCalledTimes(1);
+        expect(onRunStart).toHaveBeenCalledTimes(1);
 
         api.jumpToEnd();
         expect(onFinish).toHaveBeenCalledTimes(1);
-        expect(onStop).not.toHaveBeenCalled();     // nor is the end pose
+        expect(onRunStop).not.toHaveBeenCalled();     // nor is the end pose
 
-        api.stop();
-        expect(onStop).toHaveBeenCalledTimes(1);   // the configured stop — this one
+        api.stopRun();
+        expect(onRunStop).toHaveBeenCalledTimes(1);   // the configured stop — this one
         api.jumpToStart();
-        expect(onStop).toHaveBeenCalledTimes(1);   // reset-now bypasses the stop action
+        expect(onRunStop).toHaveBeenCalledTimes(1);   // reset-now bypasses the stop action
     });
 
     it('playUsingActionTriggers: a document with no trigger block waits — absent ≡ {} ≡ manual (1.17)', () => {
@@ -161,7 +176,7 @@ describe('createSvgAnimationPlayer', () => {
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
-        const api = createSvgAnimationPlayer({ src: 'anim.json', onPlay, container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ src: 'anim.json', onRunStart: onPlay, container: '#svg-container' });
 
         // Not loaded yet: getters return their "not ready" values.
         expect(api.isReady()).toBe(false);
@@ -412,7 +427,7 @@ describe('createSvgAnimationPlayersFromPage', () => {
 
         // One trigger block for every player — start on click, not on load — plus an inline callback: both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ playUsingActionTriggers: { start: 'click' }, onPlay });
+        createSvgAnimationPlayersFromPage({ playUsingActionTriggers: { startRun: 'click' }, onRunStart: onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))

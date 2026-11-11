@@ -66,9 +66,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { behavior: "hold" } },
+                atEnd: "hold",
                 iterationDirection: "normal",
-                actionTriggers: { start: "load" },
+                actionTriggers: { startRun: "load" },
             },
         },
 
