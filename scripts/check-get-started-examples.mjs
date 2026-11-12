@@ -83,18 +83,22 @@ if (!LOCAL) {
         process.exit(0);
     }
     // Same version string is not the same code: after a release the tree keeps that version while
-    // commits land on top, and the examples follow the workspace API. The release tag says whether
-    // this tree IS that release. No tag reachable (shallow clone, no git) — run the check.
+    // commits land on top, and the examples follow the workspace API. So this check is answerable
+    // only when the tree IS the published release, which the release tag on HEAD says.
+    //
+    // `git tag --points-at HEAD` on purpose: it compares tag targets to HEAD and needs no other
+    // commit object, so it still answers in the depth-1 clone `actions/checkout` makes — unlike
+    // `rev-parse refs/tags/vX^{commit}`, which cannot peel a tag whose commit was never fetched.
+    // And when it cannot be proven (no git, tags not fetched) the check is SKIPPED, not run: a
+    // verdict that cannot be trusted is worse than no verdict, and `--local` covers the examples
+    // against the release about to ship either way.
     if (published === local) {
-        let tagged, head;
+        let tags = '';
         try {
-            const git = c => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-            tagged = git(`git rev-parse -q --verify "refs/tags/v${local}^{commit}"`);
-            head = git('git rev-parse HEAD');
-        } catch { /* fall through: cannot tell, so check */ }
-        if (tagged && head && tagged !== head) {
-            console.log(`\nSKIPPED — v${local} is published, but this tree is not that release`);
-            console.log(`(HEAD ${head.slice(0, 7)} is not the v${local} tag ${tagged.slice(0, 7)}).`);
+            tags = execSync('git tag --points-at HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+        } catch { /* no git here — cannot prove it */ }
+        if (!tags.split('\n').map(t => t.trim()).includes(`v${local}`)) {
+            console.log(`\nSKIPPED — v${local} is published, but this tree is not that release (HEAD carries no v${local} tag).`);
             console.log('The examples follow the workspace API, so they can only be checked against a published version.');
             console.log('Bump the version for the next release, or check what is about to ship with:  pnpm check:get-started --local');
             process.exit(0);
