@@ -3,23 +3,26 @@
 Status **2026-10-25 — planning.** Decisions land here; the trying and the findings stay in
 [../reviews/react-api-hands-on.md](../reviews/react-api-hands-on.md).
 
-> **Since 1.24 (2026-11-11) — the run model.** The words below moved; this document keeps the ones it was written
-> with (`dev-docs/plans/animation-state.brainstorm.md` §0 is the ledger). File `actionTriggers` / `actions` keys
-> `start` · `stop` · `pause` · `resume` → `startRun` · `stopRun` · `pauseRun` · `resumeRun` (values unchanged;
-> `resumeRun` still derived); `actions.finish` → the timeline key `atEnd`; props `play` / `pause` / `playState` →
-> one `playRun="off" | "on" | "paused"`; handle `play()` → `startRun()` (+ `stopRun()` · `pauseRun()` · `resumeRun()`;
-> `play()` / `pause()` stay as aliases), `stop()` → `stopRun()`, `playOnce()` → `runOnce()`, `getPlayState()` →
-> `getRunState()` (`idle` → `off`, new `returning`), new `isRunActive()`; callbacks `onPlay` → `onRunStart` +
-> `onRunResume`, `onPause` → `onRunPause`, `onStop` → `onRunStop`; types `PxPlayState` → `PxRunState`,
-> `Px{Start,Stop,Finish}Behavior` → `PxStartRunBehavior` / `PxStopRunBehavior` / `PxAtEndBehavior`,
-> `PxPlayStateRequest` → `PxPlayRun`; `playStateToLevels` and PX1502 retired.
+> **Since 1.24–1.25 (2026-11-11) — the playback model.** The words below moved; this document keeps the ones it was written
+> with (`animation-state.brainstorm.md` §0 and `animation-state.playback-noun.md` are the ledger; 1.24 spelt the
+> noun `Run`; `animation-state.playback-namespace.md` moved the handle under `player.playback`). File `actionTriggers` /
+> `actions` keys `start` · `stop` · `pause` · `resume` → `"playback.start"` · `"playback.stop"` · `"playback.pause"` ·
+> `"playback.resume"` (values unchanged; `playback.resume` still derived); `actions.finish` → the timeline key `atEnd`;
+> props `play` / `pause` / `playState` → one `playback="off" | "on" | "paused"`; handle — everything on `player.playback`:
+> `play()` → `playback.start()` (+ `playback.stop()` · `playback.pause()` · `playback.resume()`; no aliases), `stop()` →
+> `playback.stop()`, `playOnce()` → `playback.playOnce()`, `getPlayState()` → `playback.getState()` (`idle` → `off`, new
+> `returning`), new `playback.isActive()`, the time reads under `playback.` (`getPlaybackSpeed()` → `playback.getSpeed()`,
+> `getPlaybackDuration()` → `playback.getDurationAtSpeed()` …); callbacks `onPlay` → `onPlaybackStart` +
+> `onPlaybackResume`, `onPause` → `onPlaybackPause`, `onStop` → `onPlaybackStop`; types `PxPlayState` → `PxPlaybackState`,
+> `Px{Start,Stop,Finish}Behavior` → `PxStartPlaybackBehavior` / `PxStopPlaybackBehavior` / `PxAtEndBehavior`,
+> `PxPlayStateRequest` → `PxPlayback`; `playStateToLevels` and PX1502 retired.
 
 > **Since 1.21 (2026-11-04)** — the shipped names differ from this plan's where the manual review
 > (`../reviews/schema-and-props--manual-review.md`) decided otherwise: `playDuration` → `playSpeed` (a factor, 1.16);
 > an absent `actionTriggers` block ≡ `{}` — nothing starts it, autoplay is written `start: 'load'` (1.17);
 > `jumpToFinished` → `jumpToEnd` (1.18); `showWhenStopped` → `whenIdle`, `PxPlayState.stopped` → `idle` (1.19); the
 > `play` / `pause` props → `playWhile` / `pauseWhile` + a `playState` word; `showAtTime` / `showAtProgress` are of ONE
-> iteration; `PxDocumentInput` → `PxDocumentJson`; the handle gained the `play…` (real time) and `total…` (whole run)
+> iteration; `PxDocumentInput` → `PxDocumentJson`; the handle gained the `play…` (real time) and `total…` (whole playback)
 > families. The "Was / Now" table and the TODO rows below are history as written. Scope: the shapes the four
 surfaces share — React, Vue, React Native, the web `createSvgAnimationPlayer` — and the CSS
 components; kf consumes all of them. Nothing here is implemented.
@@ -188,7 +191,7 @@ definition — not in a new container.
 "timeline": {
   "type": "time", "engine": "auto", "frameRate": 60,                           // ── the kind, the engine
   "inTime": 0, "outTime": 1200, "playDuration": 1200, "delay": 0,               // ── the content window and its timing
-  "iterations": "infinite", "iterationDirection": "normal",                     // ── the run
+  "iterations": "infinite", "iterationDirection": "normal",                     // ── the playback
   "playStartAction": "resume",                                                     // ── play: on, off, end
   "playStopAction": "reset", "completeIterationOnPlayStop": true,
   "playFinishAction": "hold",
@@ -206,10 +209,10 @@ hover-in or click, off on hover-out.
 | `frameRate` | number | frames per second for the frames mode |
 | `inTime` / `outTime` | ms; 0 / the content's end | the content window — one pass plays it |
 | `playDuration` | ms; the window's length | the window remapped to wall time |
-| `delay` | ms, 0; negative skips ahead | waited whenever a run starts from the beginning — the first play, a `restart`, a `resume` after a reset or an end — never on a resume from a paused position |
+| `delay` | ms, 0; negative skips ahead | waited whenever a playback starts from the beginning — the first play, a `restart`, a `resume` after a reset or an end — never on a resume from a paused position |
 | `iterations` | 1 · n · `infinite` | how many passes |
 | `iterationDirection` (was `direction`) | `normal` · `reverse` · `alternate` · `alternateReverse` | each iteration's direction (`reverse` applies to a single pass too — still one iteration) |
-| `playStartAction` | `resume` · `restart` · `jumpToEnd` | what a play-start does: continue from the current position (at the start or the end, that is a fresh run from the beginning); from the beginning always; or show the end with no motion |
+| `playStartAction` | `resume` · `restart` · `jumpToEnd` | what a play-start does: continue from the current position (at the start or the end, that is a fresh playback from the beginning); from the beginning always; or show the end with no motion |
 | `playStopAction` | `reset` · `rewind` | what a play-stop does: jump back to the state as before it started, or play back to it (`rewind` — the VCR word, never confused with `iterationDirection: reverse`) |
 | `completeIterationOnPlayStop` | false · true | WHEN the play-stop takes effect: now, or after the current iteration (a one-shot runs to its end). Orthogonal to the action: `rewind` after completion plays back from there — finish the motion, then undo it smoothly |
 | `playFinishAction` (absorbs `finish` and the after-half of `fillMode`) | `hold` · `reset` · `rewind` | when it ends by itself: keep the last frame, jump back, or play back |

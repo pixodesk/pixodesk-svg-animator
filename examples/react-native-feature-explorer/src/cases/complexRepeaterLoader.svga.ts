@@ -14,7 +14,7 @@ export const complexRepeaterLoader: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 3750,
             "actionTriggers": {
-                "startRun": "load"
+                "playback.start": "load"
             },
             "actions": {
                 "outOfView": {

@@ -8,10 +8,10 @@ function App() {
   return (
     <>
       <div className="controls">
-        <button onClick={() => api.current?.startRun()}>startRun()</button>
-        <button onClick={() => api.current?.pauseRun()}>pauseRun()</button>
-        <button onClick={() => api.current?.jumpToStart()}>jumpToStart()</button>
-        <button onClick={() => api.current?.jumpToEnd()}>jumpToEnd()</button>
+        <button onClick={() => api.current?.playback.start()}>playback.start()</button>
+        <button onClick={() => api.current?.playback.pause()}>playback.pause()</button>
+        <button onClick={() => api.current?.playback.jumpToStart()}>playback.jumpToStart()</button>
+        <button onClick={() => api.current?.playback.jumpToEnd()}>playback.jumpToEnd()</button>
       </div>
       <div className="stage">
         <SvgAnimationPlayer doc={animation as any} playerRef={api} />

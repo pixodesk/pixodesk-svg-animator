@@ -11,23 +11,23 @@ import { toEngineCallbacks, toPlayerCallbacks } from './PxAnimatorCallbacks';
 describe('toPlayerCallbacks / toEngineCallbacks', () => {
 
     it('toPlayerCallbacks passes each lifecycle callback through', () => {
-        const onRunStart = vi.fn(), onRunPause = vi.fn(), onRunResume = vi.fn(), onRunStop = vi.fn(), onFinish = vi.fn(), onDestroy = vi.fn();
-        const out = toPlayerCallbacks({ onRunStart, onRunPause, onRunResume, onRunStop, onFinish, onDestroy });
+        const onPlaybackStart = vi.fn(), onPlaybackPause = vi.fn(), onPlaybackResume = vi.fn(), onPlaybackStop = vi.fn(), onFinish = vi.fn(), onDestroy = vi.fn();
+        const out = toPlayerCallbacks({ onPlaybackStart, onPlaybackPause, onPlaybackResume, onPlaybackStop, onFinish, onDestroy });
 
-        out.onRunStart?.(); out.onRunPause?.(); out.onRunResume?.(); out.onRunStop?.(); out.onFinish?.(); out.onDestroy?.();
+        out.onPlaybackStart?.(); out.onPlaybackPause?.(); out.onPlaybackResume?.(); out.onPlaybackStop?.(); out.onFinish?.(); out.onDestroy?.();
 
-        for (const fn of [onRunStart, onRunPause, onRunResume, onRunStop, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
+        for (const fn of [onPlaybackStart, onPlaybackPause, onPlaybackResume, onPlaybackStop, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
     });
 
-    it('the run events never reach an ENGINE — they are the executor\'s to fire; the engine gets the end, the teardown and the diagnostics', () => {
-        const onRunStart = vi.fn(), onRunStop = vi.fn(), onFinish = vi.fn();
-        const out = toEngineCallbacks({ onRunStart, onRunStop, onFinish });
+    it('the playback events never reach an ENGINE — they are the executor\'s to fire; the engine gets the end, the teardown and the diagnostics', () => {
+        const onPlaybackStart = vi.fn(), onPlaybackStop = vi.fn(), onFinish = vi.fn();
+        const out = toEngineCallbacks({ onPlaybackStart, onPlaybackStop, onFinish });
         expect(out.onPlay).toBeUndefined();
         expect(out.onPause).toBeUndefined();
         expect(out.onFinish).toBe(onFinish);
-        expect(Object.keys(out)).not.toContain('onRunStart');
-        expect(onRunStart).not.toHaveBeenCalled();
-        expect(onRunStop).not.toHaveBeenCalled();
+        expect(Object.keys(out)).not.toContain('onPlaybackStart');
+        expect(onPlaybackStart).not.toHaveBeenCalled();
+        expect(onPlaybackStop).not.toHaveBeenCalled();
     });
 
     it('makes NO wrapper when the callback is not given', () => {

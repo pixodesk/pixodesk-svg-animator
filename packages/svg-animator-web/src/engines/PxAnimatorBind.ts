@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
-import { composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, withoutTriggerDriver, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, withoutTriggerDriver, PxPlaybackWrite, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -42,18 +42,18 @@ export function finaliseAnimator(
     let executor: PxPlayExecutor | undefined;
     const engineCallbacks: PxEngineCallbacks = {
         ...toEngineCallbacks(callbacks),
-        // the run events ride along for the executor the engine's own triggers press (a `load` start happens inside
+        // the playback events ride along for the executor the engine's own triggers press (a `load` start happens inside
         // `make`, before `composeApiExtras` could attach them); the engine never fires them itself
-        runListeners: callbacks,
+        playbackListeners: callbacks,
         onFinish: () => {
             callbacks?.onFinish?.();
             executor?.onNaturalFinish();
         },
     };
 
-    // the four buttons, the aliases and `runOnce()` are composed ON TOP of the engine — the one shared rule (review
-    // §10, D5); the run events are the executor's to tell (when it performs the act), never the engine's
-    const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, runListeners: callbacks }, webRaf);
+    // `playback` (the four buttons, `playOnce()`, the reads) is composed ON TOP of the engine — the one shared rule (review
+    // §10, D5); the playback events are the executor's to tell (when it performs the act), never the engine's
+    const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, playbackListeners: callbacks }, webRaf);
     executor = res.playExecutor;
 
     // the file's `playbackSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
@@ -160,16 +160,15 @@ export function bindWithEngineChoice(
 /** On a scroll / view timeline the scroll position owns the playhead: the playback verbs are no-ops that say so
  *  (PX1505 `scrollOwnsPlayhead`); seeks still apply until the next scroll moves the playhead. */
 function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxAnimationPlayerApi): PxAnimationPlayerApi {
-    const ignored = (call: string) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
-    api.startRun = ignored('startRun()');
-    api.stopRun = ignored('stopRun()');
-    api.pauseRun = ignored('pauseRun()');
-    api.resumeRun = ignored('resumeRun()');
-    api.play = ignored('play()');
-    api.pause = ignored('pause()');
-    api.runOnce = ignored('runOnce()');
-    api.setPlaybackSpeed = ignored('setPlaybackSpeed()');
-    api.setPlaybackDuration = ignored('setPlaybackDuration()');
+    const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
+    const playback = api.playback;
+    playback.start = ignored(PxPlaybackWrite.start);
+    playback.stop = ignored(PxPlaybackWrite.stop);
+    playback.pause = ignored(PxPlaybackWrite.pause);
+    playback.resume = ignored(PxPlaybackWrite.resume);
+    playback.playOnce = ignored(PxPlaybackWrite.playOnce);
+    playback.setSpeed = ignored(PxPlaybackWrite.setSpeed);
+    playback.setDurationAtSpeed = ignored(PxPlaybackWrite.setDurationAtSpeed);
     return api;
 }
 
@@ -240,7 +239,7 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerO
 /**
  * The page-wide registry (`getAllSvgAnimationPlayers()`) for the pre-rendered builds: the returned
  * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
- * the run events and the finish through the callbacks the player is given.
+ * the playback events and the finish through the callbacks the player is given.
  */
 function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxPlayerCallbacks) => PxAnimationPlayerApi): PxAnimationPlayerApi {
     let apiRef: PxAnimationPlayerApi | undefined;

@@ -10,4 +10,4 @@ const animator = createSvgAnimationPlayer({
   timelineOptions: { iterations: 'infinite' },
 });
 
-document.getElementById('play')!.onclick = () => animator.startRun();
+document.getElementById('play')!.onclick = () => animator.playback.start();

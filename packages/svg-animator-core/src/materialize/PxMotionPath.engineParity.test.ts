@@ -39,7 +39,7 @@ function poseAt(doc: PxDocument, engine: PxTimelineEngine, timeMs: number): { x:
         isConnected: () => true,
         setAttribute: (_id, attr, v) => { if (attr === 'transform') written = String(v); },
     });
-    api.setCurrentTime(timeMs);
+    api.playback.setCurrentTime(timeMs);
     const t = /translate\(([-\d.e]+),([-\d.e]+)\)/.exec(written);
     const r = /rotate\(([-\d.e]+)\)/.exec(written);
     return { x: t ? +t[1] : NaN, y: t ? +t[2] : NaN, rotate: r ? +r[1] : 0 };

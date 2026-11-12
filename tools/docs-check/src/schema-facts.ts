@@ -88,12 +88,18 @@ export class SchemaFacts {
         return [];
     }
 
-    /** The sub-schema at a dotted path, descending through arrays and records. */
+    /** The sub-schema at a dotted path, descending through arrays and records. A key may itself hold a dot (the
+     *  built-in action names, `playback.start`): each step takes the longest run of segments that names a key. */
     at(s: AnySchema, path: string): AnySchema | undefined {
         let cur: AnySchema | undefined = s;
-        for (const seg of path.split('.')) {
+        const segs = path.split('.');
+        for (let i = 0; i < segs.length;) {
             if (!cur) return undefined;
-            cur = this.child(cur, seg);
+            let next: AnySchema | undefined;
+            let used = 0;
+            for (let j = segs.length; j > i && !next; j--) { next = this.child(cur, segs.slice(i, j).join('.')); used = j - i; }
+            if (!next) return undefined;
+            cur = next; i += used;
         }
         return cur;
     }

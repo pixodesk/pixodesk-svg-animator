@@ -126,7 +126,7 @@ export function markFindings(facts: TsFacts): Array<Finding> {
                         const { audience } = audienceOf(facts.symbol(pkg, name)!);
                         if (!audience) continue;                             // tagFindings reports it
                         // a row may mark one of its names differently: `` `toDomProps` (○) ``
-                        const own = new RegExp('`' + name + '[^`]*`\\s*\\(([●○▪])\\)').exec(cell)?.[1];
+                        const own = new RegExp('`' + name + '(?![\\w$])[^`]*`\\s*\\(([●○▪])\\)').exec(cell)?.[1];   // the name whole: `PxPlayback` ≠ `PxPlaybackListeners`
                         const expected = own ?? mark;
                         if (MARK[audience] !== expected) {
                             out.push({ line: 0, message: `${file}:${row.line} — ${name}: this row is marked ${expected}, the declaration says ${TAG[audience]} (${MARK[audience]}) — fix whichever is wrong` });

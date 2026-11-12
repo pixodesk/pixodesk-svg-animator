@@ -68,7 +68,7 @@ function getTestJson(): PxDocument {
                 outTime: 128,
                 atEnd: "hold",
                 iterationDirection: "normal",
-                actionTriggers: { startRun: "load" },
+                actionTriggers: { "playback.start": "load" },
             },
         },
 

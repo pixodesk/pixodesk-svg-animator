@@ -26,13 +26,13 @@ describe('the playback contract — web engines', () => {
 
     it('a negative speed plays a `reverse` pass forwards — the two multiply', () => {
         const api = createSvgAnimationPlayer({ doc: doc({ iterationDirection: 'reverse' }), container: '#box' });
-        api.play();
+        api.playback.start();
         vi.advanceTimersByTime(400);
-        const before = api.getCurrentTime() ?? 0;
+        const before = api.playback.getCurrentTime() ?? 0;
         expect(before).toBeLessThan(700);                    // a reverse pass counts down from the end
-        api.setPlaybackSpeed(-1);
+        api.playback.setSpeed(-1);
         vi.advanceTimersByTime(200);
-        expect(api.getCurrentTime() ?? 0).toBeGreaterThan(before);   // reverse × −1: the frames run forwards
+        expect(api.playback.getCurrentTime() ?? 0).toBeGreaterThan(before);   // reverse × −1: the frames run forwards
         api.destroy();
     });
 
@@ -42,12 +42,12 @@ describe('the playback contract — web engines', () => {
             doc: doc({ type: 'scroll' }), container: '#box',
             onWarning: d => said.push(d),
         });
-        api.play();
-        api.setPlaybackSpeed(2);
+        api.playback.start();
+        api.playback.setSpeed(2);
         vi.advanceTimersByTime(200);
-        expect(api.isPlaying()).toBe(false);
-        expect(api.getPlaybackSpeed()).toBe(1);
-        expect(said.filter(d => d.code === PxDiagnosticCode.scrollOwnsPlayhead).map(d => d.data?.[0])).toEqual(['play()', 'setPlaybackSpeed()']);
+        expect(api.playback.isPlaying()).toBe(false);
+        expect(api.playback.getSpeed()).toBe(1);
+        expect(said.filter(d => d.code === PxDiagnosticCode.scrollOwnsPlayhead).map(d => d.data?.[0])).toEqual(['playback.start()', 'playback.setSpeed()']);
         api.destroy();
     });
 });

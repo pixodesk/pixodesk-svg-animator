@@ -10,6 +10,7 @@ import {
   type PxTriggerEvents,
 } from '@pixodesk/svg-animator-core';
 import { allowedTriggerEvents, resolveGate, resolveTriggers, type PxResolvedTriggers } from '@pixodesk/svg-animator-core/engine';
+import { PxTriggerList } from '@pixodesk/svg-animator-core';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
@@ -78,11 +79,12 @@ const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
 type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
 /** The trigger lists, with the editor's labels — typed by the resolved lists' own keys.
- *  No `resumeRun`: the player derives it from these three. */
-const TRIGGER_LISTS: Array<{ key: keyof PxResolvedTriggers; label: string }> = [
-  { key: 'startRun', label: 'Play on' },
-  { key: 'stopRun', label: 'Stop on' },
-  { key: 'pauseRun', label: 'Pause on' },
+ *  No `resumePlayback`: the player derives it from these three. */
+/** Each list: its wire name (`key`, the `actionTriggers` key — `"playback.start"` …) and its field in the resolved view. */
+const TRIGGER_LISTS: Array<{ key: PxTriggerList; field: keyof PxResolvedTriggers; label: string }> = [
+  { key: PxTriggerList.startPlayback, field: 'startPlayback', label: 'Play on' },
+  { key: PxTriggerList.stopPlayback, field: 'stopPlayback', label: 'Stop on' },
+  { key: PxTriggerList.pausePlayback, field: 'pausePlayback', label: 'Pause on' },
 ];
 const OUT_OF_VIEW_BEHAVIORS = Object.values(PxOutOfViewBehavior);
 
@@ -92,7 +94,7 @@ interface EventCheckbox {
 }
 
 /** One checkbox per list × event the list may name, from the player's own table so a new event shows up by itself. */
-const listCheckboxes = new Map<keyof PxResolvedTriggers, Array<EventCheckbox>>();
+const listCheckboxes = new Map<PxTriggerList, Array<EventCheckbox>>();
 for (const { key, label } of TRIGGER_LISTS) {
   const group = document.createElement('fieldset');
   group.className = 'trigger-list';
@@ -128,7 +130,7 @@ function selectedOutOfViewBehavior(): PxOutOfViewBehavior {
 
 /** The events ticked under one list — one as the string, several as the array, none = absent:
  *  the file's own spelling. */
-function tickedEvents(key: keyof PxResolvedTriggers): PxTriggerEvents | undefined {
+function tickedEvents(key: PxTriggerList): PxTriggerEvents | undefined {
   const on = (listCheckboxes.get(key) ?? []).filter((b) => b.input.checked).map((b) => b.event);
   return on.length === 0 ? undefined : on.length === 1 ? on[0] : on;
 }
@@ -297,8 +299,8 @@ function syncTriggerUi(): void {
     // every list an array of the events it may name; an absent block, like an empty one, lists nothing.
     const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
     const lists = resolveTriggers(cfg?.actionTriggers);
-    for (const { key } of TRIGGER_LISTS) {
-      for (const { event, input } of listCheckboxes.get(key) ?? []) input.checked = lists[key].includes(event);
+    for (const { key, field } of TRIGGER_LISTS) {
+      for (const { event, input } of listCheckboxes.get(key) ?? []) input.checked = lists[field].includes(event);
     }
     selOutOfView.value = resolveGate(cfg).outOfView;
     if (cfg?.inViewThreshold != null) {
@@ -340,10 +342,10 @@ function userActionForTrigger(
   actionTriggers: PxActionTriggers | undefined,
   outOfView: PxOutOfViewBehavior | undefined,
 ): UserAction | undefined {
-  const { startRun } = resolveTriggers(actionTriggers);
-  if (startRun.includes(PxTriggerEvent.hoverIn)) return 'hover';
-  if (startRun.includes(PxTriggerEvent.click)) return 'click';
-  if (startRun.length === 0) return 'play';
+  const { startPlayback } = resolveTriggers(actionTriggers);
+  if (startPlayback.includes(PxTriggerEvent.hoverIn)) return 'hover';
+  if (startPlayback.includes(PxTriggerEvent.click)) return 'click';
+  if (startPlayback.length === 0) return 'play';
   // `load` — behind a visibility gate it waits to be seen; `continue` starts right away.
   return outOfView === PxOutOfViewBehavior.continue ? undefined : 'scrollIntoView';
 }
@@ -359,7 +361,7 @@ function effectiveTriggerAndGate(): { actionTriggers: PxActionTriggers | undefin
 }
 
 /** Shown while a trigger-driven animation sits still — not over a running one, and not after a
- *  play-once run has ended. With the transport in charge there is nothing to say. */
+ *  play-once playback has ended. With the transport in charge there is nothing to say. */
 function syncHint(): void {
   const { actionTriggers, outOfView } = effectiveTriggerAndGate();
   const action = useTrigger && handle ? userActionForTrigger(actionTriggers, outOfView) : undefined;
@@ -430,7 +432,7 @@ function remount(): void {
   // With a trigger driving start, DON'T auto-play — the `load` event (or the user's
   // hover/click/scroll for the others) starts it. Otherwise auto-play as before.
   // React/Vue populate their imperative API after the first commit, so play next frame.
-  if (!useTrigger) requestAnimationFrame(() => handle?.startRun());
+  if (!useTrigger) requestAnimationFrame(() => handle?.start());
 }
 
 /** Adopts a validated document and (re)mounts the current player. */
@@ -442,22 +444,22 @@ function loadDocument(doc: PxDocument, sourceLabel: string): void {
   // at all) leaves it OFF so the transport buttons drive playback.
   const fileTriggers = getAnimatorConfig(doc)?.actionTriggers;
   const lists = resolveTriggers(fileTriggers);
-  useTrigger = !!fileTriggers && TRIGGER_LISTS.some(({ key }) => lists[key].length > 0);
+  useTrigger = !!fileTriggers && TRIGGER_LISTS.some(({ field }) => lists[field].length > 0);
   useFileConfig = true;
   remount();
 }
 
 // -- Transport controls ------------------------------------------------------
 
-btnPlay.addEventListener('click', () => handle?.startRun());
-btnPause.addEventListener('click', () => handle?.pauseRun());
+btnPlay.addEventListener('click', () => handle?.start());
+btnPause.addEventListener('click', () => handle?.pause());
 btnStop.addEventListener('click', () => {
   handle?.jumpToStart();
   seek.value = '0';
 });
 btnRestart.addEventListener('click', () => {
   handle?.setCurrentTime(0);
-  handle?.startRun();
+  handle?.start();
 });
 btnFinish.addEventListener('click', () => handle?.finish());   // PlayerHandle.finish → the player's jumpToEnd()
 
@@ -465,7 +467,7 @@ btnFinish.addEventListener('click', () => handle?.finish());   // PlayerHandle.f
 btnDemo.addEventListener('click', () => loadDocument(demoDoc, 'demo (built-in)'));
 
 rateSel.addEventListener('change', () => {
-  handle?.setPlaybackSpeed?.(Number(rateSel.value));
+  handle?.setSpeed?.(Number(rateSel.value));
 });
 
 // Player picker
@@ -511,7 +513,7 @@ seek.addEventListener('pointerdown', () => {
   scrubbing = true;
 });
 seek.addEventListener('input', () => {
-  handle?.pauseRun();
+  handle?.pause();
   handle?.setCurrentTime(Number(seek.value));
   timeEl.textContent = `${seek.value} / ${duration} ms`;
 });

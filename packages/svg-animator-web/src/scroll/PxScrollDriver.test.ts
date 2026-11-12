@@ -368,7 +368,7 @@ describe('createScrollDriver', () => {
         const driver = createScrollDriver(subject, {
             timelineSource: 'scroll',
             scroll: { kind: 'scroll' },
-            actionTriggers: { startRun: 'click' },   // must have no effect
+            actionTriggers: { 'playback.start': 'click' },   // must have no effect
         }, p => seen.push(p));
         expect(driver).toBeTruthy();
         expect(seen.length).toBe(1);

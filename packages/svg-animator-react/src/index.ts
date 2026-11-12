@@ -5,7 +5,7 @@
 
 import SvgAnimationPlayer from './SvgAnimator';
 export type { SvgAnimationPlayerCallbacks, SvgAnimationPlayerProps } from './SvgAnimator';
-export type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+export type { PxAnimationPlayerHandle, PxPlaybackControls } from '@pixodesk/svg-animator-core';
 export { SvgAnimationPlayer };
 
 import SvgCssAnimationPlayer from './SvgCssAnimator';

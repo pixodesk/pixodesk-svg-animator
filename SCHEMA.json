@@ -2293,7 +2293,7 @@
             "actionTriggers": {
               "type": "object",
               "properties": {
-                "startRun": {
+                "playback.start": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2314,7 +2314,7 @@
                     }
                   ]
                 },
-                "stopRun": {
+                "playback.stop": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2333,7 +2333,7 @@
                     }
                   ]
                 },
-                "pauseRun": {
+                "playback.pause": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2354,7 +2354,7 @@
                     }
                   ]
                 },
-                "resumeRun": {
+                "playback.resume": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2402,7 +2402,7 @@
             "actions": {
               "type": "object",
               "properties": {
-                "startRun": {
+                "playback.start": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2426,7 +2426,7 @@
                     }
                   ]
                 },
-                "stopRun": {
+                "playback.stop": {
                   "anyOf": [
                     {
                       "enum": [

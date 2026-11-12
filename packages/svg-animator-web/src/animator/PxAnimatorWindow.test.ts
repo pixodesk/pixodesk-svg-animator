@@ -37,25 +37,25 @@ describe('the content window (§4)', () => {
     it('inTime/outTime: the window is the playing slice — the first frame is the content AT inTime', () => {
         const api = createSvgAnimationPlayer({ doc: windowDoc(), container: '#box', playUsingActionTriggers: true });
         expect(opacity()).toBe(0);                      // content 500, not content 0
-        api.pause();
-        api.setCurrentTime(500);                        // window midpoint = content 1000
+        api.playback.pause();
+        api.playback.setCurrentTime(500);                        // window midpoint = content 1000
         vi.advanceTimersByTime(32);
         expect(opacity()).toBeCloseTo(0.5, 2);
-        api.setCurrentTime(1000);                       // window end = content 1500
+        api.playback.setCurrentTime(1000);                       // window end = content 1500
         vi.advanceTimersByTime(32);
         expect(opacity()).toBe(1);
     });
 
     it('playbackSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
         // window 1000 ms at speed 0.5: after 500 real ms, content time 250
-        const api = createSvgAnimationPlayer({ doc: windowDoc({ playbackSpeed: 0.5, actionTriggers: { startRun: 'load' } }), container: '#box', playUsingActionTriggers: true });
+        const api = createSvgAnimationPlayer({ doc: windowDoc({ playbackSpeed: 0.5, actionTriggers: { 'playback.start': 'load' } }), container: '#box', playUsingActionTriggers: true });
         vi.advanceTimersByTime(500);
-        expect(api.getPlaybackSpeed()).toBe(0.5);
-        expect(api.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real
-        expect(api.getPlaybackDuration()).toBeCloseTo(2000, 5);  // one pass in real ms at this speed
-        api.setPlaybackSpeed(2);                                  // replaces the file's 0.5
+        expect(api.playback.getSpeed()).toBe(0.5);
+        expect(api.playback.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real
+        expect(api.playback.getDurationAtSpeed()).toBeCloseTo(2000, 5);  // one pass in real ms at this speed
+        api.playback.setSpeed(2);                                  // replaces the file's 0.5
         vi.advanceTimersByTime(500);                          // 500 real ms at speed 2 = 1000 content ms → clamped at the end
-        expect(api.getPlaybackSpeed()).toBe(2);
-        expect(api.getCurrentTime()).toBeCloseTo(1000, -1);
+        expect(api.playback.getSpeed()).toBe(2);
+        expect(api.playback.getCurrentTime()).toBeCloseTo(1000, -1);
     });
 });

@@ -65,7 +65,7 @@ describe('WAAPI engine — values the browser rejects', () => {
         const api = createSvgAnimationPlayer({ doc: doc('auto'), container: '#stage', suppressWarnings: true });
         expect(effects).toBe(0);
         // ...and the frame loop it fell back to animates the width
-        api.setCurrentTime(DUR);
+        api.playback.setCurrentTime(DUR);
         const widths = Array.from(document.querySelectorAll('#stage rect')).map((r) => Number(r.getAttribute('width')));
         expect(widths).toEqual([16, 16]);
     });

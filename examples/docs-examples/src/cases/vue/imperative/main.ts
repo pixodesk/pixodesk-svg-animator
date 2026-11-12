@@ -7,10 +7,10 @@ createApp({
     const api = ref<PxAnimationPlayerHandle | null>(null);
     return () => [
       h('div', { class: 'controls' }, [
-        h('button', { onClick: () => api.value?.startRun() }, 'startRun()'),
-        h('button', { onClick: () => api.value?.pauseRun() }, 'pauseRun()'),
-        h('button', { onClick: () => api.value?.jumpToStart() }, 'jumpToStart()'),
-        h('button', { onClick: () => api.value?.jumpToEnd() }, 'jumpToEnd()'),
+        h('button', { onClick: () => api.value?.playback.start() }, 'playback.start()'),
+        h('button', { onClick: () => api.value?.playback.pause() }, 'playback.pause()'),
+        h('button', { onClick: () => api.value?.playback.jumpToStart() }, 'playback.jumpToStart()'),
+        h('button', { onClick: () => api.value?.playback.jumpToEnd() }, 'playback.jumpToEnd()'),
       ]),
       h('div', { class: 'stage' }, [
         h(SvgAnimationPlayer as any, { doc: animation, ref: api }),

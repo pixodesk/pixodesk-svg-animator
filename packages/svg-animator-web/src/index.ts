@@ -55,8 +55,8 @@ export type {
     PxActions,
     PxTriggerEvent,
     PxTriggerEvents,
-    PxStartRunBehavior,
-    PxStopRunBehavior,
+    PxStartPlaybackBehavior,
+    PxStopPlaybackBehavior,
     PxAtEndBehavior,
     PxOutOfViewBehavior,
     PxWhenIdle,
@@ -65,6 +65,7 @@ export type {
 
 // DOM specializations — on the web `getRootElement()` returns a DOM Element.
 export type { PxAnimationPlayerApi } from './shared/PxAnimatorWebTypes';
+export type { PxPlaybackControls } from '@pixodesk/svg-animator-core';
 
 // ONE control-mode rule for every component (API review §1, §7). React and Vue reach core
 // through this package, so the resolver is forwarded here; React Native imports core directly.
@@ -89,7 +90,7 @@ export {
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // The page-wide registry — every live player in the window, whoever made it, plus its
-// runStart / runStop / runPause / runResume / finish announcements (also `globalThis.__pixodeskSvgAnimationPlayers`).
+// playbackStart / playbackStop / playbackPause / playbackResume / finish announcements (also `globalThis.__pixodeskSvgAnimationPlayers`).
 export { getAllSvgAnimationPlayers, onSvgAnimationPlayersChange, PX_ANIMATION_PLAYER_REGISTRY_GLOBAL } from './registry/PxAnimatorRegistry';
 export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPlayersListener } from './registry/PxAnimatorRegistry';
 

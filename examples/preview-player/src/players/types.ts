@@ -5,18 +5,18 @@ import type { PxActionsOptions, PxDocument, PxTimelineOptions, PxActionTriggers 
  *
  * The Web (`@pixodesk/svg-animator-web`), React (`@pixodesk/svg-animator-react`)
  * and Vue (`@pixodesk/svg-animator-vue`) packages all expose the same imperative
- * surface (`startRun` / `pauseRun` / `jumpToStart` / `jumpToEnd` / `getCurrentTime` /
- * `setCurrentTime` / `setPlaybackSpeed`). Each adapter wraps one of them behind this interface so the
+ * surface, `player.playback` (`start` / `pause` / `jumpToStart` / `jumpToEnd` / `getCurrentTime` /
+ * `setCurrentTime` / `setSpeed`). Each adapter wraps one of them behind this interface so the
  * UI can drive any of them uniformly.
  */
 export interface PlayerHandle {
-  /** Starts a run — or, while paused, unfreezes it (the handle's `startRun()`). */
-  startRun(): void;
-  /** Freezes the run at the current frame (the handle's `pauseRun()`). */
-  pauseRun(): void;
-  /** Back to the rest pose at once, unconditionally (the handle's `jumpToStart()`). */
+  /** Starts a playback — or, while paused, unfreezes it (`playback.start()`). */
+  start(): void;
+  /** Freezes the playback at the current frame (`playback.pause()`). */
+  pause(): void;
+  /** Back to the rest pose at once, unconditionally (`playback.jumpToStart()`). */
   jumpToStart(): void;
-  /** Jumps to the end and holds the final frame (the handle's `jumpToEnd()`). */
+  /** Jumps to the end and holds the final frame (`playback.jumpToEnd()`). */
   finish(): void;
   /** Whether the animation is currently running. */
   isPlaying(): boolean;
@@ -25,7 +25,7 @@ export interface PlayerHandle {
   /** Seeks inside the current iteration, ms. */
   setCurrentTime(ms: number): void;
   /** Changes the play speed (1 = normal, 2 = double, negative = backwards). Wired for the Web player only in this UI. */
-  setPlaybackSpeed?(speed: number): void;
+  setSpeed?(speed: number): void;
   /** Tears down the player and removes it from the DOM. */
   destroy(): void;
 }

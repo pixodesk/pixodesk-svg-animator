@@ -100,71 +100,82 @@ describe('createSvgAnimationPlayer', () => {
         expect(rect).not.toBeNull();
         assert(rect, 'no <rect> was rendered');
 
-        api.play();
+        api.playback.start();
         vi.advanceTimersByTime(DUR / 2);
         const opacity = rect.getAttribute('opacity');
         assert(opacity !== null, 'the rect has no opacity');
         expect(parseFloat(opacity)).toBeCloseTo(0.5, 5);
-        expect(api.getCurrentTime()).toBe(DUR / 2);
+        expect(api.playback.getCurrentTime()).toBe(DUR / 2);
     });
 
-    it('a load trigger on an ungated document reports onRunStart — the listeners are attached before the engine presses the first button', () => {
-        const onRunStart = vi.fn();
+    it('playback is ONE object, the same on every read, and its methods work destructured (no `this`)', () => {
+        const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container' });
+        expect(api.playback).toBe(api.playback);
+        const { start, pause, getState, getCurrentTime } = api.playback;
+        start();
+        vi.advanceTimersByTime(DUR / 4);
+        pause();
+        expect(getState()).toBe('paused');
+        expect(getCurrentTime()).toBe(DUR / 4);
+    });
+
+    it('a load trigger on an ungated document reports onPlaybackStart — the listeners are attached before the engine presses the first button', () => {
+        const onPlaybackStart = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: { startRun: 'load' }, actions: { outOfView: 'continue' } } };
-        const api = createSvgAnimationPlayer({ doc, container: '#svg-container', playUsingActionTriggers: true, onRunStart });
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' } } };
+        const api = createSvgAnimationPlayer({ doc, container: '#svg-container', playUsingActionTriggers: true, onPlaybackStart });
         window.dispatchEvent(new Event('load'));     // a no-op when the document was already complete at creation
 
-        expect(api.isPlaying()).toBe(true);
-        expect(onRunStart).toHaveBeenCalledTimes(1);
+        expect(api.playback.isPlaying()).toBe(true);
+        expect(onPlaybackStart).toHaveBeenCalledTimes(1);
     });
 
-    it('takes the callbacks INLINE; onRunStop fires on the built-in stop only — a pause is onRunPause, a resume onRunResume, the end pose onFinish', () => {
-        const onRunStart = vi.fn(), onRunPause = vi.fn(), onRunResume = vi.fn(), onFinish = vi.fn(), onRunStop = vi.fn();
+    it('takes the callbacks INLINE; onPlaybackStop fires on the built-in stop only — a pause is onPlaybackPause, a resume onPlaybackResume, the end pose onFinish', () => {
+        const onPlaybackStart = vi.fn(), onPlaybackPause = vi.fn(), onPlaybackResume = vi.fn(), onFinish = vi.fn(), onPlaybackStop = vi.fn();
         const doc = makeDoc();
         doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: {} } };
-        const api = createSvgAnimationPlayer({ doc, container: '#svg-container', onRunStart, onRunPause, onRunResume, onFinish, onRunStop });
+        const api = createSvgAnimationPlayer({ doc, container: '#svg-container', onPlaybackStart, onPlaybackPause, onPlaybackResume, onFinish, onPlaybackStop });
 
-        api.startRun();
-        expect(onRunStart).toHaveBeenCalledTimes(1);
-        expect(onRunStop).not.toHaveBeenCalled();
+        api.playback.start();
+        expect(onPlaybackStart).toHaveBeenCalledTimes(1);
+        expect(onPlaybackStop).not.toHaveBeenCalled();
 
-        api.pauseRun();
-        expect(onRunPause).toHaveBeenCalledTimes(1);
-        expect(onRunStop).not.toHaveBeenCalled();     // a pause is not a stop
+        api.playback.pause();
+        expect(onPlaybackPause).toHaveBeenCalledTimes(1);
+        expect(onPlaybackStop).not.toHaveBeenCalled();     // a pause is not a stop
 
-        api.play();                                   // the alias: a resume
-        expect(onRunResume).toHaveBeenCalledTimes(1);
-        expect(onRunStart).toHaveBeenCalledTimes(1);
+        api.playback.start();                                   // the alias: a resume
+        expect(onPlaybackResume).toHaveBeenCalledTimes(1);
+        expect(onPlaybackStart).toHaveBeenCalledTimes(1);
 
-        api.jumpToEnd();
+        api.playback.jumpToEnd();
         expect(onFinish).toHaveBeenCalledTimes(1);
-        expect(onRunStop).not.toHaveBeenCalled();     // nor is the end pose
+        expect(onPlaybackStop).not.toHaveBeenCalled();     // nor is the end pose
 
-        api.stopRun();
-        expect(onRunStop).toHaveBeenCalledTimes(1);   // the configured stop — this one
-        api.jumpToStart();
-        expect(onRunStop).toHaveBeenCalledTimes(1);   // reset-now bypasses the stop action
+        api.playback.stop();
+        expect(onPlaybackStop).toHaveBeenCalledTimes(1);   // the configured stop — this one
+        api.playback.jumpToStart();
+        expect(onPlaybackStop).toHaveBeenCalledTimes(1);   // reset-now bypasses the stop action
     });
 
     it('playUsingActionTriggers: a document with no trigger block waits — absent ≡ {} ≡ manual (1.17)', () => {
         const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container', playUsingActionTriggers: true });
-        expect(api.isPlaying()).toBe(false);
+        expect(api.playback.isPlaying()).toBe(false);
     });
 
     // The no-driver rule (first-use review §1+2): nothing plays until a line names the driver.
     it('without playUsingActionTriggers the same document builds still, and the api drives it', () => {
         const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container' });
-        expect(api.isPlaying()).toBe(false);
-        api.play();
-        expect(api.isPlaying()).toBe(true);
+        expect(api.playback.isPlaying()).toBe(false);
+        api.playback.start();
+        expect(api.playback.isPlaying()).toBe(true);
     });
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
         doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: {} } };
         const api = createSvgAnimationPlayer({ doc: doc, container: '#svg-container' });
-        expect(api.isPlaying()).toBe(false);
+        expect(api.playback.isPlaying()).toBe(false);
     });
 
     it('URL path: queues control calls made before the fetch resolves and replays them', async () => {
@@ -176,17 +187,17 @@ describe('createSvgAnimationPlayer', () => {
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
-        const api = createSvgAnimationPlayer({ src: 'anim.json', onRunStart: onPlay, container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ src: 'anim.json', onPlaybackStart: onPlay, container: '#svg-container' });
 
         // Not loaded yet: getters return their "not ready" values.
         expect(api.isReady()).toBe(false);
-        expect(api.getCurrentTime()).toBeNull();
-        expect(api.isPlaying()).toBe(false);
+        expect(api.playback.getCurrentTime()).toBeNull();
+        expect(api.playback.isPlaying()).toBe(false);
         expect(container().querySelector('svg')).toBeNull();
 
         // Queue calls before the document loads.
-        api.play();
-        api.setCurrentTime(160);
+        api.playback.start();
+        api.playback.setCurrentTime(160);
         expect(onPlay).not.toHaveBeenCalled();
 
         await flushMicrotasks();
@@ -194,7 +205,7 @@ describe('createSvgAnimationPlayer', () => {
         expect(fetchMock).toHaveBeenCalledWith('anim.json');
         expect(api.isReady()).toBe(true);
         expect(onPlay).toHaveBeenCalledTimes(1); // queued play() was replayed
-        expect(api.getCurrentTime()).toBe(160);  // queued setCurrentTime() was replayed in order
+        expect(api.playback.getCurrentTime()).toBe(160);  // queued setCurrentTime() was replayed in order
         expect(container().querySelector('svg')).not.toBeNull();
 
         // The replayed play() left the animation running from t=160.
@@ -210,7 +221,7 @@ describe('createSvgAnimationPlayer', () => {
         stubFetch(makeDoc());
 
         const api = createSvgAnimationPlayer({ src: 'anim.json', container: '#svg-container' });
-        api.play(); // queued — must be dropped by destroy()
+        api.playback.start(); // queued — must be dropped by destroy()
         api.destroy();
 
         await flushMicrotasks();
@@ -224,7 +235,7 @@ describe('createSvgAnimationPlayer', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* silence */ });
 
         const api = createSvgAnimationPlayer({ src: 'broken.json', container: '#svg-container' });
-        api.play(); // queued, then dropped on failure
+        api.playback.start(); // queued, then dropped on failure
 
         await flushMicrotasks();
 
@@ -235,7 +246,7 @@ describe('createSvgAnimationPlayer', () => {
         // so this keeps what `expect.any(Error)` used to cover.
         expect(errorSpy.mock.calls[0].slice(1)).toContain('network down');
         expect(api.isReady()).toBe(false);
-        expect(() => api.play()).not.toThrow(); // late calls are no-ops, not errors
+        expect(() => api.playback.start()).not.toThrow(); // late calls are no-ops, not errors
     });
 
     it('URL path: invalid document format logs console.error and stays not ready', async () => {
@@ -269,7 +280,7 @@ describe('createSvgAnimationPlayer', () => {
         expect(d.error).toBeInstanceOf(Error);
         expect(d.error.message).toContain('boom');
         expect(api.isReady()).toBe(false);
-        expect(() => api.play()).not.toThrow();   // inert, not broken
+        expect(() => api.playback.start()).not.toThrow();   // inert, not broken
     });
 
     it('suppressErrors switches the console fallback off for such a failure', () => {
@@ -404,7 +415,7 @@ describe('createSvgAnimationPlayersFromPage', () => {
         const plain = tagElement('plain');
         const instance = host[PX_ANIM_ATTR_NAME];
         expect(instance).toBeDefined();
-        expect(typeof instance?.play).toBe('function');
+        expect(typeof instance?.playback.start).toBe('function');
         expect(plain[PX_ANIM_ATTR_NAME]).toBeUndefined();
         expect(fetchMock).toHaveBeenCalledWith('anim.json');
 
@@ -427,7 +438,7 @@ describe('createSvgAnimationPlayersFromPage', () => {
 
         // One trigger block for every player — start on click, not on load — plus an inline callback: both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ playUsingActionTriggers: { startRun: 'click' }, onRunStart: onPlay });
+        createSvgAnimationPlayersFromPage({ playUsingActionTriggers: { 'playback.start': 'click' }, onPlaybackStart: onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))
@@ -435,10 +446,10 @@ describe('createSvgAnimationPlayersFromPage', () => {
         expect(instances).toHaveLength(2);
         for (const instance of instances) {
             expect(instance?.isReady()).toBe(true);
-            expect(instance?.isPlaying()).toBe(false);   // the override reached it
+            expect(instance?.playback.isPlaying()).toBe(false);   // the override reached it
         }
 
-        instances[0]?.play();
+        instances[0]?.playback.start();
         expect(onPlay).toHaveBeenCalledTimes(1);        // the callback reached it
     });
 

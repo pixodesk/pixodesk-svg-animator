@@ -25,7 +25,7 @@ stable; the lists and actions go through ONE executor in core.
 - **An off in flight reads as STOPPED** (`state()` while rewinding or completing an iteration): a `playStart` event turns it around — the
   hover-in during a hover-out rewind plays forward again, as the old `hoverEnd: reverse` did.
 - **`stop()` on a stopped player elsewhere than the start still rests it** (the declarative `play={false}` from the end pose; `stop()` after `finish()`).
-- **`pause()` always reaches the engine** (it announces `onPause`); only a pause of a RUN becomes a resumable state.
+- **`pause()` always reaches the engine** (it announces `onPause`); only a pause of a PLAYBACK becomes a resumable state.
 - **The state rule is ONE function** — core `triggerActionFor(trigger, state, event)`; the web triggers, the CSS components and RN call it.
   `triggerListsEvent` says which listeners to attach.
 - **The gate host has four verbs**: `start` (a trigger let through → `executor.play()`), `hold` / `release` (the ENGINE's pause / play — a

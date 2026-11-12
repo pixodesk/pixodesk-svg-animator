@@ -390,7 +390,7 @@ export function createWebApiAnimator(
         "getPlaybackSpeed": (): number => animations[0]?.playbackRate ?? 1,
         "setPlaybackSpeed": (rate: number) => {
             // WAAPI itself accepts 0 and silently freezes; the other two engines reject it.
-            // One answer everywhere (review §3) — `pause()` is how you stop.
+            // One answer everywhere (review §3) — `playback.pause()` is how you stop.
             if (!isValidPlaybackRate(rate)) {
                 diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);
                 return;
@@ -433,7 +433,7 @@ export function createWebApiAnimator(
         if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
-        const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.runListeners);
+        const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.playbackListeners);
         const destroyEngine = api.destroy.bind(api);
         api.destroy = () => { detachTriggers(); destroyEngine(); };
     }

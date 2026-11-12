@@ -10,6 +10,11 @@ import { SchemaFacts } from './schema-facts';
 import { docImports, parseDocBlock, TsFacts, type DocDecl, type DocMember } from './ts-facts';
 import { explainTypes, stripComments, typesEqual } from './type-text';
 
+/** A property's KEY as the schema spells it: a quoted name (`'playback.start'?: …`) is its text, not its source. */
+function propertyKey(name: ts.PropertyName, sourceFile: ts.SourceFile): string {
+    return ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : name.getText(sourceFile);
+}
+
 export interface Finding { line: number; message: string; }
 
 /** `DOCS_CHECK_DEBUG=1` appends the normalized spellings to every type mismatch. */
@@ -469,13 +474,14 @@ function checkSchemaTable(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
         if (!names.length) { out.push({ line: row.line, message: 'row does not name a field in its first cell (<!-- px skip --> for prose rows)' }); continue; }
         if (row.flags.extra) continue;
         for (const name of names) {
+            if (shape.keys.has(name)) { seen.add(name); continue; }   // a key that holds a dot: `playback.start`
             const dot = name.lastIndexOf('.');
             if (dot > 0) {
-                // `retime.start` documents `retime` too
+                // `retime.start` documents `retime` too; `playback.start.behavior` documents `playback.start`
                 const parent = ctx.schemas.at(base, name.slice(0, dot));
                 const pshape = parent && ctx.schemas.shape(parent);
                 if (!pshape || !pshape.keys.has(name.slice(dot + 1))) out.push({ line: row.line, message: `"${name}" is not a field of ${where}` });
-                else seen.add(name.split('.')[0]);
+                else seen.add([...shape.keys.keys()].filter(k => name.startsWith(k + '.')).sort((x, y) => y.length - x.length)[0] ?? name.split('.')[0]);
                 continue;
             }
             if (!shape.keys.has(name)) { out.push({ line: row.line, message: `"${name}" is not a field of ${where} — fields: ${[...shape.keys.keys()].join(', ')}` }); continue; }
@@ -539,7 +545,7 @@ function checkSchemaBlock(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
         for (const mem of members) {
             if (ts.isIndexSignatureDeclaration(mem)) { hasIndex = true; continue; }
             if (!ts.isPropertySignature(mem) || !mem.name) continue;
-            const key = mem.name.getText(sourceFile);
+            const key = propertyKey(mem.name, sourceFile);
             const p = path + '.' + key;
             if (skip.has(p)) { shown.add(key); continue; }
             if (!shape.keys.has(key)) { out.push({ line: lineOf(mem), message: `${p} is not in the schema — keys: ${[...shape.keys.keys()].join(', ')}` }); continue; }
@@ -581,7 +587,7 @@ function checkSchemaBlock(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
             const discriminant = variants[0].discriminant;
             // a plain union (`"M…" | { value } | ANIMATE`): each doc literal takes the object member sharing most of its keys
             const shapeVariants = variants.filter(v => ctx.schemas.shape(v.schema));
-            const keysOf = (lit: ts.TypeLiteralNode): Array<string> => lit.members.filter(ts.isPropertySignature).map(p => p.name!.getText(sourceFile));
+            const keysOf = (lit: ts.TypeLiteralNode): Array<string> => lit.members.filter(ts.isPropertySignature).map(p => propertyKey(p.name, sourceFile));
             literals.forEach(lit => {
                 if (!discriminant) {
                     const docKeys = keysOf(lit);

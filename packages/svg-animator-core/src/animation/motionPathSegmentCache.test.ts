@@ -96,7 +96,7 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
 
         it('PLAYBACK follows the arc — no chord run and no jump to the apex', () => {
             const { api, transform } = mkAnimator();
-            api.play();
+            api.playback.start();
 
             const pts: Array<[number, number]> = [];
             for (let i = 0; i < 50; i++) {
@@ -120,10 +120,10 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
 
         it('seeking after playing still lands on the arc', () => {
             const { api, transform } = mkAnimator();
-            api.play();
+            api.playback.start();
             vi.advanceTimersByTime(400);
-            api.pause();
-            api.setCurrentTime(384);
+            api.playback.pause();
+            api.playback.setCurrentTime(384);
             expect(xy(transform())[1], 'y at 384 is on the arc').toBeLessThan(50);
         });
     });

@@ -88,15 +88,15 @@ describe('clampSeekMs', () => {
 
 describe('timeToProgress', () => {
 
-    it('maps the whole run, iterations included — not one iteration', () => {
-        // The React Native bug §3 names: 1500ms of a 3×1000ms run is HALF the run,
+    it('maps the whole playback, iterations included — not one iteration', () => {
+        // The React Native bug §3 names: 1500ms of a 3×1000ms playback is HALF the playback,
         // not "500ms into iteration 2".
         expect(timeToProgress(1500, DUR, 3)).toBeCloseTo(0.5);
         expect(timeToProgress(0, DUR, 3)).toBe(0);
         expect(timeToProgress(3000, DUR, 3)).toBe(1);
     });
 
-    it('clamps past the end of a finite run', () => {
+    it('clamps past the end of a finite playback', () => {
         expect(timeToProgress(4000, DUR, 3)).toBe(1);
         expect(timeToProgress(-500, DUR, 3)).toBe(0);
     });
@@ -114,7 +114,7 @@ describe('timeToProgress', () => {
 
 describe('progressToTimeMs', () => {
 
-    it('maps 0–1 onto the whole run', () => {
+    it('maps 0–1 onto the whole playback', () => {
         expect(progressToTimeMs(0.5, DUR, 3)).toBe(1500);
         expect(progressToTimeMs(0, DUR, 3)).toBe(0);
         expect(progressToTimeMs(1, DUR, 3)).toBe(3000);
@@ -132,7 +132,7 @@ describe('progressToTimeMs', () => {
     });
 });
 
-describe('createRunClock — whole-run time across iterations', () => {
+describe('createRunClock — whole-playback time across iterations', () => {
 
     /** A clock driven by a variable we control, so no real time has to pass. */
     const fake = (ceiling = 3000) => {
@@ -182,7 +182,7 @@ describe('createRunClock — whole-run time across iterations', () => {
     });
 
     it('keeps counting PAST one iteration — the whole point (§3)', () => {
-        // A 3×1000ms run: at 2500ms the playhead is 2500 into the RUN, even though the
+        // A 3×1000ms run: at 2500ms the playhead is 2500 into the PLAYBACK, even though the
         // animated value is only 500 into its third iteration.
         const { clock, advance } = fake();
         clock.start(1);
@@ -241,13 +241,13 @@ describe('createRunClock — whole-run time across iterations', () => {
 
 describe('the two directions agree', () => {
 
-    it('round-trips a finite run', () => {
+    it('round-trips a finite playback', () => {
         for (const t of [0, 250, 1500, 2999, 3000]) {
             expect(progressToTimeMs(timeToProgress(t, DUR, 3), DUR, 3)).toBeCloseTo(t);
         }
     });
 
-    it('round-trips an endless run within the iteration', () => {
+    it('round-trips an endless playback within the iteration', () => {
         for (const t of [0, 250, 999]) {
             expect(progressToTimeMs(timeToProgress(t, DUR, Infinity), DUR, Infinity)).toBeCloseTo(t);
         }

@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxRunState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
-import { withoutTriggerDriver, applyPlaybackOverride, resolveTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
+import { withoutTriggerDriver, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -47,7 +47,7 @@ function createAnimatorFromConfig(
  * loop, `native` and `js` force one — see `resolveTimelineEngine`.
  *
  * @param doc The animated SVG document.
- * @param callbacks Optional object with callback functions for the lifecycle events (the run events, finish, etc.).
+ * @param callbacks Optional object with callback functions for the lifecycle events (the playback events, finish, etc.).
  * @param containerElement Optional selector or element to render the SVG into.
  * @param providedRoot The root `<svg>` a caller rendered itself — used when there is no container.
  * @returns An PxAnimationPlayerApi instance to programmatically control the animation.
@@ -171,7 +171,7 @@ export type PxAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCal
      * Play on a trigger. `true` — the way the editor saved it: the document's own `timeline.actionTriggers`
      * start (and gate) playback. An OBJECT — those triggers instead, as a WHOLE (lists left out are not
      * listed, never the file's values). WITHOUT it the player builds still — the first frame is
-     * shown, the triggers are replaced by the EMPTY block — and the returned api (`play()`, `setCurrentTime()`)
+     * shown, the triggers are replaced by the EMPTY block — and the returned api (`playback.start()`, `playback.setCurrentTime()`)
      * drives it (first-use review §1+2: nothing plays until a line names the driver).
      */
     playUsingActionTriggers?: boolean | PxActionTriggersInput;
@@ -232,7 +232,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const { src, doc, container } = options;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
     const providedRoot = isInternalOptions(options) ? options.rootElement : undefined;
-    // The registry hears the run events and the finish through the player callbacks, and names the PROXY
+    // The registry hears the playback events and the finish through the player callbacks, and names the PROXY
     // below — the object the caller holds — never the engine API behind it.
     let proxy: PxAnimationPlayerApi | undefined;
     const callbacks = withRegistryEvents(toPlayerCallbacks(options), () => proxy);
@@ -250,20 +250,20 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     let animator: PxAnimationPlayerApi | null = null;
 
     // Control calls made before the player exists are queued and replayed (in order) once it
-    // is ready, so e.g. `createSvgAnimationPlayer({src}).play()` works as expected. Getters are not
+    // is ready, so e.g. `createSvgAnimationPlayer({src}).playback.start()` works as expected. Getters are not
     // queued — they return their "not ready yet" value until then. With `doc` the player is
     // ready before this returns; the same proxy then simply forwards.
     let pending: Array<(api: PxAnimationPlayerApi) => void> | null = [];
     let destroyed = false;
 
-    const enqueue = (call: (api: PxAnimationPlayerApi) => void) => {
+    const enqueue = (call: string, run: (api: PxAnimationPlayerApi) => void) => {
         if (destroyed) {
-            // a call on a destroyed player is a no-op, said once per call — `getRunState()` reads `destroyed`
-            diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.callAfterDestroy, call.name || 'call');
+            // a call on a destroyed player is a no-op, said once per call — `playback.getState()` reads `destroyed`
+            diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.callAfterDestroy, call);
         } else if (animator) {
-            call(animator);
+            run(animator);
         } else if (pending) {
-            pending.push(call);
+            pending.push(run);
         }
     };
 
@@ -298,37 +298,14 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     // listed BEFORE the build, so a `load` trigger's first `play` during construction is
     // announced for it like every later one.
     proxy = {
+        // ONE forwarder for every wrapper (core `forwardPlaybackControls`): reads give their not-ready value until the
+        // player exists, writes go through the queue
+        "playback": forwardPlaybackControls(
+            () => animator?.playback,
+            (call, run) => enqueue(call, api => run(api.playback)),
+            () => destroyed ? PxPlaybackState.destroyed : PxPlaybackState.off),
         "isReady": () => !!animator,
         "getRootElement": () => animator ? animator.getRootElement() : null,
-        "isPlaying": () => animator?.isPlaying() || false,
-        "startRun": () => { enqueue(api => api.startRun()); },
-        "stopRun": () => { enqueue(api => api.stopRun()); },
-        "pauseRun": () => { enqueue(api => api.pauseRun()); },
-        "resumeRun": () => { enqueue(api => api.resumeRun()); },
-        "play": () => { enqueue(api => api.play()); },
-        "pause": () => { enqueue(api => api.pause()); },
-        "jumpToStart": () => { enqueue(api => api.jumpToStart()); },
-        "jumpToEnd": () => { enqueue(api => api.jumpToEnd()); },
-        "runOnce": () => { enqueue(api => api.runOnce()); },
-        "getRunState": () => destroyed ? PxRunState.destroyed : (animator ? animator.getRunState() : PxRunState.off),
-        "isRunActive": () => animator ? animator.isRunActive() : false,
-        "getPlaybackSpeed": () => animator ? animator.getPlaybackSpeed() : 1,
-        "setPlaybackSpeed": (speed: number) => { enqueue(api => api.setPlaybackSpeed(speed)); },
-        "getPlaybackDuration": () => animator ? animator.getPlaybackDuration() : null,
-        "setPlaybackDuration": (ms: number) => { enqueue(api => api.setPlaybackDuration(ms)); },
-        "getTotalPlaybackDuration": () => animator ? animator.getTotalPlaybackDuration() : null,
-        "getCurrentPlaybackTime": () => animator ? animator.getCurrentPlaybackTime() : null,
-        "getTotalPlaybackTime": () => animator ? animator.getTotalPlaybackTime() : null,
-        "getDuration": () => animator ? animator.getDuration() : null,
-        "getTotalDuration": () => animator ? animator.getTotalDuration() : null,
-        "getTotalProgress": () => animator ? animator.getTotalProgress() : null,
-        "getCurrentTime": () => animator ? animator.getCurrentTime() : null,
-        "setCurrentTime": (time: number) => { enqueue(api => api.setCurrentTime(time)); },
-        "getCurrentProgress": () => animator ? animator.getCurrentProgress() : null,
-        "setCurrentProgress": (progress: number) => { enqueue(api => api.setCurrentProgress(progress)); },
-        "getCurrentIteration": () => animator ? animator.getCurrentIteration() : 0,
-        "getTotalTime": () => animator ? animator.getTotalTime() : null,
-        "setTotalTime": (time: number) => { enqueue(api => api.setTotalTime(time)); },
         "destroy": () => {
             destroyed = true;
             pending = null; // drop any queued calls

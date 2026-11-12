@@ -120,23 +120,23 @@ export enum PxDiagnosticCode {
     documentRepaired = 1108,
 
     /**
-     * Two trigger lists react to one event in the same state: `stopRun` and `pauseRun` (playing — the pause wins), or
-     * `stopRun` and the counterpart of a `pauseRun` event (paused — the resume wins). The file should name one.
+     * Two trigger lists react to one event in the same state: `playback.stop` and `playback.pause` (playing — the pause wins), or
+     * `playback.stop` and the counterpart of a `playback.pause` event (paused — the resume wins). The file should name one.
      * @data the event and the two lists
      */
     triggerEventConflict = 1109,
 
     /**
-     * A trigger list names an event it cannot use — `startRun` on `hoverOut`, `stopRun` on `load` or `hoverIn`,
-     * `pauseRun` or `resumeRun` on `load`. The event is ignored.
+     * A trigger list names an event it cannot use — `playback.start` on `hoverOut`, `playback.stop` on `load` or `hoverIn`,
+     * `playback.pause` or `playback.resume` on `load`. The event is ignored.
      * @data the list and the event
      */
     triggerEventNotAllowed = 1110,
 
     /**
-     * The file's `resumeRun` list differs from what the player would derive — the counterpart of each `pauseRun`
-     * event plus the `startRun` events that do not stop it: it names an event the derivation would not, or leaves out
-     * one it would (that pause then waits for `startRun` or `stopRun`). The list is honoured as written.
+     * The file's `playback.resume` list differs from what the player would derive — the counterpart of each `playback.pause`
+     * event plus the `playback.start` events that do not stop it: it names an event the derivation would not, or leaves out
+     * one it would (that pause then waits for `playback.start` or `playback.stop`). The list is honoured as written.
      * @data the list and the event
      */
     triggerResumeDiffers = 1111,
@@ -213,7 +213,7 @@ export enum PxDiagnosticCode {
 
     // ── 1400 · playback control ──────────────────────────────────────────────────────────────
 
-    /** A playback rate of `0`, or a non-finite one, is rejected everywhere — use `pauseRun()`. */
+    /** A playback rate of `0`, or a non-finite one, is rejected everywhere — use `playback.pause()`. */
     rateRejected = 1401,
 
     // ── 1500 · the props a component was given ───────────────────────────────────────────────
@@ -226,29 +226,29 @@ export enum PxDiagnosticCode {
     controlPropsConflict = 1501,
 
     /**
-     * Retired (1.24): `pause` without `play` could be written with two boolean props; the one `playRun` lever has no
+     * Retired (1.24): `pause` without `play` could be written with two boolean props; the one `playback` lever has no
      * invalid position pair. The number stays reserved so older hosts' switches keep their meaning.
      * @data the explanation
      */
     playModifierIgnored = 1502,
 
     /**
-     * An imperative write call (`startRun()`, `pauseRun()`, `runOnce()`, …) landed while a declarative
-     * driver (the `playRun` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and
+     * An imperative write call (`playback.start()`, `playback.pause()`, `playback.playOnce()`, …) landed while a declarative
+     * driver (the `playback` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and
      * the next prop change reasserts the props.
      * @data the call
      */
     imperativeOverDeclarative = 1503,
 
     /**
-     * A call on a destroyed player — ignored; `getRunState()` says `destroyed`.
+     * A call on a destroyed player — ignored; `playback.getState()` says `destroyed`.
      * @data the call
      */
     callAfterDestroy = 1504,
 
     /**
-     * A playback call (`startRun()`, `stopRun()`, `pauseRun()`, `resumeRun()`, `runOnce()`, the `play()` / `pause()` aliases,
-     * `setPlaybackSpeed()`, `setPlaybackDuration()`) on a
+     * A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.playOnce()`,
+     * `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a
      * scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next
      * scroll moves it.
      * @data the call

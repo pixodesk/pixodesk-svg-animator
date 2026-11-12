@@ -49,16 +49,16 @@ export default function App() {
     // keeps the JS thread idle.
     useEffect(() => {
         const id = setInterval(() => {
-            const now = api.current?.getCurrentTime();
+            const now = api.current?.playback.getCurrentTime();
             if (typeof now === 'number') setTimeMs(now);
-            const p = api.current?.isPlaying() ?? false;
+            const p = api.current?.playback.isPlaying() ?? false;
             setPlaying(prev => (prev === p ? prev : p));
         }, 50);
         return () => clearInterval(id);
     }, []);
 
     // Re-apply the speed whenever it changes or the document is rebuilt (the file's `playbackSpeed` is the initial value).
-    useEffect(() => { api.current?.setPlaybackSpeed(rate); }, [rate, doc]);
+    useEffect(() => { api.current?.playback.setSpeed(rate); }, [rate, doc]);
 
     const call = (fn: (a: PxAnimationPlayerHandle) => void) => () => { if (api.current) fn(api.current); };
 
@@ -111,11 +111,11 @@ export default function App() {
                 {/* -- Transport ----------------------------------------------- */}
                 <View style={styles.transport}>
                     {([
-                        ['▶ Play', call(a => a.startRun())],
-                        ['❚❚ Pause', call(a => a.pauseRun())],
-                        ['◼ Stop', call(a => a.jumpToStart())],
-                        ['↺ Restart', call(a => { a.jumpToStart(); a.startRun(); })],
-                        ['⤓ Finish', call(a => a.jumpToEnd())],
+                        ['▶ Play', call(a => a.playback.start())],
+                        ['❚❚ Pause', call(a => a.playback.pause())],
+                        ['◼ Stop', call(a => a.playback.jumpToStart())],
+                        ['↺ Restart', call(a => { a.playback.jumpToStart(); a.playback.start(); })],
+                        ['⤓ Finish', call(a => a.playback.jumpToEnd())],
                     ] as Array<[string, () => void]>).map(([label, onPress]) => (
                         <Pressable
                             key={label}
@@ -133,8 +133,8 @@ export default function App() {
                     max={duration}
                     accent={t.accent}
                     track={t.border}
-                    onScrubStart={call(a => a.pauseRun())}
-                    onSeek={(v) => { setTimeMs(v); api.current?.setCurrentTime(v); }}
+                    onScrubStart={call(a => a.playback.pause())}
+                    onSeek={(v) => { setTimeMs(v); api.current?.playback.setCurrentTime(v); }}
                 />
                 <View style={styles.timeRow}>
                     <Text style={[styles.mono, { color: t.dim }]}>

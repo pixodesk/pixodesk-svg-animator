@@ -10,7 +10,7 @@
       "iterations": "infinite",
       "iterationDirection": "alternate",
       "actionTriggers": {
-        "startRun": "load"
+        "playback.start": "load"
       }
     }
   },

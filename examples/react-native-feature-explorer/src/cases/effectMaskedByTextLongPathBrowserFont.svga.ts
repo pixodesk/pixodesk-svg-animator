@@ -50,7 +50,7 @@ export const effectMaskedByTextLongPathBrowserFont: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 1000,
             "actionTriggers": {
-                "startRun": "load"
+                "playback.start": "load"
             },
             "actions": {
                 "outOfView": {

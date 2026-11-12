@@ -10,15 +10,15 @@ import { PxPlaybackDirection } from '../format/PxAnimatorConstants';
 //
 //   | engine          | getCurrentTime()        | setCurrentTime(t) | speed 0 (now setPlaybackSpeed) |
 //   |-----------------|-------------------------|-------------------|--------------------|
-//   | web, WAAPI      | ms across the whole run | NOT clamped       | accepted           |
-//   | web, frame loop | ms across the whole run | clamped           | rejected + warn    |
+//   | web, WAAPI      | ms across the whole playback | NOT clamped       | accepted           |
+//   | web, frame loop | ms across the whole playback | clamped           | rejected + warn    |
 //   | React Native    | ms within ONE iteration | wrapped           | rejected + warn    |
 //
 // So a slider built on `getCurrentTime()` jumped back every iteration on React Native, and
 // `timeline.engine: 'auto'` meant two documents on one page could answer the same call
 // differently. The contract every player now implements:
 //
-//   - the engines keep ONE clock, run ms from the start of the whole run (`getTotalTime`), and the
+//   - the engines keep ONE clock, run ms from the start of the whole playback (`getTotalTime`), and the
 //     per-iteration reads every player exposes (`getCurrentTime`, the frame on screen) are derived
 //     from it here, once (dev-docs/reviews/schema-and-props--manual-review.md A5);
 //   - a seek clamps to [0, seekCeilingMs];
@@ -31,7 +31,7 @@ export const PX_RATE_REJECTED = 'setPlaybackSpeed: speed must be finite and non-
  * A playback rate is usable when it is finite and non-zero.
  *
  * 0 is rejected rather than accepted: it freezes the animation in a state indistinguishable
- * from a stuck player, and `pause()` already says that properly. Two of the three engines
+ * from a stuck player, and `playback.pause()` already says that properly. Two of the three engines
  * rejected it already — this makes the third agree.
  * @public @advanced
  */
@@ -82,7 +82,7 @@ export function clampSeekMs(timeMs: number, ceilingMs: number): number {
 }
 
 /**
- * Whole-run ms → 0–1.
+ * Whole-playback ms → 0–1.
  *
  * A finite timeline clamps at both ends. An endless one wraps within the current iteration,
  * so the value stays meaningful however long it has been running. A zero-length span reads as
@@ -97,7 +97,7 @@ export function timeToProgress(timeMs: number, durationMs: number, iterations: n
     return timeMs >= span ? 1 : timeMs / span;
 }
 
-/** 0–1 → whole-run ms, clamped into the span. A non-finite progress reads as 0. @public @advanced */
+/** 0–1 → whole-playback ms, clamped into the span. A non-finite progress reads as 0. @public @advanced */
 export function progressToTimeMs(progress: number, durationMs: number, iterations: number): number {
     const span = progressSpanMs(durationMs, iterations);
     if (!(span > 0) || !Number.isFinite(progress)) return 0;
@@ -105,26 +105,26 @@ export function progressToTimeMs(progress: number, durationMs: number, iteration
     return progress >= 1 ? span : progress * span;
 }
 
-/** A playhead that keeps whole-run time across iterations. See `createRunClock`. @public @advanced */
+/** A playhead that keeps whole-playback time across iterations. See `createRunClock`. @public @advanced */
 export interface PxRunClock {
-    /** Whole-run position right now, ms, clamped to the ceiling. */
+    /** Whole-playback position right now, ms, clamped to the ceiling. */
     now(): number;
     /** True while time is advancing. */
     isRunning(): boolean;
-    /** Start or resume at `rate`, optionally from a given whole-run time. */
+    /** Start or resume at `rate`, optionally from a given whole-playback time. */
     start(rate: number, atMs?: number): void;
     /** Stop advancing, freezing the current position. */
     stop(): void;
-    /** Jump to a whole-run time; keeps running if it already was. */
+    /** Jump to a whole-playback time; keeps running if it already was. */
     seek(ms: number): void;
 }
 
 /**
- * A whole-run playhead that survives repetition.
+ * A whole-playback playhead that survives repetition.
  *
  * React Native drives playback with Reanimated's `withRepeat`, whose shared value only ever
  * holds the position WITHIN one iteration and which never reports how many iterations have
- * elapsed. Whole-run time therefore cannot be recovered from it: under `alternate` the value
+ * elapsed. Whole-playback time therefore cannot be recovered from it: under `alternate` the value
  * runs backwards rather than wrapping, which is indistinguishable from a negative rate. So the
  * time is kept on a clock of its own — the same thing the frame-loop engine does inline.
  *
@@ -132,7 +132,7 @@ export interface PxRunClock {
  * @public @advanced
  */
 export function createRunClock(ceilingMs: number, nowFn: () => number = Date.now): PxRunClock {
-    let baseMs = 0;        // whole-run ms as of the last start/seek/stop
+    let baseMs = 0;        // whole-playback ms as of the last start/seek/stop
     let startedAt = 0;     // nowFn() when running began
     let running = false;   // a FLAG, not `startedAt !== 0`: a time source may legitimately
     let rate = 1;          //   read 0, and `Date.now()` never does — so the bug would hide.
@@ -164,9 +164,9 @@ export function createRunClock(ceilingMs: number, nowFn: () => number = Date.now
 
 // ── the two axes (schema-and-props--manual-review.md A1 / A5) ─────────────────────────────────────
 //
-// The engines keep RUN ms (`getTotalTime`). Everything a page reads off the playhead is derived
+// The engines keep whole-playback ms (`getTotalTime`). Everything a page reads off the playhead is derived
 // here, once: which iteration it is in, the frame on screen inside that iteration (running
-// backwards during a reversed pass of `alternate`), and the run's length.
+// backwards during a reversed pass of `alternate`), and the playback's length.
 
 /** The geometry the per-iteration reads need: one pass, how many, and each pass's direction. @public @advanced */
 export interface PxRunGeometry {
@@ -178,15 +178,15 @@ export interface PxRunGeometry {
     direction?: PxPlaybackDirection;
 }
 
-/** The run's length, ms — one pass × iterations; `null` when endless (the honest slider maximum, no division to
+/** The playback's length, ms — one pass × iterations; `null` when endless (the honest slider maximum, no division to
  *  guard). @public @advanced */
 export function totalDurationMs(durationMs: number, iterations: number): number | null {
     if (!(durationMs > 0)) return 0;
     return iterations === Infinity ? null : durationMs * (iterations > 0 ? iterations : 1);
 }
 
-/** Which pass a run position is in, 0-based. The first pass is `[0, duration]`, every later one `(…, duration]` —
- *  the end of a pass belongs to it, so a finite run's last instant is its last iteration. @public @advanced */
+/** Which pass a playback position is in, 0-based. The first pass is `[0, duration]`, every later one `(…, duration]` —
+ *  the end of a pass belongs to it, so a finite playback's last instant is its last iteration. @public @advanced */
 export function iterationIndexOf(runMs: number, durationMs: number, iterations: number): number {
     if (!(durationMs > 0) || !(runMs > 0)) return 0;
     const index = Math.max(0, Math.ceil(runMs / durationMs) - 1);
@@ -203,7 +203,7 @@ export function isReversedIteration(iteration: number, direction: PxPlaybackDire
     }
 }
 
-/** The frame on screen at a run position: content ms inside its pass, `0..duration`, counted the way the pass plays —
+/** The frame on screen at a playback position: content ms inside its pass, `0..duration`, counted the way the pass plays —
  *  a reversed pass reads from `duration` down. @public @advanced */
 export function iterationTimeOf(runMs: number, geometry: PxRunGeometry): number {
     const { durationMs, iterations, direction } = geometry;
@@ -215,7 +215,7 @@ export function iterationTimeOf(runMs: number, geometry: PxRunGeometry): number 
     return isReversedIteration(iteration, direction) ? durationMs - local : local;
 }
 
-/** The run position that shows `frameMs` of pass `iteration` — the inverse of {@link iterationTimeOf}; the frame is
+/** The playback position that shows `frameMs` of pass `iteration` — the inverse of {@link iterationTimeOf}; the frame is
  *  clamped into the pass. @public @advanced */
 export function runMsOf(iteration: number, frameMs: number, geometry: PxRunGeometry): number {
     const { durationMs, iterations, direction } = geometry;

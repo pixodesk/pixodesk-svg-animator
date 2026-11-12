@@ -4,16 +4,19 @@
 in §11; both are closed (O2 fixed 2026-10-10). Nothing is committed. No backwards compatibility is
 owed: the format has not shipped to clients, so this is a clean cut with no aliases and no shims.
 
-> **Since 1.24 (2026-11-11) — the run model.** The words below moved; this document keeps the ones it was written
-> with (`dev-docs/plans/animation-state.brainstorm.md` §0 is the ledger). File `actionTriggers` / `actions` keys
-> `start` · `stop` · `pause` · `resume` → `startRun` · `stopRun` · `pauseRun` · `resumeRun` (values unchanged;
-> `resumeRun` still derived); `actions.finish` → the timeline key `atEnd`; props `play` / `pause` / `playState` →
-> one `playRun="off" | "on" | "paused"`; handle `play()` → `startRun()` (+ `stopRun()` · `pauseRun()` · `resumeRun()`;
-> `play()` / `pause()` stay as aliases), `stop()` → `stopRun()`, `playOnce()` → `runOnce()`, `getPlayState()` →
-> `getRunState()` (`idle` → `off`, new `returning`), new `isRunActive()`; callbacks `onPlay` → `onRunStart` +
-> `onRunResume`, `onPause` → `onRunPause`, `onStop` → `onRunStop`; types `PxPlayState` → `PxRunState`,
-> `Px{Start,Stop,Finish}Behavior` → `PxStartRunBehavior` / `PxStopRunBehavior` / `PxAtEndBehavior`,
-> `PxPlayStateRequest` → `PxPlayRun`; `playStateToLevels` and PX1502 retired.
+> **Since 1.24–1.25 (2026-11-11) — the playback model.** The words below moved; this document keeps the ones it was written
+> with (`animation-state.brainstorm.md` §0 and `animation-state.playback-noun.md` are the ledger; 1.24 spelt the
+> noun `Run`; `animation-state.playback-namespace.md` moved the handle under `player.playback`). File `actionTriggers` /
+> `actions` keys `start` · `stop` · `pause` · `resume` → `"playback.start"` · `"playback.stop"` · `"playback.pause"` ·
+> `"playback.resume"` (values unchanged; `playback.resume` still derived); `actions.finish` → the timeline key `atEnd`;
+> props `play` / `pause` / `playState` → one `playback="off" | "on" | "paused"`; handle — everything on `player.playback`:
+> `play()` → `playback.start()` (+ `playback.stop()` · `playback.pause()` · `playback.resume()`; no aliases), `stop()` →
+> `playback.stop()`, `playOnce()` → `playback.playOnce()`, `getPlayState()` → `playback.getState()` (`idle` → `off`, new
+> `returning`), new `playback.isActive()`, the time reads under `playback.` (`getPlaybackSpeed()` → `playback.getSpeed()`,
+> `getPlaybackDuration()` → `playback.getDurationAtSpeed()` …); callbacks `onPlay` → `onPlaybackStart` +
+> `onPlaybackResume`, `onPause` → `onPlaybackPause`, `onStop` → `onPlaybackStop`; types `PxPlayState` → `PxPlaybackState`,
+> `Px{Start,Stop,Finish}Behavior` → `PxStartPlaybackBehavior` / `PxStopPlaybackBehavior` / `PxAtEndBehavior`,
+> `PxPlayStateRequest` → `PxPlayback`; `playStateToLevels` and PX1502 retired.
 
 Scope is deliberately narrow: **only `timeline.trigger` changes.** No other part of the wire format
 is touched.

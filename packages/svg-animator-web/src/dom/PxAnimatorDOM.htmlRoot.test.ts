@@ -73,9 +73,9 @@ describe('HTML root around SVG content', () => {
         expect(stage.querySelector('h1')?.textContent).toBe('Hello, world!');
         // the player gives ids an instance prefix; the drawing's only circle is the ball
         const cy = () => Number(stage.querySelector('circle')?.getAttribute('cy'));
-        api.setCurrentTime(500);
+        api.playback.setCurrentTime(500);
         expect(cy()).toBeCloseTo(190, 0);
-        api.setCurrentTime(1000);
+        api.playback.setCurrentTime(1000);
         expect(cy()).toBeCloseTo(320, 0);
         api.destroy();
     });
@@ -127,7 +127,7 @@ describe('an SVG element as the root — rendered as is, never wrapped', () => {
         const rect = onlyChild('svg-stage');
         expect(rect.localName).toBe('rect');
         expect(rect.namespaceURI).toBe(SVG_NS);
-        api.setCurrentTime(500);
+        api.playback.setCurrentTime(500);
         expect(Number(rect.getAttribute('x'))).toBeCloseTo(50, 0);
         api.destroy();
     });

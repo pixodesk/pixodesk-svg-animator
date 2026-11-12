@@ -8,7 +8,7 @@ import { getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxDocument,
 import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
+import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 
 // Re-export the platform-neutral pieces from their historical home so the
 // package surface is unchanged by the core extraction.
@@ -53,7 +53,7 @@ function escapeCssId(id: string): string {
  *
  * @param {PxEngineCallbacks=} callbacks Optional lifecycle callbacks.
  * @param {Element=} rootElement Optional pre-rendered root element.
- * @returns {PxAnimationPlayerApi} A PxAnimationPlayerApi instance.
+ * @returns The engine's primitives — `finaliseAnimator` composes `playback` on top.
  * @internal
  */
 export function createFrameLoopAnimator(
@@ -61,7 +61,7 @@ export function createFrameLoopAnimator(
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
-): PxAnimationPlayerApi {
+): PxEngineAnimationPlayerApi<Element> {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -86,7 +86,7 @@ export function createFrameLoopAnimator(
     );
 
     // Specialize the platform-neutral API to the DOM: the root is an Element.
-    const api: PxAnimationPlayerApi = {
+    const api: PxEngineAnimationPlayerApi<Element> = {
         ...basicApi,
         "getRootElement": () => rootElement || null
     };
@@ -99,7 +99,7 @@ export function createFrameLoopAnimator(
         if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
-        const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.runListeners);
+        const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.playbackListeners);
         const destroyEngine = api.destroy.bind(api);
         api.destroy = () => { detachTriggers(); destroyEngine(); };
     }

@@ -36,14 +36,14 @@ export function createVuePlayer(
   app.mount(container);
 
   return {
-    startRun: () => api?.startRun(),
-    pauseRun: () => api?.pauseRun(),
-    jumpToStart: () => api?.jumpToStart(),
-    finish: () => api?.jumpToEnd(),
-    isPlaying: () => api?.isPlaying() ?? false,
-    getCurrentTime: () => api?.getCurrentTime() ?? null,
-    setCurrentTime: (ms) => api?.setCurrentTime(ms),
-    setPlaybackSpeed: (speed) => api?.setPlaybackSpeed(speed),
+    start: () => api?.playback.start(),
+    pause: () => api?.playback.pause(),
+    jumpToStart: () => api?.playback.jumpToStart(),
+    finish: () => api?.playback.jumpToEnd(),
+    isPlaying: () => api?.playback.isPlaying() ?? false,
+    getCurrentTime: () => api?.playback.getCurrentTime() ?? null,
+    setCurrentTime: (ms) => api?.playback.setCurrentTime(ms),
+    setSpeed: (speed) => api?.playback.setSpeed(speed),
     destroy: () => app.unmount(),
   };
 }

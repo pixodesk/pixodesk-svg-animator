@@ -4,9 +4,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxRunState, type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
+import { type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
+import { forwardPlaybackControls } from '@pixodesk/svg-animator-core/engine';
 
-/** The player's callbacks as they travel through the web builders — the public set: the four run events (the
+/** The player's callbacks as they travel through the web builders — the public set: the four playback events (the
  *  executor's to tell), the end, the teardown, the diagnostics channel. The ENGINES get a slice of it
  *  ({@link toEngineCallbacks}); their raw `onPlay` / `onPause` never come from here. */
 export type PxPlayerCallbacks = PxAnimationPlayerCallbacks;
@@ -22,12 +23,12 @@ import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
  * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
  */
 export function toPlayerCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
-    const { onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
-    return { onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
+    const { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
+    return { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
 }
 
-/** The slice an ENGINE takes: the end, the teardown and the diagnostics channel. The run events are the executor's
- *  (`composeApiExtras`' `runListeners`), and the engine's own `onPlay` / `onPause` stay unwired — the gate's hold and
+/** The slice an ENGINE takes: the end, the teardown and the diagnostics channel. The playback events are the executor's
+ *  (`composeApiExtras`' `playbackListeners`), and the engine's own `onPlay` / `onPause` stay unwired — the gate's hold and
  *  a jump's internal pause are not the user's. */
 export function toEngineCallbacks(callbacks: PxPlayerCallbacks | undefined): PxEngineCallbacks {
     const { onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = callbacks ?? {};
@@ -41,37 +42,10 @@ export function toEngineCallbacks(callbacks: PxPlayerCallbacks | undefined): PxE
  */
 export function createInertAnimator(): PxAnimationPlayerApi {
     return {
+        // no target ever: every read its "not ready" value, every write dropped
+        playback: forwardPlaybackControls(() => undefined, () => {}),
         isReady: () => false,
         getRootElement: () => null,
-        isPlaying: () => false,
-        startRun: () => {},
-        stopRun: () => {},
-        pauseRun: () => {},
-        resumeRun: () => {},
-        play: () => {},
-        pause: () => {},
-        jumpToStart: () => {},
-        jumpToEnd: () => {},
-        runOnce: () => {},
-        getRunState: () => PxRunState.off,
-        isRunActive: () => false,
-        getPlaybackSpeed: () => 1,
-        setPlaybackSpeed: () => {},
-        getPlaybackDuration: () => null,
-        setPlaybackDuration: () => {},
-        getTotalPlaybackDuration: () => null,
-        getCurrentPlaybackTime: () => null,
-        getTotalPlaybackTime: () => null,
-        getDuration: () => null,
-        getTotalDuration: () => null,
-        getTotalProgress: () => null,
-        getCurrentTime: () => null,
-        setCurrentTime: () => {},
-        getCurrentProgress: () => null,
-        setCurrentProgress: () => {},
-        getCurrentIteration: () => 0,
-        getTotalTime: () => null,
-        setTotalTime: () => {},
         destroy: () => {},
     };
 }

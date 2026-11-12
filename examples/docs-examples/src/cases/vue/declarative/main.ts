@@ -12,8 +12,8 @@ createApp({
         h('button', { id: 'pause', onClick: () => { paused.value = !paused.value; } }, `pause = ${paused.value}`),
       ]),
       h('div', { class: 'stage' }, [
-        // ONE lever: `playRun` holds a position — 'off' · 'on' · 'paused'; each change presses one button
-        h(SvgAnimationPlayer as any, { doc: animation, playRun: paused.value ? 'paused' : playing.value ? 'on' : 'off' }),
+        // ONE lever: `playback` holds a position — 'off' · 'on' · 'paused'; each change presses one button
+        h(SvgAnimationPlayer as any, { doc: animation, playback: paused.value ? 'paused' : playing.value ? 'on' : 'off' }),
       ]),
     ];
   },

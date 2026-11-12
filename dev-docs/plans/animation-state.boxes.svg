@@ -13,7 +13,7 @@
     </style>
   </defs>
   <rect width="960" height="600" fill="#fff"/>
-  <text x="16" y="22" class="h">The machinery as boxes — the candidate's words (A-run, 2026-11-10)</text>
+  <text x="16" y="22" class="h">The machinery as boxes — the final words (schema 1.25, 2026-11-12; 1.24 said “run”)</text>
 
   <!-- page -->
   <rect x="16" y="36" width="928" height="548" rx="10" fill="none" stroke="#888" stroke-dasharray="6 4"/>
@@ -28,60 +28,60 @@
     <rect x="48" y="146" width="150" height="16" rx="8" fill="#dde3ee"/>
     <circle cx="60" cy="154" r="4" fill="#9aa7bd"/><circle cx="123" cy="154" r="7" fill="#4a6fa5"/><circle cx="186" cy="154" r="4" fill="#9aa7bd"/>
     <text x="50" y="176" class="s">off</text><text x="116" y="176" class="s">on</text><text x="172" y="176" class="s">paused</text>
-    <text x="210" y="158" class="mono t">playRun</text>
+    <text x="210" y="158" class="mono t">playback</text>
   </g>
   <text x="48" y="200" class="mono n">showAtProgress · showAtTime</text>
   <text x="48" y="222" class="n">a prop change = an edge → a button:</text>
-  <text x="48" y="236" class="mono t" font-size="11">off→on      startRun()</text>
-  <text x="48" y="249" class="mono t" font-size="11">on→paused   pauseRun()</text>
-  <text x="48" y="262" class="mono t" font-size="11">paused→on   resumeRun()</text>
-  <text x="48" y="275" class="mono t" font-size="11">→off        stopRun()</text>
+  <text x="48" y="236" class="mono t" font-size="11">off→on      playback.start()</text>
+  <text x="48" y="249" class="mono t" font-size="11">on→paused   playback.pause()</text>
+  <text x="48" y="262" class="mono t" font-size="11">paused→on   playback.resume()</text>
+  <text x="48" y="275" class="mono t" font-size="11">→off        playback.stop()</text>
 
   <!-- player box -->
   <rect x="330" y="72" width="596" height="340" rx="8" fill="#fbfaf5" stroke="#a5784a"/>
   <text x="342" y="94" class="h">Player box · one instance of createSvgAnimationPlayer()</text>
-  <text x="342" y="116" class="k">BUTTONS — pressed by code (the handle)</text>
+  <text x="342" y="116" class="k">BUTTONS — player.playback, pressed by code</text>
   <g class="mono" font-size="11" text-anchor="middle">
-    <rect x="342" y="124" width="78" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="381" y="141" class="t">startRun()</text>
-    <rect x="424" y="124" width="72" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="460" y="141" class="t">stopRun()</text>
-    <rect x="500" y="124" width="78" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="539" y="141" class="t">pauseRun()</text>
-    <rect x="582" y="124" width="84" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="624" y="141" class="t">resumeRun()</text>
+    <rect x="342" y="124" width="78" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="381" y="141" class="t">start()</text>
+    <rect x="424" y="124" width="72" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="460" y="141" class="t">stop()</text>
+    <rect x="500" y="124" width="78" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="539" y="141" class="t">pause()</text>
+    <rect x="582" y="124" width="84" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="624" y="141" class="t">resume()</text>
     <rect x="670" y="124" width="92" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="716" y="141" class="t">jumpToStart()</text>
     <rect x="766" y="124" width="82" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="807" y="141" class="t">jumpToEnd()</text>
-    <rect x="852" y="124" width="68" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="886" y="141" class="t">runOnce()</text>
+    <rect x="850" y="124" width="72" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="886" y="141" class="t">playOnce()</text>
   </g>
-  <text x="342" y="162" class="n">solid = a lever's edge · dashed = momentary · documented aliases: play() (resumeRun or startRun by state), pause()</text>
+  <text x="342" y="162" class="n">solid = a lever's edge · dashed = momentary · no play() / pause() aliases: one spelling per act</text>
   <text x="342" y="182" class="k">SETTINGS — how a press moves the playhead (file: actions · atEnd · outOfView)</text>
-  <text x="342" y="200" class="mono t">startRun</text><text x="420" y="200" class="mono n">continue · jumpToStart · jumpToEnd</text>
-  <text x="342" y="214" class="mono t">stopRun</text><text x="420" y="214" class="mono n">jumpToStart · animateToStart · jumpToEnd · animateToEnd</text>
-  <text x="342" y="228" class="mono t">atEnd</text><text x="420" y="228" class="mono n">hold · jumpToStart · animateToStart</text><text x="700" y="228" class="n">← no button: the clock presses it</text>
-  <text x="342" y="242" class="mono t">outOfView</text><text x="420" y="242" class="mono n">pause · continue · jumpToStart</text><text x="700" y="242" class="n">← no button: the gate presses it</text>
+  <text x="342" y="200" class="mono t">playback.start</text><text x="460" y="200" class="mono n">continue · jumpToStart · jumpToEnd</text>
+  <text x="342" y="214" class="mono t">playback.stop</text><text x="460" y="214" class="mono n">jumpToStart · animateToStart · jumpToEnd · animateToEnd</text>
+  <text x="342" y="228" class="mono t">atEnd</text><text x="460" y="228" class="mono n">hold · jumpToStart · animateToStart</text><text x="700" y="228" class="n">← no button: the clock presses it</text>
+  <text x="342" y="242" class="mono t">outOfView</text><text x="460" y="242" class="mono n">pause · continue · jumpToStart</text><text x="700" y="242" class="n">← no button: the gate presses it</text>
 
   <!-- state machine -->
   <rect x="342" y="252" width="360" height="150" rx="8" fill="#fff" stroke="#a5784a" stroke-dasharray="3 3"/>
-  <text x="354" y="270" class="k">STATE — the run (getRunState)</text>
+  <text x="354" y="270" class="k">STATE — the playback (playback.getState())</text>
   <g class="mono" font-size="12" text-anchor="middle">
     <rect x="350" y="300" width="70" height="24" rx="12" fill="#eee" stroke="#777"/><text x="385" y="316" class="t">off</text>
     <rect x="470" y="300" width="70" height="24" rx="12" fill="#e4f2e6" stroke="#4a8a5a"/><text x="505" y="316" class="t">playing</text>
     <rect x="590" y="300" width="70" height="24" rx="12" fill="#fdf1dc" stroke="#b58a2a"/><text x="625" y="316" class="t">paused</text>
     <rect x="470" y="360" width="70" height="24" rx="12" fill="#e4f2e6" stroke="#4a8a5a"/><text x="505" y="376" class="t">finished</text>
   </g>
-  <path class="arrow" d="M420,306 L468,306"/><text x="444" y="300" class="s" text-anchor="middle">startRun</text>
-  <path class="arrow" d="M470,318 L422,318"/><text x="444" y="332" class="s" text-anchor="middle">stopRun</text>
-  <path class="arrow" d="M540,306 L588,306"/><text x="564" y="299" class="s" text-anchor="middle" font-size="9">pauseRun</text>
-  <path class="arrow" d="M590,318 L542,318"/><text x="564" y="333" class="s" text-anchor="middle" font-size="9">resumeRun</text>
-  <path class="arrow" d="M505,324 L505,358"/><text x="511" y="345" class="s">run ends · stopRun →End</text>
-  <path class="arrow" d="M470,368 L398,326"/><text x="352" y="352" class="s">atEnd · stopRun</text>
-  <text x="560" y="376" class="s">green = the run is active</text>
+  <path class="arrow" d="M420,306 L468,306"/><text x="444" y="300" class="s" text-anchor="middle">start</text>
+  <path class="arrow" d="M470,318 L422,318"/><text x="444" y="332" class="s" text-anchor="middle">stop</text>
+  <path class="arrow" d="M540,306 L588,306"/><text x="564" y="299" class="s" text-anchor="middle" font-size="9">pause</text>
+  <path class="arrow" d="M590,318 L542,318"/><text x="564" y="333" class="s" text-anchor="middle" font-size="9">resume</text>
+  <path class="arrow" d="M505,324 L505,358"/><text x="511" y="345" class="s">the pass ends · stop →End</text>
+  <path class="arrow" d="M470,368 L398,326"/><text x="352" y="352" class="s">atEnd · stop</text>
+  <text x="560" y="376" class="s">green = a playback is active</text>
 
   <!-- readouts -->
   <rect x="714" y="252" width="200" height="150" rx="8" fill="#fff" stroke="#a5784a" stroke-dasharray="3 3"/>
   <text x="726" y="270" class="k">READOUTS</text>
-  <text x="726" y="292" class="mono t">getRunState()</text>
-  <text x="726" y="308" class="mono t">isRunActive()</text>
+  <text x="726" y="292" class="mono t">playback.getState()</text>
+  <text x="726" y="308" class="mono t">playback.isActive()</text>
   <text x="726" y="332" class="n">callbacks</text>
-  <text x="726" y="348" class="mono t">onRunStart · onRunStop</text>
-  <text x="726" y="364" class="mono t" font-size="11">onRunPause · onRunResume</text>
+  <text x="726" y="348" class="mono t" font-size="9">onPlaybackStart · onPlaybackStop</text>
+  <text x="726" y="364" class="mono t" font-size="9">onPlaybackPause · onPlaybackResume</text>
   <text x="726" y="380" class="mono t">onFinish</text>
   <text x="726" y="396" class="n">registry events (same names)</text>
 
@@ -91,15 +91,15 @@
   <text x="48" y="332" class="k">EVENT → BUTTON (the state picks the list)</text>
   <text x="48" y="352" class="mono t">load · hoverIn · hoverOut · click</text>
   <text x="48" y="370" class="n">↓ listed under</text>
-  <text x="48" y="386" class="mono t" font-size="11">startRun · stopRun</text>
-  <text x="48" y="400" class="mono t" font-size="11">pauseRun · resumeRun</text>
-  <text x="48" y="416" class="n">resumeRun derived unless the file names it</text>
+  <text x="48" y="386" class="mono t" font-size="11">playback.start · playback.stop</text>
+  <text x="48" y="400" class="mono t" font-size="11">playback.pause · playback.resume</text>
+  <text x="48" y="416" class="n">playback.resume: derived unless named</text>
 
   <!-- sensors -->
   <rect x="330" y="432" width="596" height="130" rx="8" fill="#faf3f7" stroke="#9a4a7a"/>
   <text x="342" y="452" class="h">Sensors · the box presses its own buttons</text>
-  <text x="342" y="474" class="t">visibility gate</text><text x="450" y="474" class="mono n">outOfView → hold / jumpToStart    inView → release / startRun</text>
-  <text x="342" y="494" class="t">clock</text><text x="450" y="494" class="mono n">run ends → atEnd (hold · jumpToStart · animateToStart)</text>
+  <text x="342" y="474" class="t">visibility gate</text><text x="450" y="474" class="mono n">outOfView → hold / jumpToStart    inView → release / playback.start</text>
+  <text x="342" y="494" class="t">clock</text><text x="450" y="494" class="mono n">the pass ends → atEnd (hold · jumpToStart · animateToStart)</text>
   <text x="342" y="514" class="t">pointer</text><text x="450" y="514" class="mono n">hoverIn · hoverOut · click → the wiring (left)</text>
   <text x="342" y="540" class="n">a hold is the engine's freeze, not the user's pause (dotLottie keeps freeze ≠ pause)</text>
 

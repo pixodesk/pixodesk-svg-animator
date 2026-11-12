@@ -456,7 +456,42 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upRunWords,
         down: downRunWords,   // exactly invertible: key renames, and `atEnd` back to `actions.finish`
     },
+    {
+        from: '1.24',
+        to: '1.25',
+        reason: 'Playback is the noun, and a built-in action is named `<state variable>.<verb>` '
+            + '(dev-docs/plans/animation-state.playback-noun.md, animation-state.playback-namespace.md): "start / stop / '
+            + 'pause / resume playback" are the phrases of every media player, where "run" read as a verb — `startRun` → '
+            + '`playback.start`, `stopRun` → `playback.stop`, `pauseRun` → `playback.pause`, `resumeRun` → '
+            + '`playback.resume`, in the trigger lists and the action slots (the handle says `player.playback.start()`). '
+            + 'The dot reserves the built-in names against custom ones. Every value is unchanged.',
+        kind: PxWireStepKind.converted,
+        up: upPlaybackWords,
+        down: downPlaybackWords,   // exactly invertible: key renames
+    },
 ];
+
+/** The 1.24 → 1.25 key renames of the trigger lists and the action slots (old → new) — spelled out, never the live
+ *  constants: a step is frozen at the words of its two versions. */
+const PLAYBACK_KEYS_1_25: ReadonlyArray<readonly [from: string, to: string]> = [
+    ['startRun', 'playback.start'], ['stopRun', 'playback.stop'], ['pauseRun', 'playback.pause'], ['resumeRun', 'playback.resume'],
+];
+
+/** 1.24 → 1.25 (`toNewer`) or back: the four lists and the two action slots renamed; values untouched. */
+function renamePlaybackWords(doc: Record<string, unknown>, toNewer: boolean): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    const triggers = readObjectProp(timeline, 'actionTriggers');
+    const actions = readObjectProp(timeline, 'actions');
+    for (const [older, newer] of PLAYBACK_KEYS_1_25) {
+        const [from, to] = toNewer ? [older, newer] : [newer, older];
+        if (triggers) renameKey(triggers, from, to);
+        if (actions) renameKey(actions, from, to);    // only `startRun` / `stopRun` are slots; the others are never there
+    }
+}
+function upPlaybackWords(doc: Record<string, unknown>): void { renamePlaybackWords(doc, true); }
+function downPlaybackWords(doc: Record<string, unknown>): void { renamePlaybackWords(doc, false); }
 
 /** The 1.23 → 1.24 key renames of the trigger lists and the action slots (old → new). */
 const RUN_KEYS_1_24: ReadonlyArray<readonly [from: string, to: string]> = [

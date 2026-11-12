@@ -13,7 +13,7 @@ A single-page preview player that demonstrates all three runtime packages side b
 - **Light/dark theme:** toggle the theme; the choice is saved to `localStorage`.
 - **Transport controls:** Play, Pause, Stop (jump to start), Restart, Finish (jump to end).
 - **Time slider:** shows the current time inside the iteration and lets you scrub one pass.
-- **Playback speed:** `setPlaybackSpeed` (wired for the Web player only in this UI).
+- **Playback speed:** `playback.setSpeed` (wired for the Web player only in this UI).
 - **Trigger cue:** with *Use trigger* on, the document's own trigger starts the animation, so
   while it sits still the stage says what to do — hover, click, or scroll it into view.
 
@@ -23,7 +23,7 @@ The stage starts empty; use **Load demo** to load the built-in sample animation
 ## How it works
 
 Each package exposes the same imperative API (`play` / `pause` / `jumpToStart` /
-`jumpToEnd` / `getCurrentTime` / `setCurrentTime` / `setPlaybackSpeed`). The three adapters in
+`jumpToEnd` / `getCurrentTime` / `setCurrentTime` / `playback.setSpeed`). The three adapters in
 [`src/players/`](src/players/) wrap them behind a common
 [`PlayerHandle`](src/players/types.ts) so the vanilla-TS UI in
 [`src/main.ts`](src/main.ts) can drive any of them uniformly.

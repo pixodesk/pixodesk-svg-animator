@@ -7,8 +7,8 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxActionTriggersInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxAtEndBehavior, PxRunState, PxWhenIdle, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxAtEndBehavior, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, applyPlaybackOverride, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
@@ -98,7 +98,7 @@ export interface SvgAnimatorImplProps {
  * @public
  */
 export type SvgAnimationPlayerCallbacks =
-    Pick<PxAnimationPlayerCallbacks, 'onReady' | 'onRunStart' | 'onRunStop' | 'onRunPause' | 'onRunResume' | 'onFinish' | 'onDestroy'>;
+    Pick<PxAnimationPlayerCallbacks, 'onReady' | 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onFinish' | 'onDestroy'>;
 
 /**
  * The component's props. The playback override, the control props and every callback are
@@ -197,7 +197,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
         // the CURRENT values rather than wrapping them: `(m, d) => diagRef.current?.onWarning?.(m, d)`
         // would always be a function, so the channel would never fall back to the console.
         //
-        // The callbacks go INLINE, under the same names as the props (review §9). The run events are
+        // The callbacks go INLINE, under the same names as the props (review §9). The playback events are
         // the PLAYER's executor's to fire when it performs the act — one rule, in the web package — so
         // they are passed through rather than re-derived here.
         // No `adapter`: the web player's OWN writer drives the elements React rendered, found by
@@ -210,10 +210,10 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             // Refs are attached during commit, before this effect runs, so the root exists here.
             rootElement: rootRef.current ?? undefined,
             onReady:  cb('onReady'),
-            onRunStart:  cb('onRunStart'),
-            onRunStop:   cb('onRunStop'),
-            onRunPause:  cb('onRunPause'),
-            onRunResume: cb('onRunResume'),
+            onPlaybackStart:  cb('onPlaybackStart'),
+            onPlaybackStop:   cb('onPlaybackStop'),
+            onPlaybackPause:  cb('onPlaybackPause'),
+            onPlaybackResume: cb('onPlaybackResume'),
             onFinish: cb('onFinish'),
             onDestroy: cb('onDestroy'),
             onWarning:   diagRef.current?.onWarning,
@@ -252,16 +252,16 @@ const SvgAnimatorImplOnce = React.memo(
  *    <SvgAnimationPlayer doc={animation} playUsingActionTriggers />
  *    ```
  *
- * 2. **Declarative `playRun`** – the run's position, held by the host: `"off"` · `"on"` · `"paused"`.
+ * 2. **Declarative `playback`** – the playback's position, held by the host: `"off"` · `"on"` · `"paused"`.
  *    ```tsx
- *    <SvgAnimationPlayer doc={animation} playRun={hovered ? "on" : "off"} />
+ *    <SvgAnimationPlayer doc={animation} playback={hovered ? "on" : "off"} />
  *    ```
  *
  * 3. **Imperative** – exposes a ref-based API for full programmatic control.
  *    ```tsx
  *    const api = useRef<PxAnimationPlayerHandle>(null);
  *    <SvgAnimationPlayer doc={animation} playerRef={api} />
- *    <button onClick={() => api.current?.startRun()}>Start</button>
+ *    <button onClick={() => api.current?.playback.start()}>Start</button>
  *    ```
  *
  * 4. **Controlled time** – renders a single frame at a given time.
@@ -276,12 +276,12 @@ const SvgAnimatorImplOnce = React.memo(
  */
 const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     className, style,
-    doc: docInput, playUsingActionTriggers, playRun, showAtProgress, showAtTime, playerRef,
+    doc: docInput, playUsingActionTriggers, playback, showAtProgress, showAtTime, playerRef,
 
     // Override — the file's timing and actions, adjusted (D4, playback-layers.md); the triggers travel with `playUsingActionTriggers`
     timelineOptions, actions,
 
-    onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy,
+    onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy,
 
     // Diagnostics (API review §5)
     onWarning, onError, suppressWarnings, suppressErrors
@@ -295,7 +295,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // every mode, so `<SvgAnimationPlayer playUsingActionTriggers playerRef={api} />` autostarts AND gives
     // you the handle, instead of the ref silently forcing `start: 'manual'`.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAtProgress, showAtTime, playRun, playUsingActionTriggers });
+        resolveControlMode({ showAtProgress, showAtTime, playback, playUsingActionTriggers });
 
     /**
      * The diagnostics channel, built from the CURRENT props each time (API review §5).
@@ -326,16 +326,16 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     if (controlModeTakesOverTrigger(compMode)) doc = withoutTriggerDriver(doc);
 
     // §10: the EFFECTIVE iterations (file + the `iterations` prop, folded into the patched doc
-    // above) decide what `playRun` drives — a POSE (one pass) or a RUN (loop).
+    // above) decide what `playback` drives — a POSE (one pass) or a PLAYBACK (loop).
     const animatorView = getAnimatorConfig(doc) || {};
     const world = resolvePlaybackWorld(animatorView.iterations);
     const passMs = animatorView.duration ?? PX_DEFAULT_DURATION_MS;
     const totalMs = animatorView.iterations === 'infinite' ? Infinity
         : passMs * (typeof animatorView.iterations === 'number' && animatorView.iterations >= 1 ? animatorView.iterations : 1);
-    if (compMode === PxControlMode.playRun && world === PxPlaybackWorld.oneShot) {
-        // The pose contract beats the file's rest poses (§10, D5): while `playRun` names a pose, the held
+    if (compMode === PxControlMode.playback && world === PxPlaybackWorld.oneShot) {
+        // The pose contract beats the file's rest poses (§10, D5): while `playback` names a pose, the held
         // poses must be the same on every file — an `atEnd: jumpToStart` document would revert to its
-        // static attrs after the run. Pin both sides: the first frame before, the last frame after.
+        // static attrs after the playback. Pin both sides: the first frame before, the last frame after.
         doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, atEnd: PxAtEndBehavior.hold } }).doc;
     }
 
@@ -359,7 +359,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
 
     // Keep the latest callback props readable by the memoised inner component.
     const callbacksRef = useRef<SvgAnimationPlayerCallbacks>({});
-    callbacksRef.current = { onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy };
+    callbacksRef.current = { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy };
 
     // Same idea for the diagnostics props, so the player and the adapter report where the
     // component does (§5).
@@ -368,45 +368,20 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
 
     // Expose the imperative API via the consumer-provided ref. The ref is an ambient
     // CAPABILITY, never a mode (§10) — but a WRITE call landing while a declarative driver
-    // (`playRun` or `showAtProgress`/`showAtTime`) owns playback is the actual collision, so it warns
+    // (`playback` or `showAtProgress`/`showAtTime`) owns playback is the actual collision, so it warns
     // (PX1503) and is applied; the next prop change reasserts the props.
     useImperativeHandle(playerRef, () => {
         const guardWrite = (call: string): void => {
-            if (compMode === PxControlMode.playRun || compMode === PxControlMode.fixedTime) {
+            if (compMode === PxControlMode.playback || compMode === PxControlMode.fixedTime) {
                 createDiagnostics(diagRef.current ?? undefined, '[SvgAnimationPlayer]')
                     .warn(PxDiagnosticKind.usage, PxDiagnosticCode.imperativeOverDeclarative, call);
             }
         };
+        // ONE forwarder for every wrapper (core `forwardPlaybackControls`); a write warns first when a driver prop owns playback
         return {
-            isPlaying: () => apiHolderRef.current?.isPlaying() || false,
-            startRun: () => { guardWrite('startRun()'); apiHolderRef.current?.startRun(); },
-            stopRun: () => { guardWrite('stopRun()'); apiHolderRef.current?.stopRun(); },
-            pauseRun: () => { guardWrite('pauseRun()'); apiHolderRef.current?.pauseRun(); },
-            resumeRun: () => { guardWrite('resumeRun()'); apiHolderRef.current?.resumeRun(); },
-            play: () => { guardWrite('play()'); apiHolderRef.current?.play(); },
-            pause: () => { guardWrite('pause()'); apiHolderRef.current?.pause(); },
-            jumpToStart: () => { guardWrite('jumpToStart()'); apiHolderRef.current?.jumpToStart(); },
-            jumpToEnd: () => { guardWrite('jumpToEnd()'); apiHolderRef.current?.jumpToEnd(); },
-            runOnce: () => { guardWrite('runOnce()'); apiHolderRef.current?.runOnce(); },
-            getRunState: () => apiHolderRef.current?.getRunState() ?? PxRunState.off,
-            isRunActive: () => apiHolderRef.current?.isRunActive() ?? false,
-            getPlaybackSpeed: () => apiHolderRef.current?.getPlaybackSpeed() ?? 1,
-            setPlaybackSpeed: (speed: number) => {{ guardWrite('setPlaybackSpeed()'); apiHolderRef.current?.setPlaybackSpeed(speed); }},
-            getPlaybackDuration: () => apiHolderRef.current?.getPlaybackDuration() ?? null,
-            setPlaybackDuration: (ms: number) => {{ guardWrite('setPlaybackDuration()'); apiHolderRef.current?.setPlaybackDuration(ms); }},
-            getTotalPlaybackDuration: () => apiHolderRef.current?.getTotalPlaybackDuration() ?? null,
-            getCurrentPlaybackTime: () => apiHolderRef.current?.getCurrentPlaybackTime() ?? null,
-            getTotalPlaybackTime: () => apiHolderRef.current?.getTotalPlaybackTime() ?? null,
-            getDuration: () => apiHolderRef.current?.getDuration() ?? null,
-            getTotalDuration: () => apiHolderRef.current?.getTotalDuration() ?? null,
-            getTotalProgress: () => apiHolderRef.current?.getTotalProgress() ?? null,
-            getCurrentTime: () => apiHolderRef.current?.getCurrentTime() ?? null,
-            setCurrentTime: (time: number) => {{ guardWrite('setCurrentTime()'); apiHolderRef.current?.setCurrentTime(time); }},
-            getCurrentProgress: () => apiHolderRef.current?.getCurrentProgress() ?? null,
-            setCurrentProgress: (progress: number) => {{ guardWrite('setCurrentProgress()'); apiHolderRef.current?.setCurrentProgress(progress); }},
-            getCurrentIteration: () => apiHolderRef.current?.getCurrentIteration() ?? 0,
-            getTotalTime: () => apiHolderRef.current?.getTotalTime() ?? null,
-            setTotalTime: (time: number) => {{ guardWrite('setTotalTime()'); apiHolderRef.current?.setTotalTime(time); }},
+            playback: forwardPlaybackControls(
+                () => apiHolderRef.current?.playback,
+                (call, run) => { guardWrite(call); const playback = apiHolderRef.current?.playback; if (playback) run(playback); }),
         };
     }, [compMode]);
 
@@ -419,26 +394,26 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // carries the last applied props; a remount (`key` change) clears it, so the fresh animator
     // renders the named position from scratch — a mount with `"on"` plays (a one-shot to its end), `"off"` does nothing.
     const prevPlaybackRef = useRef<{ key: number; props: PxDeclarativeProps } | null>(null);
-    const position: PxDeclarativeProps = { playRun };
+    const position: PxDeclarativeProps = { playback };
     useEffect(() => {
-        if (compMode === PxControlMode.playRun) {
+        if (compMode === PxControlMode.playback) {
             const api = apiHolderRef.current;
             const prev = prevPlaybackRef.current?.key === key ? prevPlaybackRef.current.props : undefined;
             const { actions: steps } = resolveDeclarativePlayback({ world, prev, next: position });
-            // HOW each step moves is the timeline's `actions` (startRun / stopRun) — the player's executor
+            // HOW each step moves is the timeline's `actions` (playback.start / playback.stop) — the player's executor
             // behind the buttons.
-            if (api) for (const action of steps) applyDeclarativeAction(api, action);
+            if (api) for (const action of steps) applyDeclarativeAction(api.playback, action);
         }
         prevPlaybackRef.current = { key, props: position };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compMode, playRun, key]);
+    }, [compMode, playback, key]);
 
     // Controlled-time mode: seek through the animator API. Scrubbing `showAtProgress` /
     // `showAtTime` only re-runs this effect — the animator is NOT recreated.
     useEffect(() => {
         if (compMode === PxControlMode.fixedTime && seekMs !== undefined) {
-            apiHolderRef.current?.setCurrentTime(seekMs);
-            apiHolderRef.current?.pause();
+            apiHolderRef.current?.playback.setCurrentTime(seekMs);
+            apiHolderRef.current?.playback.pause();
         }
     }, [compMode, seekMs, key]);
 

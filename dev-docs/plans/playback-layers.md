@@ -2,16 +2,19 @@
 
 Status **2026-10-28 — layers 0–1 implemented** (schema 1.10; see [Implementation log](#implementation-log-2026-10-28)).
 
-> **Since 1.24 (2026-11-11) — the run model.** The words below moved; this document keeps the ones it was written
-> with (`dev-docs/plans/animation-state.brainstorm.md` §0 is the ledger). File `actionTriggers` / `actions` keys
-> `start` · `stop` · `pause` · `resume` → `startRun` · `stopRun` · `pauseRun` · `resumeRun` (values unchanged;
-> `resumeRun` still derived); `actions.finish` → the timeline key `atEnd`; props `play` / `pause` / `playState` →
-> one `playRun="off" | "on" | "paused"`; handle `play()` → `startRun()` (+ `stopRun()` · `pauseRun()` · `resumeRun()`;
-> `play()` / `pause()` stay as aliases), `stop()` → `stopRun()`, `playOnce()` → `runOnce()`, `getPlayState()` →
-> `getRunState()` (`idle` → `off`, new `returning`), new `isRunActive()`; callbacks `onPlay` → `onRunStart` +
-> `onRunResume`, `onPause` → `onRunPause`, `onStop` → `onRunStop`; types `PxPlayState` → `PxRunState`,
-> `Px{Start,Stop,Finish}Behavior` → `PxStartRunBehavior` / `PxStopRunBehavior` / `PxAtEndBehavior`,
-> `PxPlayStateRequest` → `PxPlayRun`; `playStateToLevels` and PX1502 retired.
+> **Since 1.24–1.25 (2026-11-11) — the playback model.** The words below moved; this document keeps the ones it was written
+> with (`animation-state.brainstorm.md` §0 and `animation-state.playback-noun.md` are the ledger; 1.24 spelt the
+> noun `Run`; `animation-state.playback-namespace.md` moved the handle under `player.playback`). File `actionTriggers` /
+> `actions` keys `start` · `stop` · `pause` · `resume` → `"playback.start"` · `"playback.stop"` · `"playback.pause"` ·
+> `"playback.resume"` (values unchanged; `playback.resume` still derived); `actions.finish` → the timeline key `atEnd`;
+> props `play` / `pause` / `playState` → one `playback="off" | "on" | "paused"`; handle — everything on `player.playback`:
+> `play()` → `playback.start()` (+ `playback.stop()` · `playback.pause()` · `playback.resume()`; no aliases), `stop()` →
+> `playback.stop()`, `playOnce()` → `playback.playOnce()`, `getPlayState()` → `playback.getState()` (`idle` → `off`, new
+> `returning`), new `playback.isActive()`, the time reads under `playback.` (`getPlaybackSpeed()` → `playback.getSpeed()`,
+> `getPlaybackDuration()` → `playback.getDurationAtSpeed()` …); callbacks `onPlay` → `onPlaybackStart` +
+> `onPlaybackResume`, `onPause` → `onPlaybackPause`, `onStop` → `onPlaybackStop`; types `PxPlayState` → `PxPlaybackState`,
+> `Px{Start,Stop,Finish}Behavior` → `PxStartPlaybackBehavior` / `PxStopPlaybackBehavior` / `PxAtEndBehavior`,
+> `PxPlayStateRequest` → `PxPlayback`; `playStateToLevels` and PX1502 retired.
 
 > **Since 1.21 (2026-11-04)** — this document keeps the words of the version it was written for; the current contract
 > differs in these points (`dev-docs/reviews/schema-and-props--manual-review.md` has the reasoning): an absent
@@ -20,7 +23,7 @@ Status **2026-10-28 — layers 0–1 implemented** (schema 1.10; see [Implementa
 > `PxPlayState` is `idle · playing · paused · finished · destroyed` (1.19); `timeline.playDuration` → `playSpeed`
 > (1.16); the component props `play` / `pause` → `playWhile` / `pauseWhile`, plus a `playState` word; the handle's
 > `cancel()` / `finish()` are `reset()` / `jumpToEnd()`, `setPlaybackRate` → `setPlaySpeed`, and plain time reads are
-> INSIDE the iteration (`total…` for the run).
+> INSIDE the iteration (`total…` for the playback).
 >
 > **Since 1.23 (2026-11-05)** — decided in `dev-docs/reviews/schema-and-props--improvements.md` §0: `playSpeed` → `playbackSpeed` (1.22) and the handle's `play…` family → `playback…`; the action words name where and how (1.23) — `reset` → `jumpToStart`, `rewind` → `animateToStart`, `restart` → `jumpToStart`, `stop.completeIteration: true` → `stop: 'animateToEnd'` (plus `stop: 'jumpToEnd'`), and reaching the end by any route runs `finish`; `reset()` → `jumpToStart()` (reports nothing), `onReset` removed, `onWarn` → `onWarning`; the props are `play` / `pause` again beside `playState`, one driver family at a time in TypeScript; `null` no longer deletes in an override.
 
@@ -81,12 +84,12 @@ The built-in actions, at their defaults:
 
 | action | does | called by |
 |---|---|---|
-| `start` | stopped or finished → playing: a fresh run from the beginning | `triggers.start` (block absent: `load`) |
+| `start` | stopped or finished → playing: a fresh playback from the beginning | `triggers.start` (block absent: `load`) |
 | `stop` | playing, paused or finished → stopped: jumps back to the start | `triggers.stop` |
 | `pause` | playing → paused: freezes the current frame | `triggers.pause` |
 | `resume` | paused → playing: carries on where it froze | `triggers.resume` (absent: the triggers of `start`) |
 | the click toggles | start / stop: `start` + `stop` on `click`; play / pause: `start` + `pause` on `click` — the lists themselves (the `togglePlay` sugar of 1.10 was removed in 1.12; `togglePause` already in 1.10) | `triggers.start` + `triggers.stop` / `triggers.pause` |
-| `finish` | the natural end: holds the last frame (→ finished) | the player, when the run ends |
+| `finish` | the natural end: holds the last frame (→ finished) | the player, when the playback ends |
 | `outOfView` | out of view: freezes the clock, keeps what was meant to run (`suspend` until 1.12) | the player's view sensor |
 | `wake` | back in view: carries on what `outOfView` froze | the player's view sensor |
 
@@ -260,7 +263,7 @@ from which values (`when`), to which values (`set`), by which path (`path`) and 
 (`completeIteration`). Every layer-1 preset is shorthand for its `set` + `path` (the table above).
 
 ```ts
-type EventName2 = EventName | 'ended';                                 // the run reached its end — now bindable
+type EventName2 = EventName | 'ended';                                 // the playback reached its end — now bindable
 interface Timeline2 extends Timeline1 {
     state?: {
         playback?: Values<'stopped' | 'playing' | 'paused' | 'finished'>;   // built in — written only to configure a value
@@ -382,7 +385,7 @@ interface Segment extends Value {
     inTime: number; outTime: number;               // the window
     timeline?: PxTimelinePatch;                    // the timeline's keys overridden while this segment plays
 }
-// 'ended' fires when the CURRENT SEGMENT's run ends; `finish` decides with its rules (move on to the next segment, or rest).
+// 'ended' fires when the CURRENT SEGMENT's playback ends; `finish` decides with its rules (move on to the next segment, or rest).
 // A switch takes the rule's path: jump = cut to the new segment's start (default); rewind = play the current one back first;
 // completeIteration waits for the current iteration.
 ```

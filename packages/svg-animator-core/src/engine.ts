@@ -30,8 +30,8 @@ export { applyPlaybackOverride, withActionTriggers, withoutTriggerDriver } from 
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
 export type { PxAnyControlProps, PxControlProps } from './format/PxAnimatorConstants';
-export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createPlayExecutor, ensurePlayExecutor, executorConfigOf, composeApiExtras } from './playback/PxDeclarativePlayback';
-export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeTarget, PxPlayTarget, PxPlayExecutorConfig, PxApiExtrasConfig, PxApiExtrasTarget, PxApiExtras } from './playback/PxDeclarativePlayback';
+export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createPlayExecutor, ensurePlayExecutor, executorConfigOf, composeApiExtras, forwardPlaybackControls, PxPlaybackWrite } from './playback/PxDeclarativePlayback';
+export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeTarget, PxPlayTarget, PxPlayExecutorConfig, PxApiExtrasConfig, PxApiExtrasTarget, PxApiExtras, PxComposedAnimationPlayerApi } from './playback/PxDeclarativePlayback';
 
 // The engine's runtime form — one typed channel per animated property
 export { calcAnimationValues, normalizeBindings } from './animation/PxDefinitions';

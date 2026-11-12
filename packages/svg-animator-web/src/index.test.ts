@@ -119,7 +119,7 @@ describe('animateBackground', () => {
                         outTime: 128,
                         atEnd: 'hold',
                         iterationDirection: 'normal',
-                        actionTriggers: { startRun: 'load' },
+                        actionTriggers: { 'playback.start': 'load' },
                     },
                 },
                 children: [
@@ -168,7 +168,7 @@ describe('animateBackground', () => {
                         // single play — no looping; animation finishes and holds the last frame
                         iterations: 1,
                         atEnd: 'hold',
-                        actionTriggers: { startRun: 'load' },
+                        actionTriggers: { 'playback.start': 'load' },
                     },
                 },
                 children: [
@@ -200,7 +200,7 @@ describe('animateBackground', () => {
 
         // Pressing play on a finished animation must rewind to the start, not
         // stay stuck on the last frame.
-        api.play();
+        api.playback.start();
         vi.advanceTimersByTime(64); // halfway through the replay
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,150)');
 
@@ -214,7 +214,7 @@ describe('animateBackground', () => {
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
-                animator: { timeline: { engine: 'js', outTime: 100, atEnd: 'hold', actionTriggers: { startRun: 'load' } } },
+                animator: { timeline: { engine: 'js', outTime: 100, atEnd: 'hold', actionTriggers: { 'playback.start': 'load' } } },
                 children: [
                     {
                         type: 'path', id: '_px_d_bare', d: 'M0,0L10,0L10,10',
@@ -983,7 +983,7 @@ function getTestJson(): PxDocument {
                 outTime: 128,
                 atEnd: 'hold',
                 iterationDirection: 'normal',
-                actionTriggers: { startRun: 'load' },
+                actionTriggers: { 'playback.start': 'load' },
             },
         },
 

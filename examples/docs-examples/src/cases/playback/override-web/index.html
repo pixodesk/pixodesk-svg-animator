@@ -7,8 +7,8 @@
   </head>
   <body>
     <h1>Overriding from the web player</h1>
-    <p class="summary">The <code>timeline</code> option is merged over the document's own block, key by key — the document is untouched. Here: infinite iterations, and no <code>playUsingActionTriggers</code>, so nothing happens until <code>startRun()</code>.</p>
-    <div class="controls"><button id="play">startRun()</button></div>
+    <p class="summary">The <code>timeline</code> option is merged over the document's own block, key by key — the document is untouched. Here: infinite iterations, and no <code>playUsingActionTriggers</code>, so nothing happens until <code>playback.start()</code>.</p>
+    <div class="controls"><button id="play">playback.start()</button></div>
     <div id="box" class="stage"></div>
     <script type="module" src="./main.ts"></script>
   </body>

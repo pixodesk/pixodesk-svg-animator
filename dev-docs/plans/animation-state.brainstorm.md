@@ -1,10 +1,14 @@
-# Animation state — the run model
+# Animation state — the playback model
 
-Status: **candidate A-run (2026-11-10), not decided.** The brainstorm of 2026-11-09/10 (the two switches, the tiers,
+Status: **implemented** — schema 1.24 (the model, 2026-11-11) and 1.25 (the words, 2026-11-12). This text now uses the
+final words: the noun is **playback** ([animation-state.playback-noun.md](./animation-state.playback-noun.md)), the handle
+is one object `player.playback.*` and the file names each built-in action `"playback.start"` …
+([animation-state.playback-namespace.md](./animation-state.playback-namespace.md)); 1.24 spelt the noun "run" (§8).
+The brainstorm of 2026-11-09/10 (the two switches, the tiers,
 the naming rounds, the library survey) is folded into this text; what it rejected is in §6, the full survey is in
 [animation-state.survey.2026-11-09.md](./animation-state.survey.2026-11-09.md). Refines layer 2 of
 [playback-layers.md](./playback-layers.md#layer-2--states-and-rules). Schema 1.23; every "today" fact was read from the
-source on 2026-11-10.
+source on 2026-11-10 (the OLD column below is that code, schema 1.23).
 
 ## 0. The change in one place
 
@@ -12,67 +16,70 @@ source on 2026-11-10.
 
 | Where | Old | New |
 |---|---|---|
-| Props (React / Vue) | `play` · `pause` · `playState` (`idle` · `playing` · `paused`) | `playRun="off" \| "on" \| "paused"` — one driver prop, three positions |
-| Handle | `play()` (start or resume by state) | `startRun()` — lever 1 on |
-| Handle | `stop()` | `stopRun()` — lever 1 off (`endRun()` weighed and not taken, §6) |
-| Handle | `pause()` | `pauseRun()` — lever 2 on (the noun on all four buttons: one family, `resumeRun` cannot be read as "start again", `onRunPause` is the user's pause) |
-| Handle | `playOnce()` | `runOnce()` |
-| Handle | `getPlayState()` → `idle` · `playing` · `paused` · `finished` · `destroyed` | `getRunState()` → `off` · `playing` · `paused` · `finished` · **`returning`** · `destroyed` |
-| Registry events | `add` `remove` `play` `pause` `stop` `finish` | `add` `remove` `runStart` `runStop` `runPause` `runResume` `finish` |
-| Callbacks + registry events | `onPlay` (fires for a start AND a resume) | `onRunStart` + `onRunResume` |
-| Callbacks + registry events | `onStop` | `onRunStop` |
-| Callbacks + registry events | `onPause` (fires for the user's pause AND the gate's engine hold) | `onRunPause` — the user's pause only; the gate's hold reports nothing (DECIDED 5) |
-| File `actionTriggers` | `start` · `stop` · `pause` · `resume` | `startRun` · `stopRun` · `pauseRun` · `resumeRun` (`resumeRun` derived as `resume` is today) |
-| File `actions` | `start` · `stop` | `startRun` · `stopRun` |
+| Props (React / Vue) | `play` · `pause` · `playState` (`idle` · `playing` · `paused`) | `playback="off" \| "on" \| "paused"` — one driver prop, three positions |
+| Handle | `play()` (start or resume by state) | `playback.start()` — lever 1 on |
+| Handle | `stop()` | `playback.stop()` — lever 1 off (`endRun()` weighed and not taken, §6) |
+| Handle | `pause()` | `playback.pause()` — lever 2 on (the noun on all four buttons: one family, `playback.resume` cannot be read as "start again", `onPlaybackPause` is the user's pause) |
+| Handle | `playOnce()` | `playback.playOnce()` |
+| Handle | `getPlayState()` → `idle` · `playing` · `paused` · `finished` · `destroyed` | `playback.getState()` → `off` · `playing` · `paused` · `finished` · **`returning`** · `destroyed` |
+| Registry events | `add` `remove` `play` `pause` `stop` `finish` | `add` `remove` `playbackStart` `playbackStop` `playbackPause` `playbackResume` `finish` |
+| Callbacks + registry events | `onPlay` (fires for a start AND a resume) | `onPlaybackStart` + `onPlaybackResume` |
+| Callbacks + registry events | `onStop` | `onPlaybackStop` |
+| Callbacks + registry events | `onPause` (fires for the user's pause AND the gate's engine hold) | `onPlaybackPause` — the user's pause only; the gate's hold reports nothing (DECIDED 5) |
+| File `actionTriggers` | `start` · `stop` · `pause` · `resume` | `playback.start` · `playback.stop` · `playback.pause` · `playback.resume` (`playback.resume` derived as `resume` is today) |
+| File `actions` | `start` · `stop` | `playback.start` · `playback.stop` |
 | File | `actions.finish` | `atEnd` — a timeline key beside `whenIdle` (a sensor rule, not a button) |
-| Wire | 1.23 | 1.24, one step: the renames above, `up` / `down` exact |
-| Editor labels | Start on · Stop on · Pause on · Resume on; Start Action · Stop Action | Start run on · Stop run on · Pause run on · Resume run on; Start run · Stop run · At end of pass |
-| Internal | `PxPlayState` (`idle`), `PxDeclarativeAction.start/stop/pause/resume`, `PxTriggerAction.play`, `PxTriggerList`, executor `start/stop/pause/resume/play`, gate host `start` | `PxRunState` (`off`) and the public words (`startRun` / `stopRun` / `pauseRun` / `resumeRun`) |
+| Handle (1.25) | every method flat on the player | everything a page does on ONE object, `player.playback` (`PxPlaybackControls`); the player keeps `isReady()` · `getRootElement()` · `destroy()`; the speed-adjusted reads are `…AtSpeed` (`getPlaybackDuration()` → `playback.getDurationAtSpeed()`) |
+| Wire | 1.23 | 1.24 (the run words, `atEnd`) and 1.25 (`startRun` → `"playback.start"` …), `up` / `down` exact |
+| Editor labels | Start on · Stop on · Pause on · Resume on; Start Action · Stop Action | Start playback on · Stop playback on · Pause playback on · Resume playback on; Start playback · Stop playback · At end of pass |
+| Internal | `PxPlayState` (`idle`), `PxDeclarativeAction.start/stop/pause/resume`, `PxTriggerAction.play`, `PxTriggerList`, executor `start/stop/pause/resume/play`, gate host `start` | `PxPlaybackState` (`off`) and the public words (`playback.start` / `playback.stop` / `playback.pause` / `playback.resume`) |
 
 ### NEW
 
 | What | Why |
 |---|---|
-| `resumeRun()` on the handle | lever 2's second button; today both edges land on `play()` |
-| `play()` and `pause()` as documented one-line ALIASES — `play()` = `getRunState() === 'paused' ? resumeRun() : startRun()`, `pause()` = `pauseRun()` | the `<video>`-minded developer lands; the precise four stay the model; drop later if unused (easier than adding back) |
-| `isRunActive()` | the region `playing` · `paused` · `finished` as one boolean |
-| `onRunResume` callback + registry event | mirrors the button (MediaRecorder's event set) |
-| the term **run** (§1) | the thing lever 1 switches on; `runOnce()`, `getRunState()`, `isRunActive()` hang off it |
+| `playback.resume()` on the handle | lever 2's second button; today both edges land on `play()` |
+| no `play()` / `pause()` aliases | kept as aliases in 1.24, removed in 1.25 (owner: one spelling per act); `playback.start()` also unfreezes a paused playback (`continue`) |
+| `player.playback` — one object | every act has one home and one spelling; the content / at-speed pairs explain themselves (`playback.getDuration()` vs `playback.getDurationAtSpeed()`); `player.segment.*` can follow |
+| dotted action names in the file | `"playback.start"` ↔ `player.playback.start()`; names in a registry (the VS Code settings pattern), the dot reserves built-ins against custom actions |
+| `playback.isActive()` | the region `playing` · `paused` · `finished` as one boolean |
+| `onPlaybackResume` callback + registry event | mirrors the button (MediaRecorder's event set) |
+| the term **playback** (§1) | the thing lever 1 switches on — "start / stop / pause / resume playback" are the media player's phrases; the state variable of the layered design is `timeline.state.playback` |
 
 ### REMOVE
 
 | What | Why |
 |---|---|
-| `play()` as THE button | kept only as the alias above; the model's buttons are the four |
-| props `play` · `pause` · `playState` | folded into `playRun` |
-| the "`pause` does nothing without `play`" warning and `playStateToLevels` | `playRun` has no invalid position pair |
+| `play()` as THE button, and the `play()` / `pause()` aliases | the model's buttons are the four; the aliases lived in 1.24 only |
+| props `play` · `pause` · `playState` | folded into `playback` |
+| the "`pause` does nothing without `play`" warning and `playStateToLevels` | `playback` has no invalid position pair |
 | `actions.finish` as an action slot | nobody presses it; it is the clock's rule → `atEnd` |
 
 ### UNCHANGED
 
 | Where | Stays as it is |
 |---|---|
-| Handle | `jumpToStart()` · `jumpToEnd()` · `destroy()` · `isPlaying()` · `isReady()`; every time / speed / progress read and write |
-| Callbacks | `onReady` `onFinish` (not `onRunFinish` — WAAPI / `onEnded` expectations) `onDestroy` `onWarning` `onError` |
+| Handle | the behaviour of `jumpToStart()` · `jumpToEnd()` · `isPlaying()` and every time / speed / progress read and write (under `player.playback` since 1.25); `destroy()` · `isReady()` on the player |
+| Callbacks | `onReady` `onFinish` (not `onPlaybackFinish` — WAAPI / `onEnded` expectations) `onDestroy` `onWarning` `onError` |
 | Props | `playUsingActionTriggers`, `showAtProgress` / `showAtTime`; one driver family per element (the TypeScript union) |
-| File | the `resume` derivation (now `resumeRun`); `actions.outOfView` (`pause` · `continue` · `jumpToStart`) and the gate numbers `inViewThreshold` / `inViewDebounce`; the preset words `continue` `jumpToStart` `animateToStart` `jumpToEnd` `animateToEnd` `hold`; `whenIdle` |
+| File | the `resume` derivation (now `playback.resume`); `actions.outOfView` (`pause` · `continue` · `jumpToStart`) and the gate numbers `inViewThreshold` / `inViewDebounce`; the preset words `continue` `jumpToStart` `animateToStart` `jumpToEnd` `animateToEnd` `hold`; `whenIdle` |
 | Rules | the state rule (`triggerActionFor`), the visibility gate, PX1505 on scroll timelines, the registry |
 
 ### DECIDED 2026-11-10 (set to the leanings; revisit after the code review)
 
 | # | Question | Decision |
 |---|---|---|
-| 1 | `play()`: drop or keep | kept, with `pause()`, as documented aliases (see NEW) |
-| 2 | the noun on lever 2 | `pauseRun()` / `resumeRun()`, applied throughout |
+| 1 | `play()`: drop or keep | kept with `pause()` as aliases in 1.24; removed in 1.25 (owner, 2026-11-12) |
+| 2 | the noun on lever 2 | `playback.pause()` / `playback.resume()`, applied throughout |
 | 3 | `actions.outOfView` → a timeline key beside `atEnd` | no — stays in `actions` (UNCHANGED) |
-| 4 | the readout during a return leg (`stopRun: animateToStart`, `atEnd: animateToStart`) | a fifth state **`returning`** (SVGator `rollback`): the lever is off, the picture still moves; `isRunActive()` is false; `startRun()` turns it around |
-| 5 | the gate's hold | reports nothing (no callback; `getRunState()` unchanged by a hold); documented; a `frozen` readout / `onFreeze` later |
-| 6 | callback word order | noun first for events (`onRunStart`), verb first for methods (`startRun()`) |
-| 7 | `restart()` on the handle | none — `startRun()` with `actions.startRun: jumpToStart`, or `jumpToStart(); startRun()` |
-| 8 | readout shape | flat `getRunState()` + `isRunActive()`; no nesting |
-| 9 | type name | `PxPlayState` → `PxRunState`; `PxStartBehavior` / `PxStopBehavior` / `PxFinishBehavior` → `PxStartRunBehavior` / `PxStopRunBehavior` / `PxAtEndBehavior` (names mirror the keys) |
-| 10 | registry events | `add` `remove` `runStart` `runStop` `runPause` `runResume` `finish` |
-| 11 | `isPlaying()` | stays (= `getRunState() === 'playing'`) |
+| 4 | the readout during a return leg (`playback.stop: animateToStart`, `atEnd: animateToStart`) | a fifth state **`returning`** (SVGator `rollback`): the lever is off, the picture still moves; `playback.isActive()` is false; `playback.start()` turns it around |
+| 5 | the gate's hold | reports nothing (no callback; `playback.getState()` unchanged by a hold); documented; a `frozen` readout / `onFreeze` later |
+| 6 | callback word order | noun first for events (`onPlaybackStart`), verb first for methods (`playback.start()`) |
+| 7 | `restart()` on the handle | none — `playback.start()` with `actions["playback.start"]: jumpToStart`, or `playback.jumpToStart(); playback.start()` |
+| 8 | readout shape | flat `playback.getState()` + `playback.isActive()`; no nesting |
+| 9 | type name | `PxPlayState` → `PxPlaybackState`; `PxStartBehavior` / `PxStopBehavior` / `PxFinishBehavior` → `PxStartPlaybackBehavior` / `PxStopPlaybackBehavior` / `PxAtEndBehavior` (names mirror the keys) |
+| 10 | registry events | `add` `remove` `playbackStart` `playbackStop` `playbackPause` `playbackResume` `finish` |
+| 11 | `isPlaying()` | stays (= `playback.getState() === 'playing'`) |
 
 ### PLAN (recommendations, 2026-11-10)
 
@@ -82,21 +89,20 @@ hold), paid for with unfamiliarity (every competitor says `play()` / `pause()`; 
 churn (the third rename of the control props; wire 1.24; docs, cheat sheet, learning projects, ten videos).
 
 1. **Do it now** — the defects are real and the window is cheap today; it closes as users arrive.
-2. **Keep `play()` and `pause()` as documented one-line aliases** (`play()` = `paused ? resumeRun() : startRun()`,
-   `pause()` = `pauseRun()`): most of the familiarity back at near-zero cost; the precise four stay the model. Drop
-   them later if nobody needs them — easier than adding them back.
-3. **Keep `onFinish`** (WAAPI `finish`, `<video>` `onEnded`); never `onRunFinish`.
-4. **The last rename of the control surface:** write the inputs destination (§7) so that `playRun`'s positions are
+2. **Keep `play()` and `pause()` as documented one-line aliases** — done in 1.24; the owner removed them in 1.25 (one
+   spelling per act).
+3. **Keep `onFinish`** (WAAPI `finish`, `<video>` `onEnded`); never `onPlaybackFinish`.
+4. **The last rename of the control surface:** write the inputs destination (§7) so that `playback`'s positions are
    its built-in input, and check that nothing in it would rename the prop again. Then implement.
 
 Order of work (each a commit; the wire step first so everything downstream compiles against the new words):
 
 | # | Step | Where |
 |---|---|---|
-| 1 | Wire 1.24: `start` → `startRun`, `stop` → `stopRun`, `pause` → `pauseRun`, `resume` → `resumeRun` (lists and `actions`), `actions.finish` → `atEnd`; `up` / `down` exact; `schema-release.mjs --apply`; field universe + defaults guards | core `version/`, `format/` |
-| 2 | Core words: `PxPlayState` → `PxRunState` (`idle` → `off`), `PxTriggerList`, `PxDeclarativeAction`, `PxTriggerAction`, executor `startRun / stopRun / pauseRun / resumeRun`, declarative resolver for `playRun` (+ remove `playStateToLevels` and the "pause without play" warning), `PxControlProps` union | core `format/PxAnimatorConstants.ts`, `playback/PxDeclarativePlayback.ts` |
-| 3 | Handle: `startRun()` `stopRun()` `pauseRun()` `resumeRun()` `runOnce()` `getRunState()` `isRunActive()`, aliases `play()` `pause()`; callbacks `onRunStart` `onRunStop` `onRunPause` `onRunResume`; the gate's hold reports nothing; the `returning` state | core types, web `animator/`, `engines/`, `triggers/`, `registry/` (events), RN |
-| 4 | Components: `playRun` prop replaces `play` / `pause` / `playState` in React, Vue, RN, the CSS components' derived props + guard; callbacks | react, vue, react-native |
+| 1 | Wire 1.24: `start` → `playback.start`, `stop` → `playback.stop`, `pause` → `playback.pause`, `resume` → `playback.resume` (lists and `actions`), `actions.finish` → `atEnd`; `up` / `down` exact; `schema-release.mjs --apply`; field universe + defaults guards | core `version/`, `format/` |
+| 2 | Core words: `PxPlayState` → `PxPlaybackState` (`idle` → `off`), `PxTriggerList`, `PxDeclarativeAction`, `PxTriggerAction`, executor `playback.start / playback.stop / playback.pause / playback.resume`, declarative resolver for `playback` (+ remove `playStateToLevels` and the "pause without play" warning), `PxControlProps` union | core `format/PxAnimatorConstants.ts`, `playback/PxDeclarativePlayback.ts` |
+| 3 | Handle: `playback.start()` `playback.stop()` `playback.pause()` `playback.resume()` `playback.playOnce()` `playback.getState()` `playback.isActive()`; callbacks `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume`; the gate's hold reports nothing; the `returning` state | core types, web `animator/`, `engines/`, `triggers/`, `registry/` (events), RN |
+| 4 | Components: `playback` prop replaces `play` / `pause` / `playState` in React, Vue, RN, the CSS components' derived props + guard; callbacks | react, vue, react-native |
 | 5 | Tests + docs: package tests, `docs/library/*`, `docs/format/`, diagnostics, READMEs, examples, `pnpm build` (docs-check) | player repo |
 | 6 | Editor: trigger lists and labels, action fields, `atEnd`, fixtures restamped 1.24.1, field-universe snapshot, settled cases, SVG + CSS JS-trigger script words, `VscPreviewApp` logs; tsc + targeted specs; e2e | kf `app/` |
 | 7 | Website manual pages (140, 175), synced player docs, real-ui cards, learning projects, cheat sheet + changes HTML; videos re-recorded by the owner | website, kf `pixodesk-learning-projects`, `tests/video` |
@@ -106,29 +112,29 @@ Order of work (each a commit; the wire step first so everything downstream compi
 | Term | What it is | Today's code |
 |---|---|---|
 | **Player box** | one instance of `createSvgAnimationPlayer()`: the animation, its clock, its state machine and its **imperative function controls** (buttons) | `PxAnimationPlayerApi` |
-| **Button** | a momentary control on the box, pressed by code or by a rule: an act, named by a verb (+ the noun it acts on) — `startRun()` `stopRun()` `pauseRun()` `resumeRun()`; momentary `jumpToStart()` `jumpToEnd()` `runOnce()`; `play()` / `pause()` only as aliases | handle methods, `PxPlayExecutor` |
+| **Button** | a momentary control on the box, pressed by code or by a rule: an act, named by a verb (+ the noun it acts on) — `playback.start()` `playback.stop()` `playback.pause()` `playback.resume()`; momentary `playback.jumpToStart()` `playback.jumpToEnd()` `playback.playOnce()` | `player.playback`, `PxPlayExecutor` |
 | **Component wrapper** | the React / Vue box around the player box: declarative, so it has **state controls** (levers), not buttons; a prop change is an edge that presses a button | `SvgAnimationPlayer`, `resolveDeclarativePlayback` |
 | **Lever** | a held position (a prop), named by its noun and its positions; each lever has exactly two buttons — its edges | props |
-| **Driver** | what makes the animation play: the lever (`playRun`), the file's wiring (`playUsingActionTriggers`) or nothing (`showAtProgress` / `showAtTime` shows one frame). One driver family per element; the family mark is the verb (`play…` / `show…`) | `PxControlProps` union, `resolveControlMode` |
-| **Run** | one instance (session) of the animation being in effect — what lever 1 switches on. It begins with `startRun` (from the rest pose, or with `continue` from wherever the playhead rests) and lasts until it is retired by `stopRun` or by `atEnd: jumpToStart` / `animateToStart`. While it exists its state is **`playing` · `paused` · `finished`**. A run contains the iterations: a loop's run is endless, `runOnce()` makes a one-pass run, `getTotalDuration()` is one run's length | `PxPlayExecutor` world, `getTotalDuration()` |
-| **Off** | no run; the rest pose shows (`whenIdle: static` / `firstFrame`) | `PxPlayState.idle` |
-| **Freeze** (lever 2) | the clock stopped inside a run, pose kept, resumable — `pauseRun` / `resumeRun`; state `paused` | executor `paused` flag |
-| **Finished** | a run that reached its end and holds there (`atEnd: hold`); still the run — `stopRun` acts on it, `startRun` makes a fresh run | `PxPlayState.finished`, `heldAtEnd` |
-| **The end** (of the pass) | always a compound word — `jumpToEnd` · `animateToEnd` · `atEnd` — never a bare verb; the end of the CURRENT pass; reached by any route (natural end, `stopRun: …ToEnd`, `startRun: jumpToEnd`, `jumpToEnd()`), it runs the `atEnd` rule | `onNaturalFinish`, `finishAt()` |
+| **Driver** | what makes the animation play: the lever (`playback`), the file's wiring (`playUsingActionTriggers`) or nothing (`showAtProgress` / `showAtTime` shows one frame). One driver family per element; the family mark is the verb (`play…` / `show…`) | `PxControlProps` union, `resolveControlMode` |
+| **Playback** | one instance (session) of the animation being in effect — what lever 1 switches on. It begins with `playback.start` (from the rest pose, or with `continue` from wherever the playhead rests) and lasts until it is retired by `playback.stop` or by `atEnd: jumpToStart` / `animateToStart`. While it exists its state is **`playing` · `paused` · `finished`**. A playback contains the iterations: a loop's playback is endless, `playback.playOnce()` makes a one-pass playback, `getTotalDuration()` is one playback's length | `PxPlayExecutor` world, `getTotalDuration()` |
+| **Off** | no playback; the rest pose shows (`whenIdle: static` / `firstFrame`) | `PxPlayState.idle` |
+| **Freeze** (lever 2) | the clock stopped inside a playback, pose kept, resumable — `playback.pause` / `playback.resume`; state `paused` | executor `paused` flag |
+| **Finished** | a playback that reached its end and holds there (`atEnd: hold`); still the playback — `playback.stop` acts on it, `playback.start` makes a fresh playback | `PxPlayState.finished`, `heldAtEnd` |
+| **The end** (of the pass) | always a compound word — `jumpToEnd` · `animateToEnd` · `atEnd` — never a bare verb; the end of the CURRENT pass; reached by any route (natural end, `playback.stop: …ToEnd`, `playback.start: jumpToEnd`, `playback.jumpToEnd()`), it runs the `atEnd` rule | `onNaturalFinish`, `finishAt()` |
 | **Move** (setting) | HOW a button moves the playhead — the preset words, each naming where + how: `continue` · `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` · `hold` | `actions.*` schemas, `PxStartBehavior` … |
-| **Wiring** | the file's rule for which page event presses which button: `actionTriggers.<button>: events` (`startRun` · `stopRun` · `pauseRun` · `resumeRun`); the current state picks the list (the state rule) | `timeline.actionTriggers`, `triggerActionFor` |
+| **Wiring** | the file's rule for which page event presses which button: `actionTriggers.<button>: events` (`playback.start` · `playback.stop` · `playback.pause` · `playback.resume`); the current state picks the list (the state rule) | `timeline.actionTriggers`, `triggerActionFor` |
 | **Sensor** | what the box notices by itself and answers by rule: the visibility gate (`inView` / `outOfView`), the clock reaching the end (`atEnd`), pointer events (fed to the wiring). A sensor's rule is a setting, not a button | `PxVisibilityGate`, `onNaturalFinish` |
 | **Hold** (the gate's) | the engine's freeze while off screen — not the user's pause; `release` on re-entry (dotLottie `freeze` / `unfreeze`) | gate host `hold` / `release` |
-| **Return leg** | the picture still moving after `stopRun: animateToStart` (or `atEnd: animateToStart`) — the lever is off, no run; the state **`returning`**; `startRun()` turns it around | executor `reversed` |
-| **Readout** | what the box reports: `getRunState()` (`off` · `playing` · `paused` · `finished` · `returning` · `destroyed`), `isRunActive()` (the run exists), `isPlaying()`; callbacks `onRunStart` `onRunStop` `onRunPause` `onRunResume` `onFinish`; registry events | `getPlayState()`, callbacks, `PxAnimatorRegistry` |
-| **Request vs result** | a lever asks (`playRun="on"`), a readout answers (`playing` or `finished`); the words are kept apart on purpose | — |
+| **Return leg** | the picture still moving after `playback.stop: animateToStart` (or `atEnd: animateToStart`) — the lever is off, no playback; the state **`returning`**; `playback.start()` turns it around | executor `reversed` |
+| **Readout** | what the box reports: `playback.getState()` (`off` · `playing` · `paused` · `finished` · `returning` · `destroyed`), `playback.isActive()` (the playback exists), `isPlaying()`; callbacks `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onFinish`; registry events | `getPlayState()`, callbacks, `PxAnimatorRegistry` |
+| **Request vs result** | a lever asks (`playback="on"`), a readout answers (`playing` or `finished`); the words are kept apart on purpose | — |
 
 Four kinds of word, one grammar each:
 
 | Kind | Holds / does | Named by | Example |
 |---|---|---|---|
-| **lever** | a position, held | the lever's noun + its positions | `playRun="paused"` |
-| **button** | an act, momentary | a verb + the noun it acts on | `startRun`, `pauseRun` |
+| **lever** | a position, held | the lever's noun + its positions | `playback="paused"` |
+| **button** | an act, momentary | a verb + the noun it acts on | `playback.start`, `playback.pause` |
 | **setting** | how a button moves the playhead | a preset word — where + how | `animateToStart` |
 | **readout** | what it is | a state word | `paused`, `finished` |
 
@@ -144,23 +150,23 @@ flowchart LR
   subgraph page["Page / app"]
     direction TB
     subgraph comp["Component wrapper · React / Vue"]
-      lever["LEVER (held)<br/>playRun = off / on / paused<br/>showAtProgress · showAtTime"]
-      diff["prop change = edge<br/>startRun · stopRun · pauseRun · resumeRun"]
+      lever["LEVER (held)<br/>playback = off / on / paused<br/>showAtProgress · showAtTime"]
+      diff["prop change = edge<br/>playback.start · playback.stop · playback.pause · playback.resume"]
       lever --> diff
     end
     subgraph wiring["Wiring · file actionTriggers"]
       ev["events<br/>load · hoverIn · hoverOut · click"]
-      lists["lists (the state picks one)<br/>startRun · stopRun · pauseRun · resumeRun"]
+      lists["lists (the state picks one)<br/>playback.start · playback.stop · playback.pause · playback.resume"]
       ev --> lists
     end
     subgraph box["Player box · createSvgAnimationPlayer()"]
-      buttons["BUTTONS<br/>startRun() stopRun() pauseRun() resumeRun()<br/>jumpToStart() jumpToEnd() runOnce()"]
+      buttons["BUTTONS<br/>playback.start() playback.stop() playback.pause() playback.resume()<br/>playback.jumpToStart() playback.jumpToEnd() playback.playOnce()"]
       settings["SETTINGS · file actions · atEnd · outOfView<br/>continue · jumpToStart · animateToStart · jumpToEnd · animateToEnd · hold"]
-      sm["STATE — the run<br/>off → playing ⇄ paused → finished"]
-      out["READOUTS<br/>getRunState() isRunActive() · onRunStart onRunStop onRunPause onRunResume onFinish"]
+      sm["STATE — the playback<br/>off → playing ⇄ paused → finished"]
+      out["READOUTS<br/>playback.getState() playback.isActive() · onPlaybackStart onPlaybackStop onPlaybackPause onPlaybackResume onFinish"]
       buttons --> settings --> sm --> out
     end
-    sensors["SENSORS<br/>gate: outOfView → hold / jumpToStart, inView → release / startRun<br/>clock: run ends → atEnd"]
+    sensors["SENSORS<br/>gate: outOfView → hold / jumpToStart, inView → release / playback.start<br/>clock: the pass ends → atEnd"]
   end
   diff --> buttons
   lists --> buttons
@@ -169,83 +175,81 @@ flowchart LR
 
 | Box | What it is | Its controls |
 |---|---|---|
-| **Player box** | one instance of `createSvgAnimationPlayer()` | buttons `startRun()` `stopRun()` `pauseRun()` `resumeRun()`; momentary `jumpToStart()` `jumpToEnd()` `runOnce()`; aliases `play()` `pause()` |
-| **Settings** | how a press moves the playhead | `actions.startRun` · `actions.stopRun`; sensor rules `atEnd` · `actions.outOfView` |
-| **Wiring** | which page event presses which button | `actionTriggers.startRun` · `stopRun` · `pauseRun` · `resumeRun` over `load` · `hoverIn` · `hoverOut` · `click`; the current state picks the list |
-| **Component wrapper** | React / Vue around the box — one driver prop | `playRun` (the lever) · `playUsingActionTriggers` (the wiring) · `showAtProgress` / `showAtTime` (one frame) |
+| **Player box** | one instance of `createSvgAnimationPlayer()` | buttons `playback.start()` `playback.stop()` `playback.pause()` `playback.resume()`; momentary `playback.jumpToStart()` `playback.jumpToEnd()` `playback.playOnce()` |
+| **Settings** | how a press moves the playhead | `actions["playback.start"]` · `actions["playback.stop"]`; sensor rules `atEnd` · `actions.outOfView` |
+| **Wiring** | which page event presses which button | `actionTriggers["playback.start"]` · `playback.stop` · `playback.pause` · `playback.resume` over `load` · `hoverIn` · `hoverOut` · `click`; the current state picks the list |
+| **Component wrapper** | React / Vue around the box — one driver prop | `playback` (the lever) · `playUsingActionTriggers` (the wiring) · `showAtProgress` / `showAtTime` (one frame) |
 | **Sensors** | what the box notices and answers by rule | the visibility gate (`inView` / `outOfView`), the clock reaching the end, pointer events (fed to the wiring) |
-| **Inside** | the run's state machine | `off` · `playing` · `paused` · `finished` (· `destroyed`) |
-| **Readouts** | what the box reports | `getRunState()` `isRunActive()` `isPlaying()`; `onReady` `onRunStart` `onRunStop` `onRunPause` `onRunResume` `onFinish` `onDestroy`; registry events |
+| **Inside** | the playback's state machine | `off` · `playing` · `paused` · `finished` (· `destroyed`) |
+| **Readouts** | what the box reports | `playback.getState()` `playback.isActive()` `isPlaying()`; `onReady` `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onFinish` `onDestroy`; registry events |
 
-## 3. The candidate — A-run
+## 3. The model
 
 ```js
 // WEB PLAYER — nothing plays on creation unless a driver says so
 const player = createSvgAnimationPlayer({
   container, src: 'lid.svga.json',
   playUsingActionTriggers: true,            // the file's actionTriggers drive it (omit → only the calls below)
-  onRunStart() {}, onRunStop() {}, onRunPause() {}, onRunResume() {}, onFinish() {},
+  onPlaybackStart() {}, onPlaybackStop() {}, onPlaybackPause() {}, onPlaybackResume() {}, onFinish() {},
 });
 
-// lever 1 — the run
-player.startRun();   // off → a run per actions.startRun ('continue' = from the rest pose; finished → a fresh run)
-player.stopRun();    // → off per actions.stopRun (jumpToStart · animateToStart · jumpToEnd · animateToEnd)
-// lever 2 — the freeze (only inside a run)
-player.pauseRun();
-player.resumeRun();
+// lever 1 — the playback
+player.playback.start();    // off → a playback per actions["playback.start"] ('continue' = from the rest pose; finished → a fresh playback)
+player.playback.stop();     // → off per actions["playback.stop"] (jumpToStart · animateToStart · jumpToEnd · animateToEnd)
+// lever 2 — the freeze (only inside a playback)
+player.playback.pause();
+player.playback.resume();
 // momentary
-player.jumpToStart();   // the rest pose now, unconditionally, nothing reported
-player.jumpToEnd();     // the end pose; arriving runs `atEnd`
-player.runOnce();       // one pass from the start, whatever `iterations` says
+player.playback.jumpToStart(); // the rest pose now, unconditionally, nothing reported
+player.playback.jumpToEnd();   // the end pose; arriving runs `atEnd`
+player.playback.playOnce();    // one pass from the start, whatever `iterations` says
 // readouts
-player.getRunState();   // 'off' | 'playing' | 'paused' | 'finished' | 'returning'
-player.isRunActive();   // playing · paused · finished
+player.playback.getState();    // 'off' | 'playing' | 'paused' | 'finished' | 'returning'
+player.playback.isActive();    // playing · paused · finished
 
-// the documented aliases — the ONE place that chooses by state
-play()  { this.getRunState() === 'paused' ? this.resumeRun() : this.startRun(); }   // off → a run; finished → a fresh run; playing → actions.startRun decides
-pause() { this.pauseRun(); }
+// no play() / pause() aliases (1.24 had them): playback.start() also unfreezes a paused playback (`continue`)
 ```
 
 ```jsx
 // REACT / VUE — one driver family per element; the family mark is the verb
 <SvgAnimationPlayer src={src} playUsingActionTriggers />                                  // the file's triggers
-<SvgAnimationPlayer src={src} playRun={hovered ? (frozen ? "paused" : "on") : "off"} />   // the lever
+<SvgAnimationPlayer src={src} playback={hovered ? (frozen ? "paused" : "on") : "off"} />   // the lever
 <SvgAnimationPlayer src={src} showAtProgress={0.5} />                                     // one frame, nothing plays
-// prop diff → button:  off→on startRun() · on→paused pauseRun() · paused→on resumeRun() · →off stopRun()
-// a mount with playRun="off" presses nothing; a mount with "paused" = startRun() + pauseRun()
+// prop diff → button:  off→on playback.start() · on→paused playback.pause() · paused→on playback.resume() · →off playback.stop()
+// a mount with playback="off" presses nothing; a mount with "paused" = playback.start() + playback.pause()
 ```
 
 ```json
 // SCHEMA — lists name the buttons; actions say how a button moves the playhead
 "timeline": {
-  "actionTriggers": { "startRun": "load" },                                                            // autoplay
-  "actionTriggers": { "startRun": "hoverIn", "stopRun": "hoverOut", "pauseRun": "click", "resumeRun": "click" },  // the lid
-  "actionTriggers": { "startRun": "click", "stopRun": "click" },                                       // a click toggle
-  "actions": { "startRun": "continue", "stopRun": "animateToStart", "outOfView": "pause" },
+  "actionTriggers": { "playback.start": "load" },                                                            // autoplay
+  "actionTriggers": { "playback.start": "hoverIn", "playback.stop": "hoverOut", "playback.pause": "click", "playback.resume": "click" },  // the lid
+  "actionTriggers": { "playback.start": "click", "playback.stop": "click" },                                       // a click toggle
+  "actions": { "playback.start": "continue", "playback.stop": "animateToStart", "outOfView": "pause" },
   "atEnd": "hold"
 }
 ```
 
 | Where | Words |
 |---|---|
-| Props | `playRun="off" \| "on" \| "paused"` beside `playUsingActionTriggers`, `showAtProgress`, `showAtTime` — one driver family at a time (the TypeScript union stays) |
-| Handle | `startRun()` `stopRun()` `pauseRun()` `resumeRun()`; momentary `jumpToStart()` `jumpToEnd()` `runOnce()`; `play()` / `pause()` as documented aliases |
-| File | `actionTriggers: { startRun, stopRun, pauseRun, resumeRun }`; `actions: { startRun: continue · jumpToStart · jumpToEnd, stopRun: jumpToStart · animateToStart · jumpToEnd · animateToEnd }`; `atEnd: hold · jumpToStart · animateToStart`; `actions.outOfView: pause · continue · jumpToStart` (unchanged) |
-| Readouts | `getRunState()` → `off` · `playing` · `paused` · `finished` · `returning` (the request says `on`, the result says `playing` or `finished`); `isRunActive()`; callbacks `onRunStart` `onRunStop` `onRunPause` `onRunResume` `onFinish` |
-| Editor | Start run on · Stop run on · Pause run on · Resume run on; Start run · Stop run · At end of pass |
+| Props | `playback="off" \| "on" \| "paused"` beside `playUsingActionTriggers`, `showAtProgress`, `showAtTime` — one driver family at a time (the TypeScript union stays) |
+| Handle | everything on `player.playback`: `start()` `stop()` `pause()` `resume()`; momentary `jumpToStart()` `jumpToEnd()` `playOnce()`; `getState()` `isActive()` `isPlaying()`; both clocks and the speed |
+| File | `actionTriggers: { "playback.start", "playback.stop", "playback.pause", "playback.resume" }` (always quoted); `actions: { "playback.start": continue · jumpToStart · jumpToEnd, "playback.stop": jumpToStart · animateToStart · jumpToEnd · animateToEnd }`; `atEnd: hold · jumpToStart · animateToStart`; `actions.outOfView: pause · continue · jumpToStart` (unchanged) |
+| Readouts | `playback.getState()` → `off` · `playing` · `paused` · `finished` · `returning` (the request says `on`, the result says `playing` or `finished`); `playback.isActive()`; callbacks `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onFinish` |
+| Editor | Start playback on · Stop playback on · Pause playback on · Resume playback on; Start playback · Stop playback · At end of pass |
 
 Rules, written once:
 
-- `playRun` off → on presses `startRun()`, on → paused `pauseRun()`, paused → on `resumeRun()`, anything → off `stopRun()`
+- `playback` off → on presses `playback.start()`, on → paused `playback.pause()`, paused → on `playback.resume()`, anything → off `playback.stop()`
   (which clears the freeze).
-- `startRun()` while a run exists does what `actions.startRun` says — `continue` (default) nothing while playing, a
-  fresh run from `finished`; `jumpToStart` a restart. `stopRun()` retires per `actions.stopRun`; the unconditional reset
-  stays `jumpToStart()`.
-- The state rule for the lists is today's, renamed: `startRun` acts when `off` or `finished`; `stopRun` when `playing`,
-  `paused` or `finished` (and wins over `startRun` while finished — a click toggle undoes a finished one-shot);
-  `pauseRun` when `playing`; `resumeRun` when `paused` — derived from the `pauseRun` events' counterparts unless the
+- `playback.start()` while a playback exists does what `actions["playback.start"]` says — `continue` (default) nothing while playing, a
+  fresh playback from `finished`; `jumpToStart` a restart. `playback.stop()` retires per `actions["playback.stop"]`; the unconditional reset
+  stays `playback.jumpToStart()`.
+- The state rule for the lists is today's, renamed: `playback.start` acts when `off` or `finished`; `playback.stop` when `playing`,
+  `paused` or `finished` (and wins over `playback.start` while finished — a click toggle undoes a finished one-shot);
+  `playback.pause` when `playing`; `playback.resume` when `paused` — derived from the `playback.pause` events' counterparts unless the
   file names it.
-- `jumpToStart()` clears the freeze (today's executor does; Three.js `reset()` too).
+- `playback.jumpToStart()` clears the freeze (today's executor does; Three.js `reset()` too).
 
 What it fixes (today, read from the source 2026-11-10):
 
@@ -260,57 +264,57 @@ What it fixes (today, read from the source 2026-11-10):
 
 Precedent for the quartet: `MediaRecorder` — `start()` `pause()` `resume()` `stop()`, `state: inactive · recording ·
 paused`, events `start` `pause` `resume` `stop`. For the two levers: Three.js `AnimationAction.enabled` + `paused`
-(`isRunning()` derived; `clampWhenFinished` = our `hold`). For the run as a unit: our own `getTotalDuration()`.
+(`isRunning()` derived; `clampWhenFinished` = our `hold`). For the playback as a unit: our own `playback.getTotalDuration()`.
 
-## 4. Inside the box — the run's state machine
+## 4. Inside the box — the playback's state machine
 
 ```mermaid
 stateDiagram-v2
   [*] --> off
-  off --> playing: startRun (continue · jumpToStart)
-  off --> finished: startRun jumpToEnd
-  playing --> paused: pauseRun
-  paused --> playing: resumeRun
-  playing --> off: stopRun jumpToStart
-  playing --> returning: stopRun animateToStart
-  paused --> off: stopRun
+  off --> playing: playback.start (continue · jumpToStart)
+  off --> finished: playback.start jumpToEnd
+  playing --> paused: playback.pause
+  paused --> playing: playback.resume
+  playing --> off: playback.stop jumpToStart
+  playing --> returning: playback.stop animateToStart
+  paused --> off: playback.stop
   returning --> off: arrives at the start
-  returning --> playing: startRun (turns around)
-  playing --> finished: the run ends · stopRun jumpToEnd · animateToEnd
-  finished --> off: atEnd jumpToStart · stopRun jumpToStart
-  finished --> returning: atEnd animateToStart · stopRun animateToStart
-  finished --> playing: startRun (a fresh run)
+  returning --> playing: playback.start (turns around)
+  playing --> finished: the playback ends · playback.stop jumpToEnd · animateToEnd
+  finished --> off: atEnd jumpToStart · playback.stop jumpToStart
+  finished --> returning: atEnd animateToStart · playback.stop animateToStart
+  finished --> playing: playback.start (a fresh playback)
 ```
 
 | Point | Rule |
 |---|---|
-| Arrival at the end by any route (natural end, `stopRun: …ToEnd`, `startRun: jumpToEnd`, `jumpToEnd()`) | `atEnd` runs: `hold` rests `finished`, `jumpToStart` / `animateToStart` retire the run |
-| "End" | the end of the CURRENT pass; a loop stopped at a pass end reports `onRunStop` only |
-| `paused` into `finished` | cleared: `startRun`, `stopRun`, `jumpToStart` and the engine's end all set the freeze off |
-| `onRunStop` | fires when the stop is performed: at once for a jump, on arrival for `animateToEnd` |
-| The gate | `outOfView` presses the ENGINE's pause (`hold`) and `startRun` / `release` on re-entry; a hold is a freeze, not the user's pause — it reports nothing and `getRunState()` does not change (DECIDED 5) |
+| Arrival at the end by any route (natural end, `playback.stop: …ToEnd`, `playback.start: jumpToEnd`, `playback.jumpToEnd()`) | `atEnd` runs: `hold` rests `finished`, `jumpToStart` / `animateToStart` retire the playback |
+| "End" | the end of the CURRENT pass; a loop stopped at a pass end reports `onPlaybackStop` only |
+| `paused` into `finished` | cleared: `playback.start`, `playback.stop`, `jumpToStart` and the engine's end all set the freeze off |
+| `onPlaybackStop` | fires when the stop is performed: at once for a jump, on arrival for `animateToEnd` |
+| The gate | `outOfView` presses the ENGINE's pause (`hold`) and `playback.start` / `release` on re-entry; a hold is a freeze, not the user's pause — it reports nothing and `playback.getState()` does not change (DECIDED 5) |
 | Scroll / view timelines | the playback buttons are no-ops (PX1505 `scrollOwnsPlayhead`) |
 
 ## 5. Why these words
 
-What each verb means elsewhere, in this grammar (GO = off → a run · CONTINUE = unfreeze · FREEZE · RETIRE = to the
+What each verb means elsewhere, in this grammar (GO = off → a playback · CONTINUE = unfreeze · FREEZE · RETIRE = to the
 rest pose and stay · HALT = clock stopped, pose kept, no resume). Full matrix: the survey file.
 
 | Word | Who | Meaning there |
 |---|---|---|
 | `play` | WAAPI, `<video>`, YouTube, lottie-web, dotLottie, Rive, GSAP, anime, Motion, SVGator, Godot | GO or CONTINUE by state — always "from the current position"; never a lever. The one word that blurs start and resume — hence not a button here |
-| `pause` | everyone but Spine / Unity's Animator (`timeScale` / `speed = 0`) | FREEZE, resumable — our `pauseRun` (and the alias `pause()`) |
+| `pause` | everyone but Spine / Unity's Animator (`timeScale` / `speed = 0`) | FREEZE, resumable — our `playback.pause()` |
 | `resume` | GSAP, anime, MediaRecorder | CONTINUE — where it differs from `play` |
-| `stop` | lottie-web, dotLottie, SVGator, Three.js, Godot, Unity, Rive, YouTube, Motion | four different things: RETIRE to the first frame (lottie-web, dotLottie, SVGator, Three.js, Godot); HALT keeping the pose (Godot `stop(true)`, Motion — terminal); UNLOAD (YouTube); halt the state machine (Rive) — hence `stopRun` is pinned by the preset word beside it |
-| `start` / `stop` as a pair | MediaRecorder (`stop()` = the session is over, a new `start()` begins another), Android `MediaPlayer`, Unity `Animation`; CI / test runs: "stop" / "cancel" a run = terminate it, "finish" / "complete" = it reached its end | a session's bracket; with the noun "run", `stop` is the established terminator |
+| `stop` | lottie-web, dotLottie, SVGator, Three.js, Godot, Unity, Rive, YouTube, Motion | four different things: RETIRE to the first frame (lottie-web, dotLottie, SVGator, Three.js, Godot); HALT keeping the pose (Godot `stop(true)`, Motion — terminal); UNLOAD (YouTube); halt the state machine (Rive) — hence `playback.stop` is pinned by the preset word beside it |
+| `start` / `stop` as a pair | MediaRecorder (`stop()` = the session is over, a new `start()` begins another), Android `MediaPlayer`, Unity `Animation`; CI / test runs: "stop" / "cancel" a playback = terminate it, "finish" / "complete" = it reached its end | a session's bracket; with the noun "run", `stop` is the established terminator |
 | `start` / `end` as a pair | DOM `touchstart` / `touchend`, `dragstart` / `dragend`, `animationend`; Spine `end` event (the entry is gone) vs `complete` (reached the end) | "end" = over — but as EVENT names; as a method `end()` lives in streams (`res.end()`), not in players; and "end" is already our position word |
 | `cancel` | WAAPI, Motion, anime | RETIRE (WAAPI → `idle`, Motion → initial) or HALT + dispose (anime) |
-| `finish` · `complete` | WAAPI, anime, Motion | jump TO THE END, end callbacks run — our `jumpToEnd()` |
-| `restart` | GSAP, anime, SVGator | a fresh run from the start — ours is `startRun` with `jumpToStart` (DECIDED 7) |
-| `reset` | Three.js, anime, Rive | levers to default + time 0 (Three.js), pause + time 0 (anime), rebuild (Rive) — our `jumpToStart()` |
+| `finish` · `complete` | WAAPI, anime, Motion | jump TO THE END, end callbacks run — our `playback.jumpToEnd()` |
+| `restart` | GSAP, anime, SVGator | a fresh playback from the start — ours is `playback.start` with `jumpToStart` (DECIDED 7) |
+| `reset` | Three.js, anime, Rive | levers to default + time 0 (Three.js), pause + time 0 (anime), rebuild (Rive) — our `playback.jumpToStart()` |
 | `freeze` / `unfreeze` | dotLottie (Rive `stopRendering`) | the render loop off / on — our gate's hold |
-| `enabled` · `active` | Three.js, Unity, Godot `active` | the switch lever as a PROPERTY — never a method; our `playRun` |
-| `idle` · `inactive` · `unstarted` | WAAPI, MediaRecorder, YouTube | the no-run state — our `off` |
+| `enabled` · `active` | Three.js, Unity, Godot `active` | the switch lever as a PROPERTY — never a method; our `playback` |
+| `idle` · `inactive` · `unstarted` | WAAPI, MediaRecorder, YouTube | the not-playing state — our `off` |
 
 Three.js in code, the two-lever precedent (`src/animation/AnimationAction.js`, verified):
 
@@ -330,25 +334,25 @@ else this.enabled = false;                          // = our atEnd: jumpToStart
 | `start()` / `stop()` beside `play()` | ambiguous only while `play()` exists — the quartet without `play()` is distinct |
 | `enabled` prop + `enable()` / `disable()` | `enabled` is a property in Three.js / Unity, never a method; `player.disable()` reads as switching the component |
 | `active` prop + `activate()` / `deactivate()` | one stem, but "deactivate sounds funny" and nothing in the wild says it |
-| `play()` as the ONE go button of both levers, `stop()` the retire (A3) | `play()` is only an alias for two methods chosen by state; a lever needs its own two buttons |
+| `play()` as the ONE go button of both levers, `stop()` the retire (A3) | a lever needs its own two buttons; `play()` lived on only as an alias (1.24), gone in 1.25 |
 | `playState` as the only control, lists keyed by destination states (`playing` · `paused` · `idle`) | the request set ≠ the result set (`finished` cannot be asked for); state words as buttons |
 | `playOn` · `playOff` · `pauseOn` · `pauseOff` | "on" clashes with the trigger's `on:` key; idioms |
-| `restart()` … `reset()` | `restart` is wrong for the first run; `reset` was removed in 1.23 for `jumpToStart` |
+| `restart()` … `reset()` | `restart` is wrong for the first playback; `reset` was removed in 1.23 for `jumpToStart` |
 | `setOff()` · `begin()` / `end()` | obscure; `end()` collides with THE END |
-| `startPlayback()` `pausePlaying()` `resumePlaying()` `resetPlayback()` | a noun per lever is right, but `playback` / `playing` share a stem; `reset` contradicts `stopRun: jumpToEnd`; no adjective for a prop |
-| `player.playback.start()` … | the cleanest nouned form, but the file and the props cannot namespace cheaply |
-| `createPlayback()` → `pause()` `resume()` `dispose()` | the run as an object's lifetime — `stopRun: animateToStart` becomes "dispose, animating", `finished` a live object at rest, a prop cannot hold an object; survives as `isRunActive()` |
-| `playRun={bool}` + `paused={bool}` · `playControls={{ run, paused }}` | the second lever has no family mark; an object prop re-renders; the enum has no invalid pair |
+| `startPlayback()` `pausePlaying()` `resumePlaying()` `resetPlayback()` | a noun per lever is right, but `playback` / `playing` share a stem; `reset` contradicts `playback.stop: jumpToEnd`; no adjective for a prop |
+| `player.playback.start()` … | rejected 2026-11-10 ("the file and the props cannot namespace cheaply"); **taken in 1.25** — the file names the act `"playback.start"` (a dotted action name), the props stay flat (`playback`, `onPlaybackStart`) |
+| `createPlayback()` → `pause()` `resume()` `dispose()` | the playback as an object's lifetime — `playback.stop: animateToStart` becomes "dispose, animating", `finished` a live object at rest, a prop cannot hold an object; survives as `playback.isActive()` |
+| `playback={bool}` + `paused={bool}` · `playControls={{ playback, paused }}` | the second lever has no family mark; an object prop re-renders; the enum has no invalid pair |
 | buttons only (drop the lever, drive through `playerRef`) | React is declarative; the lever is the point of the wrapper |
-| `isRunning()` as the region readout | WAAPI's `running` = playing; "running but paused" contradicts — `isRunActive()` |
-| `endRun()` instead of `stopRun()` (owner's doubt: "stop" sounds like halted, "end" like over) | weighed, not taken — close call. For: a run is a session, sessions end (DOM `*start` / `*end` events, Spine `end`); `onRunEnd` reads like `animationend`. Against: "end" is already our POSITION word in three compounds (`jumpToEnd` `animateToEnd` `atEnd`) and would become a verb too — "end the run" can be read as "make it reach its end", the very thing `jumpToEnd()` does, so `endRun()` next to `jumpToEnd()` raises a worse doubt than `stopRun()` next to `pause()`; with the noun "run", "stop" / "cancel" is the established terminator (CI and test runs) and "end" the umbrella for both ways out; every animation library spells this act `stop`, none `end`. Kept: `stopRun()` / `onRunStop` (MediaRecorder: method `stop()`, event `stop`). If a third word is ever wanted: `exitRun()` (Motion `exit`, Rive / Unity Exit) says "over" without touching "end" |
+| `isRunning()` as the region readout | WAAPI's `running` = playing; "running but paused" contradicts — `playback.isActive()` |
+| `endRun()` instead of `playback.stop()` (owner's doubt: "stop" sounds like halted, "end" like over) | weighed, not taken — close call. For: a playback is a session, sessions end (DOM `*start` / `*end` events, Spine `end`); `onPlaybackEnd` reads like `animationend`. Against: "end" is already our POSITION word in three compounds (`jumpToEnd` `animateToEnd` `atEnd`) and would become a verb too — "end the playback" can be read as "make it reach its end", the very thing `jumpToEnd()` does, so `endRun()` next to `jumpToEnd()` raises a worse doubt than `playback.stop()` next to `pause()`; with the noun "run", "stop" / "cancel" is the established terminator (CI and test runs) and "end" the umbrella for both ways out; every animation library spells this act `stop`, none `end`. Kept: `playback.stop()` / `onPlaybackStop` (MediaRecorder: method `stop()`, event `stop`). If a third word is ever wanted: `exitRun()` (Motion `exit`, Rive / Unity Exit) says "over" without touching "end" (1.24's names; since 1.25 the act is `playback.stop()` / `onPlaybackStop`) |
 
 ## 7. Later — not in this step
 
 - **Inputs (layer 2 + 4, the destination):** every lever and button becomes an input the file wires events to;
-  `playRun`'s positions are the built-in input. A-run's names are those inputs, so this is a step, not a detour:
+  `playback`'s positions are the built-in input. These names are those inputs, so this is a step, not a detour:
   ```json
-  "timeline": { "inputs": { "run": "off" }, "on": { "hoverIn": { "set": { "run": "on" } }, "hoverOut": { "set": { "run": "off" }, "move": "animateToStart" } }, "atEnd": "hold" }
+  "timeline": { "state": { "playback": { "off": { "initial": true }, "playing": {}, "paused": {}, "finished": {} } }, "actionTriggers": { "playback.start": "hoverIn", "playback.stop": "hoverOut" }, "atEnd": "hold" }
   ```
 - **The gate as a sensed lever** (`inView`), with its own rule words beside `outOfView`.
 - **Pointer words:** `hoverIn` / `hoverOut` are web words; Rive, dotLottie and React Native say `pointerEnter` /
@@ -362,3 +366,9 @@ else this.enabled = false;                          // = our atEnd: jumpToStart
 - 2026-11-10: the boxes; `start` / `stop` vs `play` / `resume` / `pause` ambiguity; `enable` / `disable`, `activate` /
   `deactivate`, one-go-button `play()`, nouned spellings tried; the run as the lever's noun; `playRun` as the one driver
   prop with the `play` family mark; `endRun` weighed against `stopRun` and not taken; this text.
+- 2026-11-11: the noun changed — **playback**, not run (first flat: `startPlayback()` · `onPlaybackStart` · the `playback` prop ·
+  `getPlaybackState()` · `playOnce()`); the reasoning is in [animation-state.playback-noun.md](./animation-state.playback-noun.md).
+- 2026-11-12: one home — `player.playback.*` (`start()` · `getState()` · `getSpeed()` · `…AtSpeed`), no `play()` / `pause()`
+  aliases, and dotted action names in the file (`"playback.start"`), folded into schema 1.25 before any commit
+  ([animation-state.playback-namespace.md](./animation-state.playback-namespace.md)). This text and the boxes rewritten to the
+  final words; the print version regenerated.

@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxAtEndBehavior, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, forwardPlaybackControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -304,8 +304,8 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
  */
 export function SvgAnimationPlayer({
     doc, timelineOptions, actions,
-    playUsingActionTriggers, playRun, playerRef, showAtProgress, showAtTime,
-    onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
+    playUsingActionTriggers, playback, playerRef, showAtProgress, showAtTime,
+    onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
@@ -331,21 +331,21 @@ export function SvgAnimationPlayer({
      * built them, so callbacks and diagnostics are read through `latest` — refreshed every render
      * (as React's `callbacksRef`) — never the props they closed over.
      */
-    const latest = useRef({ onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors });
-    latest.current = { onReady, onRunStart, onRunStop, onRunPause, onRunResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
+    const latest = useRef({ onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors });
+    latest.current = { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
     const makeDiag = (): PxDiagnostics => createDiagnostics(latest.current, '[SvgAnimationPlayer]');
 
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAtProgress, showAtTime, playRun, playUsingActionTriggers });
+        resolveControlMode({ showAtProgress, showAtTime, playback, playUsingActionTriggers });
 
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
                 toPxDocument(stableDoc),
                 { timelineOptions, actions, playUsingActionTriggers },
-                compMode === PxControlMode.playRun,
+                compMode === PxControlMode.playback,
                 makeDiag(),
             );
         } catch (e) {
@@ -366,8 +366,8 @@ export function SvgAnimationPlayer({
     // How far a seek may go: unbounded when endless (review §3).
     const seekCeiling = seekCeilingMs(tracks.duration, tracks.iterations);
 
-    // Whole-run time lives on its own clock: `progress` below is deliberately within ONE
-    // iteration, and `withRepeat` never reports how many have elapsed, so the run time cannot
+    // Whole-playback time lives on its own clock: `progress` below is deliberately within ONE
+    // iteration, and `withRepeat` never reports how many have elapsed, so the playback time cannot
     // be read back off it. See `createRunClock`.
     const runClock = useMemo(() => createRunClock(seekCeiling), [seekCeiling]);
 
@@ -442,7 +442,8 @@ export function SvgAnimationPlayer({
         playingRef.current = true;
     };
 
-    const api: PxAnimationPlayerHandle = {
+    // the engine's primitives — `composeApiExtras` builds the public `playback` on top
+    const api: PxPlayTarget = {
         isPlaying: () => playingRef.current,
         play: () => {
             // `startFrom` rewinds to the opposite end when the playhead is
@@ -487,7 +488,7 @@ export function SvgAnimationPlayer({
             }
         },
 
-        // The engine's one clock: ms from the start of the WHOLE run (review §3); the per-iteration reads are
+        // The engine's one clock: ms from the start of the WHOLE playback (review §3); the per-iteration reads are
         // composed on top (`composeApiExtras`).
         getTotalTime: () => runClock.now(),
 
@@ -509,19 +510,19 @@ export function SvgAnimationPlayer({
             else runClock.stop();
         },
 
-    } as PxAnimationPlayerHandle;
-    // The engine's own play / pause before the executor's versions replace them — the gate's hold and release.
-    const engine = { play: api.play, pause: api.pause };
-    // the four buttons, the aliases and `runOnce()` — the one shared rule (review §10, D5), same composer as the web
-    // engines; the play keys come off the compiled document's runtime view; the run events are the executor's.
-    const view = compiled.doc ? getAnimatorConfig(compiled.doc) : undefined;
-    const runListeners = {
-        onRunStart: () => latest.current.onRunStart?.(),
-        onRunStop: () => latest.current.onRunStop?.(),
-        onRunPause: () => latest.current.onRunPause?.(),
-        onRunResume: () => latest.current.onRunResume?.(),
     };
-    const player = composeApiExtras(api, { ...view, runListeners, duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations }, (cb) => { requestAnimationFrame(cb); });
+    // The engine's own play / pause — the gate's hold and release.
+    const engine = { play: api.play, pause: api.pause };
+    // `playback` (the four buttons, `playOnce()`, the reads) — the one shared rule (review §10, D5), same composer as the web
+    // engines; the play keys come off the compiled document's runtime view; the playback events are the executor's.
+    const view = compiled.doc ? getAnimatorConfig(compiled.doc) : undefined;
+    const playbackListeners = {
+        onPlaybackStart: () => latest.current.onPlaybackStart?.(),
+        onPlaybackStop: () => latest.current.onPlaybackStop?.(),
+        onPlaybackPause: () => latest.current.onPlaybackPause?.(),
+        onPlaybackResume: () => latest.current.onPlaybackResume?.(),
+    };
+    const player = composeApiExtras(api, { ...view, playbackListeners, duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations }, (cb) => { requestAnimationFrame(cb); });
     executor = player.playExecutor;
 
     // `onReady` (review §14): the animator exists and the tree is rendered — once per compiled
@@ -537,26 +538,13 @@ export function SvgAnimationPlayer({
     // declarative driver owns playback is the actual collision: warn (PX1503) and apply.
     useImperativeHandle(playerRef, () => {
         const guardWrite = (call: string): void => {
-            if (compMode === PxControlMode.playRun || compMode === PxControlMode.fixedTime) {
+            if (compMode === PxControlMode.playback || compMode === PxControlMode.fixedTime) {
                 makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.imperativeOverDeclarative, call);
             }
         };
+        // ONE forwarder for every wrapper (core `forwardPlaybackControls`); a write warns first when a driver prop owns playback
         return {
-            ...api,
-            startRun: () => { guardWrite('startRun()'); api.startRun(); },
-            stopRun: () => { guardWrite('stopRun()'); api.stopRun(); },
-            pauseRun: () => { guardWrite('pauseRun()'); api.pauseRun(); },
-            resumeRun: () => { guardWrite('resumeRun()'); api.resumeRun(); },
-            play: () => { guardWrite('play()'); api.play(); },
-            pause: () => { guardWrite('pause()'); api.pause(); },
-            jumpToStart: () => { guardWrite('jumpToStart()'); api.jumpToStart(); },
-            jumpToEnd: () => { guardWrite('jumpToEnd()'); api.jumpToEnd(); },
-            runOnce: () => { guardWrite('runOnce()'); api.runOnce(); },
-            setPlaybackSpeed: (speed: number) => { guardWrite('setPlaybackSpeed()'); api.setPlaybackSpeed(speed); },
-            setPlaybackDuration: (ms: number) => { guardWrite('setPlaybackDuration()'); api.setPlaybackDuration(ms); },
-            setCurrentTime: (t: number) => { guardWrite('setCurrentTime()'); api.setCurrentTime(t); },
-            setCurrentProgress: (p: number) => { guardWrite('setCurrentProgress()'); api.setCurrentProgress(p); },
-            setTotalTime: (t: number) => { guardWrite('setTotalTime()'); api.setTotalTime(t); },
+            playback: forwardPlaybackControls(() => player.playback, (call, run) => { guardWrite(call); run(player.playback); }),
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `api` / `makeDiag` read callbacks and diagnostics through `latest`; the rest changes only with `compiled`
     }, [compiled, compMode]);
@@ -584,10 +572,10 @@ export function SvgAnimationPlayer({
             const seekMs = showAtTime !== undefined
                 ? showAtTime
                 : (Number.isFinite(showAtProgress ?? 0) ? Math.min(1, Math.max(0, showAtProgress ?? 0)) : 0) * tracks.duration;
-            api.setCurrentTime(seekMs);
+            player.playback.setCurrentTime(seekMs);
             return;
         }
-        if (compMode === PxControlMode.playRun) {
+        if (compMode === PxControlMode.playback) {
             // ONE shared rule (§10, `resolveDeclarativePlayback` in core — same as React and
             // Vue): the lever's position — off · on · paused — and a change between two positions is one
             // or two of the four buttons. HOW each step moves is the timeline's `actions`, performed by the
@@ -595,19 +583,19 @@ export function SvgAnimationPlayer({
             // apply from scratch (mount semantics: no animation).
             const world = resolvePlaybackWorld(tracks.iterations === Infinity ? 'infinite' : tracks.iterations);
             const prev = prevPlaybackRef.current?.compiled === compiled ? prevPlaybackRef.current.props : undefined;
-            const position: PxDeclarativeProps = { playRun };
+            const position: PxDeclarativeProps = { playback };
             const { actions } = resolveDeclarativePlayback({ world, prev, next: position });
             prevPlaybackRef.current = { compiled, props: position };
-            for (const action of actions) applyDeclarativeAction(player, action);
+            for (const action of actions) applyDeclarativeAction(player.playback, action);
             return;
         }
         // a listed `click` starts from its own handler below, and a GATED document starts from the
-        // visibility poll — calling startRun() here as well would defeat the gate.
-        if (compMode === PxControlMode.playUsingActionTriggers && trigger.startRun.includes(PxTriggerEvent.load) && !gated) {
-            player.startRun();
+        // visibility poll — calling playback.start() here as well would defeat the gate.
+        if (compMode === PxControlMode.playUsingActionTriggers && trigger.startPlayback.includes(PxTriggerEvent.load) && !gated) {
+            player.playback.start();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, compMode, playUsingActionTriggers, playRun, showAtProgress, showAtTime]);
+    }, [compiled, compMode, playUsingActionTriggers, playback, showAtProgress, showAtTime]);
 
     // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
     // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled
@@ -619,9 +607,9 @@ export function SvgAnimationPlayer({
         if (!playUsingActionTriggers || !gated) return;
         const threshold = gate.inViewThreshold;
         inViewRef.current = false;
-        /** The gate held (or reset) a run, so it owes a release; a `load` start is owed until the first entry. */
+        /** The gate held (or reset) a playback, so it owes a release; a `load` start is owed until the first entry. */
         let pausedByGate = false;
-        let startPending = trigger.startRun.includes(PxTriggerEvent.load);
+        let startPending = trigger.startPlayback.includes(PxTriggerEvent.load);
 
         const check = () => {
             const node = scrollRef.current;
@@ -636,7 +624,7 @@ export function SvgAnimationPlayer({
                 inViewRef.current = isIn;
                 if (isIn) {
                     // as the web gate: a trigger's start goes through the executor, the gate's own release is the engine's
-                    if (startPending) { startPending = false; pausedByGate = false; player.startRun(); }
+                    if (startPending) { startPending = false; pausedByGate = false; player.playback.start(); }
                     else if (pausedByGate) { pausedByGate = false; engine.play(); }
                 } else if (player.isPlaying()) {
                     if (gate.outOfView === PxOutOfViewBehavior.jumpToStart) player.jumpToStart();
@@ -754,10 +742,10 @@ export function SvgAnimationPlayer({
             <Pressable
                 onPress={() => {
                     switch (triggerActionFor(trigger, player.playExecutor.state(), PxTriggerEvent.click)) {
-                        case PxTriggerAction.startRun: player.startRun(); break;
-                        case PxTriggerAction.resumeRun: player.resumeRun(); break;
-                        case PxTriggerAction.pauseRun: player.pauseRun(); break;
-                        case PxTriggerAction.stopRun: player.stopRun(); break;
+                        case PxTriggerAction.startPlayback: player.playback.start(); break;
+                        case PxTriggerAction.resumePlayback: player.playback.resume(); break;
+                        case PxTriggerAction.pausePlayback: player.playback.pause(); break;
+                        case PxTriggerAction.stopPlayback: player.playback.stop(); break;
                     }
                 }}
             >

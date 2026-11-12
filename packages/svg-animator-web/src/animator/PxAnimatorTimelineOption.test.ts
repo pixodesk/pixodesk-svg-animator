@@ -17,7 +17,7 @@ import { createSvgAnimationPlayer } from './PxAnimator';
 import type { PxDocument, PxActionTriggers } from '@pixodesk/svg-animator-core';
 
 /** A WIRE-format document (nested `timelineOptions`) — the spelling every writer emits. */
-function wireDoc(actionTriggers: PxActionTriggers = { startRun: 'load' }): PxDocument {
+function wireDoc(actionTriggers: PxActionTriggers = { 'playback.start': 'load' }): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -39,44 +39,44 @@ const stage = () => {
 
 describe('createSvgAnimationPlayer — the override reaches the running animation', () => {
 
-    // The observable: a document whose trigger is `startRun: 'load'` plays at once; one whose trigger is
+    // The observable: a document whose trigger is `startPlayback: 'load'` plays at once; one whose trigger is
     // the EMPTY block does not. Unambiguous — keyframe times are absolute, so a timing override changes
     // when playback ENDS, not the value at a given instant, which makes opacity a poor witness.
 
     it('baseline: `playUsingActionTriggers: true` plays the file as saved — this one autoplays', () => {
         const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: wireDoc(), container: stage() });
-        expect(api.isPlaying()).toBe(true);
+        expect(api.playback.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('a `playUsingActionTriggers` OBJECT is the trigger instead of the file\'s', () => {
         // the file starts on load; the block says click — so nothing plays until a click
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { startRun: 'click' }, doc: wireDoc(), container: stage() });
-        expect(api.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { 'playback.start': 'click' }, doc: wireDoc(), container: stage() });
+        expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('…as a WHOLE: a list the object leaves out is gone — the file\'s `start: load` does not survive an object that lists only `pause`', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { pauseRun: 'click' }, doc: wireDoc({ startRun: 'load' }), container: stage() });
-        expect(api.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { 'playback.pause': 'click' }, doc: wireDoc({ 'playback.start': 'load' }), container: stage() });
+        expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('`timelineOptions` MERGES over the file\'s timing — the file\'s `engine` and trigger survive, so it still plays', () => {
         const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: wireDoc(), container: stage(), timelineOptions: { outTime: 500, iterations: 1 } });
-        expect(api.isPlaying()).toBe(true);
+        expect(api.playback.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('`timelineOptions` and a `playUsingActionTriggers` object together: the timing adjusted, the trigger replaced', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { startRun: 'click' }, doc: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
-        expect(api.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { 'playback.start': 'click' }, doc: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
+        expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('no driver named: the first frame, nothing plays — whatever the file says', () => {
         const api = createSvgAnimationPlayer({ doc: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
-        expect(api.isPlaying()).toBe(false);
+        expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });
 });

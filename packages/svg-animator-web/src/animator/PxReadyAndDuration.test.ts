@@ -24,7 +24,7 @@ describe('onReady + getDuration (§14)', () => {
 
     it('getDuration is one pass of the content window, ms', () => {
         const api = createSvgAnimationPlayer({ doc: DOC, container: '#box' });
-        expect(api.getDuration()).toBe(1000);           // outTime 1200 − inTime 200
+        expect(api.playback.getDuration()).toBe(1000);           // outTime 1200 − inTime 200
     });
 
     it('onReady fires once, asynchronously — the create call has returned first', async () => {
@@ -41,11 +41,11 @@ describe('onReady + getDuration (§14)', () => {
         vi.stubGlobal('fetch', vi.fn(() => new Promise(r => { resolveFetch = r; })));
         const api = createSvgAnimationPlayer({ src: '/a.json', container: '#box', onReady });
         expect(api.isReady()).toBe(false);
-        expect(api.getDuration()).toBe(null);           // the push-twin claim: no polling needed
+        expect(api.playback.getDuration()).toBe(null);           // the push-twin claim: no polling needed
 
         resolveFetch({ json: () => Promise.resolve(JSON.parse(JSON.stringify(DOC))) });
         await vi.waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
-        expect(api.getDuration()).toBe(1000);
+        expect(api.playback.getDuration()).toBe(1000);
         vi.unstubAllGlobals();
     });
 });

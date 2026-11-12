@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxDocument, type PxAnimationPlayerApi, type PxEngineAnimationPlayerApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
-import { composeApiExtras } from './PxDeclarativePlayback';
+import { type PxDocument, type PxEngineAnimationPlayerApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
+import { composeApiExtras, type PxComposedAnimationPlayerApi } from './PxDeclarativePlayback';
 import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxPlaybackDirection, PxTimelineEngine , fillModeOf } from '../format/PxAnimatorConstants';
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
@@ -57,14 +57,15 @@ export interface PxPlatformAdapter {
  *
  * @param adapter Platform adapter for DOM/environment operations.
  * @param callbacks Optional lifecycle callbacks.
- * @returns A PxAnimationPlayerApi instance.
+ * @returns The engine's primitives with `playback` composed on top — a page uses `playback`, a player author may
+ *   compose further.
  * @public @advanced
  */
 export function createAdapterSvgAnimationPlayer(
     doc: PxDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks
-): PxAnimationPlayerApi {
+): PxComposedAnimationPlayerApi {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -497,7 +498,7 @@ export function createAdapterSvgAnimationPlayer(
 
     ////////////////////////////////////////////////////////////////
 
-    // `playOnce` is composed ON TOP of the engine — the one shared one-pass rule (review §10)
+    // `playback` is composed ON TOP of the engine — the one shared rule (review §10)
     return composeApiExtras(api, config, requestFrame);
 }
 
