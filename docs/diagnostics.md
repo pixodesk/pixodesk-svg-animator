@@ -8,7 +8,7 @@ diagnostic a stable identity you can switch on in code and search for.
 
 ```js
 createSvgAnimationPlayer({
-  src: '/animation.json',
+  document: '/animation.json',
   container: '#stage',
   onWarning: d => console.log(d.code, d.data),   // 1204, ['#missing']
   onError:   d => report(d.code, d.error),
@@ -27,8 +27,8 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | Code | What it means | Data |
 |---|---|---|
 | <a id="px1001"></a>**1001** | The player could not be built from this document — a document that passed validation but still broke the builder, or a bug in the player. Report it. | the Error |
-| <a id="px1002"></a>**1002** | The file at `src` loaded, but it is not a Pixodesk animation document. | the `src` URL |
-| <a id="px1003"></a>**1003** | The page could not fetch `src`. The file may be perfect — this is the request failing. | the `src` URL · the fetch error's message |
+| <a id="px1002"></a>**1002** | The file at the `document` URL loaded, but it is not a Pixodesk animation document. | the URL |
+| <a id="px1003"></a>**1003** | The page could not fetch the `document` URL. The file may be perfect — this is the request failing. | the URL · the fetch error's message |
 | <a id="px1004"></a>**1004** | One element's animation could not be built, so that element stays static; the rest plays. | the Error |
 
 ## What the document says
@@ -86,9 +86,9 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 |---|---|---|
 | <a id="px1501"></a>**1501** | Props from more than one control mode were set at once. The higher-priority mode wins and the other props are ignored — see the control-mode rule. | which props conflicted, and which won |
 | <a id="px1502"></a>**1502** | Retired (1.24): `pause` without `play` could be written with two boolean props; the one `playback` lever has no invalid position pair. The number stays reserved so older hosts' switches keep their meaning. | the explanation |
-| <a id="px1503"></a>**1503** | An imperative write call (`playback.start()`, `playback.pause()`, `playback.playOnce()`, …) landed while a declarative driver (the `playback` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
+| <a id="px1503"></a>**1503** | An imperative write call (`playback.start()`, `playback.pause()`, `playback.play()`, …) landed while a declarative driver (the `playback` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
 | <a id="px1504"></a>**1504** | A call on a destroyed player — ignored; `playback.getState()` says `destroyed`. | the call |
-| <a id="px1505"></a>**1505** | A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.playOnce()`, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next scroll moves it. | the call |
+| <a id="px1505"></a>**1505** | A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.play()`, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next scroll moves it. | the call |
 
 ## React Native
 

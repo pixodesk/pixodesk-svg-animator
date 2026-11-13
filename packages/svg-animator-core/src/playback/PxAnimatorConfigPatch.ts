@@ -164,7 +164,7 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
 }
 
 /** `PxTimeline` without its `actionTriggers` and `actions` blocks — the timing. On the props the three are separate
- *  (the file nests them): `timelineOptions` patches this, `playUsingActionTriggers` carries the triggers, `actions` the actions. @public */
+ *  (the file nests them): `timelineOptions` patches this, `playerActionTriggers` carries the triggers, `actions` the actions. @public */
 export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' | 'actions'>;
 
 /** The `timelineOptions` prop: a deep-partial of the WIRE timing block, typed from the schema, merged over the file's.
@@ -181,7 +181,7 @@ export type PxActionsOptions = PxRecursivePartial<PxActions>;
  * (dev-docs/plans/component-api.md D4, playback-layers.md): `timelineOptions`, a MERGE over the file's timing block,
  * and `actions`, a MERGE over its actions. Corrections — `iterations`, `delay`, a rewinding stop — never a
  * replacement; whoever needs more edits the document. The triggers are not here: they travel with their
- * driver, `playUsingActionTriggers` ({@link PxControlProps}). ONE definition (review §9).
+ * driver, `playerActionTriggers` ({@link PxControlProps}). ONE definition (review §9).
  * @public
  */
 export interface PxPlaybackOverride {
@@ -196,14 +196,14 @@ export interface PxPlaybackOverride {
      * `actions` keeps the file's name because it IS a partial of that block.
      *
      * MERGE vs REPLACE, the one rule for the three override props: `timelineOptions` and `actions` are recursive
-     * partials (objects merge, values replace); a `playUsingActionTriggers` block REPLACES the file's
+     * partials (objects merge, values replace); a `playerActionTriggers` block REPLACES the file's
      * `actionTriggers` as a whole — its lists belong together.
      */
     timelineOptions?: PxTimelineOptions;
     /**
      * Per-instance adjustment of HOW the buttons move the playhead — `{ 'playback.stop': 'animateToStart' }`, or
-     * `{ 'playback.stop': 'animateToEnd' }` with `timelineOptions: { atEnd: 'jumpToStart' }` ("stop after this pass, then snap
-     * back") — deep-merged over the document's `timeline.actions`.
+     * `{ 'playback.stop': 'animateToEndAndBack' }` ("stop after this pass, then play back") — deep-merged over the
+     * document's `timeline.actions`.
      */
     actions?: PxActionsOptions;
 }
@@ -211,7 +211,7 @@ export interface PxPlaybackOverride {
 /** What {@link applyPlaybackOverride} reads: the patches, and the trigger driver's object form. @public @advanced */
 export interface PxPlaybackOverrideInput extends PxPlaybackOverride {
     /** `true` — the document's `actionTriggers` drive; an object — the WHOLE block to use instead (see {@link PxControlProps}). */
-    playUsingActionTriggers?: boolean | PxActionTriggersInput;
+    playerActionTriggers?: boolean | PxActionTriggersInput;
 }
 
 /** What {@link applyPlaybackOverride} reports beside the document. @public @advanced */
@@ -225,13 +225,13 @@ export interface PxPlaybackOverrideResult {
 /**
  * Applies the playback override to a document — ONE implementation for the web player and the three
  * components (D4): `timelineOptions` and `actions` merged with the timeline rules (`mergeAnimatorConfig`); then, when
- * `playUsingActionTriggers` is an object, the `actionTriggers` block SET to it — a REPLACEMENT, because the lists belong
+ * `playerActionTriggers` is an object, the `actionTriggers` block SET to it — a REPLACEMENT, because the lists belong
  * together (hover → click changes the other lists too). PURE: the document is
  * never mutated, untouched subtrees are shared. The caller reports `warnings` through its diagnostics.
  * @public @advanced
  */
 export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverrideInput): PxPlaybackOverrideResult {
-    const { timelineOptions: timeline, actions, playUsingActionTriggers } = override;
+    const { timelineOptions: timeline, actions, playerActionTriggers } = override;
     const warnings: Array<string> = [];
     const apply = (patch: PxAnimatorConfigPatch): void => {
         const applied = applyAnimatorConfig(doc, patch);
@@ -247,7 +247,7 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
         if (isPlainObject(actions)) apply({ timeline: { actions } });
         else if (actions !== null) warnings.push('actions: not an object — ignored');
     }
-    if (typeof playUsingActionTriggers === 'object' && playUsingActionTriggers !== null) doc = withActionTriggers(doc, playUsingActionTriggers);   // a SET, not a merge
+    if (typeof playerActionTriggers === 'object' && playerActionTriggers !== null) doc = withActionTriggers(doc, playerActionTriggers);   // a SET, not a merge
     return { doc, warnings };
 }
 
@@ -278,7 +278,7 @@ export function withActionTriggers(doc: PxDocument, actionTriggers: PxActionTrig
 /**
  * The "nobody named a driver" rule (first-use review §1+2): the document's `actionTriggers` are replaced by an EMPTY
  * block — no event starts it — on top of the caller's override, so the document cannot start itself. One spelling
- * for the web player's missing `playUsingActionTriggers` option and the components' other control modes.
+ * for the web player's missing `playerActionTriggers` option and the components' other control modes.
  * @public @advanced
  */
 export function withoutTriggerDriver(doc: PxDocument): PxDocument {

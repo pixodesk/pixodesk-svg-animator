@@ -12,8 +12,8 @@ import type { PxResolvedGate } from '@pixodesk/svg-animator-core/engine';
  *
  * The triggers' event lists say what STARTS an animation; the timeline's `actions.outOfView` /
  * `inViewThreshold` / `inViewDebounce` say whether it may RUN (D5). The two are independent, so
- * "start on click, but pause while scrolled away" is sayable, and the common document says
- * neither and gets both defaults: start on load, pause off screen.
+ * "start on click, but pause while scrolled away" is sayable. What leaving the screen does is the
+ * executor's (1.26): it presses the real buttons — pause, or a hard stop — and undoes them on return.
  *
  * Three rules decide everything here:
  *  - OPEN at `inViewThreshold`, CLOSE only at zero visibility. One value, two edges, so a
@@ -28,26 +28,21 @@ import type { PxResolvedGate } from '@pixodesk/svg-animator-core/engine';
  * closed would silently stop every animation in environments that never had the API.
  */
 
-/** What the gate drives. A trigger let through goes to the executor's state-rule play; the gate's
- *  own hold and release are the ENGINE's pause and play — a gate hold is not a user pause, so the
- *  executor's paused state stays untouched, nothing is reported, and a later `playback.start` event still applies. @internal */
+/** What the gate drives — the player's executor. The gate decides WHEN; the executor what leaving and returning do
+ *  (`actions.outOfView`: pause / resume, or a hard stop / start — the real buttons, so the state and the callbacks
+ *  follow, 1.26). @internal */
 export interface PxGateHost {
-    isPlaying(): boolean;
-    /** A trigger fired and the gate lets it through. */
-    start(): void;
-    /** Off screen: freeze where it is (resumable by `release`). */
-    hold(): void;
-    /** Back on screen after a hold: continue from there. */
-    release(): void;
-    /** Off screen with a `jumpToStart` out-of-view behavior: back to the idle pose; `release` replays. */
-    jumpToStart(): void;
+    /** None of it on screen. */
+    leaveView(): void;
+    /** Back on screen: undo what `leaveView` did. */
+    returnToView(): void;
 }
 
 /** Permission to run, wired by `setupAnimationTriggers` for every document. @internal */
 export interface PxVisibilityGate {
-    /** A trigger fired. `immediate` skips the gate for a direct interaction (a click or a hover
-     *  happens on something the reader can already see, and must never wait out a timer). */
-    requestStart(immediate: boolean): void;
+    /** A trigger fired: `run` presses its button once the gate lets it through. `immediate` skips the gate for a direct
+     *  interaction (a click or a hover happens on something the reader can already see, and must never wait out a timer). */
+    requestStart(immediate: boolean, run: () => void): void;
     /** Detaches the observer, the listener and any pending timer. */
     dispose(): void;
 }
@@ -81,9 +76,9 @@ function effectiveRatio(entry: IntersectionObserverEntry): number {
 }
 
 /** A gate that is always open and observes nothing — a `continue` out-of-view behavior, or no way to measure. */
-function openGate(host: PxGateHost): PxVisibilityGate {
+function openGate(): PxVisibilityGate {
     return {
-        requestStart: () => host.start(),
+        requestStart: (_immediate: boolean, run: () => void) => run(),
         dispose: () => { /* nothing attached */ },
     };
 }
@@ -98,8 +93,8 @@ function isGated(outOfView: PxOutOfViewBehavior): boolean {
 /** Builds the gate for one document. Returns an always-open one when visibility does not govern
  *  it, or when nothing can measure. @internal */
 export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: PxGateHost): PxVisibilityGate {
-    if (!isGated(gate.outOfView)) return openGate(host);
-    if (typeof IntersectionObserver === 'undefined') return openGate(host);
+    if (!isGated(gate.outOfView)) return openGate();
+    if (typeof IntersectionObserver === 'undefined') return openGate();
 
     const threshold = gate.inViewThreshold;
     const debounceMs = gate.inViewDebounce;
@@ -109,10 +104,8 @@ export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: 
      *  HOST already started through the API must be paused by the first report of "off screen",
      *  not silently left running because the gate had never been open. */
     let isOpen: boolean | undefined = undefined;
-    /** A trigger fired while the gate was shut; it is owed a play once the gate opens. */
-    let startPending = false;
-    /** The gate paused (or jumped back) a running animation, so it owes it a play. */
-    let pausedByGate = false;
+    /** A trigger fired while the gate was shut; its button is pressed once the gate opens. */
+    let pendingRun: (() => void) | undefined;
     /** The most recent measurement, kept so `visibilitychange` can re-decide without one. */
     let lastRatio = 0;
     let openTimer: ReturnType<typeof setTimeout> | undefined;
@@ -128,30 +121,20 @@ export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: 
         openTimer = undefined;
         if (isOpen === true) return;
         isOpen = true;
-        // Whichever of the two owes a play, exactly one happens: a trigger's start, or the gate's release.
-        if (startPending) {
-            startPending = false;
-            pausedByGate = false;
-            host.start();
-        } else if (pausedByGate) {
-            pausedByGate = false;
-            host.release();
-        }
+        // Whichever of the two owes a play, exactly one happens: a trigger's button, or the gate undoing what it did.
+        const run = pendingRun;
+        pendingRun = undefined;
+        if (run) run();
+        else host.returnToView();
     };
 
     const close = (): void => {
         cancelPendingOpen();
         if (isOpen === false) return;
         isOpen = false;
-        // Only act on something that is actually running — including an animation the HOST
-        // started through the API, which is why this asks rather than tracking its own flag.
-        if (!host.isPlaying()) return;
-        if (gate.outOfView === PxOutOfViewBehavior.jumpToStart) {
-            host.jumpToStart();    // progress back to 0; the next open replays from the start
-        } else {
-            host.hold();
-        }
-        pausedByGate = true;
+        // The executor decides what there is to pause or stop — including an animation the HOST started through the
+        // API — and remembers it for the return.
+        host.leaveView();
     };
 
     /** One measurement in, one decision out. The threshold governs OPENING (including its dwell);
@@ -189,17 +172,16 @@ export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: 
     if (hasDocument) document.addEventListener('visibilitychange', onVisibilityChange);
 
     return {
-        requestStart: (immediate: boolean) => {
+        requestStart: (immediate: boolean, run: () => void) => {
             // A click or a hover is aimed at something the reader can see; it never waits.
             if (immediate || isOpen === true) {
                 cancelPendingOpen();
                 isOpen = true;
-                startPending = false;
-                pausedByGate = false;
-                host.start();
+                pendingRun = undefined;
+                run();
                 return;
             }
-            startPending = true;
+            pendingRun = run;
         },
         dispose: () => {
             cancelPendingOpen();

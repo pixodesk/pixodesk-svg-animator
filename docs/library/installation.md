@@ -56,7 +56,7 @@ Then load it with a relative path, like any other script of yours:
 
 ```html
 <!-- declarative: the element names its file -->
-<div data-px-animation-src="/bouncing-ball.json" style="width: 300px; height: 300px"></div>
+<div data-px-document="/bouncing-ball.json" style="width: 300px; height: 300px"></div>
 
 <!-- programmatic: an empty container the player renders into -->
 <div id="box" style="width: 300px; height: 300px"></div>
@@ -68,7 +68,7 @@ Then load it with a relative path, like any other script of yours:
   Pixodesk.SvgAnimator.createSvgAnimationPlayersFromPage(); 
 
   // programmatic
-  const a = Pixodesk.SvgAnimator.create({ src: '/bouncing-ball.json', container: '#box', playUsingActionTriggers: true });
+  const a = Pixodesk.SvgAnimator.create({ document: '/bouncing-ball.json', container: '#box', playerActionTriggers: true });
   
 </script>
 ```
@@ -90,11 +90,11 @@ Files in `dist/`:
 
 ## TypeScript
 
-Every package ships types, and `doc` accepts a `.json` import as-is:
+Every package ships types, and `document` accepts a `.json` import as-is:
 
 ```ts
 import animation from './animation.json';
-// <SvgAnimationPlayer doc={animation} /> — no cast: `doc` is typed `PxDocumentJson`,
+// <SvgAnimationPlayer document={animation} /> — no cast: `document` is typed `PxDocumentJson`,
 // the shape a JSON import produces; values are validated at runtime.
 ```
 

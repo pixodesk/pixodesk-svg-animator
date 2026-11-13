@@ -442,5 +442,12 @@
    "animator.timeline|time.actions.stopRun|1.behavior"
   ],
   "note": "Playback is the noun, and a built-in action is named `<state variable>.<verb>` (dev-docs/plans/animation-state.playback-noun.md, animation-state.playback-namespace.md): \"start / stop / pause / resume playback\" are the phrases of every media player, where \"run\" read as a verb — `startRun` → `playback.start`, `stopRun` → `playback.stop`, `pauseRun` → `playback.pause`, `resumeRun` → `playback.resume`, in the trigger lists and the action slots (the handle says `player.playback.start()`). The dot reserves the built-in names against custom ones. Every value is unchanged."
+ },
+ {
+  "version": "1.26",
+  "date": "2026-11-13",
+  "added": [],
+  "removed": [],
+  "note": "State words and move words (dev-docs/plans/animation-state.feedback.2026-11-12.md): `playback.start` always plays from the start, so `actions[\"playback.start\"]` leaves the file — its default `continue` becomes the new `playback.play` list for the events where the two differ (hover, click; `load` stays a start), and `jumpToStart` / `jumpToEnd` become plain starts. `timeline.atEnd` → `timeline.whenFinished` (the playback stays finished whatever it then shows), `actions.outOfView: jumpToStart` → `stop`, and the stop gains `animateToEndAndBack`."
  }
 ]

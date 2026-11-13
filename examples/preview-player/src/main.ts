@@ -57,7 +57,7 @@ const btnPlay = $<HTMLButtonElement>('btn-play');
 const btnPause = $<HTMLButtonElement>('btn-pause');
 const btnStop = $<HTMLButtonElement>('btn-stop');
 const btnRestart = $<HTMLButtonElement>('btn-restart');
-const btnFinish = $<HTMLButtonElement>('btn-finish');
+const btnLastFrame = $<HTMLButtonElement>('btn-last-frame');
 const btnDemo = $<HTMLButtonElement>('btn-demo');
 const btnTheme = $<HTMLButtonElement>('btn-theme');
 
@@ -71,18 +71,19 @@ const inpDebounce = $<HTMLInputElement>('inp-debounce');
 const thresholdField = $('threshold-field');
 const debounceField = $('debounce-field');
 
-const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
+const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnLastFrame];
 
-// -- Trigger panel: the three lists × the events each may name, from the player's own vocabulary --------
+// -- Trigger panel: the four lists × the events each may name, from the player's own vocabulary --------
 
 /** The time timeline as the file spells it; the gate keys and `iterations` are picked from it. */
 type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
 /** The trigger lists, with the editor's labels — typed by the resolved lists' own keys.
- *  No `resumePlayback`: the player derives it from these three. */
+ *  No `resumePlayback`: the player derives it from these four. */
 /** Each list: its wire name (`key`, the `actionTriggers` key — `"playback.start"` …) and its field in the resolved view. */
 const TRIGGER_LISTS: Array<{ key: PxTriggerList; field: keyof PxResolvedTriggers; label: string }> = [
-  { key: PxTriggerList.startPlayback, field: 'startPlayback', label: 'Play on' },
+  { key: PxTriggerList.startPlayback, field: 'startPlayback', label: 'Start on' },
+  { key: PxTriggerList.playPlayback, field: 'playPlayback', label: 'Play on' },
   { key: PxTriggerList.stopPlayback, field: 'stopPlayback', label: 'Stop on' },
   { key: PxTriggerList.pausePlayback, field: 'pausePlayback', label: 'Pause on' },
 ];
@@ -253,11 +254,11 @@ function setControlsEnabled(enabled: boolean): void {
 
 /** The triggers option handed to the player: `undefined` = programmatic (transport owns
  *  start); `'file'` = the document's own triggers; a config = the user's custom triggers —
- *  the WHOLE block, from the three lists of checkboxes. */
+ *  the WHOLE block, from the four lists of checkboxes. */
 function currentTriggerOption(): PlayerOptions['actionTriggers'] {
   if (!useTrigger) return undefined;
   if (useFileConfig) return 'file';
-  // The three lists say which events start, stop and pause it; the player derives what resumes it.
+  // The four lists say which events start, play, stop and pause it; the player derives what resumes it.
   const actionTriggers: PxActionTriggers = {};
   for (const { key } of TRIGGER_LISTS) {
     const events = tickedEvents(key);
@@ -342,10 +343,11 @@ function userActionForTrigger(
   actionTriggers: PxActionTriggers | undefined,
   outOfView: PxOutOfViewBehavior | undefined,
 ): UserAction | undefined {
-  const { startPlayback } = resolveTriggers(actionTriggers);
-  if (startPlayback.includes(PxTriggerEvent.hoverIn)) return 'hover';
-  if (startPlayback.includes(PxTriggerEvent.click)) return 'click';
-  if (startPlayback.length === 0) return 'play';
+  const { startPlayback, playPlayback } = resolveTriggers(actionTriggers);
+  const starts = [...startPlayback, ...playPlayback];   // `playback.start` and `playback.play` both get it going
+  if (starts.includes(PxTriggerEvent.hoverIn)) return 'hover';
+  if (starts.includes(PxTriggerEvent.click)) return 'click';
+  if (starts.length === 0) return 'play';
   // `load` — behind a visibility gate it waits to be seen; `continue` starts right away.
   return outOfView === PxOutOfViewBehavior.continue ? undefined : 'scrollIntoView';
 }
@@ -451,17 +453,18 @@ function loadDocument(doc: PxDocument, sourceLabel: string): void {
 
 // -- Transport controls ------------------------------------------------------
 
-btnPlay.addEventListener('click', () => handle?.start());
+btnPlay.addEventListener('click', () => handle?.play());        // start, or carry on after a pause
 btnPause.addEventListener('click', () => handle?.pause());
 btnStop.addEventListener('click', () => {
-  handle?.jumpToStart();
+  handle?.stop();                                                // the document's stop action — the rest pose by default
   seek.value = '0';
 });
-btnRestart.addEventListener('click', () => {
-  handle?.setCurrentTime(0);
-  handle?.start();
+btnRestart.addEventListener('click', () => handle?.start());    // `playback.start()` always plays from the start
+btnLastFrame.addEventListener('click', () => {
+  // A seek while playing keeps playing, so pause first; the frame then holds (paused), and Play carries on from it.
+  handle?.pause();
+  handle?.setCurrentTime(duration);
 });
-btnFinish.addEventListener('click', () => handle?.finish());   // PlayerHandle.finish → the player's jumpToEnd()
 
 // Load the built-in demo — handled through the same path as a dropped file.
 btnDemo.addEventListener('click', () => loadDocument(demoDoc, 'demo (built-in)'));

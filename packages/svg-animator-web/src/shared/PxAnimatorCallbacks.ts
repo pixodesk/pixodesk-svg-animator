@@ -7,32 +7,31 @@
 import { type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
 import { forwardPlaybackControls } from '@pixodesk/svg-animator-core/engine';
 
-/** The player's callbacks as they travel through the web builders — the public set: the four playback events (the
- *  executor's to tell), the end, the teardown, the diagnostics channel. The ENGINES get a slice of it
- *  ({@link toEngineCallbacks}); their raw `onPlay` / `onPause` never come from here. */
+/** The player's callbacks as they travel through the web builders — the public set: the playback events (the
+ *  executor's to tell), the teardown, the diagnostics channel. The ENGINES get a slice of it
+ *  ({@link toEngineCallbacks}); their raw `onPlay` / `onPause` / `onFinish` never come from here. */
 export type PxPlayerCallbacks = PxAnimationPlayerCallbacks;
 import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
 
 /**
- * Every public surface takes the callbacks INLINE — `createSvgAnimationPlayer({ onFinish })`,
- * `createSvgAnimationPlayersFromPage({ onFinish })`, `<SvgAnimationPlayer onFinish />`. This picks the player's set out
+ * Every public surface takes the callbacks INLINE — `createSvgAnimationPlayer({ onPlaybackFinish })`,
+ * `createSvgAnimationPlayersFromPage({ onPlaybackFinish })`, `<SvgAnimationPlayer onPlaybackFinish />`. This picks the player's set out
  * of the options (the rest of the options are not callbacks). Defined HERE, once, so the web player and the
  * components cannot disagree.
  *
- * A wrapper is only made when there is something to call — an engine tests
- * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
+ * Nothing is wrapped: a callback the caller left out stays absent.
  */
 export function toPlayerCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
-    const { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
-    return { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
+    const { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
+    return { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
 }
 
-/** The slice an ENGINE takes: the end, the teardown and the diagnostics channel. The playback events are the executor's
- *  (`composeApiExtras`' `playbackListeners`), and the engine's own `onPlay` / `onPause` stay unwired — the gate's hold and
- *  a jump's internal pause are not the user's. */
+/** The slice an ENGINE takes: the teardown and the diagnostics channel. The playback events are the executor's
+ *  (`composeApiExtras`' `playbackListeners`, `onPlaybackFinish` included), and the engine's own `onPlay` / `onPause` /
+ *  `onFinish` are the player's internals — a jump's pause and the end of a return leg are not the user's. */
 export function toEngineCallbacks(callbacks: PxPlayerCallbacks | undefined): PxEngineCallbacks {
-    const { onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = callbacks ?? {};
-    return { onFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
+    const { onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = callbacks ?? {};
+    return { onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
 }
 
 /**

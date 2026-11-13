@@ -59,7 +59,7 @@ describe('HTML root around SVG content', () => {
     });
 
     it('blocked tags stay blocked outside <svg>', () => {
-        const root = renderNode({ type: 'div', children: [{ type: 'iframe', src: 'https://example.com' }, { type: 'script' }, { type: 'p' }] } as PxDocument);
+        const root = renderNode({ type: 'div', children: [{ type: 'iframe', document: 'https://example.com' }, { type: 'script' }, { type: 'p' }] } as PxDocument);
         assert(root, 'nothing was rendered');
         expect(root.querySelector('iframe')).toBeNull();
         expect(root.querySelector('script')).toBeNull();
@@ -67,7 +67,7 @@ describe('HTML root around SVG content', () => {
     });
 
     it('the animation inside plays and can be stepped frame by frame', () => {
-        const api = createSvgAnimationPlayer({ doc: page(), container: '#stage' });
+        const api = createSvgAnimationPlayer({ document: page(), container: '#stage' });
         const stage = document.getElementById('stage');
         assert(stage, 'fixture element #stage is missing');
         expect(stage.querySelector('h1')?.textContent).toBe('Hello, world!');
@@ -115,7 +115,7 @@ describe('an SVG element as the root — rendered as is, never wrapped', () => {
     });
 
     it('in an HTML container the <rect> is the only element — nothing is wrapped around it', () => {
-        const api = createSvgAnimationPlayer({ doc: rectRoot(), container: '#html-stage' });
+        const api = createSvgAnimationPlayer({ document: rectRoot(), container: '#html-stage' });
         expect(onlyChild('html-stage').localName).toBe('rect');
         api.destroy();
     });
@@ -123,7 +123,7 @@ describe('an SVG element as the root — rendered as is, never wrapped', () => {
     // NOT PLANNED (owner 2026-10-23: render as is, refine later) — what a later refinement could add: a bare
     // SVG-element root created as SVG when its container is SVG. Today it is an HTML element and draws nothing.
     it.skip('in an SVG container it is an SVG <rect> — it draws, and its animation plays', () => {
-        const api = createSvgAnimationPlayer({ doc: rectRoot(), container: '#svg-stage' });
+        const api = createSvgAnimationPlayer({ document: rectRoot(), container: '#svg-stage' });
         const rect = onlyChild('svg-stage');
         expect(rect.localName).toBe('rect');
         expect(rect.namespaceURI).toBe(SVG_NS);

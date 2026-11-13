@@ -5,29 +5,24 @@
  *---------------------------------------------------------------------------------------*/
 
 // ============================================================================
-// THE PLAY EXECUTOR — one implementation of the four buttons for every driver
-// (dev-docs/plans/playback-layers.md, dev-docs/plans/animation-state.brainstorm.md): the `playback` prop, the
-// triggers' event lists and the imperative api all end up here. The timeline's `actions` say HOW (`playback.start` /
-// `playback.stop`), `atEnd` what the end of the pass does; the executor performs them on any engine api, owns the
-// states the engines cannot tell apart — OFF versus PAUSED versus FINISHED versus RETURNING — so the state rule can
-// be applied, and tells the playback events (`onPlaybackStart` / `onPlaybackStop` / `onPlaybackPause` / `onPlaybackResume`) when it performs
-// the act — never the engine's raw `onPlay` / `onPause`, which the gate's hold and a jump's internal pause also fire.
+// THE PLAY EXECUTOR — one implementation of the buttons for every driver
+// (dev-docs/plans/playback-layers.md, animation-state.brainstorm.md, animation-state.feedback.2026-11-12.md): the
+// `playback` prop, the triggers' event lists, the visibility gate and the imperative api all end up here.
 //
-// The playback (schema 1.25; "the run" in 1.24): one instance of the animation being in effect — `playback.start` begins
-// it, it lasts while `playing` · `paused` · `finished`, `playback.stop` or `atEnd: jumpToStart` / `animateToStart` retire
-// it; `off` = no playback; `returning` = no playback, the picture still playing back to the rest pose.
-//
-// The action model (schema 1.23): every move names a destination (start | end) and a manner (jump | animate);
-// arriving at the END by any route — the natural end, `stopPlayback: '…ToEnd'`, `startPlayback: 'jumpToEnd'`, `jumpToEnd()` —
-// runs `atEnd`. "End" is the end of the CURRENT pass (a one-shot: the playback's end).
-//
-// The declarative half (`playback` as a prop, review §10) is a thin resolver on top: the lever's three positions —
-// `off` · `on` · `paused` — and a change between two of them is one or two buttons, spelled with the executor's verbs.
+// - The STATE is the executor's own: off · playing · paused · finished · returning. The engines cannot tell those
+//   apart, and since 1.26 the state never follows the picture: a finished playback stays `finished` whatever
+//   `whenFinished` shows, and a seek that was not made while playing makes it `paused` there.
+// - The buttons (1.26): `start` always from the start; `play` starts or carries on; `stop` per
+//   `actions["playback.stop"]`; `pause` / `resume`. The gate presses them too (`leaveView` / `returnToView`).
+// - The events (`onPlaybackStart` … `onPlaybackFinish`) are told when the act is performed — never the engine's raw
+//   `onPlay` / `onPause` / `onFinish`, which a jump's internal pause and the end of a return leg also fire.
+// - The declarative half (`playback` as a prop, review §10) is a thin resolver on top: the lever's three positions —
+//   `off` · `on` · `paused` — and a change between two of them is one or two buttons.
 // ============================================================================
 
 import type { PxActions, PxAnimationPlayerApi, PxEngineAnimationPlayerApi, PxPlayExecutor, PxPlaybackControls, PxPlaybackListeners } from '../format/PxAnimatorTypes';
-import { PxAtEndBehavior, PxStopPlaybackBehavior, PxStartPlaybackBehavior, PxPlaybackState, PxPlayback, type PxPlaybackDirection, resolveActions } from '../format/PxAnimatorConstants';
-import { iterationIndexOf, iterationTimeOf, runMsOf, totalDurationMs, type PxRunGeometry } from './PxPlaybackTime';
+import { PxWhenFinished, PxStopPlaybackBehavior, PxOutOfViewBehavior, PxPlaybackState, PxPlayback, type PxPlaybackDirection, resolveActions } from '../format/PxAnimatorConstants';
+import { iterationIndexOf, iterationTimeOf, isReversedIteration, runMsOf, totalDurationMs, type PxRunGeometry } from './PxPlaybackTime';
 
 /** What a playback is on this document: a POSE (one-shot — it plays to its end and rests) or a PLAYBACK that loops. @public @advanced */
 export enum PxPlaybackWorld {
@@ -45,59 +40,62 @@ export function resolvePlaybackWorld(iterations: number | 'infinite' | undefined
 /** The slice of the api the executor drives — the ENGINE's raw primitives (its `play` / `pause` are the clock on /
  *  off); structural, so the components' HANDLE qualifies as well as a full engine api. @public @advanced */
 export type PxPlayTarget = Pick<PxEngineAnimationPlayerApi,
-    'play' | 'pause' | 'jumpToStart' | 'jumpToEnd' | 'getPlaybackSpeed' | 'setPlaybackSpeed' | 'getTotalTime' | 'setTotalTime' | 'isPlaying'>;
+    'play' | 'pause' | 'jumpToStart' | 'getPlaybackSpeed' | 'setPlaybackSpeed' | 'getTotalTime' | 'setTotalTime' | 'isPlaying'>;
 
-/** What the executor needs beside the api: the playback's geometry, the timeline's `actions` and its `atEnd`. @public @advanced */
+/** What the executor needs beside the api: the playback's geometry, the timeline's `actions` and its `whenFinished`. @public @advanced */
 export interface PxPlayExecutorConfig {
     /** One pass of the content window, ms (`getAnimatorConfig(doc).duration`). */
     passMs: number;
     /** The whole playback, ms — `passMs × iterations`; `Infinity` when endless. */
     totalMs: number;
+    /** Each pass's direction — a stop that finishes a pass played backwards is already at the start pose. */
+    direction?: PxPlaybackDirection;
     actions?: PxActions;
-    atEnd?: PxAtEndBehavior;
+    whenFinished?: PxWhenFinished;
 }
 
 const SNAP_EPSILON_MS = 1;
 
 // @px-area control
 /**
- * Builds the executor for one player. `raf` is injected (the web passes requestAnimationFrame) for
- * the deferred moves — playing on to the end of the pass (`animateToEnd`), stopping a loop's
- * `animateToStart` at the pass's start, and `playOnce()` on a loop. The engine's raw `play` / `pause` /
- * `jumpToStart` / `jumpToEnd` are bound at creation: `composeApiExtras` replaces `play` / `pause` on the api with the
- * aliases. Everything else is read live. An `animateToStart` leg turns the speed negative and restores the speed it
- * found (the file's `playbackSpeed`, or what the page set).
+ * Builds the executor for one player. `raf` is injected (the web passes requestAnimationFrame) for the deferred moves —
+ * playing on to the end of the pass (`animateToEnd` / `animateToEndAndBack`) and stopping a loop's return leg at the start
+ * of its pass. The engine's raw `play` / `pause` / `jumpToStart` are bound at creation; everything else is read live. A
+ * return leg turns the speed negative and restores the speed it found (the file's `playbackSpeed`, or what the page set).
  * @public @advanced
  */
 export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig, raf: (cb: () => void) => void): PxPlayExecutor {
-    const raw = { play: api.play.bind(api), pause: api.pause.bind(api), jumpToStart: api.jumpToStart.bind(api), jumpToEnd: api.jumpToEnd.bind(api) };
+    const raw = { play: api.play.bind(api), pause: api.pause.bind(api), jumpToStart: api.jumpToStart.bind(api) };
     const world = resolvePlaybackWorld(cfg.totalMs === Infinity ? 'infinite' : cfg.passMs > 0 ? cfg.totalMs / cfg.passMs : 1);
     const passMs = Math.max(cfg.passMs, 1);
-    const actions = resolveActions(cfg.actions, cfg.atEnd);
-    const startBehavior = actions.startPlayback.behavior;
+    const iterations = cfg.passMs > 0 ? cfg.totalMs / cfg.passMs : 1;
+    const actions = resolveActions(cfg.actions, cfg.whenFinished);
     const stopBehavior = actions.stopPlayback.behavior;
-    const atEnd = actions.atEnd;
+    const whenFinished = actions.whenFinished;
     /** The player's playback events — told whenever a button's act is performed. */
     let listeners: PxPlaybackListeners | undefined;
     const tellStart = (): void => { listeners?.onPlaybackStart?.(); };
     const tellStop = (): void => { listeners?.onPlaybackStop?.(); };
     const tellPause = (): void => { listeners?.onPlaybackPause?.(); };
     const tellResume = (): void => { listeners?.onPlaybackResume?.(); };
+    const tellFinish = (): void => { listeners?.onPlaybackFinish?.(); };
 
-    /** The one fact the engines cannot report: a pause is resumable, a stop is not. */
+    // ── the state the engines cannot report ──
+    /** A freeze — a pause, or a seek that was not made while playing. */
     let paused = false;
-    /** The executor turned the playback backwards (an `animateToStart` leg — the `returning` state); only then does it touch
-     *  the speed again, so a custom speed set through the api survives every on / off. */
+    /** The playback reached its end; it stays finished whatever the picture then shows, until a start, a stop or a seek. */
+    let finished = false;
+    /** A return leg plays backwards (a stop's `animateToStart`, or `whenFinished: animateToStart`); the speed is restored after. */
     let reversed = false;
-    /** A LOOP held at a pass end by a stop that went there (`atEnd: hold`) — the engines cannot report it. */
-    let heldAtEnd = false;
-    /** A deferred move in flight (`animateToEnd`, a loop's `animateToStart`, `playOnce` on a loop) — one at a time. */
+    /** What the visibility gate did when the graphic left the screen — undone when it comes back, unless something else
+     *  changed the playback in between (every button and seek clears it). */
+    let gateOwes: 'resume' | 'start' | undefined;
+    /** A deferred move in flight (a stop finishing its pass, a loop's return leg) — one at a time. */
     let pending: (() => void) | null = null;
-    /** The arrival of an `animateToEnd` in flight — the watch or the engine's natural end calls it, whichever is first. */
+    /** The arrival of a stop finishing its pass — the watch or the engine's natural end calls it, whichever is first. */
     let arrive: (() => void) | null = null;
     const cancelPending = (): void => { pending?.(); pending = null; arrive = null; };
 
-    const atEndPos = (): boolean => { const t = api.getTotalTime(); return t !== null && t >= cfg.totalMs - SNAP_EPSILON_MS; };
     const atStartPos = (): boolean => { const t = api.getTotalTime(); return t !== null && t <= SNAP_EPSILON_MS; };
     /** The end of the pass the playhead is in — a boundary it rests on counts as the end of the pass it closes. */
     const passEndMs = (): number => {
@@ -105,24 +103,30 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
         const t = Math.max(api.getTotalTime() ?? 0, 0);
         return Math.max(Math.ceil((t - SNAP_EPSILON_MS) / passMs), 1) * passMs;
     };
-    /** The forward speed an `animateToStart` leg found, restored when it ends — a custom speed survives every on / off. */
+    /** The forward speed a return leg found, restored when it ends — a custom speed survives every on / off. */
     let forwardSpeed = 1;
 
-    /** The playback's state. A return leg reads RETURNING (no playback; `playback.start` turns it around — the hover-in during a
-     *  hover-out `animateToStart`); an `animateToEnd` in flight is still PLAYING. A playback that reached its end and rests
-     *  there is FINISHED — `playback.stop` still acts on it, `playback.start` is a fresh playback. */
     const state = (): PxPlaybackState => {
+        if (finished) return PxPlaybackState.finished;
         if (reversed) return PxPlaybackState.returning;
         if (api.isPlaying()) return PxPlaybackState.playing;
         if (paused) return PxPlaybackState.paused;
-        return heldAtEnd || atEndPos() ? PxPlaybackState.finished : PxPlaybackState.off;
+        return PxPlaybackState.off;
     };
 
     const forward = (): void => { if (reversed) { reversed = false; api.setPlaybackSpeed(forwardSpeed); } };
-    /** The rest pose, at rest. */
-    const rest = (): void => { heldAtEnd = false; forward(); raw.jumpToStart(); };
-    /** A fresh playback from the beginning (the delay applies again — a new playback). */
-    const restart = (): void => { paused = false; rest(); raw.play(); };
+    /** The picture to the rest pose, at rest — the state is the caller's to set. */
+    const rest = (): void => { forward(); raw.jumpToStart(); };
+    /** A fresh playback from the beginning (the delay applies again). `off` is always the rest pose already, so only the
+     *  other states jump there first. */
+    const restart = (): void => {
+        const atRest = state() === PxPlaybackState.off;
+        cancelPending(); paused = false; finished = false; gateOwes = undefined;
+        if (!atRest) rest();
+        raw.play();
+    };
+    /** The picture held at `ms` on the whole playback, the clock stopped — no engine finish is fired. */
+    const holdAt = (ms: number): void => { forward(); raw.pause(); api.setTotalTime(ms); };
 
     /** Watches the whole-playback time each frame; fires `then` once `test` holds, unless cancelled. */
     const watch = (test: () => boolean, then: () => void): void => {
@@ -137,11 +141,9 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
         raf(tick);
     };
 
-    /** Plays back to the start; a loop plays back the pass it is in, then rests (the engine would keep looping backwards). */
+    /** The picture plays back to the start (a loop: the start of its pass) and rests there — a return leg. */
     const animateToStart = (): void => {
         cancelPending();
-        paused = false;
-        heldAtEnd = false;
         if (atStartPos() && !api.isPlaying()) { rest(); return; }
         reversed = true;
         forwardSpeed = Math.abs(api.getPlaybackSpeed()) || 1;
@@ -154,30 +156,17 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
         }
     };
 
-    /** At the end — by any route: performs `atEnd`. */
-    const finishAt = (): void => {
+    /** The playback is finished (1.26: whatever the picture then shows): `whenFinished` moves the picture only. */
+    const finish = (): void => {
         paused = false;
-        if (atEnd === PxAtEndBehavior.jumpToStart) rest();
-        else if (atEnd === PxAtEndBehavior.animateToStart) animateToStart();
-        else if (world === PxPlaybackWorld.loop) heldAtEnd = true;   // `hold`: a one-shot's end pose is the engine's to hold
+        finished = true;
+        if (whenFinished === PxWhenFinished.jumpToStart) rest();
+        else if (whenFinished === PxWhenFinished.animateToStart) animateToStart();
     };
 
-    /** At once to the end of the pass, then `atEnd`. A one-shot: the engine's jump (its `onFinish` runs `atEnd`);
-     *  a loop: held on the pass boundary (the playback has no end to report). */
-    const jumpToEnd = (): void => {
-        cancelPending();
-        paused = false;
-        forward();
-        if (world === PxPlaybackWorld.oneShot) { raw.jumpToEnd(); return; }
-        const end = passEndMs();
-        raw.pause();
-        api.setTotalTime(end);
-        finishAt();
-    };
-
-    /** Plays on to the end of the pass (a paused playback resumes), then `onPlaybackStop` and `atEnd`. A one-shot arrives with the
-     *  engine's natural end; a loop is held on the pass boundary. */
-    const animateToEnd = (): void => {
+    /** Plays on to the end of the current pass (a paused playback continues), holds there, then `then`. A one-shot arrives
+     *  with the engine's natural end, a loop is held on the pass boundary. */
+    const animateToEnd = (then: () => void): void => {
         paused = false;
         forward();
         const end = passEndMs();
@@ -187,114 +176,153 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
             if (done) return;
             done = true;
             arrive = null;
-            if (world === PxPlaybackWorld.loop && !atEndPos()) { raw.pause(); api.setTotalTime(end); }
-            tellStop();
-            finishAt();
+            holdAt(end);
+            then();
         };
         watch(() => { const t = api.getTotalTime(); return t !== null && t >= end - SNAP_EPSILON_MS; }, arrival);
         arrive = arrival;
     };
 
-    /** Lever 1 on: the configured start. A fresh playback tells `onPlaybackStart`; `continue` on a paused playback only unfreezes it
-     *  (`onPlaybackResume`); `continue` while playing changes nothing. */
-    const startPlayback = (): void => {
-        const was = state();
-        const wasPaused = paused;
-        cancelPending();
-        paused = false;
-        heldAtEnd = false;
-        switch (startBehavior) {
-            case PxStartPlaybackBehavior.jumpToStart:
-                restart();
-                tellStart();
-                break;
-            case PxStartPlaybackBehavior.jumpToEnd:
-                // the end pose with no motion, then `atEnd`; a loop has no end — its first pass's end stands in
-                forward();
-                if (world === PxPlaybackWorld.oneShot) raw.jumpToEnd();
-                else { raw.pause(); api.setTotalTime(passMs); finishAt(); }
-                tellStart();
-                break;
-            case PxStartPlaybackBehavior.continue:
-            default:
-                // continue from where it is; at the end of a one-shot that is a fresh playback from the beginning (a loop
-                // held at a pass end plays on from there — the playback's end is the only end that restarts)
-                if (atEndPos() && !api.isPlaying()) { restart(); tellStart(); break; }
-                if (was === PxPlaybackState.playing) break;
-                forward();
-                raw.play();
-                if (wasPaused) tellResume(); else tellStart();
-        }
-    };
+    /** Whether the pass that ends at `endMs` played backwards — its end shows the start pose. */
+    const passEndsAtStartPose = (endMs: number): boolean => isReversedIteration(iterationIndexOf(endMs, passMs, iterations), cfg.direction);
 
-    /** Lever 1 off: the configured stop. Nothing to stop when there is no playback (`off` at rest, `returning`). */
-    const stopPlayback = (): void => {
+    // ── the buttons ──
+
+    /** From the start, in every state. */
+    const startPlayback = (): void => { restart(); tellStart(); };
+
+    /** Start or carry on. */
+    const playPlayback = (): void => {
         const was = state();
-        if (was === PxPlaybackState.returning || (was === PxPlaybackState.off && atStartPos())) return;
-        const toEnd = stopBehavior === PxStopPlaybackBehavior.jumpToEnd || stopBehavior === PxStopPlaybackBehavior.animateToEnd;
-        // a stop that goes to the end has nothing to do once it rests there
-        if (toEnd && was === PxPlaybackState.finished) return;
-        if (stopBehavior === PxStopPlaybackBehavior.animateToEnd) {
-            if (pending) return;                                         // already on its way there
-            animateToEnd();                                              // `onPlaybackStop` on arrival
+        if (was === PxPlaybackState.playing) return;
+        if (was === PxPlaybackState.paused) { resumePlayback(); return; }
+        if (reversed) {
+            // a picture on its way back turns around and plays forward from where it is
+            cancelPending();
+            finished = false;
+            gateOwes = undefined;
+            forward();
+            raw.play();
+            tellStart();
             return;
         }
+        startPlayback();
+    };
+
+    /** The configured stop. Nothing to stop when there is no playback (`off`, `returning`). */
+    const stopPlayback = (): void => {
+        const was = state();
+        if (was === PxPlaybackState.off || was === PxPlaybackState.returning) return;
+        gateOwes = undefined;
+        switch (stopBehavior) {
+            case PxStopPlaybackBehavior.animateToEnd:
+            case PxStopPlaybackBehavior.animateToEndAndBack: {
+                const back = stopBehavior === PxStopPlaybackBehavior.animateToEndAndBack;
+                if (was === PxPlaybackState.finished) {
+                    if (!back) return;                                      // already at the end
+                    break;                                                  // only the way back is left: below
+                }
+                if (arrive) return;                                         // already on its way there
+                animateToEnd(() => {
+                    tellStop();
+                    if (!back) { finish(); return; }
+                    paused = false;
+                    if (passEndsAtStartPose(api.getTotalTime() ?? 0)) rest(); else animateToStart();
+                });
+                return;
+            }
+            case PxStopPlaybackBehavior.jumpToEnd:
+                if (was === PxPlaybackState.finished) return;               // already there
+                cancelPending();
+                holdAt(passEndMs());
+                tellStop();
+                finish();
+                return;
+        }
         cancelPending();
         paused = false;
-        if (stopBehavior === PxStopPlaybackBehavior.animateToStart) animateToStart();
-        else if (stopBehavior === PxStopPlaybackBehavior.jumpToEnd) jumpToEnd();
+        finished = false;
+        if (stopBehavior === PxStopPlaybackBehavior.animateToStart || stopBehavior === PxStopPlaybackBehavior.animateToEndAndBack) animateToStart();
         else rest();
         tellStop();
     };
 
-    /** Lever 2 on: freeze — only while PLAYING (a return leg, a finished or an off one have nothing to freeze). */
+    /** Freeze — only while playing. */
     const pausePlayback = (): void => {
         if (state() !== PxPlaybackState.playing) return;
         cancelPending();
         raw.pause();
         paused = true;
+        gateOwes = undefined;
         tellPause();
     };
 
-    /** Lever 2 off: continue from the frozen frame — only while paused. */
+    /** Continue from the frozen frame — only while paused. */
     const resumePlayback = (): void => {
-        if (!paused) return;
+        if (state() !== PxPlaybackState.paused) return;
         paused = false;
+        gateOwes = undefined;
         raw.play();
         tellResume();
     };
 
-    /** ONE fresh pass from the start; a loop stops at its first pass end, per `atEnd`. */
-    const playOnce = (): void => {
+    /** The seek rule: playing keeps playing from there; any other state becomes paused at that frame. Reports nothing. */
+    const seek = (ms: number): void => {
+        if (state() === PxPlaybackState.playing) { api.setTotalTime(ms); return; }
+        cancelPending();
+        finished = false;
+        gateOwes = undefined;
+        holdAt(ms);
+        paused = true;
+    };
+
+    /** The gate's closing edge. */
+    const leaveView = (behavior: PxOutOfViewBehavior): void => {
+        if (behavior === PxOutOfViewBehavior.continue) return;
+        // off screen, a return leg ends at once — there is nothing to see
+        if (reversed) { cancelPending(); rest(); }
+        const was = state();
+        if (behavior === PxOutOfViewBehavior.pause) {
+            if (was !== PxPlaybackState.playing) return;
+            pausePlayback();
+            gateOwes = 'resume';
+            return;
+        }
+        // `stop`: a hard stop — at once, whatever the stop action says
+        if (was !== PxPlaybackState.playing && was !== PxPlaybackState.finished) return;
         cancelPending();
         paused = false;
+        finished = false;
         rest();
-        raw.play();
-        tellStart();
-        if (world !== PxPlaybackWorld.loop) return;
-        watch(() => { const t = api.getTotalTime(); return t !== null && t >= passMs - SNAP_EPSILON_MS; }, () => {
-            if (atEnd === PxAtEndBehavior.jumpToStart) rest();
-            else if (atEnd === PxAtEndBehavior.animateToStart) animateToStart();
-            else { raw.pause(); api.setTotalTime(passMs); heldAtEnd = true; }
-        });
+        tellStop();
+        gateOwes = 'start';
+    };
+
+    /** The gate's opening edge: undo what it did. */
+    const returnToView = (): void => {
+        const owed = gateOwes;
+        gateOwes = undefined;
+        if (owed === 'resume') resumePlayback();
+        else if (owed === 'start' && state() === PxPlaybackState.off) startPlayback();
     };
 
     return {
         state,
         startPlayback,
+        playPlayback,
         stopPlayback,
         pausePlayback,
         resumePlayback,
-        jumpToStart: () => { cancelPending(); paused = false; rest(); },
-        animateToStart,
-        playOnce,
+        seek,
+        leaveView,
+        returnToView,
         setListeners: (next) => { listeners = next; },
         onNaturalFinish: () => {
-            if (arrive) { const arrival = arrive; cancelPending(); arrival(); return; }   // an `animateToEnd` arrived
-            if (pending) return;                       // a loop's `animateToStart` or `playOnce` owns the end
-            paused = false;
-            if (reversed) { rest(); return; }          // the end of an `animateToStart` leg: rest at the start
-            finishAt();
+            if (arrive) { const arrival = arrive; cancelPending(); arrival(); return; }   // a stop finishing its pass arrived
+            if (pending) return;                       // a loop's return leg owns the end
+            if (reversed) { rest(); return; }          // the end of a return leg: rest at the start (the state stays as it is)
+            tellFinish();
+            finish();
         },
         dispose: cancelPending,
     };
@@ -372,7 +400,7 @@ export function applyDeclarativeAction(api: PxDeclarativeTarget, action: PxDecla
 // ── the composed api ───────────────────────────────────────────────────────────────────────
 
 /** The slice of the runtime view {@link composeApiExtras} reads. @public @advanced */
-export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions' | 'atEnd'> {
+export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions' | 'whenFinished'> {
     /** One pass of the content window, ms. */
     duration?: number;
     iterations?: number | 'infinite';
@@ -384,12 +412,12 @@ export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions' 
     playbackListeners?: PxPlaybackListeners;
 }
 
-/** The executor's geometry, `actions` and `atEnd` from the runtime view. @public @advanced */
+/** The executor's geometry, `actions` and `whenFinished` from the runtime view. @public @advanced */
 export function executorConfigOf(cfg: PxApiExtrasConfig): PxPlayExecutorConfig {
     const passMs = cfg.duration ?? 0;
     const iterations = cfg.iterations === 'infinite' ? Infinity : (typeof cfg.iterations === 'number' && cfg.iterations >= 1 ? cfg.iterations : 1);
     return {
-        passMs, totalMs: passMs * iterations, actions: cfg.actions, atEnd: cfg.atEnd,
+        passMs, totalMs: passMs * iterations, direction: cfg.direction, actions: cfg.actions, whenFinished: cfg.whenFinished,
     };
 }
 
@@ -419,8 +447,8 @@ export interface PxApiExtras {
 export type PxComposedAnimationPlayerApi<TRoot = unknown> = PxEngineAnimationPlayerApi<TRoot> & PxApiExtras;
 
 /**
- * Completes an engine api with `playback` — ONE implementation on top of any engine, so none can drift: the four
- * buttons, `jumpToStart()` and `playOnce()` through the player's one executor (review §10, D5), `getDuration()` (one
+ * Completes an engine api with `playback` — ONE implementation on top of any engine, so none can drift: the five
+ * buttons and every seek through the player's one executor (review §10, D5), `getDuration()` (one
  * pass of the content window, ms; review §14), the state reads, and every per-iteration and at-speed read off the
  * engine's clock and speed (the time contract on {@link PxPlaybackControls}). Reuses an executor the engine already
  * attached (`playExecutor`), so triggers wired inside the engine and the public api share one state. Mutates and
@@ -444,30 +472,30 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
     const getTotalDuration = (): number | null => ready() ? totalDurationMs(passMs, iterations) : null;
     const getCurrentIteration = (): number => iterationIndexOf(raw.getTotalTime() ?? 0, passMs, iterations);
     const getCurrentTime = (): number | null => { const t = raw.getTotalTime(); return t === null ? null : iterationTimeOf(t, geometry); };
-    const setCurrentTime = (ms: number): void => raw.setTotalTime(runMsOf(getCurrentIteration(), ms, geometry));
+    const setCurrentTime = (ms: number): void => executor.seek(runMsOf(getCurrentIteration(), ms, geometry));
+    /** Progress counts iterations in play order (1.26): the whole part is the pass, the rest how far through it. */
+    const progressCeiling = iterations === Infinity ? Infinity : Math.max(iterations, 1);
     const playback: PxPlaybackControls = {
         "start": () => executor.startPlayback(),
+        "play": () => executor.playPlayback(),
         "stop": () => executor.stopPlayback(),
         "pause": () => executor.pausePlayback(),
         "resume": () => executor.resumePlayback(),
-        "playOnce": () => executor.playOnce(),
         "getState": getState,
         "isActive": () => {
             const s = getState();
             return s === PxPlaybackState.playing || s === PxPlaybackState.paused || s === PxPlaybackState.finished;
         },
-        "isPlaying": () => api.isPlaying(),
-        "jumpToStart": () => executor.jumpToStart(),
-        "jumpToEnd": () => api.jumpToEnd(),
+        "isPlaying": () => getState() === PxPlaybackState.playing,
         "getDuration": () => cfg.duration ?? null,
         "getCurrentTime": getCurrentTime,
         "setCurrentTime": setCurrentTime,
-        "getCurrentProgress": () => { const t = getCurrentTime(); return t === null ? null : (passMs > 0 ? t / passMs : 0); },
-        "setCurrentProgress": (p) => setCurrentTime((Number.isFinite(p) ? Math.min(1, Math.max(0, p)) : 0) * passMs),
+        "getCurrentProgress": () => { const t = raw.getTotalTime(); return t === null ? null : (passMs > 0 ? Math.max(t, 0) / passMs : 0); },
+        "setCurrentProgress": (p) => executor.seek((Number.isFinite(p) ? Math.min(progressCeiling, Math.max(0, p)) : 0) * passMs),
         "getCurrentIteration": getCurrentIteration,
         "getTotalDuration": getTotalDuration,
         "getTotalTime": () => raw.getTotalTime(),
-        "setTotalTime": (ms) => raw.setTotalTime(ms),
+        "setTotalTime": (ms) => executor.seek(ms),
         "getTotalProgress": () => {
             const total = getTotalDuration(); const t = raw.getTotalTime();
             return total === null || t === null ? null : (total > 0 ? Math.min(1, Math.max(0, t / total)) : 0);
@@ -496,8 +524,7 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
 /** The calls of {@link PxPlaybackControls} that change something — what a forwarder routes through its `write`,
  *  spelled as a page writes them (PX1503 names the call). @public @advanced */
 export const PxPlaybackWrite = {
-    start: 'playback.start()', stop: 'playback.stop()', pause: 'playback.pause()', resume: 'playback.resume()',
-    playOnce: 'playback.playOnce()', jumpToStart: 'playback.jumpToStart()', jumpToEnd: 'playback.jumpToEnd()',
+    start: 'playback.start()', play: 'playback.play()', stop: 'playback.stop()', pause: 'playback.pause()', resume: 'playback.resume()',
     setCurrentTime: 'playback.setCurrentTime()', setCurrentProgress: 'playback.setCurrentProgress()',
     setTotalTime: 'playback.setTotalTime()', setSpeed: 'playback.setSpeed()', setDurationAtSpeed: 'playback.setDurationAtSpeed()',
 } as const;
@@ -517,15 +544,13 @@ export function forwardPlaybackControls(
 ): PxPlaybackControls {
     return {
         "start": () => write(PxPlaybackWrite.start, p => p.start()),
+        "play": () => write(PxPlaybackWrite.play, p => p.play()),
         "stop": () => write(PxPlaybackWrite.stop, p => p.stop()),
         "pause": () => write(PxPlaybackWrite.pause, p => p.pause()),
         "resume": () => write(PxPlaybackWrite.resume, p => p.resume()),
-        "playOnce": () => write(PxPlaybackWrite.playOnce, p => p.playOnce()),
         "getState": () => target()?.getState() ?? idleState(),
         "isActive": () => target()?.isActive() ?? false,
         "isPlaying": () => target()?.isPlaying() ?? false,
-        "jumpToStart": () => write(PxPlaybackWrite.jumpToStart, p => p.jumpToStart()),
-        "jumpToEnd": () => write(PxPlaybackWrite.jumpToEnd, p => p.jumpToEnd()),
         "getDuration": () => target()?.getDuration() ?? null,
         "getCurrentTime": () => target()?.getCurrentTime() ?? null,
         "setCurrentTime": (time) => write(PxPlaybackWrite.setCurrentTime, p => p.setCurrentTime(time)),

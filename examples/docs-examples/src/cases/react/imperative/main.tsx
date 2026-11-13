@@ -10,11 +10,12 @@ function App() {
       <div className="controls">
         <button onClick={() => api.current?.playback.start()}>playback.start()</button>
         <button onClick={() => api.current?.playback.pause()}>playback.pause()</button>
-        <button onClick={() => api.current?.playback.jumpToStart()}>playback.jumpToStart()</button>
-        <button onClick={() => api.current?.playback.jumpToEnd()}>playback.jumpToEnd()</button>
+        <button onClick={() => api.current?.playback.play()}>playback.play()</button>
+        <button onClick={() => api.current?.playback.stop()}>playback.stop()</button>
+        <button onClick={() => api.current?.playback.setCurrentProgress(1)}>playback.setCurrentProgress(1)</button>
       </div>
       <div className="stage">
-        <SvgAnimationPlayer doc={animation as any} playerRef={api} />
+        <SvgAnimationPlayer document={animation as any} playerRef={api} />
       </div>
     </>
   );

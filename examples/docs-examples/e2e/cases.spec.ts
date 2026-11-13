@@ -33,7 +33,7 @@ async function expectAnimating(page: Page, sel = 'svg', ms = 350): Promise<void>
 }
 
 async function expectFrozen(page: Page, sel = 'svg', ms = 350): Promise<void> {
-  // A pausePlayback() issued a moment ago commits on the browser's next animation frame
+  // A playback.pause() issued a moment ago commits on the browser's next animation frame
   // (WAAPI's "pending pause"), and under a parallel test run that frame can be
   // late. So the first interval is a settling period; only the second is asserted.
   await page.waitForTimeout(ms);
@@ -75,14 +75,13 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
     await slide(page, '#time-slider', 700);
     const t = await page.evaluate(() => (window as any).animator.playback.getCurrentTime());   // ms inside the current iteration
     expect(t).toBeCloseTo(700, -1);
-    await page.click('#play');
+    await page.click('#play');                      // play() carries on from the held frame
     await expectAnimating(page);
   },
 
   'web/callbacks': async page => {
     const log = page.locator('#log');
-    // The file starts its playback on load; the buttons then walk every playback event in order. Stop first:
-    // startPlayback() while playing is a no-op (`continue`), so the start event is only told from `off`.
+    // The file starts its playback on load; the buttons then walk every playback event in order, from a stop.
     await page.click('#stop');
     await expect(log).toContainText('onPlaybackStop');
     await page.click('#play');
@@ -91,8 +90,8 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
     await expect(log).toContainText('onPlaybackPause');
     await page.click('#resume');
     await expect(log).toContainText('onPlaybackResume');
-    await page.click('#finish');
-    await expect(log).toContainText('onFinish');
+    await page.click('#finish');                    // a seek near the end of the last iteration — it plays on and finishes
+    await expect(log).toContainText('onPlaybackFinish');
     await page.click('#destroy');
     await expect(log).toContainText('onDestroy');
     await expect(page.locator('#box svg')).toHaveCount(0);
@@ -158,7 +157,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'vue/css-loader': async page => CHECKS['react/css-svgr'](page),
 
   'playback/override-web': async page => {
-    await expectFrozen(page);                       // no playUsingActionTriggers — nothing starts it but startPlayback()
+    await expectFrozen(page);                       // no playerActionTriggers — nothing starts it but playback.start()
     await page.click('#play');
     await expectAnimating(page);
   },

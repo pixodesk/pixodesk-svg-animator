@@ -79,7 +79,7 @@ const CaseRow = memo(function CaseRow({
                 <Text style={[styles.caseId, { color: t.fg }]} numberOfLines={1}>{item.id}</Text>
                 <Pressable
                     hitSlop={8}
-                    onPress={() => { api.current?.playback.jumpToStart(); api.current?.playback.start(); }}
+                    onPress={() => api.current?.playback.start()}   // always from the start
                 >
                     <Text style={[styles.replay, { color: t.accent }]}>↺</Text>
                 </Pressable>
@@ -94,8 +94,8 @@ const CaseRow = memo(function CaseRow({
                     // Remounting on `active` restarts cleanly when a row scrolls
                     // back into view, and leaves off-screen rows completely idle.
                     key={(active ? 'play' : 'idle') + (loop ? '-loop' : '')}
-                    doc={doc as any}
-                    playUsingActionTriggers={active}
+                    document={doc as any}
+                    playerActionTriggers={active}
                     // The fixtures are authored one-shot (1s, no iterations), which
                     // is right for the editor's frame-by-frame inspection but means
                     // a row would be finished before you scrolled to it.

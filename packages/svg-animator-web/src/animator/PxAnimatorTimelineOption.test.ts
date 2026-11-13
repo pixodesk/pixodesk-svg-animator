@@ -5,7 +5,7 @@
 
 /**
  * The playback override on `createSvgAnimationPlayer` (dev-docs/plans/component-api.md D4): `timelineOptions`
- * MERGES over the file's timing; `playUsingActionTriggers` is `true` (the file's trigger) or an object — the WHOLE
+ * MERGES over the file's timing; `playerActionTriggers` is `true` (the file's trigger) or an object — the WHOLE
  * trigger to use instead.
  *
  * These assert the OBSERVABLE effect — what the animator actually plays — rather than the merged object,
@@ -43,39 +43,39 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
     // the EMPTY block does not. Unambiguous — keyframe times are absolute, so a timing override changes
     // when playback ENDS, not the value at a given instant, which makes opacity a poor witness.
 
-    it('baseline: `playUsingActionTriggers: true` plays the file as saved — this one autoplays', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: wireDoc(), container: stage() });
+    it('baseline: `playerActionTriggers: true` plays the file as saved — this one autoplays', () => {
+        const api = createSvgAnimationPlayer({ playerActionTriggers: true, document: wireDoc(), container: stage() });
         expect(api.playback.isPlaying()).toBe(true);
         api.destroy();
     });
 
-    it('a `playUsingActionTriggers` OBJECT is the trigger instead of the file\'s', () => {
+    it('a `playerActionTriggers` OBJECT is the trigger instead of the file\'s', () => {
         // the file starts on load; the block says click — so nothing plays until a click
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { 'playback.start': 'click' }, doc: wireDoc(), container: stage() });
+        const api = createSvgAnimationPlayer({ playerActionTriggers: { 'playback.start': 'click' }, document: wireDoc(), container: stage() });
         expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('…as a WHOLE: a list the object leaves out is gone — the file\'s `start: load` does not survive an object that lists only `pause`', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { 'playback.pause': 'click' }, doc: wireDoc({ 'playback.start': 'load' }), container: stage() });
+        const api = createSvgAnimationPlayer({ playerActionTriggers: { 'playback.pause': 'click' }, document: wireDoc({ 'playback.start': 'load' }), container: stage() });
         expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('`timelineOptions` MERGES over the file\'s timing — the file\'s `engine` and trigger survive, so it still plays', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: wireDoc(), container: stage(), timelineOptions: { outTime: 500, iterations: 1 } });
+        const api = createSvgAnimationPlayer({ playerActionTriggers: true, document: wireDoc(), container: stage(), timelineOptions: { outTime: 500, iterations: 1 } });
         expect(api.playback.isPlaying()).toBe(true);
         api.destroy();
     });
 
-    it('`timelineOptions` and a `playUsingActionTriggers` object together: the timing adjusted, the trigger replaced', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { 'playback.start': 'click' }, doc: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
+    it('`timelineOptions` and a `playerActionTriggers` object together: the timing adjusted, the trigger replaced', () => {
+        const api = createSvgAnimationPlayer({ playerActionTriggers: { 'playback.start': 'click' }, document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
         expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('no driver named: the first frame, nothing plays — whatever the file says', () => {
-        const api = createSvgAnimationPlayer({ doc: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
+        const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
         expect(api.playback.isPlaying()).toBe(false);
         api.destroy();
     });

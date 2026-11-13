@@ -23,13 +23,13 @@ describe('onReady + getDuration (§14)', () => {
     afterEach(() => vi.useRealTimers());
 
     it('getDuration is one pass of the content window, ms', () => {
-        const api = createSvgAnimationPlayer({ doc: DOC, container: '#box' });
+        const api = createSvgAnimationPlayer({ document: DOC, container: '#box' });
         expect(api.playback.getDuration()).toBe(1000);           // outTime 1200 − inTime 200
     });
 
     it('onReady fires once, asynchronously — the create call has returned first', async () => {
         const order: Array<string> = [];
-        const api = createSvgAnimationPlayer({ doc: DOC, container: '#box', onReady: () => order.push('ready:' + String(api.isReady())) });
+        const api = createSvgAnimationPlayer({ document: DOC, container: '#box', onReady: () => order.push('ready:' + String(api.isReady())) });
         order.push('returned');
         await Promise.resolve();                        // run the microtask queue
         expect(order).toEqual(['returned', 'ready:true']);
@@ -39,7 +39,7 @@ describe('onReady + getDuration (§14)', () => {
         const onReady = vi.fn();
         let resolveFetch: (v: unknown) => void = () => {};
         vi.stubGlobal('fetch', vi.fn(() => new Promise(r => { resolveFetch = r; })));
-        const api = createSvgAnimationPlayer({ src: '/a.json', container: '#box', onReady });
+        const api = createSvgAnimationPlayer({ document: '/a.json', container: '#box', onReady });
         expect(api.isReady()).toBe(false);
         expect(api.playback.getDuration()).toBe(null);           // the push-twin claim: no polling needed
 

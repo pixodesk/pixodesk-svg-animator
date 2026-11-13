@@ -18,12 +18,13 @@
  */
 
 /**
- * Key under which `createSvgAnimationPlayer` options carry the inline animation document. The editor
- * writes it into every exported SVG+JS — `createSvgAnimationPlayer({"doc": …})` — so it is part of the
- * export format, which is why it is a named constant and not a literal.
+ * Key under which `createSvgAnimationPlayer` options carry the animation document. The editor
+ * writes it into every exported SVG+JS — `bind({"document": …})` — so it is part of the
+ * export format, which is why it is a named constant and not a literal. (`doc` until 1.25: an older export embeds the
+ * player it was written for, so it keeps working.)
  * @internal
  */
-export const PX_ANIMATOR_DOC_KEY = 'doc';
+export const PX_ANIMATOR_DOC_KEY = 'document';
 
 /** Key under which `createSvgAnimationPlayer` options carry the per-instance `timeline` override. */
 export const PX_ANIMATOR_TIMELINE_KEY = 'timeline';

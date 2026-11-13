@@ -84,10 +84,10 @@ const motionPathDoc: PxDocument = {
     ],
 };
 
-const DEMOS: Array<{ name: string; doc: PxDocument; playUsingActionTriggers: boolean }> = [
-    { name: 'Animated', doc: animatedDoc, playUsingActionTriggers: true },
-    { name: 'Motion path', doc: motionPathDoc, playUsingActionTriggers: true },
-    { name: 'Static', doc: staticDoc, playUsingActionTriggers: false },
+const DEMOS: Array<{ name: string; doc: PxDocument; playerActionTriggers: boolean }> = [
+    { name: 'Animated', doc: animatedDoc, playerActionTriggers: true },
+    { name: 'Motion path', doc: motionPathDoc, playerActionTriggers: true },
+    { name: 'Static', doc: staticDoc, playerActionTriggers: false },
 ];
 
 export default function AppPlayer() {
@@ -111,21 +111,21 @@ export default function AppPlayer() {
             <View style={styles.svgContainer}>
                 <SvgAnimationPlayer
                     key={demo}
-                    doc={current.doc}
-                    playUsingActionTriggers={current.playUsingActionTriggers}
+                    document={current.doc}
+                    playerActionTriggers={current.playerActionTriggers}
                     playerRef={api}
                 />
             </View>
 
             <View style={styles.buttonRow}>
-                <Pressable style={styles.button} onPress={() => api.current?.playback.start()}>
+                <Pressable style={styles.button} onPress={() => api.current?.playback.play()}>
                     <Text style={styles.buttonText}>Play</Text>
                 </Pressable>
                 <Pressable style={styles.button} onPress={() => api.current?.playback.pause()}>
                     <Text style={styles.buttonText}>Pause</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => api.current?.playback.jumpToStart()}>
-                    <Text style={styles.buttonText}>To start</Text>
+                <Pressable style={styles.button} onPress={() => api.current?.playback.stop()}>
+                    <Text style={styles.buttonText}>Stop</Text>
                 </Pressable>
                 <Pressable style={styles.button} onPress={() => api.current?.playback.setCurrentTime(1000)}>
                     <Text style={styles.buttonText}>Seek 1s</Text>

@@ -24,7 +24,7 @@
 // The player itself. On the global, `createSvgAnimationPlayer` is the member `create` (PX_PLAYER_CREATE): a document
 // into a container. `bindSvgAnimationPlayer` is `bind` (PX_PLAYER_BIND): a pre-rendered SVG already on the page — what
 // the Editor's SVG+JS export calls, so an export that leaves the player to the page works with this build too.
-// `createSvgAnimationPlayersFromPage` is the declarative `data-px-animation-src` bootstrap; `getSvgAnimationPlayer` finds its player.
+// `createSvgAnimationPlayersFromPage` is the declarative `data-px-document` bootstrap; `getSvgAnimationPlayer` finds its player.
 export { createPrerenderedAnimator as bind } from './engines/PxAnimatorBind';
 export {
     createSvgAnimationPlayer as create,
@@ -44,7 +44,7 @@ export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPla
 export { PxTimelineEngine, PxTimelineEngineSetting, validateDocument } from '@pixodesk/svg-animator-core';
 
 // Attribute names used by the declarative bootstrap.
-export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
+export { PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 
 // Types are erased at build time — zero bytes, kept for editor tooling.
 export type { PxAnimationPlayerOptions } from './animator/PxAnimator';

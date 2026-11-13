@@ -1,4 +1,4 @@
 import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 import animation from './animation.json';
 
-createSvgAnimationPlayer({ doc: animation, container: '#hero', playUsingActionTriggers: true });
+createSvgAnimationPlayer({ document: animation, container: '#hero', playerActionTriggers: true });

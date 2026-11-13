@@ -2314,6 +2314,27 @@
                     }
                   ]
                 },
+                "playback.play": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "click"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "click"
+                        ]
+                      }
+                    }
+                  ]
+                },
                 "playback.stop": {
                   "anyOf": [
                     {
@@ -2402,30 +2423,6 @@
             "actions": {
               "type": "object",
               "properties": {
-                "playback.start": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "continue",
-                        "jumpToStart",
-                        "jumpToEnd"
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "behavior": {
-                          "enum": [
-                            "continue",
-                            "jumpToStart",
-                            "jumpToEnd"
-                          ]
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
                 "playback.stop": {
                   "anyOf": [
                     {
@@ -2433,7 +2430,8 @@
                         "jumpToStart",
                         "animateToStart",
                         "jumpToEnd",
-                        "animateToEnd"
+                        "animateToEnd",
+                        "animateToEndAndBack"
                       ]
                     },
                     {
@@ -2444,7 +2442,8 @@
                             "jumpToStart",
                             "animateToStart",
                             "jumpToEnd",
-                            "animateToEnd"
+                            "animateToEnd",
+                            "animateToEndAndBack"
                           ]
                         }
                       },
@@ -2458,7 +2457,7 @@
                       "enum": [
                         "pause",
                         "continue",
-                        "jumpToStart"
+                        "stop"
                       ]
                     },
                     {
@@ -2468,7 +2467,7 @@
                           "enum": [
                             "pause",
                             "continue",
-                            "jumpToStart"
+                            "stop"
                           ]
                         }
                       },
@@ -2479,7 +2478,7 @@
               },
               "additionalProperties": false
             },
-            "atEnd": {
+            "whenFinished": {
               "enum": [
                 "hold",
                 "jumpToStart",

@@ -35,7 +35,7 @@ describe('the content window (§4)', () => {
     afterEach(() => vi.useRealTimers());
 
     it('inTime/outTime: the window is the playing slice — the first frame is the content AT inTime', () => {
-        const api = createSvgAnimationPlayer({ doc: windowDoc(), container: '#box', playUsingActionTriggers: true });
+        const api = createSvgAnimationPlayer({ document: windowDoc(), container: '#box', playerActionTriggers: true });
         expect(opacity()).toBe(0);                      // content 500, not content 0
         api.playback.pause();
         api.playback.setCurrentTime(500);                        // window midpoint = content 1000
@@ -48,7 +48,7 @@ describe('the content window (§4)', () => {
 
     it('playbackSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
         // window 1000 ms at speed 0.5: after 500 real ms, content time 250
-        const api = createSvgAnimationPlayer({ doc: windowDoc({ playbackSpeed: 0.5, actionTriggers: { 'playback.start': 'load' } }), container: '#box', playUsingActionTriggers: true });
+        const api = createSvgAnimationPlayer({ document: windowDoc({ playbackSpeed: 0.5, actionTriggers: { 'playback.start': 'load' } }), container: '#box', playerActionTriggers: true });
         vi.advanceTimersByTime(500);
         expect(api.playback.getSpeed()).toBe(0.5);
         expect(api.playback.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real

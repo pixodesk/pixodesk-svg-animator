@@ -68,7 +68,7 @@ describe('parity with the web player', () => {
         const quiet = [vi.spyOn(console, 'error').mockImplementation(() => { }), vi.spyOn(console, 'warn').mockImplementation(() => { })];
 
         const webRoot = renderNode(prepareDocumentForRender(doc));
-        const ownRoot = render(SvgAnimationPlayer, { props: { doc } }).container.querySelector('svg');
+        const ownRoot = render(SvgAnimationPlayer, { props: { document: doc } }).container.querySelector('svg');
         quiet.forEach(spy => spy.mockRestore());
 
         expect(webRoot, 'the web player renders it').not.toBeNull();

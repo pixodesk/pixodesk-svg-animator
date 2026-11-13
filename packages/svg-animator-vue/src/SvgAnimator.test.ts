@@ -23,7 +23,7 @@ function renderWithApi(doc: PxDocument, listeners: PxAnimationPlayerCallbacks = 
     const utils = render(defineComponent({
         props: { doc: { type: Object, required: true } },
         setup(props) {
-            return () => h(SvgAnimationPlayer, { doc: props.doc as PxDocument, ref: api, ...listeners });
+            return () => h(SvgAnimationPlayer, { document: props.doc as PxDocument, ref: api, ...listeners });
         },
     }), {
         props: { doc },
@@ -53,7 +53,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     describe("rendering", () => {
         it("renders the SVG tag tree with attributes", () => {
             const { container } = render(SvgAnimationPlayer, {
-                props: { doc: getTreeJson() },
+                props: { document: getTreeJson() },
             });
 
             const svg = container.querySelector("svg");
@@ -76,7 +76,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
         });
 
         it("renders text content — a leaf <text> and its <tspan> children carry `textContent`", () => {
-            const { container } = render(SvgAnimationPlayer, { props: { doc: getTextJson() } });
+            const { container } = render(SvgAnimationPlayer, { props: { document: getTextJson() } });
 
             const [leaf, spans] = Array.from(container.querySelectorAll("svg > text"));
             expect(leaf?.textContent).toBe("Leaf");
@@ -87,7 +87,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
         });
 
         it("a node with child nodes renders its children, not its own `textContent` too", () => {
-            const { container } = render(SvgAnimationPlayer, { props: { doc: getTextJson() } });
+            const { container } = render(SvgAnimationPlayer, { props: { document: getTextJson() } });
 
             // the line <tspan> carries BOTH its folded text and the styled child span
             expect(container.querySelector("tspan > tspan")?.parentElement?.textContent).toBe("Hi");
@@ -95,7 +95,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("regenerates ids (rendered id differs from doc id)", () => {
             const doc = getTreeJson();
-            const { container } = render(SvgAnimationPlayer, { props: { doc } });
+            const { container } = render(SvgAnimationPlayer, { props: { document: doc } });
 
             const svg = container.querySelector("svg");
             const renderedRootId = svg?.getAttribute("id");
@@ -118,7 +118,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
                     { type: 'ellipse', fill: '#007fff', rx: 200, ry: 202.5, style: { display: 'none' } },
                 ],
             };
-            const { container } = render(SvgAnimationPlayer, { props: { doc } });
+            const { container } = render(SvgAnimationPlayer, { props: { document: doc } });
 
             const [visible, hidden] = Array.from(container.querySelectorAll("ellipse")) as Array<SVGElement>;
             expect(visible.style.display).toBe("");
@@ -127,8 +127,8 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("is static without control props (does not auto-play or auto-finish)", () => {
             const onPlaybackStart = vi.fn();
-            const onFinish = vi.fn();
-            renderWithApi(getTestJson(), { onPlaybackStart, onFinish });
+            const onPlaybackFinish = vi.fn();
+            renderWithApi(getTestJson(), { onPlaybackStart, onPlaybackFinish });
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
@@ -137,16 +137,16 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
             expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
             expect(onPlaybackStart).not.toHaveBeenCalled();
-            expect(onFinish).not.toHaveBeenCalled();
+            expect(onPlaybackFinish).not.toHaveBeenCalled();
         });
     });
 
     // -- 2. Animation smoke ----------------------------------------------------
 
     describe("animation", () => {
-        it("renders and animates with playUsingActionTriggers", () => {
+        it("renders and animates with playerActionTriggers", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson(), playUsingActionTriggers: true },
+                props: { document: getTestJson(), playerActionTriggers: true },
             });
 
             const ellipse = document.querySelector("ellipse");
@@ -194,11 +194,11 @@ describe("SvgAnimationPlayer (Vue)", () => {
             expect(typeof handle.playback.setSpeed).toBe("function");
             expect(() => handle.playback.setSpeed(2)).not.toThrow();
 
-            // reset / jumpToEnd are also exposed
-            expect(typeof handle.playback.jumpToStart).toBe("function");
+            // play (start or carry on) is exposed; jumpToStart / jumpToEnd are gone (1.26)
+            expect(typeof handle.playback.play).toBe("function");
             expect(typeof handle.playback.getTotalProgress).toBe("function");
             expect(typeof handle.playback.getTotalTimeAtSpeed).toBe("function");
-            expect(typeof handle.playback.jumpToEnd).toBe("function");
+            expect(Object.keys(handle.playback)).not.toContain("jumpToEnd");
         });
     });
 
@@ -208,7 +208,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
         function renderWithListeners() {
             const spies = {
                 onPlaybackStart: vi.fn(), onPlaybackPause: vi.fn(),
-                onFinish: vi.fn(), onDestroy: vi.fn(), onPlaybackStop: vi.fn(),
+                onPlaybackFinish: vi.fn(), onDestroy: vi.fn(), onPlaybackStop: vi.fn(),
             };
             const utils = renderWithApi(getTestJson(), spies);
             return { spies, ...utils };
@@ -233,24 +233,26 @@ describe("SvgAnimationPlayer (Vue)", () => {
             expect(spies.onPlaybackStop).not.toHaveBeenCalled();
         });
 
-        it("jumpToStart() emits nothing — not 'stop' (the jump bypasses the stop action), like a seek", () => {
+        it("a seek emits nothing — not 'stop', not 'pause' — and holds the frame, PAUSED (1.26; jumpToStart() until 1.25)", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
             handle.playback.start();
-            handle.playback.jumpToStart();
-            expect(handle.playback.getState()).toBe('off');
+            handle.playback.pause();
+            spies.onPlaybackPause.mockClear();
+            handle.playback.setCurrentProgress(0);
+            expect(handle.playback.getState()).toBe('paused');
             expect(spies.onPlaybackStop).not.toHaveBeenCalled();
             expect(spies.onPlaybackPause).not.toHaveBeenCalled();
         });
 
-        it("emits 'finish' on the end pose — not 'stop'", () => {
+        it("emits 'playbackFinish' at the end — not 'stop'", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
             handle.playback.start();
-            handle.playback.jumpToEnd();
-            expect(spies.onFinish).toHaveBeenCalledTimes(1);
+            vi.advanceTimersByTime(10_000);                       // plays to its end
+            expect(spies.onPlaybackFinish).toHaveBeenCalledTimes(1);
             expect(spies.onPlaybackStop).not.toHaveBeenCalled();
         });
 
@@ -277,7 +279,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     describe("controlled time", () => {
         it("renders mid-animation state with time (absolute milliseconds)", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), showAtTime: 500 },
+                props: { document: getTestJson1000(), showAtTime: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -285,7 +287,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), showAtProgress: 0.5 },
+                props: { document: getTestJson1000(), showAtProgress: 0.5 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -293,7 +295,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("does not advance on its own in fixed-time mode", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), showAtTime: 500 },
+                props: { document: getTestJson1000(), showAtTime: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             vi.advanceTimersByTime(1000);
@@ -306,7 +308,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     describe("attrs fallthrough", () => {
         it("passes class and style through to the root svg", () => {
             const { container } = render(SvgAnimationPlayer, {
-                props: { doc: getTestJson() },
+                props: { document: getTestJson() },
                 attrs: { class: 'my-class', style: 'width: 123px;' },
             });
             const svg = container.querySelector("svg");
@@ -328,7 +330,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const firstRootId = container.querySelector("svg")?.getAttribute("id");
             const firstApi = api.value;
 
-            await rerender({ doc: getRectJson() });
+            await rerender({ document: getRectJson() });
 
             // Old content replaced by the new doc's content
             expect(container.querySelector("ellipse")).toBeNull();
@@ -356,7 +358,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const { container, rerender } = renderWithApi(getTestJson());
             const firstRootId = container.querySelector("svg")?.getAttribute("id");
 
-            await rerender({ doc: getTestJson() });
+            await rerender({ document: getTestJson() });
 
             // ids are regenerated whenever the document is prepared again: the same id means no rebuild
             expect(container.querySelector("svg")?.getAttribute("id")).toBe(firstRootId);
@@ -395,7 +397,7 @@ describe("SvgAnimationPlayer (Vue) — effects", () => {
         // The web player is the reference: it plays this document.
         const host = document.createElement("div");
         document.body.appendChild(host);
-        const web = createSvgAnimationPlayer({ doc: getEffectsOnlyJson(), container: host });
+        const web = createSvgAnimationPlayer({ document: getEffectsOnlyJson(), container: host });
         const webSvg = host.querySelector("svg");
         expect(webSvg).not.toBeNull();
 
@@ -409,8 +411,8 @@ describe("SvgAnimationPlayer (Vue) — effects", () => {
     it("two instances on one page do not share def ids", () => {
         // Materialization numbers its defs from zero; ids must be regenerated AFTER it, as the
         // web player does, or two instances mint the same `url(#…)` targets.
-        const a = render(SvgAnimationPlayer, { props: { doc: getEffectsOnlyJson() } });
-        const b = render(SvgAnimationPlayer, { props: { doc: getEffectsOnlyJson() } });
+        const a = render(SvgAnimationPlayer, { props: { document: getEffectsOnlyJson() } });
+        const b = render(SvgAnimationPlayer, { props: { document: getEffectsOnlyJson() } });
 
         const ids = [a.container, b.container].flatMap(c =>
             Array.from(c.querySelectorAll("radialGradient, mask")).map(el => el.id));
@@ -434,7 +436,7 @@ describe("SvgAnimationPlayer (Vue) — root element", () => {
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarning = vi.fn();
         const { container } = render(SvgAnimationPlayer, {
-            props: { doc: getMaskedLoadJson(), playUsingActionTriggers: true, onWarning, timelineOptions: { engine: "js" } },
+            props: { document: getMaskedLoadJson(), playerActionTriggers: true, onWarning, timelineOptions: { engine: "js" } },
         });
 
         const moving = container.querySelector("mask ellipse");
@@ -481,7 +483,7 @@ describe("SvgAnimationPlayer (Vue) — attribute names", () => {
 
         const host = document.createElement("div");
         document.body.appendChild(host);
-        const web = createSvgAnimationPlayer({ doc, container: host });
+        const web = createSvgAnimationPlayer({ document: doc, container: host });
         const webNames = attributeNames(host.querySelector("rect"));
 
         expect(attributeNames(renderSvg(doc).querySelector("rect"))).toEqual(webNames);
@@ -524,7 +526,7 @@ function attributeNames(el: Element | null): Array<string> {
 
 /** Renders and returns the root `<svg>`, failing the test if there is none. */
 function renderSvg(doc: PxDocument): SVGSVGElement {
-    const svg = render(SvgAnimationPlayer, { props: { doc } }).container.querySelector("svg");
+    const svg = render(SvgAnimationPlayer, { props: { document: doc } }).container.querySelector("svg");
     if (!svg) throw new Error("no <svg> rendered");
     return svg;
 }
@@ -554,7 +556,7 @@ function tagCensus(root: Element | null): Record<string, number> {
 
 ////////////////////////////////////////////////////////////////
 
-/** Frames-mode doc: single ellipse, translate 100 → 200 over 128ms. */
+/** Frames-mode document: single ellipse, translate 100 → 200 over 128ms. */
 function getTestJson(): PxDocument {
     return {
         type: "svg",
@@ -575,7 +577,7 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                atEnd: "hold",
+                whenFinished: "hold",
                 iterationDirection: "normal",
                 actionTriggers: { "playback.start": "load" },
             },
@@ -616,7 +618,7 @@ function getTestJson1000(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 1000,
-                atEnd: "hold",
+                whenFinished: "hold",
                 iterationDirection: "normal",
                 actionTriggers: { "playback.start": "load" },
             },
@@ -683,7 +685,7 @@ function getTreeJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                atEnd: "hold",
+                whenFinished: "hold",
                 iterationDirection: "normal",
                 actionTriggers: { "playback.start": "load" },
             },
@@ -739,7 +741,7 @@ function getRectJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                atEnd: "hold",
+                whenFinished: "hold",
                 iterationDirection: "normal",
                 actionTriggers: { "playback.start": "load" },
             },
@@ -777,24 +779,24 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
     const opacityIn = (container: Element) => Number(container.querySelector('rect')?.getAttribute('opacity'));
 
     it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5 } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5 } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);
     });
 
     it('mergeTimeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 } } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
-    it('a `playUsingActionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
+    it('a `playerActionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarning = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, playUsingActionTriggers: { "playback.start": 'click' }, onWarning } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, playerActionTriggers: { "playback.start": 'click' }, onWarning } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
 
     it('takes no JSON-string form of timelineOptions any more — a string is ignored, the document stays as it is', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timelineOptions: '{"outTime":4000}' } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: '{"outTime":4000}' } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);   // the document's own 1000 ms, untouched
     });
 });

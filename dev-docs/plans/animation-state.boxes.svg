@@ -13,7 +13,7 @@
     </style>
   </defs>
   <rect width="960" height="600" fill="#fff"/>
-  <text x="16" y="22" class="h">The machinery as boxes — the final words (schema 1.25, 2026-11-12; 1.24 said “run”)</text>
+  <text x="16" y="22" class="h">The machinery as boxes — the words of schema 1.26 (2026-11-13; 1.24 said “run”)</text>
 
   <!-- page -->
   <rect x="16" y="36" width="928" height="548" rx="10" fill="none" stroke="#888" stroke-dasharray="6 4"/>
@@ -46,16 +46,16 @@
     <rect x="424" y="124" width="72" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="460" y="141" class="t">stop()</text>
     <rect x="500" y="124" width="78" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="539" y="141" class="t">pause()</text>
     <rect x="582" y="124" width="84" height="26" rx="6" fill="#fff" stroke="#a5784a"/><text x="624" y="141" class="t">resume()</text>
-    <rect x="670" y="124" width="92" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="716" y="141" class="t">jumpToStart()</text>
-    <rect x="766" y="124" width="82" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="807" y="141" class="t">jumpToEnd()</text>
-    <rect x="850" y="124" width="72" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="886" y="141" class="t">playOnce()</text>
+    <rect x="670" y="124" width="92" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="716" y="141" class="t">play()</text>
+    <rect x="766" y="124" width="82" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="807" y="141" class="t">setCurrentProgress()</text>
+    <rect x="850" y="124" width="72" height="26" rx="6" fill="#fff" stroke="#a5784a" stroke-dasharray="3 2"/><text x="886" y="141" class="t">setTotalTime()</text>
   </g>
-  <text x="342" y="162" class="n">solid = a lever's edge · dashed = momentary · no play() / pause() aliases: one spelling per act</text>
-  <text x="342" y="182" class="k">SETTINGS — how a press moves the playhead (file: actions · atEnd · outOfView)</text>
-  <text x="342" y="200" class="mono t">playback.start</text><text x="460" y="200" class="mono n">continue · jumpToStart · jumpToEnd</text>
-  <text x="342" y="214" class="mono t">playback.stop</text><text x="460" y="214" class="mono n">jumpToStart · animateToStart · jumpToEnd · animateToEnd</text>
-  <text x="342" y="228" class="mono t">atEnd</text><text x="460" y="228" class="mono n">hold · jumpToStart · animateToStart</text><text x="700" y="228" class="n">← no button: the clock presses it</text>
-  <text x="342" y="242" class="mono t">outOfView</text><text x="460" y="242" class="mono n">pause · continue · jumpToStart</text><text x="700" y="242" class="n">← no button: the gate presses it</text>
+  <text x="342" y="162" class="n">solid = a lever's edge · dashed = play() (start or carry on) and the seeks (paused there unless playing)</text>
+  <text x="342" y="182" class="k">SETTINGS — how a press moves the playhead (file: actions · whenFinished · outOfView)</text>
+  <text x="342" y="200" class="mono t">playback.start</text><text x="460" y="200" class="mono n">no settings: always from the start (1.26)</text>
+  <text x="342" y="214" class="mono t">playback.stop</text><text x="460" y="214" class="mono n">jumpToStart · animateToStart · jumpToEnd · animateToEnd · animateToEndAndBack</text>
+  <text x="342" y="228" class="mono t">whenFinished</text><text x="460" y="228" class="mono n">hold · jumpToStart · animateToStart</text><text x="700" y="228" class="n">← no button: the clock presses it</text>
+  <text x="342" y="242" class="mono t">outOfView</text><text x="460" y="242" class="mono n">pause · continue · stop</text><text x="700" y="242" class="n">← the gate presses pause / stop</text>
 
   <!-- state machine -->
   <rect x="342" y="252" width="360" height="150" rx="8" fill="#fff" stroke="#a5784a" stroke-dasharray="3 3"/>
@@ -71,7 +71,7 @@
   <path class="arrow" d="M540,306 L588,306"/><text x="564" y="299" class="s" text-anchor="middle" font-size="9">pause</text>
   <path class="arrow" d="M590,318 L542,318"/><text x="564" y="333" class="s" text-anchor="middle" font-size="9">resume</text>
   <path class="arrow" d="M505,324 L505,358"/><text x="511" y="345" class="s">the pass ends · stop →End</text>
-  <path class="arrow" d="M470,368 L398,326"/><text x="352" y="352" class="s">atEnd · stop</text>
+  <path class="arrow" d="M470,368 L398,326"/><text x="352" y="352" class="s">stop</text>
   <text x="560" y="376" class="s">green = a playback is active</text>
 
   <!-- readouts -->
@@ -82,7 +82,7 @@
   <text x="726" y="332" class="n">callbacks</text>
   <text x="726" y="348" class="mono t" font-size="9">onPlaybackStart · onPlaybackStop</text>
   <text x="726" y="364" class="mono t" font-size="9">onPlaybackPause · onPlaybackResume</text>
-  <text x="726" y="380" class="mono t">onFinish</text>
+  <text x="726" y="380" class="mono t">onPlaybackFinish</text>
   <text x="726" y="396" class="n">registry events (same names)</text>
 
   <!-- wiring -->
@@ -91,17 +91,17 @@
   <text x="48" y="332" class="k">EVENT → BUTTON (the state picks the list)</text>
   <text x="48" y="352" class="mono t">load · hoverIn · hoverOut · click</text>
   <text x="48" y="370" class="n">↓ listed under</text>
-  <text x="48" y="386" class="mono t" font-size="11">playback.start · playback.stop</text>
+  <text x="48" y="386" class="mono t" font-size="11">playback.start · playback.play · playback.stop</text>
   <text x="48" y="400" class="mono t" font-size="11">playback.pause · playback.resume</text>
   <text x="48" y="416" class="n">playback.resume: derived unless named</text>
 
   <!-- sensors -->
   <rect x="330" y="432" width="596" height="130" rx="8" fill="#faf3f7" stroke="#9a4a7a"/>
   <text x="342" y="452" class="h">Sensors · the box presses its own buttons</text>
-  <text x="342" y="474" class="t">visibility gate</text><text x="450" y="474" class="mono n">outOfView → hold / jumpToStart    inView → release / playback.start</text>
-  <text x="342" y="494" class="t">clock</text><text x="450" y="494" class="mono n">the pass ends → atEnd (hold · jumpToStart · animateToStart)</text>
+  <text x="342" y="474" class="t">visibility gate</text><text x="450" y="474" class="mono n">outOfView → pause / stop    inView → resume / start</text>
+  <text x="342" y="494" class="t">clock</text><text x="450" y="494" class="mono n">the playback ends → finished, then whenFinished (hold · jumpToStart · animateToStart)</text>
   <text x="342" y="514" class="t">pointer</text><text x="450" y="514" class="mono n">hoverIn · hoverOut · click → the wiring (left)</text>
-  <text x="342" y="540" class="n">a hold is the engine's freeze, not the user's pause (dotLottie keeps freeze ≠ pause)</text>
+  <text x="342" y="540" class="n">the gate presses the real buttons and undoes only what it did</text>
 
   <!-- page events -->
   <rect x="36" y="452" width="260" height="110" rx="8" fill="#fff" stroke="#888"/>

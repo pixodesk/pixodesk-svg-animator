@@ -4,10 +4,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlaybackState, PxTriggerAction, PxTriggerEvent, type PxActionsOptions, type PxActionTriggersInput, type PxTimelineOptions } from '@pixodesk/svg-animator-core';
+import { PxOutOfViewBehavior, PxPlaybackState, PxTriggerAction, PxTriggerEvent, PxWhenFinished, type PxActionsOptions, type PxActionTriggersInput, type PxTimelineOptions } from '@pixodesk/svg-animator-core';
 import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
-import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type ExtractPropTypes, type PropType } from 'vue';
+import { computed, defineComponent, Fragment, h, onBeforeUnmount, onMounted, ref, watch, type ExtractPropTypes, type PropType } from 'vue';
 import type { svgAnimationPlayerProps } from './SvgAnimator';
 
 /**
@@ -16,13 +16,13 @@ import type { svgAnimationPlayerProps } from './SvgAnimator';
  *
  * | prop | as on `SvgAnimationPlayer`, narrowed to |
  * |---|---|
- * | `playUsingActionTriggers` | the BLOCK only — a script-free SVG imported as a component carries no triggers the component could read, so there is no `true` |
+ * | `playerActionTriggers` | the BLOCK only — a script-free SVG imported as a component carries no triggers the component could read, so there is no `true` |
  * | `timelineOptions` | the gate numbers `inViewThreshold` / `inViewDebounce` |
  * | `actions` | `outOfView` |
  * @internal
  */
 export const svgCssAnimationPlayerProps = {
-    playUsingActionTriggers: { type: Object as PropType<PxActionTriggersInput> },
+    playerActionTriggers: { type: Object as PropType<PxActionTriggersInput> },
     timelineOptions: { type: Object as PropType<Pick<Extract<PxTimelineOptions, { type?: 'time' }>, 'inViewThreshold' | 'inViewDebounce'>> },
     actions: { type: Object as PropType<Pick<PxActionsOptions, 'outOfView'>> },
 } as const;
@@ -53,7 +53,7 @@ type AssertNever<T extends never> = T;
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer :playUsingActionTriggers="{ 'playback.start': 'hoverIn', 'playback.pause': 'hoverOut' }">
+ *   <SvgCssAnimationPlayer :playerActionTriggers="{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>
@@ -64,16 +64,17 @@ type AssertNever<T extends never> = T;
  * - `px-anim-enabled`                   — paused
  * - `px-anim-enabled px-anim-playing`   — playing
  *
- * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `playback.start`, `playback.stop`,
- * `playback.pause` (`playback.resume` is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `playback.start`, `playback.play`,
+ * `playback.stop`, `playback.pause` (`playback.resume` is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
- * (`createVisibilityGate`), so the two players cannot drift. No `playUsingActionTriggers`, or an empty block: nothing
+ * (`createVisibilityGate`), so the two players cannot drift. No `playerActionTriggers`, or an empty block: nothing
  * starts it.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
- * - the start is always `continue` — a class cannot jump keyframes to their start or end
+ * - a start that is not from rest restarts by remounting the wrapper's content (a class cannot rewind keyframes)
  * - the stop is always `jumpToStart` — a class cannot play keyframes backwards or on to their end
- * - `whenIdle` and the finish are the file's own CSS
+ * - there is no `finished` state: the class toggle does not see the CSS animation end
+ * - `whenIdle` and `whenFinished` are the file's own CSS
  * @public
  */
 const SvgCssAnimationPlayer = defineComponent({
@@ -84,46 +85,70 @@ const SvgCssAnimationPlayer = defineComponent({
     props: svgCssAnimationPlayerProps,
     setup(props, { slots, attrs }) {
         // one rule with the JSON player: the lists normalised, the gate defaulted
-        const resolved = computed(() => resolveTriggers(props.playUsingActionTriggers));
+        const resolved = computed(() => resolveTriggers(props.playerActionTriggers));
         const gateConfig = computed(() => resolveGate({
             actions: props.actions, inViewThreshold: props.timelineOptions?.inViewThreshold, inViewDebounce: props.timelineOptions?.inViewDebounce,
         }));
-        const playsOnLoad = computed(() => resolved.value.startPlayback.includes(PxTriggerEvent.load));
+        const loadPresses = computed(() => resolved.value.startPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.startPlayback
+            : resolved.value.playPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.playPlayback : undefined);
         const state = ref<PxPlaybackState>(PxPlaybackState.off);
+        /** Bumped by a start that is not from rest: the new key remounts the content, so the CSS keyframes begin again. */
+        const generation = ref(0);
         const el = ref<HTMLDivElement | null>(null);
         let gate: PxVisibilityGate | null = null;
+        /** What the gate did when the graphic left the screen — undone on return unless a button changed the state since. */
+        let gateOwes: PxTriggerAction | undefined;
+
+        // The buttons on the class state — the JSON player's rules, as far as a class can show them.
+        const press = (action: PxTriggerAction | undefined): void => {
+            if (action === undefined) return;
+            gateOwes = undefined;
+            switch (action) {
+                case PxTriggerAction.startPlayback:
+                    if (state.value !== PxPlaybackState.off) generation.value++;   // from the start: remount
+                    state.value = PxPlaybackState.playing;
+                    break;
+                case PxTriggerAction.playPlayback:
+                case PxTriggerAction.resumePlayback: state.value = PxPlaybackState.playing; break;
+                case PxTriggerAction.pausePlayback: state.value = PxPlaybackState.paused; break;
+                case PxTriggerAction.stopPlayback: state.value = PxPlaybackState.off; break;
+            }
+        };
 
         const attach = (): void => {
             gate?.dispose();
             gate = null;
             const node = el.value;
             if (!node) return;
+            const outOfView = gateConfig.value.outOfView;
             gate = createVisibilityGate(node, gateConfig.value, {
-                isPlaying: () => state.value === PxPlaybackState.playing,
-                start: () => { state.value = PxPlaybackState.playing; },
-                hold: () => { state.value = PxPlaybackState.paused; },
-                release: () => { state.value = PxPlaybackState.playing; },
-                jumpToStart: () => { state.value = PxPlaybackState.off; },
+                // the gate presses the real buttons and remembers what it did (1.26)
+                leaveView: () => {
+                    if (state.value !== PxPlaybackState.playing) return;
+                    if (outOfView === PxOutOfViewBehavior.pause) { state.value = PxPlaybackState.paused; gateOwes = PxTriggerAction.resumePlayback; }
+                    else if (outOfView === PxOutOfViewBehavior.stop) { state.value = PxPlaybackState.off; gateOwes = PxTriggerAction.startPlayback; }
+                },
+                returnToView: () => {
+                    const owed = gateOwes;
+                    gateOwes = undefined;
+                    if (owed === PxTriggerAction.resumePlayback && state.value === PxPlaybackState.paused) state.value = PxPlaybackState.playing;
+                    else if (owed === PxTriggerAction.startPlayback && state.value === PxPlaybackState.off) state.value = PxPlaybackState.playing;
+                },
             });
             // Only `load` is held by the gate; a hover or a click is aimed at something seen.
-            if (playsOnLoad.value) gate.requestStart(false);
+            const onLoad = loadPresses.value;
+            if (onLoad !== undefined) gate.requestStart(false, () => press(onLoad));
         };
 
         onMounted(attach);
-        watch([gateConfig, playsOnLoad], attach);
+        watch([gateConfig, loadPresses], attach);
         onBeforeUnmount(() => { gate?.dispose(); gate = null; });
 
-        /** The state rule — the player's own, on the class state. */
+        /** The state rule — the player's own, on the class state (which has no `finished`). */
         const fire = (event: PxTriggerEvent): void => {
-            switch (triggerActionFor(resolved.value, state.value, event)) {
-                case PxTriggerAction.startPlayback:
-                    if (gate) gate.requestStart(true);
-                    else state.value = PxPlaybackState.playing;
-                    break;
-                case PxTriggerAction.resumePlayback: state.value = PxPlaybackState.playing; break;
-                case PxTriggerAction.pausePlayback: state.value = PxPlaybackState.paused; break;
-                case PxTriggerAction.stopPlayback: state.value = PxPlaybackState.off; break;
-            }
+            const action = triggerActionFor(resolved.value, state.value, event, PxWhenFinished.hold);
+            if ((action === PxTriggerAction.startPlayback || action === PxTriggerAction.playPlayback) && gate) gate.requestStart(true, () => press(action));
+            else press(action);
         };
 
         const cssClass = computed(() =>
@@ -145,7 +170,8 @@ const SvgCssAnimationPlayer = defineComponent({
             ...attrs,
             class: [attrs.class, cssClass.value],
             ...handlers.value,
-        }, slots.default?.());
+        // a new key remounts the content, so a restart begins the CSS keyframes again; the wrapper (and the gate on it) stays
+        }, [h(Fragment, { key: generation.value }, slots.default?.())]);
     },
 });
 export default SvgCssAnimationPlayer;

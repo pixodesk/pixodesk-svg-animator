@@ -7,7 +7,7 @@
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
 import { withoutTriggerDriver, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
-import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
+import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -59,7 +59,7 @@ function createAnimatorImpl(
     containerElement?: string | Element,
     override?: PxPlaybackOverrideInput,
     providedRoot?: Element,
-    playUsingActionTriggers?: boolean | PxActionTriggersInput
+    playerActionTriggers?: boolean | PxActionTriggersInput
 ): PxAnimationPlayerApi {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
@@ -91,12 +91,12 @@ function createAnimatorImpl(
         doc = overridden.doc;
     }
 
-    // The no-driver rule (first-use review §1+2): without `playUsingActionTriggers` the document must not
+    // The no-driver rule (first-use review §1+2): without `playerActionTriggers` the document must not
     // start itself — the EMPTY trigger goes on AFTER the caller's own override, so nothing re-arms
     // it; the same rule the components' control modes apply. Scroll-driven documents are exempt:
     // scroll IS their named driver, and a clock trigger pushed into a scroll timeline would only
     // be reported as an ignored override.
-    if (!playUsingActionTriggers && !isScrollTimeline(getAnimatorConfig(doc))) {
+    if (!playerActionTriggers && !isScrollTimeline(getAnimatorConfig(doc))) {
         doc = withoutTriggerDriver(doc);
     }
 
@@ -161,7 +161,7 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
 
 /**
  * Everything `createSvgAnimationPlayer` takes. The playback override (`timelineOptions`, `actions`, and the object
- * form of `playUsingActionTriggers`) and the callbacks are core's shared shapes — the SAME names, inline, as the
+ * form of `playerActionTriggers`) and the callbacks are core's shared shapes — the SAME names, inline, as the
  * React, Vue and React Native components take (review §9) — so only what is web-specific is
  * declared here.
  * @public
@@ -174,13 +174,11 @@ export type PxAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCal
      * shown, the triggers are replaced by the EMPTY block — and the returned api (`playback.start()`, `playback.setCurrentTime()`)
      * drives it (first-use review §1+2: nothing plays until a line names the driver).
      */
-    playUsingActionTriggers?: boolean | PxActionTriggersInput;
-    /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
-    src?: string;
-    /** The animation document, inline (see docs/format/README.md) — typed as a JSON import
-     *  produces it ({@link PxDocumentJson}), so `import animation from './animation.json'`
-     *  passes with no cast. Provide either this or `src`, not both. */
-    doc?: PxDocumentJson;
+    playerActionTriggers?: boolean | PxActionTriggersInput;
+    /** The animation document: a URL to fetch it from, or the document itself (see docs/format/README.md) — typed as a
+     *  JSON import produces it ({@link PxDocumentJson}), so `import animation from './animation.json'` passes with no
+     *  cast. A string is always a URL. (`src` / `doc` until 1.25 — two names for one thing.) */
+    document: string | PxDocumentJson;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;
 };
@@ -221,15 +219,16 @@ function isInternalOptions(options: PxAnimationPlayerOptions): options is PxInte
 /**
  * Creates an animation player for an SVG animation.
  *
- * @param options.src URL to fetch the animation document from.
- * @param options.doc The animation document, inline.
+ * @param options.document The animation document — a URL to fetch it from, or the document itself.
  * @param options.container CSS selector or element to render the SVG into.
  * @returns A PxAnimationPlayerApi instance to programmatically control the animation.
  * @public
  */
 export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxAnimationPlayerApi {
 
-    const { src, doc, container } = options;
+    const { container } = options;
+    // `document` is the page's too: the option is read once, under another name
+    const source = options.document;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
     const providedRoot = isInternalOptions(options) ? options.rootElement : undefined;
     // The registry hears the playback events and the finish through the player callbacks, and names the PROXY
@@ -240,18 +239,15 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     // A wrong CALL throws — a bug at the call site, found the moment the line runs. A document
     // or environment that cannot play is reported through `onError` instead (the rule in core's
     // `PxDiagnostics`, review §25.1): the returned API stays inert and `isReady()` false.
-    if (doc !== undefined && src !== undefined) {
-        throw new Error('createSvgAnimationPlayer: provide either `src` or `doc`, not both');
-    }
-    if (doc === undefined && src === undefined) {
-        throw new Error('createSvgAnimationPlayer: either `src` or `doc` is required');
+    if (source === undefined || source === null) {
+        throw new Error('createSvgAnimationPlayer: `document` is required — a URL, or the document itself');
     }
 
     let animator: PxAnimationPlayerApi | null = null;
 
     // Control calls made before the player exists are queued and replayed (in order) once it
-    // is ready, so e.g. `createSvgAnimationPlayer({src}).playback.start()` works as expected. Getters are not
-    // queued — they return their "not ready yet" value until then. With `doc` the player is
+    // is ready, so e.g. `createSvgAnimationPlayer({ document: url }).playback.start()` works as expected. Getters are not
+    // queued — they return their "not ready yet" value until then. With an inline document the player is
     // ready before this returns; the same proxy then simply forwards.
     let pending: Array<(api: PxAnimationPlayerApi) => void> | null = [];
     let destroyed = false;
@@ -287,7 +283,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
     const build = (document: PxDocument): void => {
         try {
-            ready(createAnimatorImpl(document, adapter, callbacks, container, options, providedRoot, options.playUsingActionTriggers));
+            ready(createAnimatorImpl(document, adapter, callbacks, container, options, providedRoot, options.playerActionTriggers));
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
@@ -312,12 +308,13 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             animator?.destroy();
         }
     };
-    // Listed from this moment (`add`) until `destroy()` — a `src` still loading included.
+    // Listed from this moment (`add`) until `destroy()` — a URL still loading included.
     registerAnimator(proxy);
 
-    if (doc !== undefined) {
-        build(toPxDocument(doc));
-    } else if (src !== undefined) {   // neither is a thrown call error above
+    if (typeof source !== 'string') {
+        build(toPxDocument(source));
+    } else {
+        const src = source;
         fetch(src).then(res => res.json()).then(json => {
             if (destroyed) return; // destroy() was called before the document loaded
             if (isPxDocument(json)) build(json);
@@ -332,19 +329,19 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
 }
 
 /**
- * Everything `createSvgAnimationPlayer` takes except the three the tag supplies (`src`, `container`) or
- * forbids (`data`): callbacks, the diagnostics channel, the playback override.
+ * Everything `createSvgAnimationPlayer` takes except the two the tag supplies (`document`, `container`): callbacks, the
+ * diagnostics channel, the playback override.
  * @public
  */
 export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCallbacks & {
     /** As on every surface: `true` (or absent — a tag embeds a finished file, so the file IS the driver) each file's own
      *  `actionTriggers`; an OBJECT, one block for EVERY player this call creates — the whole block; `false`, the
      *  triggers do not drive (your code does, through {@link getSvgAnimationPlayer}). */
-    playUsingActionTriggers?: boolean | PxActionTriggersInput;
+    playerActionTriggers?: boolean | PxActionTriggersInput;
 };
 
 /**
- * Scan the page for `<div data-px-animation-src="animation.json">` and create one player per
+ * Scan the page for `<div data-px-document="animation.json">` and create one player per
  * match, rendered into that element. Safe to call repeatedly: elements that already carry a
  * player are skipped. Returns the players THIS call created; {@link getSvgAnimationPlayer} finds one later.
  *
@@ -354,14 +351,14 @@ export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlaye
  */
 export function createSvgAnimationPlayersFromPage(options?: PxPageAnimationPlayerOptions): Array<PxAnimationPlayerApi> {
     const created: Array<PxAnimationPlayerApi> = [];
-    const elements = document.querySelectorAll('[' + PX_ANIM_SRC_ATTR_NAME + ']');
+    const elements = document.querySelectorAll('[' + PX_DOCUMENT_ATTR_NAME + ']');
     for (let i = 0; i < elements.length; i++) {
         const element: PxTagElement = elements[i];
         if (!element[PX_ANIM_ATTR_NAME]) {
-            const src = element.getAttribute(PX_ANIM_SRC_ATTR_NAME);
-            if (src) {
+            const url = element.getAttribute(PX_DOCUMENT_ATTR_NAME);
+            if (url) {
                 // A tag embeds a finished file: the file IS the driver — unless the call names one trigger for every player.
-                const api = createSvgAnimationPlayer({ ...options, src, container: element, playUsingActionTriggers: options?.playUsingActionTriggers ?? true });
+                const api = createSvgAnimationPlayer({ ...options, document: url, container: element, playerActionTriggers: options?.playerActionTriggers ?? true });
                 element[PX_ANIM_ATTR_NAME] = api;
                 created.push(api);
             }
@@ -379,7 +376,7 @@ export function getSvgAnimationPlayer(element: Element): PxAnimationPlayerApi | 
     return tagged[PX_ANIM_ATTR_NAME];
 }
 
-/** A `data-px-animation-src` element: the player `createSvgAnimationPlayersFromPage` created is kept ON it, so a second call skips it. */
+/** A `data-px-document` element: the player `createSvgAnimationPlayersFromPage` created is kept ON it, so a second call skips it. */
 interface PxTagElement extends Element {
     [PX_ANIM_ATTR_NAME]?: PxAnimationPlayerApi;
 }

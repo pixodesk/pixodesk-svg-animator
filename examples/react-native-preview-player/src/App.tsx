@@ -101,9 +101,9 @@ export default function App() {
                 <View style={[styles.stage, { backgroundColor: t.card, borderColor: t.border }]}>
                     <SvgAnimationPlayer
                         key={sampleIdx + '|' + loopMode}
-                        doc={doc}
+                        document={doc}
                         timelineOptions={loopTimeline(loopMode)}
-                        playUsingActionTriggers
+                        playerActionTriggers
                         playerRef={api}
                     />
                 </View>
@@ -111,11 +111,11 @@ export default function App() {
                 {/* -- Transport ----------------------------------------------- */}
                 <View style={styles.transport}>
                     {([
-                        ['▶ Play', call(a => a.playback.start())],
+                        ['▶ Play', call(a => a.playback.play())],        // start, or carry on after a pause
                         ['❚❚ Pause', call(a => a.playback.pause())],
-                        ['◼ Stop', call(a => a.playback.jumpToStart())],
-                        ['↺ Restart', call(a => { a.playback.jumpToStart(); a.playback.start(); })],
-                        ['⤓ Finish', call(a => a.playback.jumpToEnd())],
+                        ['◼ Stop', call(a => a.playback.stop())],
+                        ['↺ Restart', call(a => a.playback.start())],    // always from the start
+                        ['⤓ Last frame', call(a => { a.playback.pause(); a.playback.setCurrentProgress(1); })],
                     ] as Array<[string, () => void]>).map(([label, onPress]) => (
                         <Pressable
                             key={label}

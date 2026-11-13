@@ -46,7 +46,7 @@ describe('the page-wide animator registry', () => {
     });
 
     const make = (): PxAnimationPlayerApi => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc(), container });
+        const api = createSvgAnimationPlayer({ document: makeDoc(), container });
         made.push(api);
         return api;
     };
@@ -68,7 +68,7 @@ describe('the page-wide animator registry', () => {
         // (the listener must not touch `api` — `add` fires while `createSvgAnimationPlayer` is still running)
         const off = onSvgAnimationPlayersChange((event: PxAnimationPlayersEvent, a: PxAnimationPlayerApi) => { events.push(event); subjects.add(a); });
         const api = createSvgAnimationPlayer({
-            doc: makeDoc(), container,
+            document: makeDoc(), container,
             onPlaybackStart: () => own.push('playbackStart'), onPlaybackPause: () => own.push('playbackPause'), onPlaybackStop: () => own.push('playbackStop'),
         });
         made.push(api);
@@ -91,14 +91,14 @@ describe('the page-wide animator registry', () => {
         expect([...subjects]).toEqual([api]);
     });
 
-    it('announces finish for an animator that has no onFinish of its own', () => {
+    it('announces playbackFinish for an animator that has no onPlaybackFinish of its own', () => {
         const events: Array<string> = [];
         const off = onSvgAnimationPlayersChange(event => { events.push(event); });
         const api = make();
         api.playback.start();
         vi.advanceTimersByTime(DUR + 64);
         off();
-        expect(events).toContain('finish');
+        expect(events).toContain('playbackFinish');
     });
 
     it('a listener that throws does not break playback or the other listeners', () => {

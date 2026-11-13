@@ -1,20 +1,21 @@
 import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
 const animator = createSvgAnimationPlayer({
-  src: '../../../../animation.json',
+  document: '../../../../animation.json',
   container: '#box',
-  playUsingActionTriggers: true,   // play the way the file says; without it, nothing starts until startPlayback()
+  playerActionTriggers: true,   // play the way the file says; without it, nothing starts until playback.start()
 });
 
 const $ = (id: string) => document.getElementById(id)!;
-$('play').onclick = () => animator.playback.start();
+$('start').onclick = () => animator.playback.start();   // always from the start, in every state
+$('play').onclick = () => animator.playback.play();     // start or carry on: resumes a pause, nothing while playing
 $('pause').onclick = () => animator.playback.pause();
-$('jumpToStart').onclick = () => animator.playback.jumpToStart();
-$('finish').onclick = () => animator.playback.jumpToEnd();
-$('reverse').onclick = () => { animator.playback.setSpeed(-1); animator.playback.start(); };   // start(): from rest it plays, while paused it unfreezes (`continue`)
-$('normal').onclick = () => { animator.playback.setSpeed(1); animator.playback.start(); };
+$('stop').onclick = () => animator.playback.stop();     // back to the rest pose, as the file's stop action says
+$('reverse').onclick = () => { animator.playback.setSpeed(-1); animator.playback.play(); };
+$('normal').onclick = () => { animator.playback.setSpeed(1); animator.playback.play(); };
 
-// Slider: pause, then jump to the slider's time — inside the current iteration (0..getDuration()).
+// Slider: pause, then seek to the slider's time — inside the current iteration (0..getDuration()). A seek that is
+// not made while playing leaves the playback paused at that frame; play() carries on from it.
 // A slider over the WHOLE playback of a finite file would use setTotalTime() with getTotalDuration() as max.
 const slider = $('time-slider') as HTMLInputElement;
 slider.oninput = () => {

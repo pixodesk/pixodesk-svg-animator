@@ -13,7 +13,7 @@ createApp({
       ]),
       h('div', { class: 'stage' }, [
         // ONE lever: `playback` holds a position — 'off' · 'on' · 'paused'; each change presses one button
-        h(SvgAnimationPlayer as any, { doc: animation, playback: paused.value ? 'paused' : playing.value ? 'on' : 'off' }),
+        h(SvgAnimationPlayer as any, { document: animation, playback: paused.value ? 'paused' : playing.value ? 'on' : 'off' }),
       ]),
     ];
   },

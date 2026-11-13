@@ -82,7 +82,7 @@ function render(codes) {
     rows.push('');
     rows.push('```js');
     rows.push('createSvgAnimationPlayer({');
-    rows.push('  src: \'/animation.json\',');
+    rows.push('  document: \'/animation.json\',');
     rows.push('  container: \'#stage\',');
     rows.push('  onWarning: d => console.log(d.code, d.data),   // 1204, [\'#missing\']');
     rows.push('  onError:   d => report(d.code, d.error),');

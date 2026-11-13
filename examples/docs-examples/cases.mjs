@@ -18,12 +18,12 @@ export const GROUPS = [
 
 export const CASES = [
   // -- Web player -------------------------------------------------------------
-  { group: 'web', id: 'declarative',   title: 'Declarative — data-px-animation-src', anchor: 'declarative--data-px-animation-src',
+  { group: 'web', id: 'declarative',   title: 'Declarative — data-px-document', anchor: 'declarative--data-px-document',
     summary: 'Point an element at the JSON and call createSvgAnimationPlayersFromPage() once.' },
   { group: 'web', id: 'programmatic',  title: 'Programmatic — createSvgAnimationPlayer + playback API', anchor: 'programmatic--createsvganimationplayeroptions',
-    summary: 'createSvgAnimationPlayer({ src, container }) and every method of the returned API.' },
+    summary: 'createSvgAnimationPlayer({ document, container }) and every method of the returned API.' },
   { group: 'web', id: 'callbacks',     title: 'Callbacks', anchor: 'callbacks',
-    summary: 'onPlaybackStart / onPlaybackPause / onPlaybackResume / onPlaybackStop / onFinish / onDestroy, logged as they fire.' },
+    summary: 'onPlaybackStart / onPlaybackPause / onPlaybackResume / onPlaybackStop / onPlaybackFinish / onDestroy, logged as they fire.' },
   { group: 'web', id: 'triggers',      title: 'Triggers — play on click', anchor: 'triggers',
     summary: 'The document lists click under startPlayback and pausePlayback; the player wires the event for you.' },
   { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
@@ -35,8 +35,8 @@ export const CASES = [
 
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (playerRef)', anchor: 'imperative-api-playerref',
-    summary: 'startPlayback / pausePlayback / jumpToStart / jumpToEnd through a ref.' },
-  { group: 'react', id: 'play-using-action-triggers', title: 'Play using action triggers', anchor: 'autoplay',
+    summary: 'playback.start / play / pause / stop / setCurrentProgress through a ref.' },
+  { group: 'react', id: 'play-using-action-triggers', title: 'Player action triggers', anchor: 'player-action-triggers-playeractiontriggers',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
     summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
@@ -46,20 +46,20 @@ export const CASES = [
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Vue --------------------------------------------------------------------
-  { group: 'vue', id: 'play-using-action-triggers', title: 'Play using action triggers', anchor: 'autoplay',
+  { group: 'vue', id: 'play-using-action-triggers', title: 'Player action triggers', anchor: 'player-action-triggers-playeractiontriggers',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'vue', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
     summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
   { group: 'vue', id: 'declarative',     title: 'Declarative playback — playback', anchor: 'declarative-playback--playrun',
     summary: 'One lever: playback holds off · on · paused, and each change of position presses one button.' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
-    summary: 'startPlayback / pausePlayback / jumpToStart / jumpToEnd through a template ref.' },
+    summary: 'playback.start / play / pause / stop / setCurrentProgress through a template ref.' },
   { group: 'vue', id: 'css-loader',      title: 'CSS-flavor SVG — SvgCssAnimationPlayer + vite-svg-loader', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Playback settings & triggers ---------------------------------------------
   { group: 'playback', id: 'override-web',   title: 'Overriding from the web player', anchor: 'overriding-from-a-player',
-    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; no playUsingActionTriggers, so only startPlayback() starts it.' },
+    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; no playerActionTriggers, so only playback.start() starts it.' },
   { group: 'playback', id: 'override-react', title: 'Overriding from component props', anchor: 'overriding-from-a-player',
     summary: 'The `timeline` prop merges over the document\'s block: infinite iterations, alternate direction, the js engine.' },
 

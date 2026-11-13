@@ -13,8 +13,7 @@ import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
  *
  * Like lottie-web's `getRegisteredAnimations()`: a dev tool, a test, or a "pause everything
  * while the tab is hidden" can reach every player without holding on to each `createSvgAnimationPlayer`
- * result. A player joins when it is built and leaves on `destroy()`; the four playback events and the
- * finish are announced to subscribers.
+ * result. A player joins when it is built and leaves on `destroy()`; the playback events are announced to subscribers.
  *
  * ONE registry per window, whatever the bundling: the store hangs off `globalThis` under a
  * `Symbol.for` key, so the ESM build in one script and the UMD build in another share it. It
@@ -28,7 +27,7 @@ import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
  */
 
 /** What changed for a player in the page-wide registry — the player callbacks' set, as words. Experimental — may change. @public */
-export type PxAnimationPlayersEvent = 'add' | 'remove' | 'playbackStart' | 'playbackStop' | 'playbackPause' | 'playbackResume' | 'finish';
+export type PxAnimationPlayersEvent = 'add' | 'remove' | 'playbackStart' | 'playbackStop' | 'playbackPause' | 'playbackResume' | 'playbackFinish';
 
 /** Called for every {@link PxAnimationPlayersEvent} of every player in the window. Experimental — may change. @public */
 export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animator: PxAnimationPlayerApi) => void;
@@ -37,7 +36,7 @@ export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animat
 export interface PxAnimationPlayerRegistry {
     /** Every live player, in creation order. */
     getAll(): ReadonlyArray<PxAnimationPlayerApi>;
-    /** Announcements of add / remove / playbackStart / playbackStop / playbackPause / playbackResume / finish — the player callbacks' set; returns the unsubscribe. */
+    /** Announcements of add / remove / playbackStart / playbackStop / playbackPause / playbackResume / playbackFinish — the player callbacks' set; returns the unsubscribe. */
     subscribe(listener: PxAnimationPlayersListener): () => void;
 }
 
@@ -125,6 +124,6 @@ export function withRegistryEvents(callbacks: PxPlayerCallbacks | undefined, api
         onPlaybackStop: () => { callbacks?.onPlaybackStop?.(); fire('playbackStop'); },
         onPlaybackPause: () => { callbacks?.onPlaybackPause?.(); fire('playbackPause'); },
         onPlaybackResume: () => { callbacks?.onPlaybackResume?.(); fire('playbackResume'); },
-        onFinish: () => { callbacks?.onFinish?.(); fire('finish'); },
+        onPlaybackFinish: () => { callbacks?.onPlaybackFinish?.(); fire('playbackFinish'); },
     };
 }

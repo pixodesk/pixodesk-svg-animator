@@ -29,9 +29,9 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * Applies the two `animator` config behaviors that are engine-independent, then hands
  * off to `make` for the actual engine.
  *
- * `atEnd` is composed here so BOTH engines get it: after a NATURAL finish the player's
- * executor holds, resets or rewinds. The caller's own `onFinish` still fires first. The
- * executor is taken right after creation — a finish always happens asynchronously later.
+ * `whenFinished` is composed here so BOTH engines get it: the engine's raw end goes to the player's executor, which
+ * decides whether it is the playback's finish (`onPlaybackFinish`, then hold / reset / rewind) or the end of a return
+ * leg. The executor is taken right after creation — a finish always happens asynchronously later.
  */
 export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
@@ -45,13 +45,10 @@ export function finaliseAnimator(
         // the playback events ride along for the executor the engine's own triggers press (a `load` start happens inside
         // `make`, before `composeApiExtras` could attach them); the engine never fires them itself
         playbackListeners: callbacks,
-        onFinish: () => {
-            callbacks?.onFinish?.();
-            executor?.onNaturalFinish();
-        },
+        onFinish: () => { executor?.onNaturalFinish(); },
     };
 
-    // `playback` (the four buttons, `playOnce()`, the reads) is composed ON TOP of the engine — the one shared rule (review
+    // `playback` (the buttons, the seeks, the reads) is composed ON TOP of the engine — the one shared rule (review
     // §10, D5); the playback events are the executor's to tell (when it performs the act), never the engine's
     const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, playbackListeners: callbacks }, webRaf);
     executor = res.playExecutor;
@@ -166,7 +163,7 @@ function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, a
     playback.stop = ignored(PxPlaybackWrite.stop);
     playback.pause = ignored(PxPlaybackWrite.pause);
     playback.resume = ignored(PxPlaybackWrite.resume);
-    playback.playOnce = ignored(PxPlaybackWrite.playOnce);
+    playback.play = ignored(PxPlaybackWrite.play);
     playback.setSpeed = ignored(PxPlaybackWrite.setSpeed);
     playback.setDurationAtSpeed = ignored(PxPlaybackWrite.setDurationAtSpeed);
     return api;
@@ -182,30 +179,30 @@ export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCa
     /**
      * The animation document. For a pre-rendered SVG this carries `animator.definitions`
      * and `animator.bindings` only — no `children`, because the elements are already
-     * in the DOM.
+     * in the DOM. Inline only: the pre-rendered SVG carries it. (`doc` until 1.25.)
      */
-    doc: PxDocumentJson;
+    document: PxDocumentJson;
     /**
      * Play the way the editor saved it — the document's own `timeline.actionTriggers` decide (the
      * Editor's SVG + JS export passes it). WITHOUT it the binding is still: the triggers are
      * replaced by the EMPTY one (nothing starts it) and the returned api drives it (first-use review §1+2).
      */
-    playUsingActionTriggers?: boolean;
+    playerActionTriggers?: boolean;
 }
 
-/** The no-driver rule, on the bind path: nothing starts itself unless `playUsingActionTriggers` says so.
+/** The no-driver rule, on the bind path: nothing starts itself unless `playerActionTriggers` says so.
  *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimationPlayer`). */
 function docToPlay(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
     const doc = requireDoc(options);
-    if (options.playUsingActionTriggers || isScrollTimeline(getAnimatorConfig(doc))) return doc;
+    if (options.playerActionTriggers || isScrollTimeline(getAnimatorConfig(doc))) return doc;
     return withoutTriggerDriver(doc);
 }
 
 function requireDoc(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
     // A wrong CALL throws (a bug at the call site); a document that cannot play is reported
     // through `onError` below — the rule in core's `PxDiagnostics` (review §25.1).
-    if (!options?.doc) throw new Error('createSvgAnimationPlayer: `doc` is required');
-    return toPxDocument(options.doc);
+    if (!options?.document) throw new Error('createSvgAnimationPlayer: `document` is required');
+    return toPxDocument(options.document);
 }
 
 /**

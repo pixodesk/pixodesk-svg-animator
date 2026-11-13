@@ -14,7 +14,7 @@ function App() {
       </div>
       <div className="stage">
         {/* ONE lever: `playback` holds a position — 'off' · 'on' · 'paused'; each change presses one button */}
-        <SvgAnimationPlayer doc={animation as any} playback={paused ? 'paused' : playing ? 'on' : 'off'} />
+        <SvgAnimationPlayer document={animation as any} playback={paused ? 'paused' : playing ? 'on' : 'off'} />
       </div>
     </>
   );

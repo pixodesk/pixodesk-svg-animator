@@ -14,12 +14,12 @@
 // unreachable and gets tree-shaken away. See dev-docs/plans/prerendered-player-builds.md.
 //
 // `createPrerenderedAnimator` is exported AS `bind` (PX_PLAYER_BIND) so the emitted
-// `<script>` — `Pixodesk.SvgAnimator.bind({"doc": …})` — is byte-identical
+// `<script>` — `Pixodesk.SvgAnimator.bind({"document": …})` — is byte-identical
 // regardless of which bundle the Editor inlines.
 //
 // Validation is deliberately absent: the Editor produced both the DOM and the
 // bindings in one pass, so there is nothing a schema check could catch. External
-// JSON (`src` / `data-px-animation-src`) still goes through the FULL build, which
+// JSON (a `document` URL / `data-px-document`) still goes through the FULL build, which
 // keeps `validateNodeEffects` and its warnings.
 // ============================================================================
 

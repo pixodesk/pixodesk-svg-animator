@@ -4,14 +4,14 @@ const log = document.getElementById('log')!;
 const say = (line: string) => { log.textContent += line + '\n'; };
 
 const animator = createSvgAnimationPlayer({
-    playUsingActionTriggers: true,
-  src: '../../../../animation.json',
+  playerActionTriggers: true,
+  document: '../../../../animation.json',
   container: '#box',
-  onPlaybackStart:  () => say('onPlaybackStart'),   // a playback began — startPlayback()
-  onPlaybackResume: () => say('onPlaybackResume'),  // the playback carried on after a freeze — resumePlayback()
-  onPlaybackPause:  () => say('onPlaybackPause'),   // the playback was frozen — pausePlayback()
-  onPlaybackStop:   () => say('onPlaybackStop'),    // the playback was stopped — stopPlayback()
-  onFinish: () => say('onFinish'),  // natural end, or jumpToEnd()
+  onPlaybackStart:  () => say('onPlaybackStart'),   // a playback began — playback.start(), or play() from rest
+  onPlaybackResume: () => say('onPlaybackResume'),  // the playback carried on after a freeze — playback.resume(), or play() while paused
+  onPlaybackPause:  () => say('onPlaybackPause'),   // the playback was frozen — playback.pause()
+  onPlaybackStop:   () => say('onPlaybackStop'),    // the playback was stopped — playback.stop()
+  onPlaybackFinish: () => say('onPlaybackFinish'),  // the last pass ended by playing — never for a stop
   onDestroy: () => say('onDestroy'),  // destroyed
 });
 
@@ -20,5 +20,7 @@ $('play').onclick = () => animator.playback.start();
 $('pause').onclick = () => animator.playback.pause();
 $('resume').onclick = () => animator.playback.resume();
 $('stop').onclick = () => animator.playback.stop();
-$('finish').onclick = () => animator.playback.jumpToEnd();
+// The file plays 2 iterations: 1.9 is 90 % into the last one. A seek while playing keeps playing (otherwise it
+// leaves the playback paused there, and play() carries on), so the playback reaches its end and finishes.
+$('finish').onclick = () => { animator.playback.setCurrentProgress(1.9); animator.playback.play(); };
 $('destroy').onclick = () => animator.destroy();

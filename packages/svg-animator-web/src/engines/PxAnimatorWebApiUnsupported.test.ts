@@ -62,7 +62,7 @@ afterEach(() => {
 
 describe('WAAPI engine — values the browser rejects', () => {
     it('steps aside for the frame loop without building a single KeyframeEffect', () => {
-        const api = createSvgAnimationPlayer({ doc: doc('auto'), container: '#stage', suppressWarnings: true });
+        const api = createSvgAnimationPlayer({ document: doc('auto'), container: '#stage', suppressWarnings: true });
         expect(effects).toBe(0);
         // ...and the frame loop it fell back to animates the width
         api.playback.setCurrentTime(DUR);
@@ -71,7 +71,7 @@ describe('WAAPI engine — values the browser rejects', () => {
     });
 
     it('still builds the effects when the native engine is forced', () => {
-        createSvgAnimationPlayer({ doc: doc('native'), container: '#stage', suppressWarnings: true });
+        createSvgAnimationPlayer({ document: doc('native'), container: '#stage', suppressWarnings: true });
         expect(effects).toBeGreaterThan(0);
     });
 });

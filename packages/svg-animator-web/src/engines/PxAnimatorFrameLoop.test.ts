@@ -119,7 +119,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, whenIdle: 'firstFrame', atEnd: 'jumpToStart' });
+        const { api, calls, opacity } = setup({ delay: 160, whenIdle: 'firstFrame', whenFinished: 'jumpToStart' });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ atEnd: 'jumpToStart' });
+        const { api, calls } = setup({ whenFinished: 'jumpToStart' });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -389,7 +389,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ atEnd: 'jumpToStart' });
+        const { api, calls } = setup({ whenFinished: 'jumpToStart' });
 
         api.play();
         vi.advanceTimersByTime(64);
@@ -447,17 +447,17 @@ describe('createAdapterSvgAnimationPlayer', () => {
             expect(api.playback.getCurrentProgress()).toBeCloseTo(0.5, 5);
         });
 
-        it('the plain axis is the iteration, the total axis the playback (A5)', () => {
+        it('the plain time axis is the iteration, progress counts iterations, the total axis is the playback (A5; 1.26)', () => {
             // 2 × 320ms: the playback is two passes; the plain reads never leave the pass they are in.
             const { api } = setup({ iterations: 2 });
 
             api.setTotalTime(DUR + DUR / 2);          // halfway through the second pass
             expect(api.playback.getCurrentIteration()).toBe(1);
             expect(api.playback.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(0.5, 5);
+            expect(api.playback.getCurrentProgress()).toBeCloseTo(1.5, 5);   // counted in iterations, in play order
             expect(api.playback.getTotalDuration()).toBe(DUR * 2);
 
-            api.playback.setCurrentProgress(1);               // the end of the CURRENT pass
+            api.playback.setCurrentProgress(2);               // the end of the SECOND pass
             expect(api.getTotalTime()).toBeCloseTo(DUR * 2, 5);
             api.playback.setCurrentTime(DUR / 4);             // a quarter into the CURRENT pass
             expect(api.getTotalTime()).toBeCloseTo(DUR + DUR / 4, 5);
@@ -472,17 +472,17 @@ describe('createAdapterSvgAnimationPlayer', () => {
 
             api.setTotalTime(DUR + DUR / 4);         // a quarter into the second, reversed pass
             expect(api.playback.getCurrentTime()).toBeCloseTo(DUR * 3 / 4, 5);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(0.75, 5);
+            expect(api.playback.getCurrentProgress()).toBeCloseTo(1.25, 5);   // progress is play order: a quarter into the second pass
             api.playback.setCurrentTime(DUR / 4);              // ask for the frame at a quarter: three quarters into the pass
             expect(api.getTotalTime()).toBeCloseTo(DUR + DUR * 3 / 4, 5);
         });
 
-        it('an endless playback: the plain axis wraps, the total axis is unbounded and its length null', () => {
+        it('an endless playback: the plain time axis wraps, progress and the total axis are unbounded, its length null', () => {
             const { api } = setup({ iterations: 'infinite' });
 
             api.setTotalTime(DUR * 2 + DUR / 2);     // two passes done, halfway through the third
             expect(api.playback.getCurrentIteration()).toBe(2);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(0.5, 5);
+            expect(api.playback.getCurrentProgress()).toBeCloseTo(2.5, 5);
             expect(api.playback.getTotalDuration()).toBeNull();
 
             api.setTotalTime(DUR * 10);              // unbounded: there is no end to clamp to

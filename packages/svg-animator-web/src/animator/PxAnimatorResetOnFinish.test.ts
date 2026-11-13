@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// `timeline.atEnd` (`actions.finish` until 1.23): after a NATURAL finish the document holds its end state (the
+// `timeline.whenFinished` (`actions.finish` until 1.23): after a NATURAL finish the document holds its end state (the
 // default), snaps back to its start state (`reset`, the runtime view's `resetOnFinish`) or plays
 // back to it (`rewind`). Wired centrally in `finaliseAnimator` through the player's executor so
 // both engines get it; tested here through the public `createSvgAnimationPlayer` (frames mode —
@@ -16,7 +16,7 @@ import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step
 
-/** Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms.
+/** Minimal frames-mode document: one rect whose opacity animates 0 → 1 over DUR ms.
  *  The override is a `timeline` partial — the wire address of the playback knobs. */
 function makeDoc(timeline: Record<string, unknown> = {}): PxDocument {
     return {
@@ -45,7 +45,7 @@ function renderedOpacity(): string | null {
     return document.querySelector('#svg-container rect')?.getAttribute('opacity') ?? null;
 }
 
-describe('timeline.atEnd', () => {
+describe('timeline.whenFinished', () => {
     beforeEach(() => {
         document.body.innerHTML = '<div id="svg-container"></div>';
         // 'performance' must be faked alongside requestAnimationFrame (see
@@ -60,7 +60,7 @@ describe('timeline.atEnd', () => {
     });
 
     it('WITHOUT the key the animation holds its end state (baseline)', () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ document: makeDoc(), container: '#svg-container' });
         api.playback.start();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('1');
@@ -68,7 +68,7 @@ describe('timeline.atEnd', () => {
     });
 
     it("'jumpToStart': the document snaps back to frame 0 on natural finish", () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ atEnd: 'jumpToStart' }), container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'jumpToStart' }), container: '#svg-container' });
         api.playback.start();
         vi.advanceTimersByTime(DUR / 2);
         expect(parseFloat(renderedOpacity() ?? 'NaN')).toBeGreaterThan(0);   // mid-flight
@@ -79,7 +79,7 @@ describe('timeline.atEnd', () => {
 
     it('the caller’s own onFinish still fires (before the reset)', () => {
         const onFinish = vi.fn();
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ atEnd: 'jumpToStart' }), container: '#svg-container', onFinish });
+        const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'jumpToStart' }), container: '#svg-container', onPlaybackFinish: onFinish });
         api.playback.start();
         vi.advanceTimersByTime(DUR + 32);
         expect(onFinish).toHaveBeenCalledTimes(1);
@@ -88,10 +88,10 @@ describe('timeline.atEnd', () => {
     });
 
     it("'animateToStart': the document plays BACK to its start after a natural finish and rests there", () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ atEnd: 'animateToStart' }), container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'animateToStart' }), container: '#svg-container' });
         api.playback.start();
         vi.advanceTimersByTime(DUR + DUR / 2);
-        expect(api.playback.isPlaying()).toBe(true);                                   // on its way back
+        expect(api.playback.getState()).toBe('finished');                              // on its way back: only the picture moves (1.26)
         const midway = parseFloat(renderedOpacity() ?? 'NaN');
         expect(midway).toBeGreaterThan(0);
         expect(midway).toBeLessThan(1);
@@ -102,7 +102,7 @@ describe('timeline.atEnd', () => {
     });
 
     it('reset re-arms the animation — play() after finish runs again from the start', () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ atEnd: 'jumpToStart' }), container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'jumpToStart' }), container: '#svg-container' });
         api.playback.start();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('0');

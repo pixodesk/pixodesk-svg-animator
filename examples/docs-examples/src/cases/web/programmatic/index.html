@@ -7,12 +7,12 @@
   </head>
   <body>
     <h1>Programmatic — createSvgAnimationPlayer + playback API</h1>
-    <p class="summary"><code>createSvgAnimationPlayer({ src, container })</code> returns the playback API. Control calls made before the file has loaded are queued.</p>
+    <p class="summary"><code>createSvgAnimationPlayer({ document, container })</code> returns the playback API. Control calls made before the file has loaded are queued.</p>
     <div class="controls">
-      <button id="play">playback.start()</button>
+      <button id="start">playback.start()</button>
+      <button id="play">playback.play()</button>
       <button id="pause">playback.pause()</button>
-      <button id="jumpToStart">playback.jumpToStart()</button>
-      <button id="finish">playback.jumpToEnd()</button>
+      <button id="stop">playback.stop()</button>
       <button id="reverse">playback.setSpeed(-1)</button>
       <button id="normal">playback.setSpeed(1)</button>
       <label>jump to <input id="time-slider" type="range" min="0" max="2000" value="0" /> <span id="ms">0</span> ms</label>

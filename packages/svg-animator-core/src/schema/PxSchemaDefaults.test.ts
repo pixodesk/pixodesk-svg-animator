@@ -10,11 +10,11 @@
 // `pause` to the Editor), (3) that the runtime's own fallbacks are the schema's.
 
 import { describe, expect, it } from 'vitest';
-import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_PLAYBACK_DEFAULTS, PxAtEndBehavior, PxTriggerEvent, resolveTriggers } from '../format/PxAnimatorConstants';
+import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_PLAYBACK_DEFAULTS, PxWhenFinished, PxTriggerEvent, resolveTriggers } from '../format/PxAnimatorConstants';
 import {
     PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
-    PxTimeTimelineSchema, PxActionTriggersSchema, PxStartPlaybackActionSchema, PxStopPlaybackActionSchema, PxOutOfViewActionSchema, type PxDocument, type PxActionTriggers,
+    PxTimeTimelineSchema, PxActionTriggersSchema, PxStopPlaybackActionSchema, PxOutOfViewActionSchema, type PxDocument, type PxActionTriggers,
 } from '../format/PxAnimatorTypes';
 import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
 import { untyped } from '../effects/effectTestKit';
@@ -65,7 +65,6 @@ describe('schema.defaults — what an absent field means', () => {
         visitCounting('loop', PxLoopSchema);
         visitCounting('propertyAnimation', PxPropertyAnimationSchema);
         visitCounting('actionTriggers', PxActionTriggersSchema);
-        visitCounting('actions["playback.start"]', PxStartPlaybackActionSchema);
         visitCounting('actions["playback.stop"]', PxStopPlaybackActionSchema);
         visitCounting('actions.outOfView', PxOutOfViewActionSchema);
         // Every member of the timeline union — time, scroll and view have fields of their own.
@@ -78,7 +77,7 @@ describe('schema.defaults — what an absent field means', () => {
         visitCounting('clone', PxCloneEffectSchema);
         visitCounting('fillGradient', PxFillGradientEffectSchema);
         visitCounting('textPath', PxTextPathEffectSchema);
-        expect(visited).toBeGreaterThanOrEqual(16);
+        expect(visited).toBeGreaterThanOrEqual(15);   // 16 until 1.26: the start action's block left the schema
         // The rule has teeth: the one deliberate flag is the only optional choice without a stated default.
         expect(PxCloneEffectSchema._shape.omit.absentDefault()).toBeUndefined();
         expect(unstated, 'optional choices whose schema does not say what absent means').toEqual([]);
@@ -89,18 +88,17 @@ describe('schema.defaults — what an absent field means', () => {
         // empty one, names no event (1.17) — there is no `start` constant any more.
         const d = PX_PLAYBACK_DEFAULTS;
         expect(PxTimeTimelineSchema.defaults).toMatchObject({ whenIdle: d.whenIdle, inViewThreshold: d.inViewThreshold, inViewDebounce: d.inViewDebounce });
-        expect(PxStartPlaybackActionSchema.defaults).toEqual({ behavior: d.startPlaybackBehavior });
         expect(PxStopPlaybackActionSchema.defaults).toEqual({ behavior: d.stopPlaybackBehavior });
-        expect(PxTimeTimelineSchema.defaults.atEnd).toBe(d.atEnd);
+        expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(d.whenFinished);
         expect(PxOutOfViewActionSchema.defaults).toEqual({ behavior: d.outOfViewBehavior });
         expect(PxActionTriggersSchema.defaults).toEqual({});
         expect(resolveTriggers(undefined).startPlayback).toEqual([]);
-        // `atEnd` reaches the engines as the runtime view's `resetOnFinish`,
+        // `whenFinished` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
-        expect(PxTimeTimelineSchema.defaults.atEnd).toBe(PxAtEndBehavior.hold);
+        expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(PxWhenFinished.hold);
         const flat = resolveAnimatorTimeline({ timeline: { actionTriggers: { 'playback.start': PxTriggerEvent.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(resolveAnimatorTimeline({ timeline: { atEnd: PxAtEndBehavior.jumpToStart } }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { whenFinished: PxWhenFinished.jumpToStart } }).resetOnFinish).toBe(true);
         expect(resolveAnimatorTimeline({ timeline: { actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
     });
 

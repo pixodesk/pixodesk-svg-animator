@@ -11,7 +11,7 @@ import { implementsInterface, px, PxValidationFindingKind, reportValidationError
 export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_PLAYBACK_DEFAULTS, PxTimelineEngineSetting, PxCloneOmit, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
-    PxAlongPathMode, PxFillMode, PxStartPlaybackBehavior, PxStopPlaybackBehavior, PxAtEndBehavior, PxOutOfViewBehavior, PxWhenIdle, PxPinAlign, PxPlaybackDirection,
+    PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxPinAlign, PxPlaybackDirection,
     PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind } from './PxAnimatorConstants';
 import type { PxPlaybackState, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
@@ -594,13 +594,17 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
  * methods (`playback.start()` / `playback.stop()` / `playback.pause()` / `playback.resume()`) and the edges of the components' `playback`
  * prop: `playback.start` / `playback.stop` bracket a PLAYBACK (one instance of the animation being in effect), `playback.pause` /
  * `playback.resume` bracket a FREEZE inside it. The two blocks are not symmetrical and do not claim to be: a pause and a
- * resume have one possible behavior, so there is no `actions["playback.pause"]`; `atEnd` and `outOfView` are the clock's and
- * the gate's rules, not page events, so they have no list here.
+ * resume have one possible behavior, so there is no `actions["playback.pause"]`; `whenFinished` and `outOfView` are the
+ * clock's and the gate's rules, not page events, so they have no list here. Which list an event is read from in each
+ * state: `triggerActionFor`.
  */
 export interface _PxActionTriggers {
-    /** Starts a playback (when off or finished; a returning one turns around). An absent block, like an empty one, means
+    /** Starts a playback from the start — in every state it is read in (1.26). An absent block, like an empty one, means
      *  nothing starts it (1.17); a file that plays by itself says `'load'`. */
     [PxTriggerList.startPlayback]?: PxTriggerEvents;
+    /** Start or carry on (1.26): resumes a paused playback, turns a returning picture around, starts otherwise; nothing
+     *  while playing. What `playback.start` did by default until 1.25. */
+    [PxTriggerList.playPlayback]?: PxTriggerEvents;
     /** Stops the playback (when playing, paused or finished) — per `actions["playback.stop"]`. */
     [PxTriggerList.stopPlayback]?: PxTriggerEvents;
     /** Freezes the playback where it is (when playing). */
@@ -624,6 +628,7 @@ function triggerListSchema(list: PxTriggerList) {
 /** `timeline.actionTriggers`. @public @advanced */
 export const PxActionTriggersSchema = implementsInterface<_PxActionTriggers>()(px.object({
     [PxTriggerList.startPlayback]: triggerListSchema(PxTriggerList.startPlayback).optional(),
+    [PxTriggerList.playPlayback]: triggerListSchema(PxTriggerList.playPlayback).optional(),
     [PxTriggerList.stopPlayback]: triggerListSchema(PxTriggerList.stopPlayback).optional(),
     [PxTriggerList.pausePlayback]: triggerListSchema(PxTriggerList.pausePlayback).optional(),
     [PxTriggerList.resumePlayback]: triggerListSchema(PxTriggerList.resumePlayback).optional(),
@@ -634,43 +639,41 @@ export const PxActionTriggersSchema = implementsInterface<_PxActionTriggers>()(p
 export type PxActionTriggers = PxInfer<typeof PxActionTriggersSchema>;
 const _ck_PxActionTriggers: KeysMatch<PxActionTriggers, _PxActionTriggers> = true; // the key sets are identical
 
-/** The block a DRIVER takes — `playUsingActionTriggers`, the web option, `bind` — the same shape the FILE has
+/** The block a DRIVER takes — `playerActionTriggers`, the web option, `bind` — the same shape the FILE has
  *  ({@link _PxActionTriggers}), `playback.resume` included: left out, it is derived from the other lists; named, it is used
  *  as written. WHY the same power as the file (`resume` was left out until 1.22): an override that cannot say what a
  *  file can is a trap. @public @advanced */
 export type PxActionTriggersInput = PxActionTriggers;
 
 /**
- * HOW the built-in actions look (playback-layers.md, layer 1) — one slot per button: `behavior` names a PRESET (where
- * the move ends and the path there), and a slot that says only `behavior` is written as the word itself —
- * `stopPlayback: 'animateToStart'` is exactly `stopPlayback: { behavior: 'animateToStart' }`. The words are explained once, in
- * the table above `PxStartPlaybackBehavior`. Nothing to configure on `playback.pause` / `playback.resume` / the gate's wake. A key
- * here names the button; the same key in `actionTriggers` says when a page event presses it.
+ * HOW the built-in actions look (playback-layers.md, layer 1) — one slot per button that has a choice: `behavior` names a
+ * PRESET (where the move ends and the path there), and a slot that says only `behavior` is written as the word itself —
+ * `"playback.stop": 'animateToStart'` is exactly `"playback.stop": { behavior: 'animateToStart' }`. The words are explained
+ * once, in the table above `PxStopPlaybackBehavior`. Nothing to configure on `playback.start` (always from the start,
+ * 1.26), `playback.play`, `playback.pause` or `playback.resume`. A key here names the button; the same key in
+ * `actionTriggers` says when a page event presses it.
  *
- * WHY `behavior` (1.14): "stopPlayback behavior: animateToStart" says what kind of thing the value is; `do` (1.11) and
- * `transition` (1.10, read as CSS) did not. WHY `outOfView` is here and `atEnd` is not (1.24): both are sensor rules,
- * not buttons; `outOfView` stays where every file has it, `finish` moved beside `whenIdle` as `atEnd` because it names
- * what the END of the pass shows — the second half of CSS's `animation-fill-mode`.
+ * WHY `behavior` (1.14): "stop behavior: animateToStart" says what kind of thing the value is; `do` (1.11) and
+ * `transition` (1.10, read as CSS) did not. WHY `outOfView` is here and `whenFinished` is not (1.24): both are sensor
+ * rules, not buttons; `outOfView` stays where every file has it, `finish` moved beside `whenIdle` because it names what
+ * the picture shows once the playback is finished — the second half of CSS's `animation-fill-mode`.
  */
 export interface _PxActions {
-    /** `behavior`: `continue` (default), `jumpToStart` (from the beginning), `jumpToEnd` (the end pose, then `atEnd`). */
-    [PxTriggerList.startPlayback]?: PxStartPlaybackBehavior | { behavior?: PxStartPlaybackBehavior };
-    /** `behavior`: `jumpToStart` (default), `animateToStart` (the `returning` state), `jumpToEnd`, `animateToEnd`
-     *  (after the current pass — `completeIteration` until 1.22); arriving at the end runs `atEnd`. */
+    /** `behavior`: `jumpToStart` (default), `animateToStart` (the `returning` state), `jumpToEnd`, `animateToEnd` (after
+     *  the current pass; both rest `finished`, then `whenFinished` applies), `animateToEndAndBack` (after the current pass,
+     *  then backwards to the rest pose). */
     [PxTriggerList.stopPlayback]?: PxStopPlaybackBehavior | { behavior?: PxStopPlaybackBehavior };
-    /** None of it on screen (the visibility gate's closing edge) — `behavior`: `pause` (default), `continue`,
-     *  `jumpToStart`. On return (`wake`) it runs again only if it was meant to run. */
+    /** None of it on screen (the visibility gate's closing edge) — `behavior`: `pause` (default), `continue`, `stop`.
+     *  Back in view, the gate undoes what it did (resumes, or starts again). */
     outOfView?: PxOutOfViewBehavior | { behavior?: PxOutOfViewBehavior };
 }
 
-const PxStartPlaybackPresetSchema = px.enum([PxStartPlaybackBehavior.continue, PxStartPlaybackBehavior.jumpToStart, PxStartPlaybackBehavior.jumpToEnd] as const, PX_PLAYBACK_DEFAULTS.startPlaybackBehavior);
-const PxStopPlaybackPresetSchema = px.enum([PxStopPlaybackBehavior.jumpToStart, PxStopPlaybackBehavior.animateToStart, PxStopPlaybackBehavior.jumpToEnd, PxStopPlaybackBehavior.animateToEnd] as const, PX_PLAYBACK_DEFAULTS.stopPlaybackBehavior);
-const PxOutOfViewPresetSchema = px.enum([PxOutOfViewBehavior.pause, PxOutOfViewBehavior.continue, PxOutOfViewBehavior.jumpToStart] as const, PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
-/** `timeline.atEnd` — a plain word, like `whenIdle`. @public @advanced */
-export const PxAtEndSchema = px.enum([PxAtEndBehavior.hold, PxAtEndBehavior.jumpToStart, PxAtEndBehavior.animateToStart] as const, PX_PLAYBACK_DEFAULTS.atEnd);
+const PxStopPlaybackPresetSchema = px.enum([PxStopPlaybackBehavior.jumpToStart, PxStopPlaybackBehavior.animateToStart, PxStopPlaybackBehavior.jumpToEnd,
+    PxStopPlaybackBehavior.animateToEnd, PxStopPlaybackBehavior.animateToEndAndBack] as const, PX_PLAYBACK_DEFAULTS.stopPlaybackBehavior);
+const PxOutOfViewPresetSchema = px.enum([PxOutOfViewBehavior.pause, PxOutOfViewBehavior.continue, PxOutOfViewBehavior.stop] as const, PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
+/** `timeline.whenFinished` — a plain word, like `whenIdle`. @public @advanced */
+export const PxWhenFinishedSchema = px.enum([PxWhenFinished.hold, PxWhenFinished.jumpToStart, PxWhenFinished.animateToStart] as const, PX_PLAYBACK_DEFAULTS.whenFinished);
 
-/** `actions["playback.start"]`, the settings form. @public @advanced */
-export const PxStartPlaybackActionSchema = px.object({ behavior: PxStartPlaybackPresetSchema.optional() });
 /** `actions["playback.stop"]`, the settings form. @public @advanced */
 export const PxStopPlaybackActionSchema = px.object({ behavior: PxStopPlaybackPresetSchema.optional() });
 /** `actions.outOfView`, the settings form. @public @advanced */
@@ -678,7 +681,6 @@ export const PxOutOfViewActionSchema = px.object({ behavior: PxOutOfViewPresetSc
 
 /** Each slot: the preset word, or the settings. @public @advanced */
 export const PxActionsSchema = implementsInterface<_PxActions>()(px.object({
-    [PxTriggerList.startPlayback]: px.union([PxStartPlaybackPresetSchema, PxStartPlaybackActionSchema]).optional(),
     [PxTriggerList.stopPlayback]: px.union([PxStopPlaybackPresetSchema, PxStopPlaybackActionSchema]).optional(),
     outOfView: px.union([PxOutOfViewPresetSchema, PxOutOfViewActionSchema]).optional(),
 }));
@@ -955,7 +957,7 @@ const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the
 // Time-driven — playback on its own clock (not scroll): something STARTS it (trigger) and it has the
 // WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
 // `timeline` altogether) means this one — the common case declares nothing.
-// `resetOnFinish` has no slot here: its successor is `timeline.atEnd: 'jumpToStart'` (review §13).
+// `resetOnFinish` has no slot here: its successor is `timeline.whenFinished: 'jumpToStart'` (review §13).
 /** `timeline.engine` — HOW the animated attributes get updated (every timeline type;
  *  default `auto`). Not `mode`: an implementation preference, not a behavior switch. */
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const, PxTimelineEngineSetting.auto).optional();
@@ -995,7 +997,7 @@ export interface _PxTimeTimeline {
      *  absent block and an empty one meaning different things trapped every merge patch and hand edit. */
     actionTriggers?: _PxActionTriggers;
     /** Wait before the first iteration, ms. Negative skips ahead. Waited whenever a playback starts from the
-     *  beginning — the first start, a `jumpToStart` start, a `continue` after a jump to the start or an end — never on a resume from a pause. */
+     *  beginning — every `playback.start`, a `playback.play` from rest — never on a resume from a pause. */
     delay?: number;
     /** Repeat count, or `'infinite'` — WAAPI's word and values. */
     iterations?: number | 'infinite';
@@ -1003,12 +1005,12 @@ export interface _PxTimeTimeline {
      *  `direction`, with `iteration` in front because it is per iteration — a scroll timeline has an axis direction of
      *  its own; `alternateReverse` is `alternate-reverse` in the format's camelCase, like every value. */
     iterationDirection?: PxPlaybackDirection;
-    /** HOW the buttons move the playhead — `playback.start` / `playback.stop` (+ the gate's `outOfView`), each a preset word or its settings. */
+    /** HOW the buttons move the playhead — `playback.stop` (+ the gate's `outOfView`), each a preset word or its settings. */
     actions?: _PxActions;
-    /** At the end of the pass — the natural end, or a move that went there: `hold` the last frame (default; the playback
-     *  rests `finished`), `jumpToStart` / `animateToStart` back to the rest pose (the playback is over). The runtime view
-     *  derives `fill` from it and `whenIdle`. `actions.finish` until 1.23 — it is the clock's rule, not a button's. */
-    atEnd?: PxAtEndBehavior;
+    /** What the picture shows once the playback is `finished` — the natural end, or a stop that went there: `hold` the
+     *  last frame (default), `jumpToStart` / `animateToStart` back to the rest pose. The playback stays `finished` either
+     *  way. The runtime view derives `fill` from it and `whenIdle`. (`atEnd` until 1.25, `actions.finish` until 1.23.) */
+    whenFinished?: PxWhenFinished;
     /** What is shown while IDLE — before the first play, back at the start after a jump or an animate there: `static` (default) = the SVG as it
      *  is in the file, no animation applied; `firstFrame` = the first frame's values — hand-authored files only; the
      *  Editor never writes it (by the format's contract the static attributes ARE the first frame, `PxRestPose`).
@@ -1039,7 +1041,7 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     iterations: px.union([px.number(PX_DEFAULT_ITERATIONS), px.literal('infinite')], PX_DEFAULT_ITERATIONS).optional(),
     iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const, PxPlaybackDirection.normal).optional(),
     actions: PxActionsSchema.optional(),
-    atEnd: PxAtEndSchema.optional(),
+    whenFinished: PxWhenFinishedSchema.optional(),
     whenIdle: px.enum([PxWhenIdle.static, PxWhenIdle.firstFrame] as const, PX_PLAYBACK_DEFAULTS.whenIdle).optional(),
     inViewThreshold: px.number(PX_PLAYBACK_DEFAULTS.inViewThreshold).optional(),
     inViewDebounce: px.number(PX_PLAYBACK_DEFAULTS.inViewDebounce).optional(),
@@ -1186,8 +1188,8 @@ export interface _PxAnimatorConfig {
     actions?: PxActions;
     /** The wire's rest pose, carried through so a WRITER round-trips it; the engines read `fill`. */
     whenIdle?: PxWhenIdle;
-    /** The wire's end-of-pass rule, carried through (the executor reads it; the engines read `fill` / `resetOnFinish`). */
-    atEnd?: PxAtEndBehavior;
+    /** The wire's `whenFinished`, carried through (the executor reads it; the engines read `fill` / `resetOnFinish`). */
+    whenFinished?: PxWhenFinished;
     inViewThreshold?: number;
     inViewDebounce?: number;
 
@@ -2351,11 +2353,11 @@ export function toPxDocument(doc: PxDocumentJson): PxDocument {
 //
 //   PxDiagnosticsConfig          onWarning / onError / suppressWarnings / suppressErrors   — what `createDiagnostics` reads
 //   PxEngineCallbacks            + onPlay / onPause / onFinish / onDestroy   — what an ENGINE takes (its raw clock signals)
-//   PxAnimationPlayerCallbacks   + onReady / onPlaybackStart / onPlaybackStop / onPlaybackPause / onPlaybackResume / onFinish / onDestroy
-//                                                                            — what every PUBLIC surface takes
+//   PxAnimationPlayerCallbacks   + onReady / onPlaybackStart / onPlaybackStop / onPlaybackPause / onPlaybackResume /
+//                                  onPlaybackFinish / onDestroy               — what every PUBLIC surface takes
 //
-// The playback events are the EXECUTOR's (it performs the buttons); the engine's `onPlay` / `onPause` never reach a page —
-// the gate's hold and release, a jump's internal pause, are not the user's. `onFinish` / `onDestroy` are shared.
+// The playback events are the EXECUTOR's (it performs the buttons and sees the end); the engine's `onPlay` / `onPause` /
+// `onFinish` never reach a page — a jump's internal pause, the end of a return leg, are not the user's. `onDestroy` is shared.
 // The diagnostics rule (`onError` = this instance will not play; `onWarning` = it plays, but
 // something was ignored, degraded or misspelled) is written on `PxDiagnosticsConfig`.
 
@@ -2374,14 +2376,8 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
      *  `onPlaybackPause` is the executor's. */
     onPause?: () => void;
 
-    /**
-     * Callback executed when the animation reaches its end — it played every iteration, or
-     * `jumpToEnd()` was called. Not fired when playback is stopped early (pause / jumpToStart / destroy); a LOOP
-     * stopped at a pass end (`stopPlayback: 'animateToEnd'` / `'jumpToEnd'`) reports `onPlaybackStop` only — its playback never ends.
-     * WHY `finish`, not `ended`: one pair with the `finished` state — WAAPI's word (`finish()`, `onfinish`,
-     * `playState: 'finished'`); `ended` is `<video>`'s, `complete` Lottie's. Not `onPlaybackFinish`: the playback may go on
-     * resting there.
-     */
+    /** The engine's clock reached an end — raw: the end of the last pass, an engine jump there, or the end of a return
+     *  leg played backwards. The executor decides which of these is the playback's finish (`onPlaybackFinish`). */
     onFinish?: () => void;
 
     /** `destroy()`'s pair (review §11): the player was torn down — an unmount, a document
@@ -2396,8 +2392,8 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
 
 // @px-area entry
 /**
- * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimationPlayer({ onFinish })`,
- * `createSvgAnimationPlayersFromPage`, the pre-rendered entries, and `<SvgAnimationPlayer onFinish />` on React,
+ * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimationPlayer({ onPlaybackFinish })`,
+ * `createSvgAnimationPlayersFromPage`, the pre-rendered entries, and `<SvgAnimationPlayer onPlaybackFinish />` on React,
  * Vue and React Native (review §9, §24): the four buttons' events (MediaRecorder's set: one event per method, told
  * by the executor when it performs the act), the end, the teardown, and the diagnostics channel.
  *
@@ -2407,24 +2403,28 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
  */
 export interface PxAnimationPlayerCallbacks extends PxDiagnosticsConfig {
     /** The player exists and the SVG is rendered (review §14) — the push twin of `isReady()`.
-     *  Fires ONCE, always asynchronously (so the create call has returned): with `doc`
-     *  effectively immediately, with `src` after the fetch. */
+     *  Fires ONCE, always asynchronously (so the create call has returned): with an inline `document`
+     *  effectively immediately, with a URL after the fetch. */
     onReady?: () => void;
-    /** A playback began — `playback.start()`, a `playback.start` trigger, `playback` to `on` / `paused` from `off`, `playOnce()`; a
-     *  `returning` playback turned around. (`onPlay` until 1.23, which also fired for a resume and for the gate.) */
+    /** A playback began — `playback.start()`, `playback.play()` from rest, a `playback.start` / `playback.play` trigger,
+     *  `playback` to `on` / `paused` from `off`, the gate starting it again; a returning picture turned around by a play.
+     *  (`onPlay` until 1.23, which also fired for a resume.) */
     onPlaybackStart?: () => void;
-    /** The playback was stopped — `playback.stop()`, a `playback.stop` trigger, `playback="off"` — at once, or on arrival for
-     *  `stopPlayback: 'animateToEnd'`. A pause is `onPlaybackPause`, the natural end `onFinish`, a removal `onDestroy`;
-     *  `jumpToStart()` reports nothing (like a seek). WHY no `onReset` (until 1.22): it fired for a mix — a jump, a
-     *  rewind's end, the gate, even `destroy()` — no page could act on; the state is `playback.getState() === 'off'`. */
+    /** The playback was stopped — `playback.stop()`, a `playback.stop` trigger, `playback="off"`, the gate's `stop` — at
+     *  once, or on arrival for the stops that finish the pass first. A pause is `onPlaybackPause`, the natural end
+     *  `onPlaybackFinish`, a removal `onDestroy`; a seek reports nothing. WHY no `onReset` (until 1.22): it fired for a
+     *  mix no page could act on; the state is `playback.getState() === 'off'`. */
     onPlaybackStop?: () => void;
-    /** The playback was frozen — `playback.pause()`, a `playback.pause` trigger, `playback="paused"`. The gate's off-screen hold is
-     *  NOT this (the user did not pause; `playback.getState()` does not change). */
+    /** The playback was frozen — `playback.pause()`, a `playback.pause` trigger, `playback="paused"`, or the gate's
+     *  `pause` when it left the screen (1.26: the state reads `paused` then too). */
     onPlaybackPause?: () => void;
-    /** The playback continued after a freeze — `playback.resume()`, a `playback.resume` trigger, `playback` back to `on`. */
+    /** The playback continued after a freeze — `playback.resume()`, `playback.play()`, a `playback.resume` trigger,
+     *  `playback` back to `on`, or the gate when it is seen again. */
     onPlaybackResume?: () => void;
-    /** See {@link PxEngineCallbacks.onFinish} — the playback reached the end of its last pass (or `jumpToEnd()`). */
-    onFinish?: () => void;
+    /** The playback reached the end of its last pass by playing — the state is `finished` from here, whatever
+     *  `whenFinished` then shows. Not for a stop that goes to the end (that is `onPlaybackStop`), never for a loop without
+     *  end. WHY `finish`: one pair with the `finished` state — WAAPI's word. (`onFinish` until 1.25.) */
+    onPlaybackFinish?: () => void;
     /** `destroy()`'s pair (review §11): the player was torn down — an unmount, a document swap, or an explicit
      *  `destroy()` call. */
     onDestroy?: () => void;
@@ -2485,20 +2485,23 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  */
 // @px-area entry
 /**
- * `player.playback` — everything a page does to the animation: the four buttons, the state, the playhead moves, both
- * clocks and the speed (dev-docs/plans/animation-state.playback-namespace.md §2). ONE object per player, the same on
- * every read, made of closures — `const { start } = player.playback` works. Calls made before the document is ready
- * are queued; after `destroy()` every call is a no-op. Until 1.25 these were flat on the player (`startPlayback()` …
- * `getTotalPlaybackTime()`), and `play()` / `pause()` aliases existed — removed, one spelling per act.
+ * `player.playback` — everything a page does to the animation: the buttons, the state, the seeks, both clocks and the
+ * speed (dev-docs/plans/animation-state.playback-namespace.md §2, animation-state.feedback.2026-11-12.md). ONE object per
+ * player, the same on every read, made of closures — `const { start } = player.playback` works. Calls made before the
+ * document is ready are queued; after `destroy()` every call is a no-op. (Flat on the player until 1.25; `playOnce()`,
+ * `jumpToStart()` and `jumpToEnd()` until 1.25 — a one-iteration timeline and `start()`, `stop()`, `setCurrentProgress()`
+ * say the same.)
  *
  * ### The time contract (API review §3; schema-and-props--manual-review.md A1 / A5; …improvements.md §0)
  *
  * Every engine — the browser's WAAPI, the frame loop, React Native — answers these the same way. Two clocks only:
  * CONTENT time (ms as the keyframes are authored) and time AT THE CURRENT SPEED (content time ÷ |speed|).
  *
- * - **Plain names are content ms inside the iteration.** `getCurrentTime()` is the content time of the frame on
+ * - **Plain time names are content ms inside the iteration.** `getCurrentTime()` is the content time of the frame on
  *   screen, `0..getDuration()`, the way lottie-web's `currentFrame`, Three.js `action.time` and GSAP `time()`
- *   read; a slider for a looping file spans one pass and wraps. A reversed pass of `alternate` counts down.
+ *   read. A reversed pass of `alternate` counts down.
+ * - **Progress counts iterations, in the order they play** (1.26): `getCurrentProgress()` is `1.2` 20 % into the second
+ *   iteration; one number says the pass and the place in it, and nothing wraps.
  * - **`total…` names the whole playback**, every iteration included — GSAP's words exactly (`time` / `totalTime`,
  *   `duration` / `totalDuration`, `progress` / `totalProgress`): `getTotalTime()` / `setTotalTime()`,
  *   `getTotalProgress()`, `getTotalDuration()` (`null` when endless — the honest slider maximum). The delay sits before 0.
@@ -2506,66 +2509,61 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  *   `getCurrentTimeAtSpeed()` = the playhead ÷ |speed|, `getTotalTimeAtSpeed()` = the playback's playhead ÷ |speed|.
  *   Derived from the position, so paused time never counts.
  * - **A seek clamps** to the pass or the playback; **a speed of 0 is rejected** with a warning, everywhere. Use `pause()`.
+ * - **The seek rule** (1.26): a seek while `playing` keeps playing from there; in every other state the playback becomes
+ *   `paused` at that frame, and `resume()` plays on from it. A seek reports nothing.
  *
  * The maths lives in `playback/PxPlaybackTime.ts`, and the members are composed once in `composeApiExtras`, so there
  * is one implementation rather than one per engine.
  * @public
  */
 export interface PxPlaybackControls {
-    // ── the four buttons — two per lever ──
-    /** Lever 1 on. From `off` or `finished`: begins a playback per `actions["playback.start"]` — `continue` from the
-     *  rest pose, `jumpToStart` from the beginning always, `jumpToEnd` the end pose then `atEnd`. While `playing`:
-     *  `continue` does nothing, `jumpToStart` restarts. While `paused`: unfreezes. While `returning`: turns around.
-     *  Reports `onPlaybackStart`. (`startPlayback()` until 1.25 — `startRun()` in 1.24, `play()` before.) */
+    // ── the buttons ──
+    /** Starts a playback FROM THE START — in every state: from `off` or `finished`, while `playing` (it restarts), while
+     *  `paused` (the freeze is dropped) and while `returning`; the delay is waited again. Reports `onPlaybackStart`. To
+     *  carry on instead of restarting, `play()`. (Until 1.25 the file's start behavior decided, `continue` by default.) */
     start(): void;
-    /** Lever 1 off: retires the playback per `actions["playback.stop"]` (`jumpToStart` at once, `animateToStart` — the
-     *  `returning` state —, `jumpToEnd`, `animateToEnd` after the current pass); clears a freeze. Reports `onPlaybackStop`
-     *  (on arrival for `animateToEnd`). A no-op when there is nothing to stop (`off`, or already returning).
-     *  `jumpToStart()` is the unconditional jump. */
+    /** Start or carry on — what a Play button wants (1.26): nothing while `playing`; `paused` resumes (`onPlaybackResume`);
+     *  a picture on its way back to the start (`returning`, or a `whenFinished: 'animateToStart'` return) turns around and
+     *  plays forward from where it is (`onPlaybackStart`); otherwise it starts from the start (`onPlaybackStart`). */
+    play(): void;
+    /** Ends the playback per `actions["playback.stop"]`: `jumpToStart` (default) or `animateToStart` (the `returning`
+     *  state) back to the rest pose → `off`; `jumpToEnd` / `animateToEnd` to the end of the current pass → `finished`,
+     *  then `whenFinished` applies; `animateToEndAndBack` on to the end of the pass, then backwards to the rest pose →
+     *  `off`. Clears a freeze. Reports `onPlaybackStop` — on arrival for the stops that finish the pass first. A no-op
+     *  when there is nothing to stop (`off`, `returning`). */
     stop(): void;
-    /** Lever 2 on: freezes the playback where it is — only while `playing`. Reports `onPlaybackPause`. */
+    /** Freezes the playback where it is — only while `playing`. Reports `onPlaybackPause`. */
     pause(): void;
-    /** Lever 2 off: continues the playback from the frozen frame — only while `paused`. Reports `onPlaybackResume`. */
+    /** Continues the playback from the frozen frame — only while `paused`. Reports `onPlaybackResume`. */
     resume(): void;
-    /**
-     * ONE fresh pass of the content window from the start — always, whatever is playing and whatever the document's
-     * `iterations` say (a loop-configured document plays a single pass). Re-entrant: calling it mid-pass restarts.
-     * The end pose follows `atEnd` (`'jumpToStart'` snaps back, the default holds). The one-shot behind "plays
-     * once on click". Reports `onPlaybackStart`. (`runOnce()` in 1.24.)
-     */
-    playOnce(): void;
     // ── the state ──
-    /** The one state read — the playback's state: `off` (no playback: before the first, back at the rest pose) ·
-     *  `playing` · `paused` · `finished` (reached its end and rests there, `atEnd: hold`) · `returning` (no playback,
-     *  but the picture still plays back to the rest pose — a stop or `atEnd: 'animateToStart'`) · `destroyed` (after
-     *  `destroy()`, every call a no-op). (`getPlayState()` with `idle` until 1.23.) */
+    /** The one state read — the playback's state: `off` (no playback) · `playing` · `paused` (also after a seek that was
+     *  not made while playing) · `finished` (reached its end, whatever `whenFinished` then shows — until the next start
+     *  or stop) · `returning` (no playback, but the picture still plays back to the rest pose — a stop with
+     *  `animateToStart`) · `destroyed` (after `destroy()`, every call a no-op). */
     getState(): PxPlaybackState;
     /** A playback exists: `playing` · `paused` · `finished`. */
     isActive(): boolean;
-    /** `getState() === 'playing'` — the clock moves. */
+    /** `getState() === 'playing'`. A picture moving back to the start is not playing (`returning`, or `finished`). */
     isPlaying(): boolean;
-    // ── playhead moves ──
-    /** To the rest pose NOW, whatever the settings say — `actions["playback.stop"]` is not consulted, nothing is
-     *  reported (like a seek); a freeze is cleared. WHY (`reset()` until 1.22): the action words name the destination
-     *  and the manner. */
-    jumpToStart(): void;
-    /** The end pose, no motion — the `jumpToEnd` preset as a call; arriving there runs `atEnd` (`hold` rests in the
-     *  `finished` state) and fires `onFinish`. Advanced: the end pose without the `atEnd` rule is
-     *  `setCurrentProgress(1)` while paused. */
-    jumpToEnd(): void;
     // ── content time: one pass ──
     /** CONTENT ms of ONE pass of the content window (`outTime − inTime`) — one iteration, as WAAPI's `duration`,
-     *  CSS `animation-duration` and lottie-web's `getDuration()` are. `null` before a `src` document has loaded. */
+     *  CSS `animation-duration` and lottie-web's `getDuration()` are. `null` before a document given as a URL has loaded. */
     getDuration(): number | null;
     /** The frame on screen: content ms inside the current iteration, `0..getDuration()`; a reversed pass of
      *  `alternate` counts down. `null` before ready. */
     getCurrentTime(): number | null;
-    /** Seeks inside the CURRENT iteration, ms clamped to `[0, getDuration()]` (the pass keeps its direction). Paused,
-     *  the animation shows that frame and stays — a slider steps through it this way; playing, it continues from there. */
+    /** Seeks inside the CURRENT iteration, ms clamped to `[0, getDuration()]` (the pass keeps its direction). The seek
+     *  rule: while `playing` it continues from there; otherwise the playback is `paused` at that frame. */
     setCurrentTime(time: number): void;
-    /** The same position as 0–1 of the iteration. `null` before ready. */
+    /** The position counted in iterations, in the order they play: `0.5` half-way through the first, `1.2` 20 % into the
+     *  second (an `alternate` second pass runs backwards, so that is the frame at 80 %). No upper bound on an endless
+     *  playback. `null` before ready. (0–1 of the current iteration until 1.25 — `getCurrentTime() / getDuration()`
+     *  reads that.) */
     getCurrentProgress(): number | null;
-    /** Seeks to 0–1 of the current iteration, clamped to `[0, 1]`. The twin of `getCurrentProgress`. */
+    /** Seeks to a position counted in iterations — the twin of `getCurrentProgress`: `setCurrentProgress(1.2)` is 20 % into
+     *  the second iteration. Clamped to `[0, iterations]` (no upper bound when endless); nothing wraps, so `1` is the last
+     *  frame of the first iteration. The seek rule as for `setCurrentTime`. */
     setCurrentProgress(progress: number): void;
     /** Which pass is playing, 0-based; the end of a pass belongs to it. */
     getCurrentIteration(): number;
@@ -2576,7 +2574,8 @@ export interface PxPlaybackControls {
     /** The playhead on the WHOLE playback, ms — every iteration included; 0 while the delay waits; grows without bound on
      *  an endless file. `null` before ready. */
     getTotalTime(): number | null;
-    /** Seeks on the whole playback, ms; clamped to `[0, getTotalDuration()]` (no upper bound when endless). */
+    /** Seeks on the whole playback, ms; clamped to `[0, getTotalDuration()]` (no upper bound when endless). The seek rule
+     *  as for `setCurrentTime`. */
     setTotalTime(time: number): void;
     /** The playhead as 0–1 of the whole playback (GSAP's `totalProgress`); `null` when endless or before ready. */
     getTotalProgress(): number | null;
@@ -2610,7 +2609,7 @@ export interface PxPlaybackControls {
  * @public
  */
 export interface PxAnimationPlayerApi<TRoot = unknown> {
-    /** The four buttons, the state, the playhead moves, both clocks and the speed — see {@link PxPlaybackControls}. */
+    /** The buttons, the state, the seeks, both clocks and the speed — see {@link PxPlaybackControls}. */
     readonly playback: PxPlaybackControls;
     /** Whether the document has loaded and the player is built — calls made earlier are queued. */
     isReady(): boolean;
@@ -2633,36 +2632,40 @@ export type PxAnimationPlayerHandle = Omit<PxAnimationPlayerApi, 'isReady' | 'ge
 
 
 /** The playback events the executor tells — the public callbacks' playback subset, told when the act is PERFORMED. @public @advanced */
-export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume'>;
+export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onPlaybackFinish'>;
 
 /**
  * The player's ONE executor of the buttons (dev-docs/plans/playback-layers.md, animation-state.brainstorm.md) — what
  * the triggers' event lists, the `playback` prop and the api's methods all call. It performs the timeline's `actions`
- * (`playback.start` / `playback.stop`) and `atEnd` on the engine, owns the states the engines cannot report — paused (resumable)
+ * (`playback.stop`) and `whenFinished` on the engine, owns the states the engines cannot report — paused (resumable)
  * versus off, finished, returning — and tells the playback events.
  * @public @advanced
  */
 export interface PxPlayExecutor {
-    /** off · playing · paused · finished (rests at the end — a playback that reached it, or a stop that went there) · returning. */
+    /** off · playing · paused · finished · returning — see {@link PxPlaybackControls.getState}. */
     state(): PxPlaybackState;
-    /** The configured start (`continue` / `jumpToStart` / `jumpToEnd`); a paused playback unfreezes, a returning one turns around. */
+    /** A playback from the start, in every state. */
     startPlayback(): void;
-    /** The configured stop (`jumpToStart` / `animateToStart` / `jumpToEnd` / `animateToEnd`); nothing to stop when off or returning. */
+    /** Start or carry on: resume a pause, turn a return around, start otherwise; nothing while playing. */
+    playPlayback(): void;
+    /** The configured stop (`actions["playback.stop"]`); nothing to stop when off or returning. */
     stopPlayback(): void;
     /** Freeze where it is (only while playing). */
     pausePlayback(): void;
     /** Continue from the paused position (only while paused). */
     resumePlayback(): void;
-    /** The unconditional jump to the rest pose; a freeze is cleared. */
-    jumpToStart(): void;
-    /** Play BACK to the start from where it is and rest there (a loop: to the start of its iteration) — the `returning` state. */
-    animateToStart(): void;
-    /** ONE fresh pass from the start, whatever `iterations` say; the end pose per `atEnd`. */
-    playOnce(): void;
+    /** A seek on the whole playback, ms, by the seek rule: playing keeps playing, any other state becomes paused there. */
+    seek(totalMs: number): void;
+    /** The visibility gate's closing edge, per `actions.outOfView`: `pause` pauses a playing playback, `stop` stops a playing
+     *  or finished one at once (no animated return); a return leg ends at once. Remembers what it did, for {@link returnToView}. */
+    leaveView(behavior: PxOutOfViewBehavior): void;
+    /** The gate's opening edge: undoes what {@link leaveView} did — resumes its pause, starts again after its stop — unless
+     *  something else changed the playback in between. */
+    returnToView(): void;
     /** The playback events — one set; the composed api hands the player's callbacks in. */
     setListeners(listeners: PxPlaybackListeners | undefined): void;
-    /** The engine announced its natural end (or a jump there): performs `atEnd` (hold / jumpToStart / animateToStart);
-     *  the end of an `animateToStart` leg rests at the start. The engines' `onFinish` hook calls this. */
+    /** The engine's clock reached an end (its `onFinish`): the playback's natural end (`finished`, `onPlaybackFinish`, then
+     *  `whenFinished`), or the end of a return leg (rest there). The engines' `onFinish` hook calls this. */
     onNaturalFinish(): void;
     dispose(): void;
 }

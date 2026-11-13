@@ -7,7 +7,7 @@ animation in the editor, save it as a JSON file, put the file next to your code,
 package, render the file with it. Nothing to configure.
 
 ```text
-the editor  ──save──▶  animation.json  ──import──▶  <SvgAnimationPlayer doc={animation} />
+the editor  ──save──▶  animation.json  ──import──▶  <SvgAnimationPlayer document={animation} />
 ```
 
 Everything on this page has a longer version — the [library documentation](./README.md)
@@ -56,7 +56,7 @@ src/
 A plain page without a bundler keeps it next to the HTML file instead (see
 [Plain HTML](#plain-html)).
 
-**TypeScript:** `doc` accepts a `.json` import as-is — no cast needed (the input type,
+**TypeScript:** `document` accepts a `.json` import as-is — no cast needed (the input type,
 `PxDocumentJson`, is the shape a JSON import produces; values are validated at runtime).
 Just make sure `"resolveJsonModule": true` is in your `tsconfig.json` — see
 [Installing the players › TypeScript](./installation.md#typescript).
@@ -74,7 +74,7 @@ One package, chosen by where the animation runs:
 | React Native, Expo 🧪 | `@pixodesk/svg-animator-rn` | [React Native](#react-native) |
 
 Every snippet below plays the file the way the editor saved it — the same start trigger, the same
-loop; `playUsingActionTriggers` is the word that asks for exactly that. Run your dev server as usual (`npm run dev`) and open the page.
+loop; `playerActionTriggers` is the word that asks for exactly that. Run your dev server as usual (`npm run dev`) and open the page.
 
 ## React
 
@@ -92,7 +92,7 @@ import animation from './animation.json';
 export function Hero() {
   return (
     <div style={{ width: 300, height: 300 }}>
-      <SvgAnimationPlayer doc={animation} playUsingActionTriggers />
+      <SvgAnimationPlayer document={animation} playerActionTriggers />
     </div>
   );
 }
@@ -121,7 +121,7 @@ import animation from './animation.json';
 
 <template>
   <div style="width: 300px; height: 300px">
-    <SvgAnimationPlayer :doc="animation" playUsingActionTriggers />
+    <SvgAnimationPlayer :document="animation" playerActionTriggers />
   </div>
 </template>
 ```
@@ -149,7 +149,7 @@ npm install @pixodesk/svg-animator-web
 import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 import animation from './animation.json';
 
-createSvgAnimationPlayer({ doc: animation, container: '#hero', playUsingActionTriggers: true });
+createSvgAnimationPlayer({ document: animation, container: '#hero', playerActionTriggers: true });
 ```
 
 ### Without a build step
@@ -175,7 +175,7 @@ the page, plays from disk.
 > **Example:** [`examples/get-started/html-tag`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-tag) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-tag?startScript=start&title=Get%20started%20%C2%B7%20No%20code%2C%20the%20element%20names%20the%20file)
 
 ```html
-<div data-px-animation-src="animation.json" style="width: 300px; height: 300px"></div>
+<div data-px-document="animation.json" style="width: 300px; height: 300px"></div>
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>Pixodesk.SvgAnimator.createSvgAnimationPlayersFromPage();</script>
@@ -186,7 +186,7 @@ the page, plays from disk.
 > **Example:** [`examples/get-started/html-create-animator`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20the%20player%20fetches%20the%20file)
 
 `createSvgAnimationPlayer` returns the player, so you can call `player.playback.start()`, `player.playback.pause()` and
-the rest ([the playback API](./web-player.md#the-playback-api)). With `src` it fetches
+the rest ([the playback API](./web-player.md#the-playback-api)). Given a URL as `document`, it fetches
 the file itself:
 
 ```html
@@ -194,7 +194,7 @@ the file itself:
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
-  const player = Pixodesk.SvgAnimator.create({ src: 'animation.json', container: '#hero', playUsingActionTriggers: true });
+  const player = Pixodesk.SvgAnimator.create({ document: 'animation.json', container: '#hero', playerActionTriggers: true });
 </script>
 ```
 
@@ -203,7 +203,7 @@ the file itself:
 > **Example:** [`examples/get-started/html-fetch`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-fetch) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-fetch?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20you%20fetch%20the%20file)
 
 Load the document yourself — your own `fetch`, a CMS field, a database — and hand over the
-parsed object as `doc`:
+parsed object as `document`:
 
 ```html
 <div id="hero" style="width: 300px; height: 300px"></div>
@@ -212,7 +212,7 @@ parsed object as `doc`:
 <script>
   fetch('animation.json')
     .then(response => response.json())
-    .then(doc => Pixodesk.SvgAnimator.create({ doc, container: '#hero', playUsingActionTriggers: true }));
+    .then(doc => Pixodesk.SvgAnimator.create({ document: doc, container: '#hero', playerActionTriggers: true }));
 </script>
 ```
 
@@ -221,7 +221,7 @@ parsed object as `doc`:
 > **Example:** [`examples/get-started/html-inline-json`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-inline-json) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-inline-json?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20the%20JSON%20inside%20the%20page)
 
 Nothing to fetch: paste the file's content into a `<script type="application/json">` (the browser
-does not run it), parse it, hand it over as `doc`:
+does not run it), parse it, hand it over as `document`:
 
 ```html
 <div id="hero" style="width: 300px; height: 300px"></div>
@@ -233,7 +233,7 @@ does not run it), parse it, hand it over as `doc`:
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
   const doc = JSON.parse(document.getElementById('hero-animation').textContent);
-  Pixodesk.SvgAnimator.create({ doc, container: '#hero', playUsingActionTriggers: true });
+  Pixodesk.SvgAnimator.create({ document: doc, container: '#hero', playerActionTriggers: true });
 </script>
 ```
 
@@ -261,7 +261,7 @@ import animation from './animation.json';
 export function Hero() {
   return (
     <View style={{ width: 300, height: 300 }}>
-      <SvgAnimationPlayer doc={animation} playUsingActionTriggers />
+      <SvgAnimationPlayer document={animation} playerActionTriggers />
     </View>
   );
 }

@@ -469,7 +469,47 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upPlaybackWords,
         down: downPlaybackWords,   // exactly invertible: key renames
     },
+    {
+        from: '1.25',
+        to: '1.26',
+        reason: 'State words and move words (dev-docs/plans/animation-state.feedback.2026-11-12.md): `playback.start` '
+            + 'always plays from the start, so `actions["playback.start"]` leaves the file — its default `continue` '
+            + 'becomes the new `playback.play` list for the events where the two differ (hover, click; `load` stays a '
+            + 'start), and `jumpToStart` / `jumpToEnd` become plain starts. `timeline.atEnd` → `timeline.whenFinished` '
+            + '(the playback stays finished whatever it then shows), `actions.outOfView: jumpToStart` → `stop`, and the '
+            + 'stop gains `animateToEndAndBack`.',
+        kind: PxWireStepKind.converted,
+        up: upStateAndMoveWords,
+        // no `down`: 1.25 cannot say `playback.play`, `animateToEndAndBack`, or a start that always restarts
+    },
 ];
+
+/** 1.25 → 1.26 (see the step's `reason`). Frozen at the words of the two versions — never the live constants. */
+function upStateAndMoveWords(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    renameKey(timeline, 'atEnd', 'whenFinished');
+    const actions = readObjectProp(timeline, 'actions');
+    const startWord = (actions ? slotWordOf(actions, 'playback.start') : undefined) ?? 'continue';
+    if (actions) {
+        delete actions['playback.start'];
+        renameActionValue(doc, 'outOfView', 'jumpToStart', 'stop');
+        if (Object.keys(actions).length === 0) delete timeline['actions'];
+    }
+    // a `continue` start carried on: what `playback.play` says now, for the events where a restart differs — `load`
+    // fires once, from rest, so it stays a start
+    const triggers = readObjectProp(timeline, 'actionTriggers');
+    const starts = triggers?.['playback.start'];
+    if (startWord !== 'continue' || !triggers || starts === undefined) return;
+    const events: Array<unknown> = Array.isArray(starts) ? starts : [starts];
+    const kept = events.filter(e => e === 'load');
+    const moved = events.filter(e => e !== 'load');
+    if (moved.length === 0) return;
+    triggers['playback.play'] = moved.length === 1 ? moved[0] : moved;
+    if (kept.length === 0) delete triggers['playback.start'];
+    else triggers['playback.start'] = kept.length === 1 ? kept[0] : kept;
+}
 
 /** The 1.24 → 1.25 key renames of the trigger lists and the action slots (old → new) — spelled out, never the live
  *  constants: a step is frozen at the words of its two versions. */

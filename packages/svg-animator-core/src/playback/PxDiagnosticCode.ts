@@ -56,14 +56,14 @@ export enum PxDiagnosticCode {
     buildFailed = 1001,
 
     /**
-     * The file at `src` loaded, but it is not a Pixodesk animation document.
-     * @data the `src` URL
+     * The file at the `document` URL loaded, but it is not a Pixodesk animation document.
+     * @data the URL
      */
     invalidDocumentAtSrc = 1002,
 
     /**
-     * The page could not fetch `src`. The file may be perfect — this is the request failing.
-     * @data the `src` URL · the fetch error's message
+     * The page could not fetch the `document` URL. The file may be perfect — this is the request failing.
+     * @data the URL · the fetch error's message
      */
     loadFailed = 1003,
 
@@ -233,7 +233,7 @@ export enum PxDiagnosticCode {
     playModifierIgnored = 1502,
 
     /**
-     * An imperative write call (`playback.start()`, `playback.pause()`, `playback.playOnce()`, …) landed while a declarative
+     * An imperative write call (`playback.start()`, `playback.pause()`, `playback.play()`, …) landed while a declarative
      * driver (the `playback` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and
      * the next prop change reasserts the props.
      * @data the call
@@ -247,7 +247,7 @@ export enum PxDiagnosticCode {
     callAfterDestroy = 1504,
 
     /**
-     * A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.playOnce()`,
+     * A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.play()`,
      * `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a
      * scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next
      * scroll moves it.

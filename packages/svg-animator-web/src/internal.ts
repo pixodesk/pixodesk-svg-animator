@@ -15,7 +15,7 @@
 // against the published package until it moves across. The next release drops them from there.
 // ============================================================================
 
-// The key the editor writes into every exported SVG+JS (`createSvgAnimationPlayer({"doc": …})`), so the
+// The key the editor writes into every exported SVG+JS (`bind({"document": …})`), so the
 // two sides cannot disagree about its spelling.
 export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 

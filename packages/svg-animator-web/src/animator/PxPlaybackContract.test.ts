@@ -25,7 +25,7 @@ describe('the playback contract — web engines', () => {
     afterEach(() => vi.useRealTimers());
 
     it('a negative speed plays a `reverse` pass forwards — the two multiply', () => {
-        const api = createSvgAnimationPlayer({ doc: doc({ iterationDirection: 'reverse' }), container: '#box' });
+        const api = createSvgAnimationPlayer({ document: doc({ iterationDirection: 'reverse' }), container: '#box' });
         api.playback.start();
         vi.advanceTimersByTime(400);
         const before = api.playback.getCurrentTime() ?? 0;
@@ -39,7 +39,7 @@ describe('the playback contract — web engines', () => {
     it('on a scroll timeline the playback verbs are no-ops that say so (PX1505); scroll owns the playhead', () => {
         const said: Array<PxDiagnostic> = [];
         const api = createSvgAnimationPlayer({
-            doc: doc({ type: 'scroll' }), container: '#box',
+            document: doc({ type: 'scroll' }), container: '#box',
             onWarning: d => said.push(d),
         });
         api.playback.start();

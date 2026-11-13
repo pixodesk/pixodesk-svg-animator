@@ -5,6 +5,6 @@ import animation from './animation.json';
 
 <template>
   <div style="width: 300px; height: 300px">
-    <SvgAnimationPlayer :doc="animation" playUsingActionTriggers />
+    <SvgAnimationPlayer :document="animation" playerActionTriggers />
   </div>
 </template>

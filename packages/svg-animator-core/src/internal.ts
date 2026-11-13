@@ -25,7 +25,7 @@ export { createPathSampler } from './effects/text/pathSampler';
 export { layoutGlyphTextChars, materializeGlyphText, materializeGlyphTextAlongPath } from './effects/text/textGlyphsEffect';
 export type { PxGlyphCharBox, GlyphFactory, GlyphFontsInput, GlyphMotion, GlyphPaint, GlyphPathProps, GlyphTextNode, GlyphVisibility } from './effects/text/textGlyphsEffect';
 export { extendedPathForBrowser } from './effects/text/textPathEffect';
-export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM } from './format/PxAnimatorConstants';
+export { PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM } from './format/PxAnimatorConstants';
 export type { PxAnimatable } from './format/PxAnimatorTypes';
 export { diagnoseDocument, reportDocumentDiagnostics, reportDocumentProblems } from './format/PxDocumentDiagnostic';
 // Stage-stamp plumbing for players that derive a doc from a prepared one without touching its config.
