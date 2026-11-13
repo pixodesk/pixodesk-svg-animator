@@ -4,7 +4,7 @@ import animation from './animation.json';
 export function Hero() {
   return (
     <div style={{ width: 300, height: 300 }}>
-      <SvgAnimationPlayer document={animation} playerActionTriggers />
+      <SvgAnimationPlayer document={animation} />
     </div>
   );
 }

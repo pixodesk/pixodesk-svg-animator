@@ -89,6 +89,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1503"></a>**1503** | An imperative write call (`playback.start()`, `playback.pause()`, `playback.play()`, …) landed while a declarative driver (the `playback` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
 | <a id="px1504"></a>**1504** | A call on a destroyed player — ignored; `playback.getState()` says `destroyed`. | the call |
 | <a id="px1505"></a>**1505** | A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.play()`, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next scroll moves it. | the call |
+| <a id="px1506"></a>**1506** | A playback call (`playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, a seek, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a player shown with `showAsStatic` — ignored: the picture stays as drawn. The reads still answer. | the call |
 
 ## React Native
 

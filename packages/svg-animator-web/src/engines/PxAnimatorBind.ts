@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
-import { composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, withoutTriggerDriver, PxPlaybackWrite, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
+import { applyPlaybackOverride, composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -61,17 +61,33 @@ export function finaliseAnimator(
 /**
  * Picks the engine the way the full player does, from `timeline.engine`: `player` pins the
  * frame loop; otherwise waapi, with a frames fallback for unsupported attrs unless
- * `native` demands waapi.
+ * `native` demands waapi. `mode` `static` (`showAsStatic`) builds the engine but never lets anything move it: no
+ * scroll attached, every playback call ignored with a warning (PX1506).
  */
 export function bindWithEngineChoice(
     doc: PxDocument,
     adapter?: PxPlatformAdapter,
     callbacks?: PxPlayerCallbacks,
-    rootElement?: Element | null
+    rootElement?: Element | null,
+    mode: PxControlMode = PxControlMode.actionTriggers,
 ): PxAnimationPlayerApi {
-    const animatorConfig = getAnimatorConfig(doc) || {};
     // One channel for everything this binder and the scroll driver have to say (review §5).
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
+    if (mode === PxControlMode.static) return guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false));
+    return bindEngine(doc, adapter, callbacks, rootElement, diag, true);
+}
+
+/** {@link bindWithEngineChoice}'s engine; `followScroll` false builds a scroll-driven document's engine with no scroll
+ *  attached — it rests on the static SVG, never played (the rest-pose stage). */
+function bindEngine(
+    doc: PxDocument,
+    adapter: PxPlatformAdapter | undefined,
+    callbacks: PxPlayerCallbacks | undefined,
+    rootElement: Element | null | undefined,
+    diag: ReturnType<typeof createDiagnostics>,
+    followScroll: boolean,
+): PxAnimationPlayerApi {
+    const animatorConfig = getAnimatorConfig(doc) || {};
 
     // Scroll-driven document: the playhead follows scroll position, never the wall
     // clock. One knob — `timeline.engine` — picks the row (scroll-timeline.design.md §4.0):
@@ -82,7 +98,7 @@ export function bindWithEngineChoice(
     // Triggers are inert either way (D3 — both engines warn + skip
     // `setupAnimationTriggers` for scroll docs). The animator is never `play()`ed by us
     // for custom driving; scrubbing via `setCurrentTime` holds the pose.
-    if (isScrollTimeline(animatorConfig)) {
+    if (followScroll && isScrollTimeline(animatorConfig)) {
         return guardScrollDrivenPlayback(diag, finaliseAnimator(animatorConfig, callbacks, cb => {
 
             // `pin` — hold the canvas on screen for the scrubbed stretch (`position: sticky`,
@@ -169,33 +185,51 @@ function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, a
     return api;
 }
 
+/** `showAsStatic`: the picture stays as drawn — every playback write is a no-op that says so (PX1506
+ *  `showAsStaticIgnoresCall`); the reads answer from the engine, which never moves. */
+function guardStaticPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxAnimationPlayerApi): PxAnimationPlayerApi {
+    const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.showAsStaticIgnoresCall, call);
+    const playback = api.playback;
+    playback.start = ignored(PxPlaybackWrite.start);
+    playback.play = ignored(PxPlaybackWrite.play);
+    playback.stop = ignored(PxPlaybackWrite.stop);
+    playback.pause = ignored(PxPlaybackWrite.pause);
+    playback.resume = ignored(PxPlaybackWrite.resume);
+    playback.setCurrentTime = ignored(PxPlaybackWrite.setCurrentTime);
+    playback.setCurrentProgress = ignored(PxPlaybackWrite.setCurrentProgress);
+    playback.setTotalTime = ignored(PxPlaybackWrite.setTotalTime);
+    playback.setSpeed = ignored(PxPlaybackWrite.setSpeed);
+    playback.setDurationAtSpeed = ignored(PxPlaybackWrite.setDurationAtSpeed);
+    return api;
+}
+
 /**
  * Options accepted by the pre-rendered entry points — a subset of `PxAnimationPlayerOptions`: the
- * document and the callbacks INLINE under the same names every surface uses (review §9). No
- * `adapter`: a pre-rendered SVG is by definition already in the DOM (review §25.14).
+ * document, the control options and the callbacks INLINE under the same names every surface uses (review §9). No
+ * `adapter`: a pre-rendered SVG is by definition already in the DOM (review §25.14). With no control option the
+ * document's own `timeline.actionTriggers` decide — the way the editor saved it.
  * @public
  */
-export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCallbacks {
+export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCallbacks, PxCommonControlProps {
     /**
      * The animation document. For a pre-rendered SVG this carries `animator.definitions`
      * and `animator.bindings` only — no `children`, because the elements are already
      * in the DOM. Inline only: the pre-rendered SVG carries it. (`doc` until 1.25.)
      */
     document: PxDocumentJson;
-    /**
-     * Play the way the editor saved it — the document's own `timeline.actionTriggers` decide (the
-     * Editor's SVG + JS export passes it). WITHOUT it the binding is still: the triggers are
-     * replaced by the EMPTY one (nothing starts it) and the returned api drives it (first-use review §1+2).
-     */
-    playerActionTriggers?: boolean;
 }
 
-/** The no-driver rule, on the bind path: nothing starts itself unless `playerActionTriggers` says so.
- *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimationPlayer`). */
-function docToPlay(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
-    const doc = requireDoc(options);
-    if (options.playerActionTriggers || isScrollTimeline(getAnimatorConfig(doc))) return doc;
-    return withoutTriggerDriver(doc);
+/** The document as the options' control mode plays it — the same rule as `createSvgAnimationPlayer` (core
+ *  `resolveControlMode` + `withControlMode`); a conflicting mix warns (PX1501). */
+function docToPlay(options: PxPrerenderedAnimationPlayerOptions): { doc: PxDocument; mode: PxControlMode } {
+    const control = resolveControlMode({
+        showAsStatic: options.showAsStatic, disableActionTriggers: options.disableActionTriggers, actionTriggers: options.actionTriggers,
+    });
+    const diag = createDiagnostics(options, '[PxAnimator]');
+    for (const w of control.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.controlPropsConflict, w);
+    const overridden = applyPlaybackOverride(requireDoc(options), { actionTriggers: options.actionTriggers });
+    for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
+    return { doc: withControlMode(overridden.doc, control.mode), mode: control.mode };
 }
 
 function requireDoc(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
@@ -229,8 +263,8 @@ function buildOrReport(options: PxPrerenderedAnimationPlayerOptions, build: () =
  * @public
  */
 export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
-    const doc = docToPlay(options);
-    return registered(options, callbacks => buildOrReport(options, () => bindWithEngineChoice(doc, undefined, callbacks, null)));
+    const { doc, mode } = docToPlay(options);
+    return registered(options, callbacks => buildOrReport(options, () => bindWithEngineChoice(doc, undefined, callbacks, null, mode)));
 }
 
 /**
@@ -257,9 +291,10 @@ function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callba
  * @public
  */
 export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
-    const doc = docToPlay(options);
+    const { doc, mode } = docToPlay(options);
     return registered(options, callbacks => buildOrReport(options, () => {
         const animatorConfig = getAnimatorConfig(doc) || {};
-        return finaliseAnimator(animatorConfig, callbacks, cb => createWebApiAnimator(doc, cb, null, true));
+        const api = finaliseAnimator(animatorConfig, callbacks, cb => createWebApiAnimator(doc, cb, null, true));
+        return mode === PxControlMode.static ? guardStaticPlayback(createDiagnostics(callbacks, '[PxAnimator]'), api) : api;
     }));
 }

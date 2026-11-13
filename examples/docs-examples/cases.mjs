@@ -36,8 +36,8 @@ export const CASES = [
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (playerRef)', anchor: 'imperative-api-playerref',
     summary: 'playback.start / play / pause / stop / setCurrentProgress through a ref.' },
-  { group: 'react', id: 'play-using-action-triggers', title: 'Player action triggers', anchor: 'player-action-triggers-playeractiontriggers',
-    summary: 'The component honors the document\'s own trigger.' },
+  { group: 'react', id: 'play-using-action-triggers', title: 'Action triggers — the default', anchor: 'action-triggers-actiontriggers',
+    summary: 'With no control prop the component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
     summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
   { group: 'react', id: 'declarative',     title: 'Declarative playback — playback', anchor: 'declarative-playback--playrun',
@@ -46,8 +46,8 @@ export const CASES = [
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Vue --------------------------------------------------------------------
-  { group: 'vue', id: 'play-using-action-triggers', title: 'Player action triggers', anchor: 'player-action-triggers-playeractiontriggers',
-    summary: 'The component honors the document\'s own trigger.' },
+  { group: 'vue', id: 'play-using-action-triggers', title: 'Action triggers — the default', anchor: 'action-triggers-actiontriggers',
+    summary: 'With no control prop the component honors the document\'s own trigger.' },
   { group: 'vue', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
     summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
   { group: 'vue', id: 'declarative',     title: 'Declarative playback — playback', anchor: 'declarative-playback--playrun',
@@ -59,7 +59,7 @@ export const CASES = [
 
   // -- Playback settings & triggers ---------------------------------------------
   { group: 'playback', id: 'override-web',   title: 'Overriding from the web player', anchor: 'overriding-from-a-player',
-    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; no playerActionTriggers, so only playback.start() starts it.' },
+    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; disableActionTriggers, so only playback.start() starts it.' },
   { group: 'playback', id: 'override-react', title: 'Overriding from component props', anchor: 'overriding-from-a-player',
     summary: 'The `timeline` prop merges over the document\'s block: infinite iterations, alternate direction, the js engine.' },
 

@@ -112,3 +112,63 @@ describe('PxControlProps — one driver family at a time, checked by TypeScript 
     });
 });
 
+describe('resolveControlMode — the file drives by default; showAsStatic, disableActionTriggers, actionTriggers (2026-11-13)', () => {
+
+    it('no control prop → actionTriggers: the file\'s own triggers decide', () => {
+        expect(resolveControlMode({})).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
+    });
+
+    it('showAsStatic beats every other control prop and names each one it ignores', () => {
+        const r = resolveControlMode({ showAsStatic: true, showAtProgress: 0.5, playback: 'on', disableActionTriggers: true });
+        expect(r.mode).toBe(PxControlMode.static);
+        expect(r.warnings).toEqual([
+            'showAsStatic and showAtProgress/showAtTime were both set — showAsStatic wins, showAtProgress/showAtTime is ignored.',
+            'showAsStatic and playback were both set — showAsStatic wins, playback is ignored.',
+            'showAsStatic and disableActionTriggers were both set — showAsStatic wins, disableActionTriggers is ignored.',
+        ]);
+    });
+
+    it('manual: disableActionTriggers, or actionTriggers null — the two together say one thing, no warning', () => {
+        expect(resolveControlMode({ disableActionTriggers: true }).mode).toBe(PxControlMode.manual);
+        expect(resolveControlMode({ actionTriggers: null }).mode).toBe(PxControlMode.manual);
+        expect(resolveControlMode({ disableActionTriggers: true, actionTriggers: null })).toEqual({ mode: PxControlMode.manual, warnings: [] });
+    });
+
+    it('an actionTriggers block — the empty one included — is the triggers tier', () => {
+        expect(resolveControlMode({ actionTriggers: { 'playback.start': 'click' } })).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
+        expect(resolveControlMode({ actionTriggers: {} }).mode).toBe(PxControlMode.actionTriggers);
+    });
+
+    it('disableActionTriggers beats a block; the lever beats both', () => {
+        expect(resolveControlMode({ disableActionTriggers: true, actionTriggers: { 'playback.start': 'click' } })).toEqual({
+            mode: PxControlMode.manual,
+            warnings: ['disableActionTriggers and actionTriggers were both set — disableActionTriggers wins, actionTriggers is ignored.'],
+        });
+        expect(resolveControlMode({ playback: 'on', actionTriggers: null })).toEqual({
+            mode: PxControlMode.playback,
+            warnings: ['playback and actionTriggers were both set — playback wins, actionTriggers is ignored.'],
+        });
+    });
+
+    it('a flag set to false is not given', () => {
+        expect(resolveControlMode({ showAsStatic: false, disableActionTriggers: false })).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
+    });
+
+    it('only the default mode leaves the triggers to the file', () => {
+        for (const mode of [PxControlMode.static, PxControlMode.fixedTime, PxControlMode.playback, PxControlMode.manual]) {
+            expect(controlModeTakesOverTrigger(mode)).toBe(true);
+        }
+        expect(controlModeTakesOverTrigger(PxControlMode.actionTriggers)).toBe(false);
+    });
+
+    it('the types: each new family alone compiles; mixed with another does not', () => {
+        const ok: Array<PxControlProps> = [
+            {}, { showAsStatic: true }, { disableActionTriggers: true }, { actionTriggers: null }, { actionTriggers: { 'playback.start': 'click' } },
+        ];
+        // @ts-expect-error — the still and the lever are two drivers
+        const still: PxControlProps = { showAsStatic: true, playback: 'on' };
+        // @ts-expect-error — manual and a triggers block are two drivers
+        const manual: PxControlProps = { disableActionTriggers: true, actionTriggers: { 'playback.start': 'click' } };
+        expect([ok, still, manual]).toHaveLength(3);
+    });
+});

@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxWhenFinished, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride, controlModeTakesOverTrigger } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -60,7 +60,8 @@ export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxAn
 
     /**
      * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
-     * (review §1): `playerActionTriggers` next to it still autoplays.
+     * (review §1): with no control prop beside it the file still plays as saved — add `disableActionTriggers` for
+     * code alone.
      */
     playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;
 
@@ -304,7 +305,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
  */
 export function SvgAnimationPlayer({
     document: doc, timelineOptions, actions,
-    playerActionTriggers, playback, playerRef, showAtProgress, showAtTime,
+    showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers, playerRef,
     onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
@@ -313,7 +314,7 @@ export function SvgAnimationPlayer({
     // The override props are objects: a fresh literal every render would otherwise recompile the
     // whole document (materialize + compile tracks), which is the expensive path. Key on their
     // CONTENT instead — the override is small, the document is not.
-    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, typeof playerActionTriggers === 'object' ? playerActionTriggers : null]);
+    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, actionTriggers ?? null]);
 
     // A re-created `doc` with the same content keeps the compiled tracks (core `deepEquals`, as in React and Vue).
     const docRef = useRef(doc);
@@ -338,13 +339,16 @@ export function SvgAnimationPlayer({
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAtProgress, showAtTime, playback, playerActionTriggers });
+        resolveControlMode({ showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers });
+    /** The file's triggers (or the `actionTriggers` block) are wired — load, tap, the visibility gate — only in the
+     *  default mode; every other mode leaves them to its own driver. */
+    const triggersDrive = !controlModeTakesOverTrigger(compMode);
 
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
                 toPxDocument(stableDoc),
-                { timelineOptions, actions, playerActionTriggers },
+                { timelineOptions, actions, actionTriggers },
                 compMode === PxControlMode.playback,
                 makeDiag(),
             );
@@ -357,7 +361,7 @@ export function SvgAnimationPlayer({
         }
         // `timelineOptions` / `actions` are object props, so a fresh literal each render would recompile the whole
         // document. Key on their CONTENT — the override is small, unlike the document.
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- `overrideKey` stands for `timelineOptions`, `actions` and a `playerActionTriggers` object; `makeDiag` is rebuilt per render on purpose (above)
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `overrideKey` stands for `timelineOptions`, `actions` and `actionTriggers`; `makeDiag` is rebuilt per render on purpose (above)
     }, [stableDoc, overrideKey, compMode]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
@@ -524,16 +528,22 @@ export function SvgAnimationPlayer({
     const prevPlaybackRef = useRef<{ compiled: Compiled; props: PxDeclarativeProps } | null>(null);
 
     // The ref is an ambient CAPABILITY, never a mode (§10) — but a WRITE call landing while a
-    // declarative driver owns playback is the actual collision: warn (PX1503) and apply.
+    // declarative driver owns playback is the actual collision: warn (PX1503) and apply. Under `showAsStatic` a write is
+    // ignored with a warning (PX1506), as on the web.
     useImperativeHandle(playerRef, () => {
-        const guardWrite = (call: string): void => {
+        const write = (call: string, run: () => void): void => {
+            if (compMode === PxControlMode.static) {
+                makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.showAsStaticIgnoresCall, call);
+                return;
+            }
             if (compMode === PxControlMode.playback || compMode === PxControlMode.fixedTime) {
                 makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.imperativeOverDeclarative, call);
             }
+            run();
         };
         // ONE forwarder for every wrapper (core `forwardPlaybackControls`); a write warns first when a driver prop owns playback
         return {
-            playback: forwardPlaybackControls(() => player.playback, (call, run) => { guardWrite(call); run(player.playback); }),
+            playback: forwardPlaybackControls(() => player.playback, (call, run) => write(call, () => run(player.playback))),
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `api` / `makeDiag` read callbacks and diagnostics through `latest`; the rest changes only with `compiled`
     }, [compiled, compMode]);
@@ -541,7 +551,7 @@ export function SvgAnimationPlayer({
     // -- Declarative control --------------------------------------------------
 
     // The EFFECTIVE triggers and gate, read back off the COMPILED document's runtime view — so they
-    // already reflect the `timelineOptions` / `actions` overrides and a `playerActionTriggers` object, all merged in before
+    // already reflect the `timelineOptions` / `actions` overrides and an `actionTriggers` block, all applied before
     // compilation. Resolved through core's one table, so a document means the same here as on the
     // web: no triggers block = `start: 'load'`, no `actions.outOfView` = 'pause'.
     const trigger = resolveTriggers(view?.actionTriggers);
@@ -583,9 +593,9 @@ export function SvgAnimationPlayer({
         }
         // a listed `click` starts from its own handler below, and a GATED document starts from the
         // visibility poll — calling playback.start() here as well would defeat the gate.
-        if (compMode === PxControlMode.playerActionTriggers && loadPress && !gated) loadPress();
+        if (triggersDrive && loadPress && !gated) loadPress();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, compMode, playerActionTriggers, playback, showAtProgress, showAtTime]);
+    }, [compiled, compMode, playback, showAtProgress, showAtTime]);
 
     // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
     // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled
@@ -594,7 +604,7 @@ export function SvgAnimationPlayer({
     const scrollRef = useRef<View | null>(null);
     const inViewRef = useRef(false);
     useEffect(() => {
-        if (!playerActionTriggers || !gated) return;
+        if (!triggersDrive || !gated) return;
         const threshold = gate.inViewThreshold;
         inViewRef.current = false;
         /** A `load` press is owed until the first entry; after that the executor undoes what leaving did. */
@@ -627,7 +637,7 @@ export function SvgAnimationPlayer({
         const id = setInterval(check, 200);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, playerActionTriggers, gated, gate.outOfView]);
+    }, [compiled, triggersDrive, gated, gate.outOfView]);
 
     // Stop cleanly on unmount / doc swap — and say so, the way the web's destroy() does (§18):
     // both are "the animator was thrown away", so `onDestroy` fires.
@@ -660,6 +670,8 @@ export function SvgAnimationPlayer({
             defs: getDefinitions(compiled.doc),
         };
         try {
+            // `showAsStatic`: the picture as drawn — the static tree, no animated element at all
+            if (compMode === PxControlMode.static) return renderRnNode(compiled.doc as PxNode, renderOpts);
             return renderRnNode(compiled.doc as PxNode, {
                 ...renderOpts,
                 decorate: (node, Component, staticProps, children, key) => {
@@ -707,7 +719,7 @@ export function SvgAnimationPlayer({
             return null;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, trackById]);
+    }, [compiled, trackById, compMode]);
 
     useEffect(() => {
         const diag = makeDiag();
@@ -726,7 +738,7 @@ export function SvgAnimationPlayer({
     // Hover has no touch equivalent, so `hoverIn` / `hoverOut` are left to the host app.
     let content: ReactElement | null = root;
 
-    if (playerActionTriggers && triggerListsEvent(trigger, PxTriggerEvent.click) && root) {
+    if (triggersDrive && triggerListsEvent(trigger, PxTriggerEvent.click) && root) {
         content = (
             <Pressable
                 onPress={() => {
@@ -746,7 +758,7 @@ export function SvgAnimationPlayer({
 
     // The gate measures the view, so it must survive in the native tree:
     // `collapsable={false}` keeps it there.
-    if (playerActionTriggers && gated && content) {
+    if (triggersDrive && gated && content) {
         content = <View ref={scrollRef} collapsable={false}>{content}</View>;
     }
 

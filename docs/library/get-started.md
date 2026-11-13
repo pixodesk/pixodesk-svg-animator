@@ -74,7 +74,7 @@ One package, chosen by where the animation runs:
 | React Native, Expo 🧪 | `@pixodesk/svg-animator-rn` | [React Native](#react-native) |
 
 Every snippet below plays the file the way the editor saved it — the same start trigger, the same
-loop; `playerActionTriggers` is the word that asks for exactly that. Run your dev server as usual (`npm run dev`) and open the page.
+loop. That is what a player does when you give it nothing else. Run your dev server as usual (`npm run dev`) and open the page.
 
 ## React
 
@@ -92,7 +92,7 @@ import animation from './animation.json';
 export function Hero() {
   return (
     <div style={{ width: 300, height: 300 }}>
-      <SvgAnimationPlayer document={animation} playerActionTriggers />
+      <SvgAnimationPlayer document={animation} />
     </div>
   );
 }
@@ -121,7 +121,7 @@ import animation from './animation.json';
 
 <template>
   <div style="width: 300px; height: 300px">
-    <SvgAnimationPlayer :document="animation" playerActionTriggers />
+    <SvgAnimationPlayer :document="animation" />
   </div>
 </template>
 ```
@@ -149,7 +149,7 @@ npm install @pixodesk/svg-animator-web
 import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 import animation from './animation.json';
 
-createSvgAnimationPlayer({ document: animation, container: '#hero', playerActionTriggers: true });
+createSvgAnimationPlayer({ document: animation, container: '#hero' });
 ```
 
 ### Without a build step
@@ -194,7 +194,7 @@ the file itself:
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
-  const player = Pixodesk.SvgAnimator.create({ document: 'animation.json', container: '#hero', playerActionTriggers: true });
+  const player = Pixodesk.SvgAnimator.create({ document: 'animation.json', container: '#hero' });
 </script>
 ```
 
@@ -212,7 +212,7 @@ parsed object as `document`:
 <script>
   fetch('animation.json')
     .then(response => response.json())
-    .then(doc => Pixodesk.SvgAnimator.create({ document: doc, container: '#hero', playerActionTriggers: true }));
+    .then(doc => Pixodesk.SvgAnimator.create({ document: doc, container: '#hero' }));
 </script>
 ```
 
@@ -233,7 +233,7 @@ does not run it), parse it, hand it over as `document`:
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
   const doc = JSON.parse(document.getElementById('hero-animation').textContent);
-  Pixodesk.SvgAnimator.create({ document: doc, container: '#hero', playerActionTriggers: true });
+  Pixodesk.SvgAnimator.create({ document: doc, container: '#hero' });
 </script>
 ```
 
@@ -261,7 +261,7 @@ import animation from './animation.json';
 export function Hero() {
   return (
     <View style={{ width: 300, height: 300 }}>
-      <SvgAnimationPlayer document={animation} playerActionTriggers />
+      <SvgAnimationPlayer document={animation} />
     </View>
   );
 }

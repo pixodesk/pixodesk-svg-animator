@@ -68,7 +68,7 @@ Then load it with a relative path, like any other script of yours:
   Pixodesk.SvgAnimator.createSvgAnimationPlayersFromPage(); 
 
   // programmatic
-  const a = Pixodesk.SvgAnimator.create({ document: '/bouncing-ball.json', container: '#box', playerActionTriggers: true });
+  const a = Pixodesk.SvgAnimator.create({ document: '/bouncing-ball.json', container: '#box' });
   
 </script>
 ```

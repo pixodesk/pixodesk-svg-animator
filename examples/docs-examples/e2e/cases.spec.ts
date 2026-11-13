@@ -122,7 +122,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   'react/imperative': async page => {
-    await expectFrozen(page);                       // playerRef alone = programmatic
+    await expectFrozen(page);                       // disableActionTriggers + playerRef = programmatic
     await page.click('text=playback.start()');
     await expectAnimating(page);
     await page.click('text=playback.pause()');
@@ -157,7 +157,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'vue/css-loader': async page => CHECKS['react/css-svgr'](page),
 
   'playback/override-web': async page => {
-    await expectFrozen(page);                       // no playerActionTriggers — nothing starts it but playback.start()
+    await expectFrozen(page);                       // disableActionTriggers — nothing starts it but playback.start()
     await page.click('#play');
     await expectAnimating(page);
   },

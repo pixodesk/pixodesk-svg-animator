@@ -67,13 +67,15 @@ a number when it differs — the note with that number, under the table, says ho
 | Name | Web | Tag | Pre | React | Vue | RN |
 |---|---|---|---|---|---|---|
 | **Document** | | | | | | |
-| `document` | ✓ | 1 | 2 | 12 | 12 | 12 |
+| `document` | ✓ | 1 | 2 | 11 | 11 | 11 |
 | `container` | ✓ | 3 | — | — | — | — |
 | **Playback override** | | | | | | |
 | `timelineOptions` | ✓ | — | — | ✓ | ✓ | 4 |
 | `actions` | ✓ | — | — | ✓ | ✓ | ✓ |
-| **Player action triggers** | | | | | | |
-| `playerActionTriggers` | ✓ | 10 | 11 | ✓ | ✓ | 5 |
+| **Control** — none of them: the file's own triggers drive it | | | | | | |
+| `showAsStatic` | ✓ | 10 | ✓ | ✓ | ✓ | ✓ |
+| `disableActionTriggers` | ✓ | 10 | ✓ | ✓ | ✓ | ✓ |
+| `actionTriggers` | ✓ | 10 | ✓ | ✓ | ✓ | 5 |
 | **Declarative control** | | | | | | |
 | `playback` | — | — | — | ✓ | ✓ | ✓ |
 | `showAtProgress` | — | — | — | ✓ | ✓ | ✓ |
@@ -104,17 +106,15 @@ a number when it differs — the note with that number, under the table, says ho
    already in the page.
 3. The tag is the container: the player renders into the element that carries the attribute.
 4. React Native ignores `engine` and `frameRate` inside `timelineOptions`.
-5. `true`, or the whole `actionTriggers` block to use instead of the file's (a `PxActionTriggers`); React Native ignores
-   `hoverIn` / `hoverOut`, which have no touch equivalent.
+5. The whole `actionTriggers` block to use instead of the file's (a `PxActionTriggersInput`), as everywhere; React
+   Native ignores `hoverIn` / `hoverOut`, which have no touch equivalent.
 6. The handle is what `createSvgAnimationPlayer` returns, a `PxAnimationPlayerApi`.
 7. `createSvgAnimationPlayersFromPage` returns the handles it created; `getSvgAnimationPlayer(element)` finds one later.
 8. The handle is the component's template ref, a `PxAnimationPlayerHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
-10. The tag plays on the file's own triggers — embedding a finished file IS choosing its behaviour. The call that reads
-    the tags takes the option for every player it creates: `createSvgAnimationPlayersFromPage({ playerActionTriggers })`
-    — `true` (or left out) each file's own triggers, a block instead of them, `false` to leave the driving to your code.
-11. `true` only: a pre-rendered file plays on its own triggers, or on the returned api.
-12. Required, and the document itself, never a URL — see `document` below.
+10. The tag has no attribute for it: each file plays on its own triggers. The call that reads the tags takes the
+    option for every player it creates — `createSvgAnimationPlayersFromPage({ disableActionTriggers: true })`.
+11. Required, and the document itself, never a URL — see `document` below.
 
 What some of the names mean:
 
@@ -129,15 +129,22 @@ What some of the names mean:
 - **`timelineOptions`** merges corrections over the file's timing block — `{ iterations: 'infinite' }`,
   `{ playbackSpeed: 2 }` — never a replacement; a key left out keeps the file's value (to get a default,
   set it). See [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
-- **`actions`** merges over the file's `timeline.actions` — how a stop looks, and the gate's
-  out-of-view: `{ 'playback.stop': 'animateToStart' }`. The same rules as `timelineOptions`. What the picture
-  shows once the playback is finished is a timeline key, `whenFinished`, so it travels in `timelineOptions`.
-- **`playerActionTriggers`** means "play the way the document says". The HTML tag always works this way;
-  the web player takes it as an option (`createSvgAnimationPlayer({ …, playerActionTriggers: true })`) — without
-  it, nothing starts and the returned api drives playback. An **object** instead of `true` is the whole
-  `actionTriggers` block to use in place of the file's (`{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }`).
-  Left out, the triggers do not drive — unlike `timelineOptions` and `actions`, where left out means "as the
-  file says".
+- **`actions`** is the `timeline.actions` block to use instead of the file's — how a stop looks, and the gate's
+  out-of-view: `{ 'playback.stop': 'animateToStart' }`. A replacement, not a merge: a setting left out reads its
+  default, never the file's value. What the picture shows once the playback is finished is a timeline key,
+  `whenFinished`, so it travels in `timelineOptions`.
+- **No control prop** means "play the way the document says": its own `actionTriggers` start it, on every
+  player — a file saved with `"playback.start": "load"` plays at once, a file without triggers stays still until
+  your code calls `playback.start()`.
+- **`actionTriggers`** is the whole `actionTriggers` block to use in place of the file's
+  (`{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }`) — lists left out are not listed. `null` or `{}`:
+  no triggers, the same as `disableActionTriggers`.
+- **`disableActionTriggers`** switches the file's triggers off: nothing starts by itself, your code drives it
+  through the handle (`playerRef`, the template ref, the web player's returned api).
+- **`showAsStatic`** shows the picture as drawn — nothing plays, whatever the file says: no triggers, no scroll,
+  and every playback call on the handle is ignored with a warning
+  ([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer. It beats every other
+  control prop.
 - **`playback`** is a lever: its position is held — `'off'` (no playback), `'on'` (a playback), `'paused'` (the playback,
   frozen) — and a change of position presses one built-in button: `off` → `on` is `playback.start`, `on` → `paused`
   is `playback.pause`, `paused` → `on` is `playback.resume`, anything → `off` is `playback.stop`, each done the way the file's
@@ -173,7 +180,7 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 | Name | React `SvgCssAnimationPlayer` | Vue `SvgCssAnimationPlayer` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
-| `playerActionTriggers` | ✓ the block only (no `true`); absent lists nothing — `{ 'playback.start': 'load' }` plays on load | ✓ same |
+| `actionTriggers` | ✓ — but absent lists nothing: the wrapper cannot read a file's triggers; `{ 'playback.start': 'load' }` plays on load | ✓ same |
 | `timelineOptions` | ✓ the gate numbers only: `inViewThreshold` (default `0.5`), `inViewDebounce` (default `150` ms) | ✓ same |
 | `actions` | ✓ `outOfView` only; default `'pause'` | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
@@ -182,13 +189,13 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 The props are the JSON component's names, narrowed where a class toggle can do less (React's
 `SvgCssAnimationPlayerProps` is derived from `SvgAnimationPlayerProps`, so the two cannot drift):
 
-- `playerActionTriggers` is the JSON player's block — `playback.start`, `playback.play`, `playback.stop`, `playback.pause`, `playback.resume` (derived
+- `actionTriggers` is the JSON player's block — `playback.start`, `playback.play`, `playback.stop`, `playback.pause`, `playback.resume` (derived
   when left out), each one event or a list of them, read by the same rules
   ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `'playback.pause': 'hoverOut'` pauses,
-  `'playback.stop': 'hoverOut'` stops. The block only — a script-free SVG carries no triggers the wrapper could
-  read, so there is no `true`. An **empty** block — or no prop at all — does nothing here: a wrapper
-  has no `playback.start()` to call, so a wrapper that should play on load says
-  `playerActionTriggers={{ 'playback.start': 'load' }}`.
+  `'playback.stop': 'hoverOut'` stops. A script-free SVG carries no triggers the wrapper could read, so
+  there is no file default here: an **empty** block — or no prop at all — does nothing, and a wrapper has no
+  `playback.start()` to call. A wrapper that should play on load says
+  `actionTriggers={{ 'playback.start': 'load' }}`.
 - `actions` takes only `outOfView` (`{ outOfView: 'pause' }`): an animation nobody can
   see does not run, whatever started it.
 - Accepted limits of a class toggle: a start that is not from rest restarts by remounting the content (a
@@ -201,25 +208,29 @@ The props are the JSON component's names, narrowed where a class toggle can do l
 
 ### Control modes — one rule
 
-A component can be controlled in several ways, and only one of them can be in charge. In React and
-React Native, TypeScript accepts one driver family at a time — `PxControlProps` is a union of `showAtProgress` · `showAtTime` ·
-`playback` · `playerActionTriggers`. If you set props from more than one group
-anyway (from JavaScript), the group highest in this table wins, and the player warns you
-once, naming the props and the winner. React, Vue and React Native all use the same rule from
-core (`resolveControlMode`), so they always pick the same winner:
+A player can be controlled in several ways, and only one of them can be in charge. **With no control prop
+it plays the file the way it was saved** — the file's own `actionTriggers` drive it. In React and React Native,
+TypeScript accepts one driver family at a time — `PxControlProps` is a union of `showAsStatic` ·
+`showAtProgress` · `showAtTime` · `playback` · `disableActionTriggers` · `actionTriggers`. If you set props from
+more than one group anyway (from JavaScript), the group highest in this table wins, and the player warns you
+once, naming the props and the winner ([PX1501](../diagnostics.md#the-props-a-component-was-given)). Every
+player uses the same rule from core (`resolveControlMode`), so they always pick the same winner:
 
 <!-- px-check off the mode-priority rule, prose -->
 | Priority | Mode | Chosen when | The document's triggers |
 |---|---|---|---|
-| 1 | controlled time | `showAtProgress` or `showAtTime` (`showAtProgress` wins over `showAtTime`) | switched off; the player seeks and holds |
-| 2 | playback | `playback` | switched off; `'on'` presses `playback.start`, `'off'` performs the stop action (`actions["playback.stop"]`) — it does not pause — and `'paused'` freezes the playback |
-| 3 | playerActionTriggers | `playerActionTriggers` | used, after the override |
-| 4 | static | none of the above | switched off; the first frame renders and nothing plays |
+| 1 | static | `showAsStatic` | switched off, and no scroll: the picture as drawn; every playback call on the handle is ignored ([PX1506](../diagnostics.md#the-props-a-component-was-given)) |
+| 2 | controlled time | `showAtProgress` or `showAtTime` (`showAtProgress` wins over `showAtTime`) | switched off; the player seeks and holds |
+| 3 | playback | `playback` | switched off; `'on'` presses `playback.start`, `'off'` performs the stop action (`actions["playback.stop"]`) — it does not pause — and `'paused'` freezes the playback |
+| 4 | manual | `disableActionTriggers` (or `actionTriggers: null`) | switched off; your code drives it through the handle |
+| 5 | action triggers — the default | none of the above, or an `actionTriggers` block | the file's own, or the block given — used after the override |
 
 `playerRef` is not in the table: the handle is filled in **every** mode and never changes it, so
-`<SvgAnimationPlayer document={animation} playerActionTriggers playerRef={playerRef} />` autoplays and gives you the handle.
-`playerActionTriggers: false` is not a control prop and claims nothing; `playback: 'off'` is one, and holds.
-The HTML tag is always in playerActionTriggers mode; the web player's `playerActionTriggers: true` option is the same mode.
+`<SvgAnimationPlayer document={animation} playerRef={playerRef} />` plays as the file says and gives you the handle;
+add `disableActionTriggers` when your code alone should drive. `showAsStatic={false}` and
+`disableActionTriggers={false}` claim nothing; `playback: 'off'` is a mode, and holds. The web player, the HTML
+tag (through `createSvgAnimationPlayersFromPage(options)`) and the pre-rendered `bind` take rows 1, 4 and 5 —
+`showAsStatic`, `disableActionTriggers`, `actionTriggers` (`PxCommonControlProps`) — by the same rule.
 
 ### Callbacks and diagnostics — one shape
 
@@ -292,7 +303,7 @@ severity (`onError`, `onWarning`) and read `kind` inside it to decide what to do
 | `document` | regenerate or repair the file | effects shape, unknown keys, an invalid document, no or unresolved bindings, a `scroll.subject` that is not a valid selector, a blocked SVG tag |
 | `host` | fix the page or app | no root element, a selector that matched nothing, `setAttribute` finding no element, a failed fetch |
 | `platform` | nothing — the player degraded | unsupported CSS attrs, `smoothing` needing the built-in driver, native scroll-timeline construction failing, `react-native-svg` prop limits |
-| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `actionTriggers` on a scroll timeline, a playback call on a scroll timeline (PX1505) |
+| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `actionTriggers` on a scroll timeline, a playback call on a scroll timeline (PX1505) or on a `showAsStatic` player (PX1506) |
 | `internal` | report it to us | could not build, compile or render the document; a render that threw |
 
 For example: fail a CI check on `document`, ignore `platform`, and send `internal` to your error
@@ -348,7 +359,10 @@ these are the props and calls of the players:
 |---|---|
 | `document` | one name for "which animation", on every player — a URL or the document itself on the web, the type tells them apart. `src` / `doc` until 1.25: two names for one thing, and `src` did not say what it was the source of. The name hides the browser's `window.document` only where code destructures it as `({ document })` — write `{ document: animation }` there |
 | `playerRef` | not React's `ref`: the handle is not a control mode — the drivers are the `play…` / `show…` props — and Vue and React Native carry the same name, so one word reads the same in all three |
-| `playerActionTriggers` | the player's own action triggers — the file's block, or one given instead; left out, they do not drive, which the plain `actionTriggers` would hide (beside `timelineOptions` and `actions`, where left out means "as the file says"). `playUsingActionTriggers` until 1.25 (a sentence for a name); `autoplay` before it lied for a click file (it waited) |
+| no control prop | the file drives: a player plays a file the way it was saved, the same on every surface — a bare component, `createSvgAnimationPlayer`, the page tag and the pre-rendered `bind`. Until 1.25 nothing played until a prop named the driver (`playUsingActionTriggers`); that made every surface equal when the old `autoplay` lied for a click file (it waited) — the file's own triggers make them equal with no such word |
+| `actionTriggers` | the file's own key: the prop IS a `timeline.actionTriggers` block, used instead of the file's, so it replaces it whole — the lists belong together (hover → click wants other `pause` / `stop` lists too) |
+| `disableActionTriggers` | manual gets its own flag: `actionTriggers={{}}` says the same, but alone it reads as a mistake. It names what it does to the file — the triggers are switched off — and code presses the buttons |
+| `showAsStatic` | `show…` like `showAtProgress` / `showAtTime`: it shows a picture and never plays; `static` is the SVG as drawn, `whenIdle`'s word. A pure still, not manual by another name — manual has its own spelling — so a playback call on it warns instead of moving it |
 | `playback` | one lever, three positions — `off` · `on` · `paused` (`PxPlayback`): a prop holds a position, and each change of position is exactly one button (`playback.start` · `playback.pause` · `playback.resume` · `playback.stop`). It is the media word for what it switches; `playRun` in 1.24, where "run" read as a verb. `play` / `pause` / `playState` until 1.23: two booleans had an impossible pair (`pause` without `play`), and the one word mixed the request with the readout |
 | `player.playback` | ONE home for everything a page does to the animation, so every act has one spelling: the media verbs under the noun they act on (`playback.start()`), no `…Playback` suffix on thirteen methods, and the content / at-speed pairs explain themselves (`playback.getDuration()` vs `playback.getDurationAtSpeed()`). The noun is the one media players use — "start / stop / pause / resume playback" — and `timeline.state.playback` of the layered design; `player.segment.*` can follow the same shape. Flat until 1.25 (`startPlayback()`; `startRun()` in 1.24) |
 | `playback.start()` · `playback.stop()` · `playback.pause()` · `playback.resume()` | the buttons — two for the playback, two for the freeze inside it; one family, so `resume` cannot be read as "start again". One job each: `start()` always plays from the start (until 1.25 it carried on by default), `resume()` continues a pause |
@@ -356,7 +370,7 @@ these are the props and calls of the players:
 | `"playback.start"` … in `actionTriggers` / `actions` | the file names the same act the way the handle does: `"playback.start"` ↔ `player.playback.start()`. The keys are ACTION NAMES in a registry, not fields of a structure — the VS Code settings pattern (`"editor.fontSize"`) — so the file stays one level deep, and the dot marks a built-in (`<state variable>.<verb>`), which a custom action name (layer 2) never has: the two can never collide. `start` until 1.23, `startRun` in 1.24 |
 | `whenFinished` | nobody presses the end of the playback — the clock gets there — so its rule is a timeline key beside `whenIdle`, not an `actions` slot; it names the state it governs and moves only the picture: the playback stays `finished`. `atEnd` until 1.25, `actions.finish` until 1.23 |
 | `showAtProgress` / `showAtTime` | `show…` because they show a frame and never play; ms as every time on this API (WAAPI's unit), so not `showAtMs` |
-| `timelineOptions` | not `timeline`: it is not the file's `timeline` object — two of its keys live on other props — and a prop sharing a file key's name would promise the same shape; `actions` keeps the file's name because it is a partial of that block |
+| `timelineOptions` | not `timeline`: it is not the file's `timeline` object — two of its keys live on other props — and a prop sharing a file key's name would promise the same shape; "options" also says it MERGES. `actions` and `actionTriggers` keep the file's names because each IS that block, and replaces it — one action changed against the file's others can make no sense (`actions` merged until 1.25) |
 | `suppressWarnings` / `suppressErrors` | React's own `suppressHydrationWarning` / `suppressContentEditableWarning` set the word; `muteWarn` / `muteError` until 1.15 |
 | `onPlaybackFinish` | WAAPI's word (`finish()`, `onfinish`, `playState: 'finished'`), one pair with the `finished` state; `ended` is `<video>`'s, `complete` Lottie's. The `Playback` prefix like its four siblings — a playback event, and room for segment events later. `onFinish` until 1.25 |
 | `onPlaybackStart` · `onPlaybackStop` · `onPlaybackPause` · `onPlaybackResume` | one event per button, told when the act is performed (MediaRecorder's set); noun first for events, verb first for methods. `onPlay` (until 1.23) fired for a start AND a resume. The visibility gate presses the same buttons, so its pause and stop report too (since 1.26). `onPlaybackStop` says "the stop was performed" — at once, or on arrival for the stops that finish the pass first; no `onReset` (until 1.22): it fired for a mix no page could act on; the state is `playback.getState() === 'off'` |

@@ -18,15 +18,14 @@ waits for you to call `playback.start()` — since schema 1.17 a file that plays
 an absent block no longer means load (stamped files were migrated; a hand-written file without a
 version stamp has to say it). Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
-[Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
-that `playerActionTriggers` is the only mode that uses the document's triggers — with `playback`,
-`showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
+[Triggers](./playback-and-triggers.md#triggers--when-it-plays). Remember that every control prop or option
+but `actionTriggers` switches the document's triggers off — with `showAsStatic`, `disableActionTriggers`,
+`playback`, `showAtProgress` or `showAtTime` the file's triggers are ignored. Passing `playerRef` does **not**
 change the mode.
 
-**React / Vue component with no control prop.** With none of `playerActionTriggers` / `playback` /
-`showAtProgress` / `showAtTime` set, the component deliberately renders the
-first frame and does nothing. Add `playerActionTriggers`. `playerRef` on its own is such a case: the ref is a handle, not an
-instruction, so nothing moves until you call `playback.start()` on it.
+**`showAsStatic` is set.** It shows the picture as drawn and nothing else: no triggers, no scroll, and every
+playback call is ignored with a warning ([PX1506](../diagnostics.md#the-props-a-component-was-given)). It
+beats every other control prop, so a `playback` or `actionTriggers` beside it does nothing (PX1501).
 
 **`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only
@@ -65,8 +64,12 @@ component — add `'use client'` at the top of the file that renders it.
 `playUsingActionTriggers` or `onFinish` is not an option; `timeline.atEnd` is not read.** Changed in 1.26: the
 animation is ONE option, `document` — a URL or the document itself (`createSvgAnimationPlayer({ document: '/ball.json' })`,
 `<SvgAnimationPlayer document={animation} />`, Vue `:document`; the pre-rendered `bind` takes it too), and the page
-tag is `<div data-px-document="/ball.json">` (was `data-px-animation-src`); `playUsingActionTriggers` is
-`playerActionTriggers`; `onFinish` is `onPlaybackFinish` (the Vue event `playbackFinish`, the registry event
+tag is `<div data-px-document="/ball.json">` (was `data-px-animation-src`); `playUsingActionTriggers` is gone
+(and the short-lived `playerActionTriggers` of pre-release builds): with no control prop a player plays the file's
+own triggers — drop a bare `playUsingActionTriggers`; an object is now `actionTriggers`,
+and a mount that relied on "no prop = nothing plays" adds `disableActionTriggers` (your code drives) or
+`showAsStatic` (a still). The `actions` prop now REPLACES the file's `actions` block instead of merging over it
+(the type `PxActionsOptions` is `PxActionsInput`) — pass every setting you want; `onFinish` is `onPlaybackFinish` (the Vue event `playbackFinish`, the registry event
 `playbackFinish`); `timeline.atEnd` is `timeline.whenFinished` and `PxAtEndBehavior` is `PxWhenFinished`. The three
 calls are gone: back to the rest pose is `playback.stop()`, a frame is `playback.setCurrentProgress(p)` /
 `playback.setCurrentTime(ms)`, one pass is `timelineOptions: { iterations: 1 }` and `playback.start()`.
@@ -117,7 +120,7 @@ state is `playback.getState() === 'off'`); `onWarn` is `onWarning`; the componen
 `playbackSpeed`; the action words `reset` / `rewind` are `jumpToStart` / `animateToStart` (`restart` needs no word:
 `playback.start` always plays from the start), and `stop.completeIteration: true` is `'playback.stop': 'animateToEnd'`
 (`'animateToEndAndBack'` with `rewind`); the types `PxPatch` /
-`PxTimelinePatch` / `PxActionsPatch` are `PxRecursivePartial` / `PxTimelineOptions` / `PxActionsOptions`,
+`PxTimelinePatch` / `PxActionsPatch` are `PxRecursivePartial` / `PxTimelineOptions` / `PxActionsOptions` (`PxActionsInput` since 1.26),
 and `null` no longer deletes a key — set the value you want. Stamped files are migrated on read.
 
 **`setPlaybackRate` / `jumpToFinished` is not a function.** Renamed in 1.21: `setPlaybackRate` became
@@ -127,7 +130,7 @@ position INSIDE the current iteration — the playback is `playback.getTotalTime
 `playback.getCurrentProgress()` counts iterations since 1.26 (`1.2` = 20 % into the second).
 
 **Two control props do not compile together.** Expected: `PxControlProps` takes ONE driver family at a
-time — `showAtProgress` · `showAtTime` · `playback` · `playerActionTriggers`.
+time — `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActionTriggers` · `actionTriggers`.
 Pick the one that drives; from JavaScript the highest-priority family wins with a warning (PX1501).
 
 **A JSON import is flagged on `document`.** It shouldn't be: `document` is typed `PxDocumentJson`,
@@ -152,6 +155,10 @@ path. Details in [React Native → Feature support](./react-native.md#motion-tim
 (the `playback` prop, or `playerRef`).
 
 ## Playback behavior
+
+**It plays, but I wanted it still.** Since 1.26 a player plays the file the way it was saved, with no prop.
+For a still picture pass `showAsStatic`; for a player your code starts, `disableActionTriggers` (and
+`playerRef`, or the web player's returned api).
 
 **It holds the last frame — I want it to go back to the start.** Set `timeline.whenFinished: "jumpToStart"` —
 once finished the animation jumps back to the rest pose (`"animateToStart"` plays back to it instead; the

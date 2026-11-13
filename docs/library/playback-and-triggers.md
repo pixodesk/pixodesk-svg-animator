@@ -328,7 +328,7 @@ Every warning the players give about a triggers block, by kind:
 
 An absent `actionTriggers` block and an empty one, `"actionTriggers": {}`, mean the same thing:
 nothing is listed, so nothing starts the animation until something drives it — your code's
-`playback.start()`, a component's `playback` prop, or a `playerActionTriggers` object. A file that plays by
+`playback.start()`, a component's `playback` prop, or an `actionTriggers` block given to the player. A file that plays by
 itself says so: `"actionTriggers": { "playback.start": "load" }`. The editor always writes it, and files saved before
 schema 1.17 — when an absent block still meant `load` — get the line written in when they are
 migrated. WHY: a default nobody wrote is a guess, and an absent block meaning something other than an
@@ -513,10 +513,9 @@ for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
   choice *(CSS)* or *(JS)* so you see what the script-free flavour keeps. See
   [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
 - **The CSS components** (`SvgCssAnimationPlayer` in React and Vue) take the JS component's prop
-  names, narrowed: `playerActionTriggers` as a block only (a script-free SVG carries no triggers the
-  component could read, so there is no `true`), `timelineOptions` with the two gate numbers, and
-  `actions` limited to `outOfView` — read with the same rules. An absent `playerActionTriggers`
-  lists nothing, so nothing starts without one. Accepted limits of a class toggle: a start that is not
+  names, narrowed: `actionTriggers` (the block), `timelineOptions` with the two gate numbers, and
+  `actions` limited to `outOfView` — read with the same rules. A script-free SVG carries no triggers the
+  component could read, so with no `actionTriggers` nothing starts it. Accepted limits of a class toggle: a start that is not
   from rest restarts by remounting the content (a class cannot rewind keyframes), the stop is always
   `jumpToStart`, there is no `finished` state (the class toggle does not see the CSS animation end), and
   `whenIdle` / `whenFinished` are the file's own CSS.
@@ -527,27 +526,33 @@ for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 > **Example:** [`playback/override-react`](../../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
 
 One document can play differently in each place you use it — the same file shown twice at two
-speeds, or a file that starts by itself everywhere except inside your own play/pause UI. Every
-player takes the **same three overrides**, and the file on disk is never modified:
+speeds, or a file that starts by itself everywhere except inside your own play/pause UI. With no
+option at all a player plays the file **the way it was saved**: its own `actionTriggers` start it and its
+`actions` say how a stop looks. Every player takes the **same three overrides**, and the file on disk is
+never modified:
 
 <!-- px-check off the three override props, prose — their types are checked in each player's signature block -->
 | | prop / option | what it carries |
 |---|---|---|
-| the timing | `timelineOptions` | corrections to the file's `timeline` block, minus its `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, `whenFinished`, the gate numbers — as an object shaped like the file; whoever needs more edits the document |
-| the actions | `actions` | corrections to the file's `timeline.actions`, setting by setting — `{ 'playback.stop': 'animateToStart' }` changes how a stop looks and leaves the rest as the file has it |
-| the triggers | `playerActionTriggers` | `true` plays on the file's own triggers; an **object** is the whole `actionTriggers` block to use instead — `playback.resume` included (derived when left out), so the override has the file's power. Lists left out are simply not listed, never the file's values. Left out altogether, the triggers do not drive — unlike the other two, where left out means "as the file says" |
+| the timing | `timelineOptions` | corrections to the file's `timeline` block, minus its `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, `whenFinished`, the gate numbers — as an object shaped like the file, **merged** over it; whoever needs more edits the document |
+| the actions | `actions` | the `timeline.actions` block to use **instead** of the file's — `{ 'playback.stop': 'animateToStart' }` says how a stop looks; a slot left out (`outOfView`, say) reads its default, never the file's value |
+| the triggers | `actionTriggers` | the `actionTriggers` block to use **instead** of the file's — `playback.resume` included (derived when left out), so the override has the file's power. Lists left out are simply not listed, never the file's values. `null` or `{}`: no triggers, the same as `disableActionTriggers` ([Control modes](#control-modes--who-drives-it)) |
 
 Merge or replace — the one rule for the three:
 
 <!-- px-check off merge versus replace, prose -->
 | | |
 |---|---|
-| `timelineOptions`, `actions` | **recursive partials** — objects merge key by key, values replace, a key left out changes nothing |
-| a `playerActionTriggers` object | **replaces** the file's `actionTriggers` as a whole — its lists belong together, so switching hover → click would otherwise carry the hover-era lists along |
+| `timelineOptions` | **a recursive partial** — "options": objects merge key by key, values replace, a key left out keeps the file's value |
+| `actions`, `actionTriggers` | **blocks** that replace the file's as a whole — their slots belong together: switching hover → click wants other lists too, and one action slot changed against the file's others can make no sense |
+
+So a hover file that saves `actions: { outOfView: 'continue' }`, mounted with
+`actions={{ 'playback.stop': 'animateToStart' }}`, scrolls out of view with `outOfView` at its default,
+`pause`. To keep a slot, write it in the block you pass.
 
 The prop is `timelineOptions`, not `timeline`: it is not the file's `timeline` object — two of its
 keys live on other props — and a prop that shares a file key's name would promise the same shape.
-`actions` keeps the file's name because it is a partial of that block.
+`actions` and `actionTriggers` keep the file's names because each IS that block.
 
 **Web player**
 
@@ -562,7 +567,8 @@ const a = createSvgAnimationPlayer({
   document: '/bouncing-ball.json',
   container: '#box',
   timelineOptions: { iterations: 'infinite' },
-  actions: { 'playback.stop': 'animateToEnd' },   // no `playerActionTriggers`: nothing starts until a.playback.start()
+  actions: { 'playback.stop': 'animateToEnd' },
+  disableActionTriggers: true,   // the file's triggers off: nothing starts until a.playback.start()
 });
 a.playback.start();
 a.playback.stop();   // plays on to the end of the current pass, then rests — the actions said so
@@ -571,16 +577,16 @@ a.playback.stop();   // plays on to the end of the current pass, then rests — 
 **React / Vue / React Native** — the same objects, as props:
 
 ```jsx
-// the file's triggers, looping forever
-<SvgAnimationPlayer document={animation} playerActionTriggers timelineOptions={{ iterations: 'infinite' }} />
+// the file's triggers (the default), looping forever
+<SvgAnimationPlayer document={animation} timelineOptions={{ iterations: 'infinite' }} />
 
 // these triggers instead of the file's: plays on hover-in, plays back on hover-out —
 // a hover-in on the way back turns it around
-<SvgAnimationPlayer document={animation} playerActionTriggers={{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }}
+<SvgAnimationPlayer document={animation} actionTriggers={{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }}
   actions={{ 'playback.stop': 'animateToStart' }} />
 
 // one click starts it, the next stops it
-<SvgAnimationPlayer document={animation} playerActionTriggers={{ 'playback.start': 'click', 'playback.stop': 'click' }} />
+<SvgAnimationPlayer document={animation} actionTriggers={{ 'playback.start': 'click', 'playback.stop': 'click' }} />
 
 // driven by your state — the same actions, the same settings
 <SvgAnimationPlayer document={spinner} playback={busy ? 'on' : 'off'} actions={{ 'playback.stop': 'animateToEnd' }} />
@@ -588,54 +594,81 @@ a.playback.stop();   // plays on to the end of the current pass, then rests — 
 
 ### How the merge works
 
+`timelineOptions` is the one override that merges:
+
 <!-- px-check off the merge rules, prose -->
 | | |
 | --- | --- |
-| **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them; `actions: { 'playback.stop': 'animateToStart' }` leaves the other actions alone |
+| **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
-| **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0, whenFinished: 'hold' } }`, `{ actions: { 'playback.stop': 'jumpToStart' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
-| **`actionTriggers` and `actions` are not timeline keys here** | the file nests them, the props lift them: only `playerActionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error |
+| **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0, whenFinished: 'hold' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
+| **`actionTriggers` and `actions` are not timeline keys here** | the file nests them, the props lift them: only `actionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error. Both are whole blocks, set as given (`actions` merged until 1.25) |
 | **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `whenFinished`, `delay`, `playbackSpeed`, `iterationDirection`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning |
 
-Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions, playerActionTriggers })`
-is the one implementation the web player and the three components call: the timing and the
-actions merged (`mergeAnimatorConfig`'s rules, above), then — when `playerActionTriggers` is an object —
-the `actionTriggers` block set to it as a whole. Its input is a `PxPlaybackOverrideInput` (the `timelineOptions`
-and `actions` of `PxPlaybackOverride` plus `playerActionTriggers`), its answer a `PxPlaybackOverrideResult`: the new
-document, sharing every untouched subtree, and the merge's warnings. `applyAnimatorConfig(doc, patch)`
-applies a patch to a whole document; `mergeAnimatorConfig` does the same one level down, on the
-`animator` block alone, and reports what it could and could not do in a `PxAnimatorConfigMergeResult`.
-A patch is a `PxRecursivePartial` of the wire type — every key optional at every depth, arrays and
-primitives replaced whole, no delete — so `PxAnimatorConfigPatch` patches the `animator` block,
-`PxTimelineOptions` (the `timelineOptions` prop) the timing, typed from `PxTimelineTiming` (the timeline
-minus `actionTriggers` and `actions`), and `PxActionsOptions` (the `actions` prop) the `actions` block
-(`PxActions`). WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22):
-`PxRecursivePartial` says what the type IS — the common `RecursivePartial`; the other two are the props'
-own words. `withActionTriggers(doc, triggers)` is the SET a `PxActionTriggers` block needs (an empty
-block and a replacement that drops keys are things a merge cannot say).
+Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions, actionTriggers })`
+is the one implementation the web player and the three components call: the timing merged
+(`mergeAnimatorConfig`'s rules, above), then the `actions` block and the `actionTriggers` block, each SET as a
+whole when given (`actionTriggers: null` is left to the control mode — [below](#control-modes--who-drives-it)).
+Its input is a `PxPlaybackOverrideInput` (the `timelineOptions` and `actions` of `PxPlaybackOverride` plus
+`actionTriggers`), its answer a `PxPlaybackOverrideResult`: the new document, sharing every untouched subtree,
+and the merge's warnings. `applyAnimatorConfig(doc, patch)` applies a patch to a whole document;
+`mergeAnimatorConfig` does the same one level down, on the `animator` block alone, and reports what it could
+and could not do in a `PxAnimatorConfigMergeResult`. A patch is a `PxRecursivePartial` of the wire type —
+every key optional at every depth, arrays and primitives replaced whole, no delete — so
+`PxAnimatorConfigPatch` patches the `animator` block and `PxTimelineOptions` (the `timelineOptions` prop) the
+timing, typed from `PxTimelineTiming` (the timeline minus `actionTriggers` and `actions`). `PxActionsInput`
+(the `actions` prop) is the `actions` block itself (`PxActions`), and `PxActionTriggersInput` the triggers
+block. WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until
+1.25): `PxRecursivePartial` says what the type IS — the common `RecursivePartial`; "options" is the word
+for a merge, "input" for a block taken as given. `withActionTriggers(doc, triggers)` and
+`withActions(doc, actions)` are the SETs the two blocks need (an empty block and a replacement that drops
+keys are things a merge cannot say).
 
-### A note on the components' control props
+### Control modes — who drives it
 
-When you control a component with `playback`, `showAtProgress` or `showAtTime`, the component
-ignores the triggers saved in the file: core's `withoutTriggerDriver` replaces them with an
-**empty** `actionTriggers` block, so nothing starts the animation by itself — the same patch the
-web player applies when `playerActionTriggers` is absent. Only `playerActionTriggers` mode follows the file's
-triggers. The `playback` prop presses the built-in buttons — a change of position is one press: `off` → `on`
-is `playback.start()`, `on` → `paused` is `playback.pause()`, `paused` → `on` is `playback.resume()`, anything → `off` is
-`playback.stop()` — so the file's `actions` (and the `actions` prop) still say how each move looks; a mount with
-`"off"` presses nothing, a mount with `"paused"` starts the playback frozen. Its positions are `PxPlayback`
-(`off` · `on` · `paused`). `playerRef` is not a control prop: the handle is filled in every mode and
-never changes which one you are in.
+Every player takes the same three control options — `PxCommonControlProps`: the web player's options, the
+pre-rendered `bind` and the three components alike. The components add the props that hold a position.
+**None of them set, the file plays the way it was saved**: its own `actionTriggers` start it, and your code
+can still drive it through the handle.
+
+<!-- px-check values PxControlMode pkg=core -->
+| Mode (`PxControlMode`) | Chosen by | The file's triggers | The handle (`playback.start()` …) |
+|---|---|---|---|
+| `static` | `showAsStatic` | off — and no scroll: the picture as drawn | every playback call is ignored with a warning ([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer |
+| `fixedTime` | `showAtProgress` / `showAtTime` (components) | off; the player seeks and holds that frame | works; a write warns ([PX1503](../diagnostics.md#the-props-a-component-was-given)) and the next prop change reasserts the frame |
+| `playback` | `playback` (components) | off; the lever presses the buttons | works; a write warns (PX1503) and the next prop change reasserts the lever |
+| `manual` | `disableActionTriggers` (or `actionTriggers: null`) | off — nothing starts it by itself | your code presses the buttons |
+| `actionTriggers` (default) | nothing — or an `actionTriggers` block | the file's own, or the block given | works too |
+
+When two are set at once the higher row wins — `showAsStatic` beats everything — and the player warns
+once, naming both and the winner ([PX1501](../diagnostics.md#the-props-a-component-was-given)); TypeScript
+rejects the mix on the components first. `actionTriggers={{}}` is the default mode with an empty block, so
+it does what `disableActionTriggers` does. `playerRef` (a Vue template ref, the web player's returned api)
+is not a mode: the handle is filled in every mode and never changes which one you are in, so a bare
+component with `playerRef` plays as the file says AND gives you the handle — add `disableActionTriggers`
+when your code alone should start it.
+
+The `playback` prop presses the built-in buttons — a change of position is one press: `off` → `on` is
+`playback.start()`, `on` → `paused` is `playback.pause()`, `paused` → `on` is `playback.resume()`, anything →
+`off` is `playback.stop()` — so the file's `actions` (and the `actions` prop) still say how each move looks;
+a mount with `"off"` presses nothing, a mount with `"paused"` starts the playback frozen. Its positions are
+`PxPlayback` (`off` · `on` · `paused`).
 
 **One driver family at a time.** The React and React Native components type their control props as
-`PxControlProps`, a union: `showAtProgress` · `showAtTime` · `playback` · `playerActionTriggers` —
-two families together do not compile. Vue's runtime props, or a JavaScript caller, can still pass any mix (`PxAnyControlProps`
-is every control prop, in any mix): React, Vue and React Native decide it with the same core
-function, so they always agree. `resolveControlMode` reads the props you passed and returns the mode
-that wins (`PxControlMode`), plus a ready-made [PX1501](../diagnostics.md#the-props-a-component-was-given)
-warning when they came from more than one family — also when both `showAtProgress` and `showAtTime`
-are set (`showAtProgress` wins). `controlModeTakesOverTrigger` then says whether that mode ignores the
-file's triggers — true for every mode except `playerActionTriggers`.
+`PxControlProps`, a union: `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` ·
+`disableActionTriggers` · `actionTriggers` — two families together do not compile. Vue's runtime props, the
+web player's options, or a JavaScript caller can still pass any mix (`PxAnyControlProps` is every control
+prop, in any mix): every player decides it with the same core function, so they always agree.
+`resolveControlMode` reads the props you passed and returns a `PxResolvedControlMode` — the mode that wins
+(`PxControlMode`), plus a ready-made PX1501 warning when they came from more than one family (also when both
+`showAtProgress` and `showAtTime` are set: `showAtProgress` wins). `controlModeTakesOverTrigger` then says
+whether that mode switches the file's triggers off — true for every mode except `actionTriggers`.
+`withControlMode(doc, mode)` applies it to a document, after the override so nothing re-arms what it
+switched off: `static` → `withStaticPicture(doc)` (the triggers emptied and `whenIdle: 'static'`, so the
+picture is the SVG as drawn; a scroll-driven document comes back as it is — its scroll is simply not
+attached), the other modes that take the triggers over → `withoutTriggerDriver(doc)` (an **empty**
+`actionTriggers` block; a scroll-driven document is spared), `actionTriggers` → as it is. The web player and
+the pre-rendered builds call it; the components apply their own pose rules beside it.
 
 ### For player authors — the same rules, exported
 
@@ -713,6 +746,8 @@ What the names alone do not settle — each row is a test in the packages:
 | Progress counts iterations | `playback.getCurrentProgress()` / `playback.setCurrentProgress()` and `showAtProgress`: `1.2` is 20 % into the second iteration, in play order; clamped to `0 … iterations`, no upper bound when endless; nothing wraps |
 | A negative speed multiplies with `iterationDirection` | `playback.setSpeed(-1)` plays a `reverse` pass forwards. A file's `playbackSpeed` must be positive — in a file the direction is `iterationDirection` |
 | Playback verbs do nothing on a scroll or view timeline | the scroll position owns the playhead: `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.setSpeed()` and `playback.setDurationAtSpeed()` are no-ops with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); a seek still applies until the next scroll moves it |
+| With no control prop the file drives | no `showAsStatic`, `showAt…`, `playback`, `disableActionTriggers` or `actionTriggers`: the document's own `actionTriggers` start it, on every player — a file saved with `"playback.start": "load"` plays at once, a file without triggers stays still until code calls `playback.start()` |
+| A player shown with `showAsStatic` never moves | the picture as drawn, whatever the file says: no triggers, no scroll, and `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, every seek, `playback.setSpeed()` and `playback.setDurationAtSpeed()` are no-ops with the usage warning `showAsStaticIgnoresCall` ([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer. It beats every other control prop |
 | `playback="off"` on mount does nothing | a component mounted with `playback="off"` presses no button — there is nothing to stop yet; a change from `"on"` to `"off"` stops. A mount with `"on"` starts the playback, with `"paused"` starts it frozen |
 | The gate presses the real buttons | scrolled out of view, `outOfView: 'pause'` makes the state `paused` and reports `onPlaybackPause` (`onPlaybackResume` when seen again); `'stop'` makes it `off` and reports `onPlaybackStop` (`onPlaybackStart` when it starts again). It only undoes what it did: a playback the page paused stays paused |
 

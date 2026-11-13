@@ -2,8 +2,7 @@ import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
 const animator = createSvgAnimationPlayer({
   document: '../../../../animation.json',
-  container: '#box',
-  playerActionTriggers: true,   // play the way the file says; without it, nothing starts until playback.start()
+  container: '#box',   // plays the way the file says; `disableActionTriggers: true` would wait for playback.start()
 });
 
 const $ = (id: string) => document.getElementById(id)!;

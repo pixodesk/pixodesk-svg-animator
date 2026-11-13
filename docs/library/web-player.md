@@ -71,10 +71,10 @@ comments are explanatory; JSON does not allow comments, so the real file has non
 Every matching element gets its own player (the [playback API](#the-playback-api) below):
 `createSvgAnimationPlayersFromPage()` returns the ones it created, and `getSvgAnimationPlayer(element)` finds an
 element's later. Calling `createSvgAnimationPlayersFromPage()` again only picks up elements that do not have
-a player yet, so it is safe to call after inserting new content. Its `playerActionTriggers` option
-reads as everywhere: `true` (or left out — a tag embeds a finished file) plays each file on its own
-triggers, a block replaces them for every player the call creates, `false` leaves the driving to your
-code (`getSvgAnimationPlayer(element)`).
+a player yet, so it is safe to call after inserting new content. Each file plays on its own triggers, as
+on every player; the call's options apply to every player it creates — `actionTriggers` gives them all other
+triggers, `disableActionTriggers: true` leaves the driving to your code (`getSvgAnimationPlayer(element)`),
+`showAsStatic: true` shows each picture as drawn.
 
 ### Programmatic — `createSvgAnimationPlayer(options)`
 
@@ -96,13 +96,12 @@ import animationDoc from './bouncing-ball.json';
 // queued and replayed in order once it is ready
 const player = createSvgAnimationPlayer({
   document: '/bouncing-ball.json',          // a string is always a URL
-  container: '#hero',
-  playerActionTriggers: true,               // play the way the editor saved it — the file's own triggers; without it, nothing starts
+  container: '#hero',                       // plays the way the editor saved it — the file's own triggers
   onPlaybackFinish: () => console.log('done'),
 });
 
 // or from a document object you already have — imported, fetched, or built in code
-const player2 = createSvgAnimationPlayer({ document: animationDoc, container: document.getElementById('hero'), playerActionTriggers: true });
+const player2 = createSvgAnimationPlayer({ document: animationDoc, container: document.getElementById('hero') });
 
 player.playback.start();
 ```
@@ -120,12 +119,6 @@ player.playback.start();
 function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxAnimationPlayerApi;
 
 interface PxAnimationPlayerOptions {
-    // The driver. `true` — play the way the editor saved it: the document's own `timeline.actionTriggers`
-    // start, pause and stop its playback, behind the visibility gate. An OBJECT — those triggers INSTEAD
-    // of the file's, as a whole (lists left out are not listed, never the file's).
-    // WITHOUT it the player builds still — the first frame shows, the triggers are replaced by an
-    // empty block — and the returned api (`playback.start()`, `playback.setCurrentTime()`) drives it.
-    playerActionTriggers?: boolean | PxActionTriggersInput;
     document: string | PxDocumentJson;     // a URL to fetch the JSON document from, or the document
                                            //   itself (a .json import passes as-is). `src` / `doc` until 1.25
     container?: string | Element;          // CSS selector or element to render into (its content is
@@ -143,30 +136,49 @@ interface PxAnimationPlayerOptions {
     onError?: (d: PxDiagnostic) => void;
     suppressWarnings?: boolean;  suppressErrors?: boolean;
 
+    // Control — `PxCommonControlProps`, one at a time (a mix warns, PX1501). None of them: the
+    // document's own `timeline.actionTriggers` start, pause and stop it, behind the visibility gate —
+    // the way the editor saved it — and the returned api drives it too.
+    showAsStatic?: boolean;                // the picture as drawn: nothing plays, whatever the file says — no
+                                           //   triggers, no scroll; every playback call is ignored (PX1506).
+                                           //   Beats every other option
+    disableActionTriggers?: boolean;       // manual: the file's triggers off — nothing starts by itself, the
+                                           //   returned api (`playback.start()`, `playback.setCurrentTime()`) drives it
+    actionTriggers?: PxActionTriggersInput | null; // the triggers INSTEAD of the file's, as a whole (lists
+                                           //   left out are not listed, never the file's); null or {}: none
+
     // Per-instance playback override: `PxPlaybackOverride`; the document is never modified.
-    // The merge rules: Playback settings & triggers → Overriding from a player
-    timelineOptions?: PxTimelineOptions;   // deep-merged over the document's `timeline` block —
-                                           //   same shape as the file, minus `actionTriggers` (that is
-                                           //   `playerActionTriggers`'s) and `actions`. A key left out keeps the file's value
-    actions?: PxActionsOptions;            // deep-merged over the document's `timeline.actions` — how
-                                           //   a stop looks (+ the gate's outOfView): `{ 'playback.stop': 'animateToStart' }`;
-                                           //   what a finished playback shows, `whenFinished`, is a timeline key (timelineOptions)
+    // The rules: Playback settings & triggers → Overriding from a player
+    timelineOptions?: PxTimelineOptions;   // MERGED over the document's `timeline` block — same shape as
+                                           //   the file, minus `actionTriggers` and `actions`. A key left
+                                           //   out keeps the file's value
+    actions?: PxActionsInput;              // the `timeline.actions` block INSTEAD of the file's — how a stop
+                                           //   looks (+ the gate's outOfView): `{ 'playback.stop': 'animateToStart' }`;
+                                           //   a slot left out reads its default. What a finished playback
+                                           //   shows, `whenFinished`, is a timeline key (timelineOptions)
 }
 ```
 
 By default there is nothing to configure: the player takes the window, iterations, iteration
 direction, what starts and stops the animation, how a stop looks and the engine from the
 `animator` block inside the JSON — the settings you chose in the editor. So a file plays the way
-it was designed.
+it was saved: one saved with `"playback.start": "load"` plays at once, one without triggers stays still until
+your code calls `playback.start()`.
 
-Nothing plays until a prop or option names the driver (`playerActionTriggers`, `playback`,
-`showAt…`). A file embedded with no code around it — the `<div data-px-document>` tag, the
-CSS wrapper, a standalone SVG file — has no other possible driver, so there the embedding is that
-naming and the file plays as saved.
+The control options change who drives it — one at a time
+([Control modes](./playback-and-triggers.md#control-modes--who-drives-it)):
+
+<!-- px-check off the control options, prose — their types are checked in the signature block above -->
+| Option | The player… |
+|---|---|
+| none (the default) | plays on the file's own triggers; the returned api works too |
+| `actionTriggers: { … }` | plays on these triggers instead of the file's |
+| `disableActionTriggers: true` | ignores the file's triggers — nothing starts until your code says so |
+| `showAsStatic: true` | shows the picture as drawn — nothing plays, playback calls are ignored with a warning (PX1506) |
 
 `timelineOptions` and `actions` are there for when one page needs it to play differently — the same file
 mounted twice at two speeds, or a heartbeat that should finish its beat before it stops. For your own transport
-UI there is nothing to override: just leave `playerActionTriggers` out, and nothing starts until you say so:
+UI, switch the file's triggers off, and nothing starts until you say so:
 
 ```js
 const player = createSvgAnimationPlayer({
@@ -174,6 +186,7 @@ const player = createSvgAnimationPlayer({
   container: '#box',
   timelineOptions: { iterations: 'infinite' },
   actions: { 'playback.stop': 'animateToEnd' },
+  disableActionTriggers: true,
 });
 player.playback.start();
 player.playback.stop();   // plays on to the end of the current pass, then rests
@@ -184,12 +197,12 @@ Merge or replace — the one rule for the three:
 <!-- px-check off merge versus replace, prose -->
 | | |
 |---|---|
-| `timelineOptions`, `actions` | **recursive partials** — objects merge key by key, values replace, a key left out changes nothing |
-| a `playerActionTriggers` object | **replaces** the file's `actionTriggers` as a whole — its lists belong together |
+| `timelineOptions` | **a recursive partial** — objects merge key by key, values replace, a key left out keeps the file's value |
+| `actions`, `actionTriggers` | **blocks** that replace the file's as a whole — their slots belong together; a slot left out reads its default, never the file's value |
 
-So everything you do not mention stays as the file has it; to use other triggers than the file's,
-give `playerActionTriggers` the triggers themselves —
-`playerActionTriggers: { 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }`. Full rules — what happens when
+So the timing you do not mention stays as the file has it; to use other triggers than the file's, give
+`actionTriggers` the triggers themselves —
+`actionTriggers: { 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }`. Full rules — what happens when
 the override changes the kind of timeline — are in
 [Playback settings & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 Every field and its meaning is in [Playback settings & triggers](./playback-and-triggers.md).
@@ -363,7 +376,6 @@ import doc from './bouncing-ball.json';
 createSvgAnimationPlayer({
   document: doc,
   container: '#box',
-  playerActionTriggers: true,
   onPlaybackStart:  () => {},   // a playback began — playback.start(), playback.play() from rest, a playback.start /
                                 //   playback.play trigger, the gate starting it again; a return turned around by a play
   onPlaybackResume: () => {},   // the playback carried on after a freeze — playback.resume(), playback.play(), a
@@ -386,8 +398,8 @@ createSvgAnimationPlayer({
 
 > **Example:** [`web/triggers`](../../examples/docs-examples/src/cases/web/triggers/) — `pnpm example:docs`, then open `#web/triggers`.
 
-With `playerActionTriggers`, the player listens on the rendered SVG for every event the document's
-`timeline.actionTriggers` lists — `hoverIn` / `hoverOut` (`mouseenter` / `mouseleave`), `click` — and
+By default the player listens on the rendered SVG for every event the document's
+`timeline.actionTriggers` lists (or the `actionTriggers` option's block, given instead) — `hoverIn` / `hoverOut` (`mouseenter` / `mouseleave`), `click` — and
 presses the built-in buttons by the state rule: the state picks the lists an event is read from, and the
 first list that names it wins — while playing `playback.pause` · `playback.stop` · `playback.start`; while paused
 the resume (derived unless the file names it: the counterpart of each `playback.pause` event, plus the
@@ -403,7 +415,8 @@ timeline's `actions` block. A `load` listing starts it as soon as enough of it i
 (`inViewThreshold`), and with the default out-of-view behavior `pause` it pauses while scrolled out
 of view — a real pause: `playback.getState()` reads `paused` and `onPlaybackPause` / `onPlaybackResume` report it.
 An absent block and an empty one (`{}`) both list nothing: nothing happens until you
-call `playback.start()` — a file that plays by itself says `'playback.start': 'load'`. The lists, the events and the rule are on
+call `playback.start()` — a file that plays by itself says `'playback.start': 'load'`. `disableActionTriggers` and
+`showAsStatic` empty the lists: no event starts it. The lists, the events and the rule are on
 [Playback settings & triggers → Triggers](./playback-and-triggers.md#triggers--when-it-plays).
 
 `setupAnimationTriggers(api, config)` is exported for one rare case: you have replaced the
@@ -457,8 +470,8 @@ from code — `createSvgAnimationPlayer` with a `container` always renders with 
 // Two copies of one animation on a page — no id handling needed
 import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
-createSvgAnimationPlayer({ document: doc, container: '#first', playerActionTriggers: true });
-createSvgAnimationPlayer({ document: doc, container: '#second', playerActionTriggers: true });
+createSvgAnimationPlayer({ document: doc, container: '#first' });
+createSvgAnimationPlayer({ document: doc, container: '#second' });
 ```
 
 ## Every player on the page (experimental)
@@ -538,8 +551,10 @@ once. Frameworks: the React and Vue components do this on unmount.
 The calls above are spelled out where they are used: `createSvgAnimationPlayer` and its options under
 [Programmatic](#programmatic--createsvganimationplayeroptions), the returned `PxAnimationPlayerApi` under
 [The playback API](#the-playback-api). The callbacks and diagnostics are one shape on every
-player, written out once in [the API at a glance](./README.md#the-api-at-a-glance). `PxActionTriggersInput` is the object form of
-`playerActionTriggers` — the same lists the file has, `resume` included (derived when left out). The rest:
+player, written out once in [the API at a glance](./README.md#the-api-at-a-glance). `PxActionTriggersInput` is the type of
+the `actionTriggers` option — the same lists the file has, `resume` included (derived when left out); `PxActionsInput`
+that of the `actions` option — the file's `actions` block; `PxCommonControlProps` names the three control options every
+player takes (`showAsStatic`, `disableActionTriggers`, `actionTriggers`). The rest:
 
 <!-- px-check signature pkg=web -->
 ```typescript
@@ -558,7 +573,7 @@ function getSvgAnimationPlayer(element: Element): PxAnimationPlayerApi | undefin
 // and ties the disposer to `destroy()`. Use it after you have replaced the rendered SVG
 // yourself (the player's listeners went with the old elements). `config` is the document's
 // runtime view — `getAnimatorConfig(doc)` from core: the triggers, the actions and the gate
-// numbers. To change the triggers, use `playerActionTriggers`. Returns a DISPOSER that detaches
+// numbers. To change the triggers, use the `actionTriggers` option. Returns a DISPOSER that detaches
 // everything this call attached — call it before re-arming an element you wired by hand, or
 // the old listeners stay live next to the new ones. `diag` is optional: omit it and anything
 // this has to say goes to the console.
@@ -594,9 +609,11 @@ page. The `<script>` builds put a smaller set of functions on one global, `windo
 | `index.prerendered.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `bind(options: PxPrerenderedAnimationPlayerOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
 | `index.prerendered-waapi.umd.min.js` | the same with engine `native` — the smallest build | the same as the line above |
 
-`PxPrerenderedAnimationPlayerOptions` is `{ document: PxDocumentJson, playerActionTriggers?: boolean }` plus the
-inline callbacks (`doc` until 1.25). Its `document` carries only `animator.definitions` and `animator.bindings` — the
-SVG is already in the page — and it is not validated. It is inline only: there is no URL form.
+`PxPrerenderedAnimationPlayerOptions` is `{ document: PxDocumentJson }` plus the three control options
+(`showAsStatic`, `disableActionTriggers`, `actionTriggers` — `PxCommonControlProps`) and the inline callbacks (`doc`
+until 1.25). With no control option the file's own triggers play it, as the editor's SVG + JS export expects. Its
+`document` carries only `animator.definitions` and `animator.bindings` — the SVG is already in the page — and it is
+not validated. It is inline only: there is no URL form.
 
 <!-- px-check signature pkg=web -->
 ```typescript
@@ -631,8 +648,8 @@ there and `bindSvgAnimationPlayer` the member `bind`; ESM and CJS consumers impo
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics every player shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |
 | `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerEvent`, `PxTriggerEvents`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle` | ● named wire values — one const per wire enum, with the string type derived from it under the same name (`PxTriggerEvent.click` and `"playback.start"?: PxTriggerEvents` come from one import). `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxFillMode` is the engines' CSS-style fill mode derived from `whenIdle` + `whenFinished`, not a wire key |
 | `PxDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxActionTriggers`, `PxActions`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [the JSON format](../format/README.md#schema-at-a-glance) |
-| `PxAnimationPlayerOptions`, `PxPageAnimationPlayerOptions`, `PxAnimationPlayerApi`, `PxPlaybackControls`, `PxAnimationPlayerCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxTimelineOptions`, `PxTimelineTiming`, `PxActionsOptions`, `PxPlatformAdapter` (`/engine`) | ● companion types of the calls above. `PxTimelineTiming` is the timeline minus its `actionTriggers` and `actions`; `PxTimelineOptions` (the `timelineOptions` option) is its recursive partial, `PxActionsOptions` (the `actions` option) that of the `actions` block |
-| `PxPlaybackOverrideInput`, `PxPlayExecutor` | ○ the override as `applyPlaybackOverride` reads it (`timelineOptions`, `actions` + the object form of `playerActionTriggers`), and the player's one executor of the built-in actions — [Playback settings & triggers → For player authors](./playback-and-triggers.md#for-player-authors--the-same-rules-exported) |
+| `PxAnimationPlayerOptions`, `PxPageAnimationPlayerOptions`, `PxAnimationPlayerApi`, `PxPlaybackControls`, `PxAnimationPlayerCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxCommonControlProps`, `PxTimelineOptions`, `PxTimelineTiming`, `PxActionsInput`, `PxPlatformAdapter` (`/engine`) | ● companion types of the calls above. `PxCommonControlProps` is the three control options (`showAsStatic`, `disableActionTriggers`, `actionTriggers`); `PxTimelineTiming` is the timeline minus its `actionTriggers` and `actions`; `PxTimelineOptions` (the `timelineOptions` option) is its recursive partial, `PxActionsInput` (the `actions` option) the whole `actions` block |
+| `PxPlaybackOverrideInput`, `PxPlayExecutor` | ○ the override as `applyPlaybackOverride` reads it (`timelineOptions`, `actions` + `actionTriggers`), and the player's one executor of the built-in actions — [Playback settings & triggers → For player authors](./playback-and-triggers.md#for-player-authors--the-same-rules-exported) |
 
 **Core only**: `prepareDocument` / `nestAnimatorTimeline`, the engine rules
 (`resolveTimelineEngine`, …) and the scroll maths.

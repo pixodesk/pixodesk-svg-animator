@@ -103,7 +103,6 @@ export default function App() {
                         key={sampleIdx + '|' + loopMode}
                         document={doc}
                         timelineOptions={loopTimeline(loopMode)}
-                        playerActionTriggers
                         playerRef={api}
                     />
                 </View>

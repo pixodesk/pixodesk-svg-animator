@@ -2,6 +2,14 @@
 
 Status **2026-10-28 — layers 0–1 implemented** (schema 1.10; see [Implementation log](#implementation-log-2026-10-28)).
 
+> **Since 2026-11-13 (owner decision; unpublished 1.26) — a player plays the way the file was saved.** With no control
+> prop every surface plays on the document's own `actionTriggers` (the old "nothing plays until a prop names the
+> driver" rule is reversed). The driver prop (`playOnTrigger` here; `playUsingActionTriggers`, then `playerActionTriggers`)
+> is REMOVED: `actionTriggers` gives a whole block instead of the file's (`null` / `{}` = none), `disableActionTriggers`
+> is manual (code presses the buttons), `showAsStatic` is the picture as drawn (playback calls ignored, PX1506). The
+> `actions` prop now REPLACES the file's `actions` block (a slot left out reads its default; type `PxActionsInput`);
+> `timelineOptions` still merges. See `component-api.md` (top note) and `docs/library/playback-and-triggers.md`.
+
 > **Since 1.24–1.25 (2026-11-11) — the playback model.** The words below moved; this document keeps the ones it was written
 > with (`animation-state.brainstorm.md` §0 and `animation-state.playback-noun.md` are the ledger; 1.24 spelt the
 > noun `Run`; `animation-state.playback-namespace.md` moved the handle under `player.playback`). File `actionTriggers` /
@@ -225,7 +233,8 @@ setting. 1.12 dropped the toggle sugar — the lists spell the toggles; 1.13 ren
 The lid: hover in opens it; hover out lets it finish opening, then plays it back closed. Scrolled
 away, it goes back to the start; it counts as seen once a quarter of it is on screen.
 
-**From the app:** the `actions` prop MERGES over the file's `actions` (`null` deletes a key); the
+**From the app:** the `actions` prop MERGES over the file's `actions` (`null` deletes a key — since 2026-11-13 it
+REPLACES the whole block); the
 `timelineOptions` prop merges over the timing. Whoever calls an action — a trigger, the `play` prop, `stop()`
 — gets the same settings:
 
@@ -567,7 +576,8 @@ behaviour. It is a rename and a regroup, plus two additions in layer 0:
   which carries `triggers` and `actions` as blocks (as it carries `trigger` today), defaulted by
   `resolveTriggers` / `resolveActions`; the executor reads `actions.start.transition` and the like; the
   toggles expand in `resolveTriggers`. The engines and the state rule are untouched.
-- **Surfaces:** the components and the web player take `actions` (a merge, `PxActionsPatch`); the
+- **Surfaces:** the components and the web player take `actions` (a merge, `PxActionsPatch`; a replacement,
+  `PxActionsInput`, since 2026-11-13); the
   `timeline` prop's type omits `triggers` and `actions`; `playOnTrigger` takes `boolean | PxTriggers`;
   the CSS components as in layer 1.
 - **Docs and examples:** the vocabulary page first, then every guide, README and example, as with D5.

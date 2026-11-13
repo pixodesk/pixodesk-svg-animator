@@ -15,4 +15,4 @@ const doc = {
   },
 };
 
-createSvgAnimationPlayer({ document: doc as any, container: '#box', playerActionTriggers: true });
+createSvgAnimationPlayer({ document: doc as any, container: '#box' });   // the document's own triggers drive it

@@ -1,4 +1,4 @@
-import type { PxActionsOptions, PxDocument, PxTimelineOptions, PxActionTriggers } from '@pixodesk/svg-animator-web';
+import type { PxActionsInput, PxDocument, PxTimelineOptions, PxActionTriggers } from '@pixodesk/svg-animator-web';
 
 /**
  * A framework-agnostic handle over a mounted animation player.
@@ -49,10 +49,11 @@ export interface PlayerOptions {
    */
   timelineOptions?: PxTimelineOptions;
   /**
-   * A merge over the document's `animator.timeline.actions`: the gate's `outOfView` behavior of
-   * custom triggers. When omitted, the document's own actions are used unchanged.
+   * The `animator.timeline.actions` block to use instead of the document's (a replacement — a setting left
+   * out reads its default): the gate's `outOfView` behavior of custom triggers. When omitted, the
+   * document's own actions are used unchanged.
    */
-  actions?: PxActionsOptions;
+  actions?: PxActionsInput;
   /**
    * Trigger handling:
    *  - `undefined`  → programmatic (the UI transport owns start; default);
@@ -62,18 +63,23 @@ export interface PlayerOptions {
   actionTriggers?: 'file' | PxActionTriggers;
 }
 
+/** One control family at a time — a union, so it spreads into a component's one-family `PxControlProps` too. */
+export type PlayerControlOptions =
+  | { disableActionTriggers: true }
+  | { actionTriggers: PxActionTriggers }
+  | Record<never, never>;
+
 /**
- * The `playerActionTriggers` option / prop every player takes, from the {@link PlayerOptions.actionTriggers}
+ * The control options every player takes (`PxCommonControlProps`), from the {@link PlayerOptions.actionTriggers}
  * choice. Shared by all three player adapters so "Use trigger" behaves identically everywhere:
- *  - default (no `actionTriggers`) → absent: the player builds STILL and the transport buttons own
- *    start — the document's own triggers are replaced by an empty block, so nothing starts it by
- *    itself (the web player's rule for a missing `playerActionTriggers`, and the components' static mode);
- *  - `'file'`                → `true`: the document's own triggers drive;
- *  - a config object         → those triggers, as a whole, instead of the document's.
+ *  - default (no `actionTriggers`) → `disableActionTriggers`: the document's own triggers are switched off and
+ *    the transport buttons own start — nothing starts it by itself;
+ *  - `'file'`                → none: the document's own triggers drive (every player's default);
+ *  - a config object         → `actionTriggers`: those triggers, as a whole, instead of the document's.
  */
-export function playerActionTriggersFor(opts?: PlayerOptions): boolean | PxActionTriggers | undefined {
+export function controlOptionsFor(opts?: PlayerOptions): PlayerControlOptions {
   const t = opts?.actionTriggers;
-  return t === undefined ? undefined : t === 'file' ? true : t;
+  return t === undefined ? { disableActionTriggers: true } : t === 'file' ? {} : { actionTriggers: t };
 }
 
 /** Translates a {@link LoopMode} into an `iterations` override (or `undefined` for `auto`). */

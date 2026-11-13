@@ -20,7 +20,7 @@ describe("ReactAnimator", () => {
     });
 
     it("renders and animates", async () => {
-        render(<SvgAnimationPlayer document={getTestJson()} playerActionTriggers />);
+        render(<SvgAnimationPlayer document={getTestJson()} />);
 
         const ellipse = document.querySelector("ellipse");
         expect(ellipse).not.toBeNull();

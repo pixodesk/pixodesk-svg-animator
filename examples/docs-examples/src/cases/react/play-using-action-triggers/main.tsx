@@ -4,6 +4,7 @@ import animation from '../../../fixtures/animation.json';
 
 createRoot(document.getElementById('root')!).render(
   <div className="stage">
-    <SvgAnimationPlayer document={animation as any} playerActionTriggers />
+    {/* no control prop: the document's own trigger plays it — here, start on load */}
+    <SvgAnimationPlayer document={animation as any} />
   </div>
 );

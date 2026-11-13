@@ -18,7 +18,8 @@ import animation from './animation.json';
 </script>
 
 <template>
-  <SvgAnimationPlayer :document="animation" playerActionTriggers />
+  <!-- plays the way the file was saved -->
+  <SvgAnimationPlayer :document="animation" />
 </template>
 ```
 
@@ -28,28 +29,33 @@ component itself — see the props table); the SVG keeps its proportions.
 
 ## Control modes
 
-Three driver families: `playerActionTriggers` (the document's triggers, or ones you pass), `playback`
-(your state — `off` · `on` · `paused`), `showAtProgress` / `showAtTime` (your position). Set props from more
-than one group and the highest-priority one wins — `showAtProgress` → `showAtTime` → `playback`
-→ `playerActionTriggers` — and the
-component warns, naming both props and the winner ([PX1501](../diagnostics.md#the-props-a-component-was-given)). The template ref is not a mode: it is
-available in every mode and never changes which one you are in. React, Vue and React Native all
-resolve this the same way, from one rule in core.
+With no control prop the component plays the file **the way it was saved** — its own `actionTriggers` start
+it (on load, on hover, on click), behind the visibility gate; a file without triggers stays still until your
+code starts it. The control props change who drives it:
 
-Nothing plays until a prop or option names the driver (`playerActionTriggers`, `playback`,
-`showAt…`). A file embedded with no code around it — the `<div data-px-document>` tag, the
-CSS wrapper, a standalone SVG file — has no other possible driver, so there the embedding is that
-naming and the file plays as saved.
+<!-- px-check off the control props, prose — their types are checked under Props -->
+| Prop | Mode | Who drives it |
+|---|---|---|
+| none (the default) | `actionTriggers` | the file's own triggers — and the template ref, if you take one |
+| `:actionTriggers="{ … }"` | `actionTriggers` | these triggers instead of the file's |
+| `disableActionTriggers` | `manual` | your code, through the template ref — the file's triggers are off |
+| `:playback="'off' \| 'on' \| 'paused'"` | `playback` | your state |
+| `:showAtProgress` / `:showAtTime` | `fixedTime` | your position — one frame, held |
+| `showAsStatic` | `static` | nobody — the picture as drawn |
 
-In every mode but `playerActionTriggers` the file's own triggers are switched off — core's
-`withoutTriggerDriver` replaces them with an empty block, so nothing starts the animation by
-itself ([a note on the control props](./playback-and-triggers.md#a-note-on-the-components-control-props)).
+Set more than one and the highest-priority one wins — `showAsStatic` → `showAtProgress` → `showAtTime` →
+`playback` → `disableActionTriggers` → `actionTriggers` — and the component warns, naming both props and the
+winner ([PX1501](../diagnostics.md#the-props-a-component-was-given)). In every mode but the default the
+file's own triggers are switched off
+([Control modes — who drives it](./playback-and-triggers.md#control-modes--who-drives-it)). The template ref
+is not a mode: it is available in every mode and never changes which one you are in. React, Vue and React
+Native all resolve this the same way, from one rule in core.
 
-### Player action triggers (`playerActionTriggers`)
+### Action triggers (`actionTriggers`)
 
 > **Example:** [`vue/play-using-action-triggers`](../../examples/docs-examples/src/cases/vue/play-using-action-triggers/) — `pnpm example:docs`, then open `#vue/play-using-action-triggers`.
 
-The simplest mode: the component starts the animation the way the file says it should — on
+The default — no prop needed: the component starts the animation the way the file says it should — on
 load, on hover, on click — once enough of it is on screen.
 
 ```vue
@@ -59,33 +65,46 @@ import animation from './animation.json';
 </script>
 
 <template>
-  <SvgAnimationPlayer :document="animation" playerActionTriggers />
+  <SvgAnimationPlayer :document="animation" />
 </template>
 ```
 
-`playerActionTriggers` alone uses the triggers saved in the document — their event lists and the
-visibility gate ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)).
-Bind an **object** instead and that is the whole `actionTriggers` block to use for this mount — a
-replacement, not a merge: the lists you leave out are simply not listed, never the file's values.
-How each action looks stays in the file's `actions`, which the `actions` prop adjusts — see
-[Playback overrides](#playback-overrides).
+It uses the triggers saved in the document — their event lists and the visibility gate
+([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)). Bind `actionTriggers` and
+that is the whole block to use for this mount instead — a replacement, not a merge: the lists you leave out
+are simply not listed, never the file's values. `:actionTriggers="null"` lists nothing, the same as
+`disableActionTriggers`. How each action looks stays in the file's `actions`, which the `actions` prop
+replaces — see [Playback overrides](#playback-overrides).
 
 ```vue
 <template>
   <!-- plays while hovered; when the pointer leaves it plays on to the end of the current pass, then rests
        (`playback.play` carries on — a hover-in on the way to the end does not restart it) -->
   <SvgAnimationPlayer :document="animation"
-    :playerActionTriggers="{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }"
+    :actionTriggers="{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }"
     :actions="{ 'playback.stop': 'animateToEnd' }" />
 
   <!-- a click toggles off → playing → paused → playing (the state rule picks the list) -->
-  <SvgAnimationPlayer :document="animation" :playerActionTriggers="{ 'playback.play': 'click', 'playback.pause': 'click' }" />
+  <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'playback.play': 'click', 'playback.pause': 'click' }" />
 
   <!-- a click starts it, the next click stops it -->
-  <SvgAnimationPlayer :document="animation" :playerActionTriggers="{ 'playback.start': 'click', 'playback.stop': 'click' }" />
+  <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'playback.start': 'click', 'playback.stop': 'click' }" />
 
   <!-- every click plays it from the start — also while it plays -->
-  <SvgAnimationPlayer :document="animation" :playerActionTriggers="{ 'playback.start': 'click' }" />
+  <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'playback.start': 'click' }" />
+</template>
+```
+
+### The picture as drawn (`showAsStatic`)
+
+`showAsStatic` shows the SVG as drawn and nothing else, whatever the file says: no triggers, no scroll, and
+every playback call on the template ref is ignored with a warning
+([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer. It beats every other
+control prop — for a thumbnail, or a reduced-motion setting:
+
+```vue
+<template>
+  <SvgAnimationPlayer :document="animation" :showAsStatic="prefersReducedMotion" />
 </template>
 ```
 
@@ -127,8 +146,8 @@ is recreated. The read twins on the template ref are `playback.getCurrentProgres
 **`playback` names a position, not a command** — a lever your app holds: `'off'` (no playback), `'on'`
 (a playback) or `'paused'` (the playback, frozen). A change of position presses one of the built-in buttons —
 `off` → `on` is `playback.start()`, `on` → `paused` is `playback.pause()`, `paused` → `on` is `playback.resume()`, anything
-→ `off` is `playback.stop()` — and HOW a stop looks is the file's `actions` block, which the
-`actions` prop adjusts and which the triggers and the ref honour too
+→ `off` is `playback.stop()` — and HOW a stop looks is the file's `actions` block (or the one the
+`actions` prop gives instead), which the triggers and the ref honour too
 ([Actions — how a stop looks](./playback-and-triggers.md#actions--how-a-stop-looks)).
 `playback` `'off'` performs the **stop** action (`actions["playback.stop"]`: `jumpToStart`, `animateToStart`,
 `jumpToEnd`, `animateToEnd` or `animateToEndAndBack`) — it does not pause; freeze with `'paused'`.
@@ -176,7 +195,9 @@ written out on the [React page](./react.md#declarative-playback--playback); the 
 
 > **Example:** [`vue/imperative`](../../examples/docs-examples/src/cases/vue/imperative/) — `pnpm example:docs`, then open `#vue/imperative`.
 
-The component exposes the playback API on its template ref, so it is available in every mode:
+The component exposes the playback API on its template ref, so it is available in every mode.
+`disableActionTriggers` switches the file's own triggers off, so your buttons alone drive it; leave it out and
+the ref works beside the file's triggers:
 
 ```vue
 <script setup lang="ts">
@@ -187,7 +208,7 @@ const player = ref<PxAnimationPlayerHandle | null>(null);
 </script>
 
 <template>
-  <SvgAnimationPlayer :document="animation" ref="player" />
+  <SvgAnimationPlayer :document="animation" disableActionTriggers ref="player" />
   <button @click="player?.playback.play()">Play</button>
   <button @click="player?.playback.pause()">Pause</button>
   <button @click="player?.playback.stop()">Stop</button>
@@ -231,8 +252,8 @@ nothing. `playback.stop()` runs the file's stop action and emits `playbackStop`.
 whose component has unmounted is ignored ([PX1504](../diagnostics.md)); `playback.getState()` then says
 `'destroyed'`.
 
-With none of `playerActionTriggers` / `showAtProgress` / `showAtTime` / `playback` set, the first
-frame renders statically and the ref is your only control.
+With `disableActionTriggers` the ref is your only control; with no control prop at all it works beside the
+file's own triggers.
 
 ## Playback overrides
 
@@ -243,39 +264,39 @@ the document you passed is never modified:
 - `timelineOptions` — corrections to the file's `animator.timeline` block, minus its `actionTriggers`
   and `actions`: an object shaped like the file — `iterations`, `delay`, `playbackSpeed`, the gate
   numbers; whoever needs more edits the document.
-- `actions` — corrections to the file's `timeline.actions`: `{ 'playback.stop': 'animateToStart' }` changes how a stop
-  looks and leaves every other setting as the file has it.
-- `playerActionTriggers` — `true` plays on the file's triggers; an object is the whole `actionTriggers` block
-  to use instead ([Player action triggers](#player-action-triggers-playeractiontriggers)). To have your
-  code drive instead, pass no control prop at all — the file's triggers are then switched off and the template ref
-  is the driver.
+- `actions` — the `timeline.actions` block to use instead of the file's: `{ 'playback.stop': 'animateToStart' }`
+  says how a stop looks; a setting left out reads its default, never the file's value.
+- `actionTriggers` — the whole `actionTriggers` block to use instead of the file's
+  ([Action triggers](#action-triggers-actiontriggers)). To have your code drive instead, pass
+  `disableActionTriggers` — the file's triggers are then switched off and the template ref is the driver.
 
 Merge or replace — the one rule for the three:
 
 <!-- px-check off merge versus replace, prose -->
 | | |
 |---|---|
-| `timelineOptions`, `actions` | **recursive partials** — objects merge key by key, values replace, a key left out changes nothing |
-| a `playerActionTriggers` object | **replaces** the file's `actionTriggers` as a whole — its lists belong together |
+| `timelineOptions` | **a recursive partial** — objects merge key by key, values replace, a key left out keeps the file's value |
+| `actions`, `actionTriggers` | **blocks** that replace the file's as a whole — their settings belong together |
 
 ```vue
 <template>
   <!-- The file loops twice and plays on load; here it loops forever and waits for playback.start() —
-       without `playerActionTriggers` the file's triggers are switched off, so only your code starts it. -->
-  <SvgAnimationPlayer :document="animation" :timeline-options="{ iterations: 'infinite' }" ref="anim" />
+       `disableActionTriggers` switches the file's triggers off, so only your code starts it. -->
+  <SvgAnimationPlayer :document="animation" :timeline-options="{ iterations: 'infinite' }" disableActionTriggers ref="anim" />
 
   <!-- These triggers instead of the file's, and a smooth retreat on hover-out (a hover-in on the way back turns it around) -->
   <SvgAnimationPlayer :document="animation"
-    :playerActionTriggers="{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }"
+    :actionTriggers="{ 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }"
     :actions="{ 'playback.stop': 'animateToStart' }" />
 </template>
 ```
 
-There is no delete: a key you leave out keeps the file's value. To get a default back, set it
-(`:timeline-options="{ delay: 0 }"`).
+There is no delete in `timelineOptions`: a key you leave out keeps the file's value. To get a default back, set
+it (`:timeline-options="{ delay: 0 }"`). `actions` works the other way: it is the whole block, so a setting you
+leave out reads its default, not the file's value — write every setting you want kept.
 
-`actionTriggers` and `actions` are not keys of `timelineOptions` — only `playerActionTriggers` carries triggers
-and only `actions` the action settings, so every key is reachable exactly one way. The out-of-view
+`actionTriggers` and `actions` are not keys of `timelineOptions` — only the `actionTriggers` prop carries
+triggers and only `actions` the action settings, so every key is reachable exactly one way. The out-of-view
 behavior goes in `actions` (`:actions="{ outOfView: 'continue' }"`); the gate
 numbers `inViewThreshold` and `inViewDebounce` are timeline keys and go in `timelineOptions`
 ([the visibility gate](./playback-and-triggers.md#whether-it-may-run--the-visibility-gate)).
@@ -301,16 +322,23 @@ inheritance cover those:
 const SvgAnimationPlayer: DefineComponent<{
     document: PxDocumentJson;             // required — the animation; a .json import passes as-is (inline only)
 
-    // Playback override — deep-merged over the file (Playback overrides above)
-    timelineOptions?: PxTimelineOptions;  // the timing: the `timeline` block minus `actionTriggers` and `actions`
-    actions?: PxActionsOptions;           // how a stop looks (+ the gate's outOfView): { 'playback.stop': 'animateToStart' };
-                                          //   what shows once finished is a timeline key — timelineOptions: { whenFinished: 'jumpToStart' }
+    // Playback override (Playback overrides above)
+    timelineOptions?: PxTimelineOptions;  // the timing: the `timeline` block minus `actionTriggers` and `actions` —
+                                          //   MERGED over the file's
+    actions?: PxActionsInput;             // the file's `actions` block, REPLACED — how a stop looks (+ the gate's
+                                          //   outOfView): { 'playback.stop': 'animateToStart' }; a setting left out reads
+                                          //   its default. What shows once finished is a timeline key —
+                                          //   timelineOptions: { whenFinished: 'jumpToStart' }
 
-    // Control — the highest-priority one that is set picks the mode (Control modes above)
-    playerActionTriggers?: boolean | PxActionTriggersInput; // true: the file's own triggers; an object: these triggers instead —
+    // Control — the highest-priority one that is set picks the mode (Control modes above); none of
+    // them = the file's own triggers drive it
+    showAsStatic?: boolean;               // the picture as drawn: nothing plays, no scroll; playback calls on the
+                                          //   ref are ignored (PX1506). Beats every other control prop
+    disableActionTriggers?: boolean;      // manual: the file's triggers off — your code drives it through the ref
+    actionTriggers?: PxActionTriggersInput | null; // these triggers INSTEAD of the file's —
                                           //   { "playback.start", "playback.play", "playback.stop", "playback.pause", "playback.resume" },
                                           //   each one event or a list of the events that list may name ('load' | 'hoverIn' |
-                                          //   'hoverOut' | 'click'); playback.resume is derived when left out
+                                          //   'hoverOut' | 'click'); playback.resume is derived when left out. null or {}: none
     playback?: 'off' | 'on' | 'paused';    // a LEVER (`PxPlayback`): a change of position presses one button — off → on
                                           //   playback.start(), on → paused playback.pause(), paused → on playback.resume(), → off playback.stop();
                                           //   how each looks is the file's `actions`; a mount with 'off' presses nothing
@@ -363,7 +391,7 @@ const onPlaybackStop = () => console.log('stopped');
 </script>
 
 <template>
-  <SvgAnimationPlayer :document="animation" playerActionTriggers @playback-finish="onDone" @playback-stop="onPlaybackStop" />
+  <SvgAnimationPlayer :document="animation" @playback-finish="onDone" @playback-stop="onPlaybackStop" />
 </template>
 ```
 
@@ -389,32 +417,32 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 </script>
 
 <template>
-  <SvgCssAnimationPlayer :playerActionTriggers="{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }" style="width: 400px; height: 400px">
+  <SvgCssAnimationPlayer :actionTriggers="{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }" style="width: 400px; height: 400px">
     <AnimationSvg />
   </SvgCssAnimationPlayer>
 </template>
 ```
 
-`playerActionTriggers` is the JSON player's block — the same lists over the same events, read by
+`actionTriggers` is the JSON player's block — the same lists over the same events, read by
 the same rules ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)) —
-and the gate is the same gate. It takes the block only, never `true`: a script-free SVG imported as a
-component carries no triggers the component could read. An absent `playerActionTriggers` lists
-nothing, like an empty block — nothing starts the animation without one; to play on load, say so:
-`:playerActionTriggers="{ 'playback.start': 'load' }"`. The gate numbers go in `timelineOptions`, as on the
+and the gate is the same gate. Unlike the JSON component, it has no file triggers to fall back on: a
+script-free SVG imported as a component carries none the component could read. So with no `actionTriggers`
+(or `null`, or an empty block) nothing starts the animation; to play on load, say so:
+`:actionTriggers="{ 'playback.start': 'load' }"`. The gate numbers go in `timelineOptions`, as on the
 JSON component: `:timelineOptions="{ inViewThreshold: 1 }"`.
 
 <!-- px-check signature pkg=vue loose=SvgCssAnimationPlayer.timelineOptions -->
 ```typescript
 // The SVG goes in the default slot; every other attribute (class, style, …) lands on the wrapper div.
 const SvgCssAnimationPlayer: DefineComponent<{
-    playerActionTriggers?: PxActionTriggersInput; // the BLOCK only: { "playback.start", "playback.play", "playback.stop",
+    actionTriggers?: PxActionTriggersInput | null; // { "playback.start", "playback.play", "playback.stop",
                                           //   "playback.pause", "playback.resume" }, each one event or a list of the events
                                           //   that list may name ('load' | 'hoverIn' | 'hoverOut' | 'click');
-                                          //   playback.resume is derived when left out
+                                          //   playback.resume is derived when left out. None given: nothing starts it
     timelineOptions?: { inViewThreshold?: number; inViewDebounce?: number };
                                           // the gate numbers only: 0–1 of the SVG on screen before it may run
                                           //   (default 0.5; 0 = any visible pixel), and ms it must hold first (150)
-    actions?: Pick<PxActionsOptions, 'outOfView'>; // only `outOfView` applies: 'pause' (default) | 'continue' |
+    actions?: Pick<PxActionsInput, 'outOfView'>; // only `outOfView` applies: 'pause' (default) | 'continue' |
                                           //   'stop' (replays on the next entry) while nobody can see it
 }>;
 ```
@@ -441,8 +469,8 @@ scripts should be inlined as raw HTML, or use JSON.
 Everything is spelled out above: `SvgAnimationPlayer` under [Props](#props) and [Events](#events),
 the handle under [Imperative API](#imperative-api-template-ref), `SvgCssAnimationPlayer` under
 [CSS-flavor SVGs](#css-flavor-svgs--svgcssanimationplayer). Modes, highest priority wins:
-`showAtProgress` → `showAtTime` → `playback` → `playerActionTriggers` → static — the
-same rule as React and React Native, conflicts warned the same way; a change to `document`'s content
+`showAsStatic` → `showAtProgress` → `showAtTime` → `playback` → `disableActionTriggers` → `actionTriggers`
+(or none: the file's own triggers) — the same rule as React and React Native, conflicts warned the same way; a change to `document`'s content
 (compared deeply) or to an override prop re-creates the player. The callbacks and diagnostics
 are the shape every player shares — [the API at a glance](./README.md#the-api-at-a-glance).
 

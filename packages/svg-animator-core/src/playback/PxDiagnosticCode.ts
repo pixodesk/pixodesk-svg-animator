@@ -255,6 +255,14 @@ export enum PxDiagnosticCode {
      */
     scrollOwnsPlayhead = 1505,
 
+    /**
+     * A playback call (`playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`,
+     * a seek, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a player shown with `showAsStatic` — ignored:
+     * the picture stays as drawn. The reads still answer.
+     * @data the call
+     */
+    showAsStaticIgnoresCall = 1506,
+
     // ── 1600 · React Native ──────────────────────────────────────────────────────────────────
 
     /**

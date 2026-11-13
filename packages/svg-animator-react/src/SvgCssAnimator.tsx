@@ -18,7 +18,7 @@ import type { SvgAnimationPlayerProps } from './SvgAnimator';
  *
  * | prop | as on `SvgAnimationPlayer`, narrowed to |
  * |---|---|
- * | `playerActionTriggers` | the BLOCK only — a script-free SVG imported as a component carries no triggers the component could read, so there is no `true` |
+ * | `actionTriggers` | the same — but with none given nothing starts it: a script-free SVG imported as a component carries no triggers the component could read |
  * | `timelineOptions` | the gate numbers `inViewThreshold` / `inViewDebounce` |
  * | `actions` | `outOfView` |
  * | `className`, `style` | — (here on the wrapper `<div>`) |
@@ -27,9 +27,9 @@ import type { SvgAnimationPlayerProps } from './SvgAnimator';
  */
 export type SvgCssAnimationPlayerProps = Pick<SvgAnimationPlayerProps, 'className' | 'style'> & {
     /** WHEN — the triggers block, as on `SvgAnimationPlayer`: `playback.start`, `playback.play`, `playback.stop`,
-     *  `playback.pause`, `playback.resume` (derived when left out), each one event or a list. Absent: nothing starts it
-     *  (the class toggle waits). */
-    playerActionTriggers?: Exclude<SvgAnimationPlayerProps['playerActionTriggers'], boolean>;
+     *  `playback.pause`, `playback.resume` (derived when left out), each one event or a list. Absent (or `null`):
+     *  nothing starts it (the class toggle waits) — the SVG carries no triggers this component could read. */
+    actionTriggers?: SvgAnimationPlayerProps['actionTriggers'];
     /** The visibility gate's numbers, as in `SvgAnimationPlayer`'s `timelineOptions`: how much must be on screen
      *  (0–1, default 0.5) and for how long, ms (default 150). */
     timelineOptions?: Pick<Extract<NonNullable<SvgAnimationPlayerProps['timelineOptions']>, { type?: 'time' }>, 'inViewThreshold' | 'inViewDebounce'>;
@@ -62,7 +62,7 @@ type AssertNever<T extends never> = T;
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer playerActionTriggers={{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }}>
+ * <SvgCssAnimationPlayer actionTriggers={{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }}>
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```
@@ -75,7 +75,7 @@ type AssertNever<T extends never> = T;
  * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `playback.start`, `playback.play`,
  * `playback.stop`, `playback.pause` (`playback.resume` is derived unless named) — over the events `load`, `hoverIn`,
  * `hoverOut`, `click`, read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
- * (`createVisibilityGate`), so the two players cannot drift. No `playerActionTriggers`, or an empty block: nothing
+ * (`createVisibilityGate`), so the two players cannot drift. No `actionTriggers`, `null` or an empty block: nothing
  * starts it.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
@@ -85,9 +85,9 @@ type AssertNever<T extends never> = T;
  * - `whenIdle` and `whenFinished` are the file's own CSS
  * @public
  */
-const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, style, children, playerActionTriggers, timelineOptions, actions }) => {
+const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, style, children, actionTriggers, timelineOptions, actions }) => {
     // one rule with the JSON player: the lists normalised, the gate defaulted
-    const resolved = resolveTriggers(playerActionTriggers);
+    const resolved = resolveTriggers(actionTriggers ?? undefined);
     const gateConfig = resolveGate({ actions, inViewThreshold: timelineOptions?.inViewThreshold, inViewDebounce: timelineOptions?.inViewDebounce });
     const loadPresses = resolved.startPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.startPlayback
         : resolved.playPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.playPlayback : undefined;

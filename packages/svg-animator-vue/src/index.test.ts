@@ -23,7 +23,6 @@ describe("VueAnimator", () => {
         render(SvgAnimationPlayer, {
             props: {
                 document: getTestJson(),
-                playerActionTriggers: true,
             },
         });
 

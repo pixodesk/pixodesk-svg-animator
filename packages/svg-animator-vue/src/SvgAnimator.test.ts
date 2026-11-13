@@ -144,9 +144,9 @@ describe("SvgAnimationPlayer (Vue)", () => {
     // -- 2. Animation smoke ----------------------------------------------------
 
     describe("animation", () => {
-        it("renders and animates with playerActionTriggers", () => {
+        it("renders and animates as the file says (no control prop)", () => {
             render(SvgAnimationPlayer, {
-                props: { document: getTestJson(), playerActionTriggers: true },
+                props: { document: getTestJson() },
             });
 
             const ellipse = document.querySelector("ellipse");
@@ -436,7 +436,7 @@ describe("SvgAnimationPlayer (Vue) — root element", () => {
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarning = vi.fn();
         const { container } = render(SvgAnimationPlayer, {
-            props: { document: getMaskedLoadJson(), playerActionTriggers: true, onWarning, timelineOptions: { engine: "js" } },
+            props: { document: getMaskedLoadJson(), onWarning, timelineOptions: { engine: "js" } },
         });
 
         const moving = container.querySelector("mask ellipse");
@@ -788,9 +788,9 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
         expect(opacityIn(container)).toBe(1);
     });
 
-    it('a `playerActionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
+    it('an `actionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarning = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, playerActionTriggers: { "playback.start": 'click' }, onWarning } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actionTriggers: { "playback.start": 'click' }, onWarning } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
@@ -917,3 +917,50 @@ function getMaskedLoadJson(): PxDocument {
         ],
     };
 }
+
+describe("SvgAnimationPlayer (Vue) — the file drives by default; disableActionTriggers, showAsStatic (2026-11-13)", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.advanceTimersByTime(32);   // drain a pending rAF before the timers go (see the first describe)
+        cleanup();
+        vi.useRealTimers();
+    });
+
+    /** The component with extra props and its template ref. */
+    function renderWithProps(props: Record<string, unknown>) {
+        const api = ref<PxAnimationPlayerHandle | null>(null);
+        render(defineComponent({ setup: () => () => h(SvgAnimationPlayer, { document: getTestJson(), ref: api, ...props }) }));
+        return api;
+    }
+
+    it("no control prop: plays as the file says — its load trigger starts it", () => {
+        const onPlaybackStart = vi.fn();
+        renderWithProps({ onPlaybackStart });
+        expect(onPlaybackStart).toHaveBeenCalledTimes(1);
+    });
+
+    it("disableActionTriggers: still until the handle presses start", () => {
+        const api = renderWithProps({ disableActionTriggers: true });
+        const ellipse = document.querySelector("ellipse");
+        vi.advanceTimersByTime(300);
+        expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
+        assert(api.value, "the template ref is set after render");
+        api.value.playback.start();
+        expect(api.value.playback.isPlaying()).toBe(true);
+    });
+
+    it("showAsStatic: the picture as drawn — the handle's calls are ignored with PX1506", () => {
+        const onWarning = vi.fn();
+        const api = renderWithProps({ showAsStatic: true, onWarning });
+        const ellipse = document.querySelector("ellipse");
+        assert(api.value, "the template ref is set after render");
+        api.value.playback.start();
+        vi.advanceTimersByTime(300);
+        expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
+        expect(api.value.playback.isPlaying()).toBe(false);
+        expect(onWarning.mock.calls.map(call => call[0].code)).toContain(PxDiagnosticCode.showAsStaticIgnoresCall);
+    });
+});

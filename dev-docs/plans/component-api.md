@@ -3,6 +3,20 @@
 Status **2026-10-25 — planning.** Decisions land here; the trying and the findings stay in
 [../reviews/react-api-hands-on.md](../reviews/react-api-hands-on.md).
 
+> **Since 2026-11-13 (owner decision; unpublished 1.26) — a player plays the way the file was saved.** The driver
+> rule below ("nothing plays until a prop names the driver", D4 and first-use review §1+2) is REVERSED: with no
+> control prop, every surface — the components, `createSvgAnimationPlayer`, the page tag, the pre-rendered `bind` —
+> plays on the document's own `timeline.actionTriggers`. `playUsingActionTriggers` (`playerActionTriggers` in the
+> unreleased 1.26 builds) is REMOVED, no alias: `true` is the default; the object form is `actionTriggers` (a
+> REPLACEMENT of the whole block; `null` or `{}` = none); "no prop = manual" is `disableActionTriggers`; new
+> `showAsStatic` = the picture as drawn, nothing plays, every playback call ignored with PX1506. Precedence
+> (`resolveControlMode`): `showAsStatic` → `showAtProgress` / `showAtTime` → `playback` → `disableActionTriggers`
+> (or `actionTriggers: null`) → `actionTriggers` (the file's, or the block given); `PxControlMode` = `static` ·
+> `fixedTime` · `playback` · `manual` · `actionTriggers`. `actions` now REPLACES the file's block (was a merge; type
+> `PxActionsOptions` → `PxActionsInput`); `timelineOptions` still merges. The three options every surface takes
+> are `PxCommonControlProps`; core `/engine` adds `withControlMode`, `withStaticPicture`, `withActions`. User docs:
+> `docs/library/playback-and-triggers.md#control-modes--who-drives-it`.
+
 > **Since 1.24–1.25 (2026-11-11) — the playback model.** The words below moved; this document keeps the ones it was written
 > with (`animation-state.brainstorm.md` §0 and `animation-state.playback-noun.md` are the ledger; 1.24 spelt the
 > noun `Run`; `animation-state.playback-namespace.md` moved the handle under `player.playback`). File `actionTriggers` /

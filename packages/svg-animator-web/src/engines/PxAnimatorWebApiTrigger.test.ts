@@ -55,14 +55,14 @@ afterEach(() => {
 describe('WAAPI engine — trigger wiring', () => {
 
     it('a document with no trigger block waits for play() — absent ≡ {} ≡ manual (1.17); `startPlayback: load` plays', () => {
-        const manual = createSvgAnimationPlayer({ playerActionTriggers: true, document: doc(), container: '#stage' });
+        const manual = createSvgAnimationPlayer({ document: doc(), container: '#stage' });
         expect(manual.playback.isPlaying()).toBe(false);
-        const api = createSvgAnimationPlayer({ playerActionTriggers: true, document: doc({ 'playback.start': 'load' }), container: '#stage' });
+        const api = createSvgAnimationPlayer({ document: doc({ 'playback.start': 'load' }), container: '#stage' });
         expect(api.playback.isPlaying()).toBe(true);
     });
 
     it('the EMPTY trigger (nothing starts it) still waits for play()', () => {
-        const api = createSvgAnimationPlayer({ playerActionTriggers: true, document: doc({}), container: '#stage' });
+        const api = createSvgAnimationPlayer({ document: doc({}), container: '#stage' });
         expect(api.playback.isPlaying()).toBe(false);
         api.playback.start();
         expect(api.playback.isPlaying()).toBe(true);

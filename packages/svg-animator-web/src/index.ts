@@ -28,7 +28,7 @@ export type { PxInfer, PxSchema, PxValidationContext } from '@pixodesk/svg-anima
 // `PxInternalAnimationPlayerOptions` = the public options + `adapter`, for the React and Vue packages only
 // (review §25.14) — a type so they can name what they pass; not an option of the public API.
 export type { PxAnimationPlayerOptions } from './animator/PxAnimator';
-export type { PxTimelineOptions, PxActionsOptions } from '@pixodesk/svg-animator-core';
+export type { PxTimelineOptions, PxActionsInput } from '@pixodesk/svg-animator-core';
 export {
     PxAnimatorConfigSchema,
     PxTimelineEngineSetting,
@@ -74,7 +74,7 @@ export { PxDiagnosticKind } from '@pixodesk/svg-animator-core';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from '@pixodesk/svg-animator-core';
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
-export type { PxAnimationPlayerCallbacks, PxPlaybackOverride, PxPlaybackOverrideInput, PxTimelineTiming } from '@pixodesk/svg-animator-core';
+export type { PxAnimationPlayerCallbacks, PxPlaybackOverride, PxPlaybackOverrideInput, PxTimelineTiming, PxCommonControlProps } from '@pixodesk/svg-animator-core';
 
 // The time contract (review §3) and the trigger defaults, so the components map `progress` and
 // thresholds with core's rule instead of re-deriving it.

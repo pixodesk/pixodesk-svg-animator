@@ -1,7 +1,7 @@
 import { createApp, h, onMounted, ref } from 'vue';
 import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-vue';
 import type { PxDocument } from '@pixodesk/svg-animator-web';
-import { playerActionTriggersFor, type PlayerHandle, type PlayerOptions } from './types';
+import { controlOptionsFor, type PlayerHandle, type PlayerOptions } from './types';
 
 /** Mounts the Vue `<SvgAnimationPlayer/>` component into `container`. */
 export function createVuePlayer(
@@ -25,10 +25,10 @@ export function createVuePlayer(
           // The Loop picker and the visibility gate, merged over the document's own
           // timeline; leaving it `undefined` (auto) keeps the document's own values.
           timelineOptions: opts?.timelineOptions,
-          // The gate's `outOfView` behavior, merged over the document's own actions.
+          // The gate's `outOfView` behavior — an actions block instead of the document's own.
           actions: opts?.actions,
           // Trigger handling (programmatic / from-file / custom).
-          playerActionTriggers: playerActionTriggersFor(opts),
+          ...controlOptionsFor(opts),
           style: { width: '100%', height: '100%' },
         });
     },

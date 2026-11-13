@@ -639,7 +639,7 @@ export const PxActionTriggersSchema = implementsInterface<_PxActionTriggers>()(p
 export type PxActionTriggers = PxInfer<typeof PxActionTriggersSchema>;
 const _ck_PxActionTriggers: KeysMatch<PxActionTriggers, _PxActionTriggers> = true; // the key sets are identical
 
-/** The block a DRIVER takes — `playerActionTriggers`, the web option, `bind` — the same shape the FILE has
+/** The block the `actionTriggers` prop / option takes (every surface, `bind` included) — the same shape the FILE has
  *  ({@link _PxActionTriggers}), `playback.resume` included: left out, it is derived from the other lists; named, it is used
  *  as written. WHY the same power as the file (`resume` was left out until 1.22): an override that cannot say what a
  *  file can is a trap. @public @advanced */

@@ -3,12 +3,11 @@ import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from '../../../fixtures/animation.json';
 
 // One object, spelled like the file's own `timeline` block and merged over it key by key —
-// corrections, never a replacement. `playerActionTriggers` keeps the file's own trigger.
+// corrections, never a replacement. No control prop, so the file's own trigger starts it.
 createRoot(document.getElementById('root')!).render(
   <div className="stage">
     <SvgAnimationPlayer
       document={animation as any}
-      playerActionTriggers
       timelineOptions={{ iterations: 'infinite', engine: 'js', iterationDirection: 'alternate' }}
     />
   </div>

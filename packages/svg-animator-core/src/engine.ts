@@ -25,11 +25,11 @@ export {
 } from './playback/PxPlaybackTime';
 
 // A mount's timeline override folded into the file's; a component taking over the start
-export { applyPlaybackOverride, withActionTriggers, withoutTriggerDriver } from './playback/PxAnimatorConfigPatch';
+export { applyPlaybackOverride, withActionTriggers, withActions, withoutTriggerDriver, withStaticPicture, withControlMode } from './playback/PxAnimatorConfigPatch';
 
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
-export type { PxAnyControlProps, PxControlProps } from './format/PxAnimatorConstants';
+export type { PxAnyControlProps, PxControlProps, PxResolvedControlMode } from './format/PxAnimatorConstants';
 export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createPlayExecutor, ensurePlayExecutor, executorConfigOf, composeApiExtras, forwardPlaybackControls, PxPlaybackWrite } from './playback/PxDeclarativePlayback';
 export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeTarget, PxPlayTarget, PxPlayExecutorConfig, PxApiExtrasConfig, PxApiExtrasTarget, PxApiExtras, PxComposedAnimationPlayerApi } from './playback/PxDeclarativePlayback';
 

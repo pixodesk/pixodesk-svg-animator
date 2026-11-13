@@ -19,17 +19,20 @@ import animationDoc from './animation.json';
 </script>
 ```
 
-### Player action triggers
+### Action triggers — the default
 
-Uses the triggers defined in the animation document (load, hover, click — behind the visibility
-gate), or the triggers object you bind instead of `true`:
+With no control prop the component plays the file the way it was saved — the triggers defined in the
+animation document (load, hover, click — behind the visibility gate). `actionTriggers` binds other
+triggers instead of the file's (the whole block):
 
 ```vue
 <template>
-  <SvgAnimationPlayer :document="animationDoc" playerActionTriggers />
-  <SvgAnimationPlayer :document="animationDoc" :playerActionTriggers="{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }" />
+  <SvgAnimationPlayer :document="animationDoc" />
+  <SvgAnimationPlayer :document="animationDoc" :actionTriggers="{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }" />
   <!-- a click starts it, the next click stops it -->
-  <SvgAnimationPlayer :document="animationDoc" :playerActionTriggers="{ 'playback.start': 'click', 'playback.stop': 'click' }" />
+  <SvgAnimationPlayer :document="animationDoc" :actionTriggers="{ 'playback.start': 'click', 'playback.stop': 'click' }" />
+  <!-- the picture as drawn — nothing plays -->
+  <SvgAnimationPlayer :document="animationDoc" showAsStatic />
 </template>
 ```
 
@@ -37,8 +40,8 @@ gate), or the triggers object you bind instead of `true`:
 
 Control playback with one lever — `playback` holds a position, `'off'` (no playback) · `'on'` (a playback) ·
 `'paused'` (the playback, frozen); a change of position presses one built-in button (`playback.start` · `playback.pause` ·
-`playback.resume` · `playback.stop`), and how a stop looks is the file's `timeline.actions`, adjusted
-through the `actions` prop:
+`playback.resume` · `playback.stop`), and how a stop looks is the file's `timeline.actions` — or the
+block the `actions` prop gives instead:
 
 ```vue
 <script setup lang="ts">
@@ -54,7 +57,8 @@ const paused = ref(false);
 
 ### Imperative API
 
-Use a template ref for full programmatic control:
+Use a template ref for full programmatic control — `disableActionTriggers` switches the file's triggers off, so
+your buttons alone drive it:
 
 ```vue
 <script setup lang="ts">
@@ -65,7 +69,7 @@ const player = ref<PxAnimationPlayerHandle | null>(null);
 </script>
 
 <template>
-  <SvgAnimationPlayer :document="animationDoc" ref="player" />
+  <SvgAnimationPlayer :document="animationDoc" disableActionTriggers ref="player" />
   <button @click="player?.playback.play()">Play</button>
   <button @click="player?.playback.pause()">Pause</button>
   <button @click="player?.playback.stop()">Stop</button>
@@ -93,18 +97,20 @@ Render a single frame — by time in milliseconds inside one iteration, or by pr
 | Prop | Type | Description |
 |---|---|---|
 | `document` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is (inline only, no URL form yet) |
-| `playerActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ "playback.start", "playback.play", "playback.stop", "playback.pause", "playback.resume" }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `playback.resume` is derived when left out). See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `actionTriggers` | `PxActionTriggersInput \| null` | these triggers instead of the document's own — `{ "playback.start", "playback.play", "playback.stop", "playback.pause", "playback.resume" }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `playback.resume` is derived when left out); `null` or `{}`: none. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `disableActionTriggers` | `boolean` | manual: the document's triggers are switched off — your code drives it through the template ref |
+| `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says; playback calls on the ref are ignored with a warning (PX1506). Beats every other control prop |
 | `playback` | `'off' \| 'on' \| 'paused'` | A lever (`PxPlayback`): its position is held, and a change presses one button — `off` → `on` `playback.start()`, `on` → `paused` `playback.pause()`, `paused` → `on` `playback.resume()`, → `off` `playback.stop()`. How a stop looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-a-stop-looks); `'on'` always plays from the start. A mount with `'off'` presses nothing; with `'paused'` starts the playback frozen |
 | `showAtProgress` | `number` | show the frame at this position, counted in iterations: `0` is the first frame, `0.5` the middle of the first iteration, `1` its last frame, `1.2` 20 % into the second |
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `playback.getDuration()`) |
-| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, deep-merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsOptions` | per-instance override of how a stop looks — `{ 'playback.stop': 'animateToStart' }` — and of `outOfView`, deep-merged over the document's `timeline.actions` (what shows once finished, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'playback.stop': 'animateToStart' }`, and `outOfView`; a setting left out reads its default (what shows once finished, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `onWarning` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` (a prop, not an event — see below) |
 | `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
 | `suppressWarnings` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarning`, if you gave it, still fires: this is about the console, not about you |
 | `suppressErrors` | `boolean` | the same switch for `console.error` |
 
-With none of `playerActionTriggers` / `playback` / `showAtProgress` / `showAtTime` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
+With no control prop (`showAsStatic` / `showAtProgress` / `showAtTime` / `playback` / `disableActionTriggers` / `actionTriggers`) the component plays the file the way it was saved — its own triggers drive it; the template ref works in every mode.
 
 Note: passing a different `document` (or unmounting) throws the old player away and builds a new one; the old instance emits `destroy` on its way out. Changing `showAtProgress` / `showAtTime` does **not** recreate the animator — it just jumps the existing one to the new position.
 

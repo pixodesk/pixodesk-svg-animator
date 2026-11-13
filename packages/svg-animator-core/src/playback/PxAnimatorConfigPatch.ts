@@ -22,7 +22,8 @@
  * scroll branch, `pin:false`, and an empty time block emitting no `timeline` at all). Merging
  * on the nested form is the only place those values mean what they say.
  */
-import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/PxAnimatorConstants';
+import { controlModeTakesOverTrigger, getAnimatorConfig, PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxControlMode, PxWhenIdle } from '../format/PxAnimatorConstants';
+import { isScrollTimeline } from './PxScrollMath';
 import type { PxDocument, PxAnimatorConfig, PxTimeline, PxActionTriggersInput, PxActions } from '../format/PxAnimatorTypes';
 import { legacyAnimatorOf } from '../format/PxDocStage';
 
@@ -164,7 +165,7 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
 }
 
 /** `PxTimeline` without its `actionTriggers` and `actions` blocks — the timing. On the props the three are separate
- *  (the file nests them): `timelineOptions` patches this, `playerActionTriggers` carries the triggers, `actions` the actions. @public */
+ *  (the file nests them): `timelineOptions` patches this, `actionTriggers` replaces the triggers, `actions` the actions. @public */
 export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' | 'actions'>;
 
 /** The `timelineOptions` prop: a deep-partial of the WIRE timing block, typed from the schema, merged over the file's.
@@ -172,16 +173,18 @@ export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' |
  *  prop's own word. @public */
 export type PxTimelineOptions = PxRecursivePartial<PxTimelineTiming>;
 
-/** The `actions` prop: a deep-partial of the timeline's `actions` block, merged over the file's. A slot may be the
- *  preset word (`stopPlayback: 'animateToStart'`): it is exactly `{ behavior: 'animateToStart' }`. @public */
-export type PxActionsOptions = PxRecursivePartial<PxActions>;
+/** The `actions` prop: the timeline's `actions` block to use INSTEAD of the file's — a replacement, like
+ *  `actionTriggers`: a slot left out reads as its default, never as the file's value (one slot changed against the
+ *  file's others could make no sense). A slot may be the preset word (`'playback.stop': 'animateToStart'`): it is exactly
+ *  `{ behavior: 'animateToStart' }`. (`PxActionsOptions` until 2026-11-13, a deep-partial merged over the file's.) @public */
+export type PxActionsInput = PxActions;
 
 /**
  * The playback-override props every surface takes — `createSvgAnimationPlayer` and the three components
- * (dev-docs/plans/component-api.md D4, playback-layers.md): `timelineOptions`, a MERGE over the file's timing block,
- * and `actions`, a MERGE over its actions. Corrections — `iterations`, `delay`, a rewinding stop — never a
- * replacement; whoever needs more edits the document. The triggers are not here: they travel with their
- * driver, `playerActionTriggers` ({@link PxControlProps}). ONE definition (review §9).
+ * (dev-docs/plans/component-api.md D4, playback-layers.md): `timelineOptions`, a MERGE over the file's timing block
+ * ("options": corrections — `iterations`, `delay`, `playbackSpeed`), and `actions`, a REPLACEMENT of its actions
+ * block. The triggers are not here: they travel with the other control props, `actionTriggers`
+ * ({@link PxCommonControlProps}), also a replacement. ONE definition (review §9).
  * @public
  */
 export interface PxPlaybackOverride {
@@ -195,23 +198,24 @@ export interface PxPlaybackOverride {
      * props — and a prop that shares a file key's name promises the same shape (outside review 2026-11-01, §2.5).
      * `actions` keeps the file's name because it IS a partial of that block.
      *
-     * MERGE vs REPLACE, the one rule for the three override props: `timelineOptions` and `actions` are recursive
-     * partials (objects merge, values replace); a `playerActionTriggers` block REPLACES the file's
-     * `actionTriggers` as a whole — its lists belong together.
+     * MERGE vs REPLACE, the one rule for the three override props: `timelineOptions` is a recursive partial (objects
+     * merge, values replace) — the word "options" says so; `actions` and `actionTriggers` are BLOCKS that replace
+     * the file's as a whole — their slots belong together.
      */
     timelineOptions?: PxTimelineOptions;
     /**
-     * Per-instance adjustment of HOW the buttons move the playhead — `{ 'playback.stop': 'animateToStart' }`, or
-     * `{ 'playback.stop': 'animateToEndAndBack' }` ("stop after this pass, then play back") — deep-merged over the
-     * document's `timeline.actions`.
+     * HOW the buttons move the playhead, instead of the document's `timeline.actions` — `{ 'playback.stop':
+     * 'animateToStart' }`, or `{ 'playback.stop': 'animateToEndAndBack' }` ("stop after this pass, then play back").
+     * The WHOLE block: a slot left out (`outOfView`, say) reads as its default, not as the file's value.
      */
-    actions?: PxActionsOptions;
+    actions?: PxActionsInput;
 }
 
-/** What {@link applyPlaybackOverride} reads: the patches, and the trigger driver's object form. @public @advanced */
+/** What {@link applyPlaybackOverride} reads: the patches, and the triggers block given instead of the file's. @public @advanced */
 export interface PxPlaybackOverrideInput extends PxPlaybackOverride {
-    /** `true` — the document's `actionTriggers` drive; an object — the WHOLE block to use instead (see {@link PxControlProps}). */
-    playerActionTriggers?: boolean | PxActionTriggersInput;
+    /** An object — the WHOLE block to use instead of the file's; `null` — no triggers (an empty block); left out — the
+     *  file's own (see {@link PxCommonControlProps}). */
+    actionTriggers?: PxActionTriggersInput | null;
 }
 
 /** What {@link applyPlaybackOverride} reports beside the document. @public @advanced */
@@ -224,14 +228,15 @@ export interface PxPlaybackOverrideResult {
 // @px-area config
 /**
  * Applies the playback override to a document — ONE implementation for the web player and the three
- * components (D4): `timelineOptions` and `actions` merged with the timeline rules (`mergeAnimatorConfig`); then, when
- * `playerActionTriggers` is an object, the `actionTriggers` block SET to it — a REPLACEMENT, because the lists belong
- * together (hover → click changes the other lists too). PURE: the document is
- * never mutated, untouched subtrees are shared. The caller reports `warnings` through its diagnostics.
+ * components (D4): `timelineOptions` merged with the timeline rules (`mergeAnimatorConfig`); then the `actions` block
+ * and the `actionTriggers` block, each SET when given — REPLACEMENTS, because their slots belong together (hover →
+ * click changes the other lists too; one action slot against the file's others can make no sense). `actionTriggers:
+ * null` is left to the control mode (`manual` → {@link withoutTriggerDriver}). PURE: the document is never mutated,
+ * untouched subtrees are shared. The caller reports `warnings` through its diagnostics.
  * @public @advanced
  */
 export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverrideInput): PxPlaybackOverrideResult {
-    const { timelineOptions: timeline, actions, playerActionTriggers } = override;
+    const { timelineOptions: timeline, actions, actionTriggers } = override;
     const warnings: Array<string> = [];
     const apply = (patch: PxAnimatorConfigPatch): void => {
         const applied = applyAnimatorConfig(doc, patch);
@@ -244,10 +249,12 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
         else if (timeline !== null) warnings.push('timelineOptions: not an object — ignored');
     }
     if (actions !== undefined) {
-        if (isPlainObject(actions)) apply({ timeline: { actions } });
+        if (isPlainObject(actions)) doc = withActions(doc, actions);   // a SET, not a merge
         else if (actions !== null) warnings.push('actions: not an object — ignored');
     }
-    if (typeof playerActionTriggers === 'object' && playerActionTriggers !== null) doc = withActionTriggers(doc, playerActionTriggers);   // a SET, not a merge
+    // `null` (no triggers) is the control mode's to apply — `manual`, which spares a scroll-driven document
+    if (isPlainObject(actionTriggers)) doc = withActionTriggers(doc, actionTriggers);   // a SET, not a merge
+    else if (actionTriggers !== undefined && actionTriggers !== null) warnings.push('actionTriggers: not an object — ignored');
     return { doc, warnings };
 }
 
@@ -262,12 +269,26 @@ const uncheckedPatch = (p: JsonRecord): PxAnimatorConfigPatch => p as PxAnimator
  * @public @advanced
  */
 export function withActionTriggers(doc: PxDocument, actionTriggers: PxActionTriggersInput): PxDocument {
+    return withTimelineBlock(doc, timeline => ({ ...timeline, actionTriggers: { ...actionTriggers } }));
+}
+
+/**
+ * The document with its `timeline.actions` SET to `actions` — the `actions` prop's replacement (see
+ * {@link withActionTriggers} for why a set, not a merge).
+ * @public @advanced
+ */
+export function withActions(doc: PxDocument, actions: PxActionsInput): PxDocument {
+    return withTimelineBlock(doc, timeline => ({ ...timeline, actions: { ...actions } }));
+}
+
+/** A new document whose wire `timeline` is `edit(timeline)` — the animator at either of its two addresses. */
+function withTimelineBlock(doc: PxDocument, edit: (timeline: JsonRecord) => JsonRecord): PxDocument {
     const legacy = legacyAnimatorOf(doc);
     const atRoot = isPlainObject(doc.animator);
     const current: unknown = atRoot ? doc.animator : legacy;
     const base: JsonRecord = isPlainObject(current) ? current : {};
     const timeline: JsonRecord = isPlainObject(base.timeline) ? base.timeline : {};
-    const animator: JsonRecord = { ...base, timeline: { ...timeline, actionTriggers: { ...actionTriggers } } };
+    const animator: JsonRecord = { ...base, timeline: edit(timeline) };
     if (!atRoot && legacy !== undefined) {
         const meta = isPlainObject(doc.meta) ? doc.meta : {};
         return { ...doc, meta: { ...meta, animator } };
@@ -276,13 +297,39 @@ export function withActionTriggers(doc: PxDocument, actionTriggers: PxActionTrig
 }
 
 /**
- * The "nobody named a driver" rule (first-use review §1+2): the document's `actionTriggers` are replaced by an EMPTY
- * block — no event starts it — on top of the caller's override, so the document cannot start itself. One spelling
- * for the web player's missing `playerActionTriggers` option and the components' other control modes.
+ * Manual: the document's `actionTriggers` replaced by an EMPTY block — no event starts it — on top of the caller's
+ * override, so the document cannot start itself. One spelling for `disableActionTriggers` / `actionTriggers: null`
+ * and the components' other control modes (`playback`, `showAtProgress` / `showAtTime`).
  * @public @advanced
  */
 export function withoutTriggerDriver(doc: PxDocument): PxDocument {
     return withActionTriggers(doc, {});
+}
+
+/**
+ * `showAsStatic`: the picture as drawn — on a time timeline the triggers taken over ({@link withoutTriggerDriver}) and
+ * `whenIdle: static`, so even a file saved with `firstFrame` shows its static SVG. A scroll- or view-driven document is
+ * returned as it is: it has no triggers, and the player simply does not attach its scroll (an engine never played
+ * rests on the static SVG — see the rest-pose stage).
+ * @public @advanced
+ */
+export function withStaticPicture(doc: PxDocument): PxDocument {
+    if (isScrollTimeline(getAnimatorConfig(doc))) return doc;
+    return applyAnimatorConfig(withoutTriggerDriver(doc), { timeline: { whenIdle: PxWhenIdle.static } }).doc;
+}
+
+/**
+ * The document as a control mode plays it — applied AFTER the caller's override, so nothing re-arms what the mode
+ * switched off: `static` → {@link withStaticPicture}; the modes that take the triggers over → the EMPTY block
+ * ({@link withoutTriggerDriver}), except on a scroll-driven document (scroll is not an action trigger, and a clock
+ * trigger pushed into a scroll timeline would only be reported as an ignored override); `actionTriggers` → as it is.
+ * The web player and the pre-rendered builds call it; the components apply their own pose rules beside it.
+ * @public @advanced
+ */
+export function withControlMode(doc: PxDocument, mode: PxControlMode): PxDocument {
+    if (mode === PxControlMode.static) return withStaticPicture(doc);
+    if (controlModeTakesOverTrigger(mode) && !isScrollTimeline(getAnimatorConfig(doc))) return withoutTriggerDriver(doc);
+    return doc;
 }
 
 /**

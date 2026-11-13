@@ -14,7 +14,8 @@ createApp({
         h('button', { onClick: () => api.value?.playback.setCurrentProgress(1) }, 'playback.setCurrentProgress(1)'),
       ]),
       h('div', { class: 'stage' }, [
-        h(SvgAnimationPlayer as any, { document: animation, ref: api }),
+        // disableActionTriggers: the file's own trigger is off, so only these buttons start it
+        h(SvgAnimationPlayer as any, { document: animation, disableActionTriggers: true, ref: api }),
       ]),
     ];
   },

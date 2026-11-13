@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionsOptions, PxActionTriggersInput, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionsInput, PxActionTriggersInput, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback } from '@pixodesk/svg-animator-core';
@@ -54,9 +54,9 @@ function applyDocOverrides(
     diag: PxDiagnostics,
 ): PxDocument {
 
-    // The override, applied ONCE through core's one rule (D3: per block, the replacement, then the
-    // merge), and then the component's own need to take the triggers over in the non-playerActionTriggers
-    // control modes — the EMPTY block goes on AFTER the caller's override, so nothing re-arms it.
+    // The override, applied ONCE through core's one rule (D4: the timing merged, the `actions` and `actionTriggers`
+    // blocks replacing the file's), and then the component's own need to take the triggers over in every control
+    // mode but `actionTriggers` — the EMPTY block goes on AFTER the caller's override, so nothing re-arms it.
     const overridden = applyPlaybackOverride(doc, props);
     for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
     doc = overridden.doc;
@@ -93,13 +93,15 @@ export const svgAnimationPlayerProps = {
     /** The animation document — the same name as the web player's option (1.26; `doc` before). */
     document: { type: Object as PropType<PxDocumentJson>, required: true },
 
-    // -- Playback override: the file's timing and actions, adjusted (D4, playback-layers.md) — recursive
-    //    partials merged over the file. The triggers travel with their driver, `playerActionTriggers`. Same names as React / RN.
+    // -- Playback override (D4, playback-layers.md): `timelineOptions` merged over the file's timing, `actions` replacing
+    //    its actions block. The triggers travel with the control props, `actionTriggers`. Same names as React / RN.
     timelineOptions: { type: Object as PropType<PxTimelineOptions> },
-    actions: { type: Object as PropType<PxActionsOptions> },
+    actions: { type: Object as PropType<PxActionsInput> },
 
-    // -- Declarative control
-    playerActionTriggers: { type: [Boolean, Object] as PropType<boolean | PxActionTriggersInput>, default: undefined },   // true = the file's triggers; an object = the whole block instead
+    // -- Control — one at a time; none: the file's own triggers drive it
+    showAsStatic: { type: Boolean, default: undefined },   // the picture as drawn; playback calls ignored
+    disableActionTriggers: { type: Boolean, default: undefined },   // manual: no triggers, code presses the buttons
+    actionTriggers: { type: Object as PropType<PxActionTriggersInput | null>, default: undefined },   // the whole block instead of the file's; null = none
     playback: { type: String as PropType<PxPlayback>, default: undefined },   // the lever: the playback's position, off · on · paused
 
     // -- Controlled time
@@ -122,11 +124,12 @@ export const svgAnimationPlayerProps = {
 /**
  * Vue component for rendering and controlling Pixodesk SVG animations.
  *
- * Supports four mutually-exclusive control modes (one at a time; a conflicting set warns, PX1501):
+ * Supports mutually-exclusive control modes (one at a time; a conflicting set warns, PX1501):
  *
- * 1. **Play on trigger** – the document's own triggers, or an object with the triggers to use instead.
+ * 1. **As the file says** (no control prop) – the document's own triggers, or `actionTriggers` to use instead.
  *    ```vue
- *    <SvgAnimationPlayer :document="animation" playerActionTriggers />
+ *    <SvgAnimationPlayer :document="animation" />
+ *    <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'playback.start': 'click' }" />
  *    ```
  *
  * 2. **Declarative `playback`** – the playback's position, held by the host: `"off"` · `"on"` · `"paused"`.
@@ -134,9 +137,9 @@ export const svgAnimationPlayerProps = {
  *    <SvgAnimationPlayer :document="animation" :playback="hovered ? 'on' : 'off'" />
  *    ```
  *
- * 3. **Imperative** – exposes a ref-based API for full programmatic control.
+ * 3. **Manual** – no triggers; a ref-based API for full programmatic control.
  *    ```vue
- *    <SvgAnimationPlayer :document="animation" ref="player" />
+ *    <SvgAnimationPlayer :document="animation" disableActionTriggers ref="player" />
  *    <button @click="$refs.player.playback.start()">Start</button>
  *    ```
  *
@@ -144,6 +147,11 @@ export const svgAnimationPlayerProps = {
  *    ```vue
  *    <SvgAnimationPlayer :document="animation" :showAtProgress="0.5" />
  *    <SvgAnimationPlayer :document="animation" :showAtTime="500" />
+ *    ```
+ *
+ * 5. **Static** – the picture as drawn; nothing plays, and playback calls are ignored with a warning.
+ *    ```vue
+ *    <SvgAnimationPlayer :document="animation" showAsStatic />
  *    ```
  *
  * A script-free SVG + CSS export plays with the sibling `SvgCssAnimationPlayer`: the same prop names, fewer of them
@@ -179,8 +187,8 @@ const SvgAnimationPlayer = defineComponent({
         // ONE control-mode rule, decided in core (API review §1/§7). The template ref is not an
         // input: it is exposed in every mode and never changes which one is chosen.
         const resolvedMode = computed(() => resolveControlMode({
-            showAtProgress: props.showAtProgress, showAtTime: props.showAtTime,
-            playback: props.playback, playerActionTriggers: props.playerActionTriggers,
+            showAsStatic: props.showAsStatic, showAtProgress: props.showAtProgress, showAtTime: props.showAtTime,
+            playback: props.playback, disableActionTriggers: props.disableActionTriggers, actionTriggers: props.actionTriggers,
         }));
         const compMode = computed<PxControlMode>(() => resolvedMode.value.mode);
 
@@ -236,9 +244,10 @@ const SvgAnimationPlayer = defineComponent({
             // id under the root. A second writer here was a second place for rules to go missing.
             const options: PxInternalAnimationPlayerOptions = {
                 document: doc,
-                // The component resolved its control mode and patched the document above — the web player
-                // must not add its own no-driver suppression on top (first-use review §1+2).
-                playerActionTriggers: true,
+                // The component resolved its control mode and patched the document above, so the web player gets no
+                // trigger option (the document's own, already patched, decide) — only `showAsStatic`, whose guard
+                // (no scroll, every playback call ignored) lives in the player.
+                showAsStatic: compMode.value === PxControlMode.static,
                 // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
                 rootElement: rootElement ?? undefined,
                 onReady:  () => emit('ready'),
@@ -312,7 +321,7 @@ const SvgAnimationPlayer = defineComponent({
         // Recreate the animator when the resolved doc changes.
         // `flush: 'post'` — the animator must be created AFTER the DOM is
         // patched, otherwise the new root element isn't in the document yet
-        // and trigger setup fails (playerActionTriggers would never resume after a doc swap).
+        // and trigger setup fails (the file's triggers would never resume after a doc swap).
         watch(resolvedDoc, () => createApi(), { flush: 'post' });
 
         // Sync the declarative playback props with the animator.

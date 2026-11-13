@@ -465,38 +465,65 @@ export interface PxResolvedActions {
     readonly whenFinished: PxWhenFinished;
 }
 
-// ── CONTROL MODE (API review §1 / §7; `autoplay` → `playUsingActionTriggers` (first-use §1+2, react-props-review) →
-//    `playerActionTriggers` (1.26)) ──
+// ── CONTROL MODE (API review §1 / §7; `autoplay` → `playUsingActionTriggers` → `playerActionTriggers` (1.26) →
+//    no prop at all: the file drives (2026-11-13, kf next-improvements item 0)) ──
 // Which set of props drives playback. Every component picked its own order, so
 // `autoplay` + `showAtProgress={0.5}` played on React and Vue but seeked on React Native, and
 // React let a REF choose the mode — `<SvgAnimationPlayer autoplay playerRef={api} />` never
 // started, because the imperative branch replaced the trigger with an empty one.
 //
-// One order, decided once, used by react / vue / rn. This module owns the LOGIC and the
-// WARNING TEXT only; each component keeps its own `console.warn` wiring.
+// One order, decided once, used by web / react / vue / rn. This module owns the LOGIC and the
+// WARNING TEXT only; each surface keeps its own `console.warn` wiring.
 
 /** Which props drive playback. `playerRef` is deliberately NOT a mode: the handle is filled in
- *  every mode, so passing it alone leaves the document's own trigger in charge. * @public
+ *  every mode, so passing it alone leaves the document's own triggers in charge. * @public
  */
 export const PxControlMode = {
-    /** No control props — nothing plays; the document's triggers are taken over. */
+    /** `showAsStatic` — the picture as drawn: no triggers, no scroll, every playback call ignored with a warning (PX1506). */
     static:    'static',
     /** `showAtProgress` / `showAtTime` — the host holds the frame; the component seeks and stays paused. */
     fixedTime: 'fixedTime',
     /** `playback` — the host holds the playback's position: `off` · `on` · `paused`. */
     playback:   'playback',
-    /** `playerActionTriggers` — the document's `actionTriggers` drive it, or the block given instead. */
-    playerActionTriggers: 'playerActionTriggers',
+    /** `disableActionTriggers` (or `actionTriggers: null`) — nothing fires by itself; code presses the buttons. */
+    manual:    'manual',
+    /** No control prop (the default) — the document's `actionTriggers` drive it, or the `actionTriggers` block given instead. */
+    actionTriggers: 'actionTriggers',
 } as const;
 
 export type PxControlMode = typeof PxControlMode[keyof typeof PxControlMode];
+
+/**
+ * The control props EVERY surface takes — the web player's options and the pre-rendered builds' too. Left out, all
+ * three: the file's own `actionTriggers` drive it, the way the editor saved it. One at a time; a mix warns (PX1501).
+ * @public
+ */
+export interface PxCommonControlProps {
+    /**
+     * The picture as drawn — nothing plays, whatever the file says: no triggers, no scroll, and every playback call
+     * (`playback.start()`, a seek, `playback.setSpeed()`, …) is ignored with a warning (PX1506). The reads still answer.
+     * Beats every other control prop.
+     */
+    showAsStatic?: boolean;
+    /** Manual: the file's `actionTriggers` are switched off, so nothing starts it by itself — your code presses the
+     *  buttons (`playback.start()`, …). `actionTriggers: null` (or `{}`) says the same. */
+    disableActionTriggers?: boolean;
+    /**
+     * The triggers to use INSTEAD of the file's `actionTriggers` — a REPLACEMENT of the whole block, as in the file:
+     * lists left out are not listed, never the file's values (the lists belong together: switching `hoverIn` →
+     * `click` wants other `pause` / `stop` lists too). `null` or `{}`: no triggers, the same as
+     * `disableActionTriggers`. Left out: the file's own. (`playerActionTriggers` until 2026-11-13, which also took
+     * `true` — now the default.)
+     */
+    actionTriggers?: PxActionTriggersInput | null;
+}
 
 /**
  * Every control prop, each optional and in any mix — what {@link resolveControlMode} reads, so a JavaScript caller's
  * conflicting set still gets its PX1501 warning. Components TYPE their props as {@link PxControlProps} (one family).
  * @public @advanced
  */
-export interface PxAnyControlProps {
+export interface PxAnyControlProps extends PxCommonControlProps {
     /**
      * SHOW one frame — nothing plays: the position counted in iterations, in the order they play — `0` the first frame,
      * `1` the end of the first iteration, `1.2` 20 % into the second (an `alternate` second pass runs backwards, so that
@@ -518,16 +545,6 @@ export interface PxAnyControlProps {
      *  `playState` until 1.23). The readout is
      *  `playback.getState()`: the request says `on`, the result says `playing` or `finished`. */
     playback?: PxPlayback;
-    /**
-     * The player's action triggers — when each built-in action fires. `true`: the document's own `actionTriggers`
-     * block decides (the way the editor saved it). An OBJECT: that block instead, as a WHOLE (the lists belong
-     * together: switching `hoverIn` → `click` wants other `pause` / `stop` lists too); lists left out are simply
-     * not listed, never the file's values. `false` (or leaving it out): the triggers do not drive — unlike the
-     * overrides (`timelineOptions`, `actions`), where left out means "as the file says". To have your code drive, pass
-     * no control prop at all (the handle is the driver). (`playUsingActionTriggers` until 1.25; `autoplay` before it,
-     * which lied for a click file.)
-     */
-    playerActionTriggers?: boolean | PxActionTriggersInput;
     // TODO (dev-docs/plans/component-api.md D4): `playUsingScrollTimeline?: PxScrollTimeline` — the scroll driver, a
     // full scroll-driven timeline config, when scroll-driven playback lands. A driver is named by its verb: `play…`
     // when it plays, `show…` when it only shows a frame.
@@ -539,16 +556,19 @@ type PxOnlyControlProps<K extends keyof PxAnyControlProps> =
 
 /**
  * The control props every framework component takes — ONE driver family at a time, checked by TypeScript:
- * `showAtProgress` · `showAtTime` · `playback` · `playerActionTriggers`. Two families at once do not compile; a
- * JavaScript caller gets the precedence of {@link resolveControlMode} and a PX1501 warning.
+ * `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActionTriggers` · `actionTriggers`. None of
+ * them: the file's own triggers drive it. Two families at once do not compile; a JavaScript caller gets the precedence
+ * of {@link resolveControlMode} and a PX1501 warning.
  * ONE definition (review §9) — React, Vue and React Native take it, so the hover text is what their users see.
  * @public
  */
 export type PxControlProps =
+    | PxOnlyControlProps<'showAsStatic'>
     | PxOnlyControlProps<'showAtProgress'>
     | PxOnlyControlProps<'showAtTime'>
     | PxOnlyControlProps<'playback'>
-    | PxOnlyControlProps<'playerActionTriggers'>;
+    | PxOnlyControlProps<'disableActionTriggers'>
+    | PxOnlyControlProps<'actionTriggers'>;
 
 /** The positions of the `playback` prop — what a host can ASK for: `off` (no playback), `on` (a playback), `paused` (the playback
  *  frozen). The player's own readout, {@link PxPlaybackState}, says what it IS (`playing` or `finished` for `on`, plus the
@@ -568,59 +588,68 @@ export interface PxResolvedControlMode {
     readonly warnings: ReadonlyArray<string>;
 }
 
+/** One rung of the precedence ladder: the prop names a warning uses, whether they were given, the mode they pick. */
+interface PxControlTier {
+    readonly name: string;
+    readonly given: boolean;
+    readonly mode: PxControlMode;
+}
+
+/** An `actionTriggers` value that IS a block — `null` (no triggers) and `undefined` (the file's own) are not. */
+function isActionTriggersBlock(value: PxActionTriggersInput | null | undefined): value is PxActionTriggersInput {
+    return typeof value === 'object' && value !== null;
+}
+
 // @px-area control
 /**
- * Picks the control mode from the props a component was given.
+ * Picks the control mode from the props (or the web player's options) given.
  *
  * PRECEDENCE, most specific first:
- *   1. `showAtProgress` / `showAtTime` — an explicit position is the most precise instruction there is
- *   2. `playback` — the playback's position, held by the host
- *   3. `playerActionTriggers` — the document's triggers, or the block given
- *   4. otherwise `static`   — nothing plays; the triggers are taken over
+ *   1. `showAsStatic` — the picture as drawn; nothing may move it
+ *   2. `showAtProgress` / `showAtTime` — an explicit position is the most precise instruction there is
+ *   3. `playback` — the playback's position, held by the host
+ *   4. `disableActionTriggers` (or `actionTriggers: null`) — manual: code presses the buttons
+ *   5. otherwise `actionTriggers` — the file's own triggers, or the block given instead
  *
  * `playerRef` is absent on purpose. A ref is a handle, not an instruction: it is populated in
- * every mode, so `playerActionTriggers` + `playerRef` autostarts AND gives you the handle.
+ * every mode, so a bare component + `playerRef` plays as the file says AND gives you the handle.
  *
  * A warning is produced only when props from two different tiers are set together — the
  * lower tier is then ignored, and silence about that is what made this hard to debug.
  * @public
  */
 export function resolveControlMode(props: PxAnyControlProps): PxResolvedControlMode {
-    const hasFixedTime = props.showAtProgress !== undefined || props.showAtTime !== undefined;
-    const hasPlayback = props.playback !== undefined;
-    const hasTriggers = !!props.playerActionTriggers;
-
     const warnings: Array<string> = [];
     const named = (a: string, b: string, winner: string): string =>
         a + ' and ' + b + ' were both set — ' + winner + ' wins, ' + (winner === a ? b : a) + ' is ignored.';
+    if (props.showAtProgress !== undefined && props.showAtTime !== undefined) warnings.push(named('showAtProgress', 'showAtTime', 'showAtProgress'));
 
-    if (hasFixedTime) {
-        if (props.showAtProgress !== undefined && props.showAtTime !== undefined) warnings.push(named('showAtProgress', 'showAtTime', 'showAtProgress'));
-        if (hasPlayback) warnings.push(named('showAtProgress/showAtTime', 'playback', 'showAtProgress/showAtTime'));
-        if (hasTriggers) warnings.push(named('showAtProgress/showAtTime', 'playerActionTriggers', 'showAtProgress/showAtTime'));
-        return { mode: PxControlMode.fixedTime, warnings };
+    const tiers: ReadonlyArray<PxControlTier> = [
+        { name: 'showAsStatic', given: !!props.showAsStatic, mode: PxControlMode.static },
+        { name: 'showAtProgress/showAtTime', given: props.showAtProgress !== undefined || props.showAtTime !== undefined, mode: PxControlMode.fixedTime },
+        { name: 'playback', given: props.playback !== undefined, mode: PxControlMode.playback },
+        { name: props.disableActionTriggers ? 'disableActionTriggers' : 'actionTriggers', given: !!props.disableActionTriggers || props.actionTriggers === null, mode: PxControlMode.manual },
+        { name: 'actionTriggers', given: isActionTriggersBlock(props.actionTriggers), mode: PxControlMode.actionTriggers },
+    ];
+    const winner = tiers.find(t => t.given);
+    if (!winner) return { mode: PxControlMode.actionTriggers, warnings };
+    for (const tier of tiers) {
+        if (tier !== winner && tier.given) warnings.push(named(winner.name, tier.name, winner.name));
     }
-    if (hasPlayback) {
-        if (hasTriggers) warnings.push(named('playback', 'playerActionTriggers', 'playback'));
-        return { mode: PxControlMode.playback, warnings };
-    }
-    if (hasTriggers) return { mode: PxControlMode.playerActionTriggers, warnings };
-    return { mode: PxControlMode.static, warnings };
+    return { mode: winner.mode, warnings };
 }
 
 // @px-area control
 /**
- * True when the component must take the document's trigger over — the trigger replaced by an
- * EMPTY one (`withoutTriggerDriver`), so nothing starts the animation by itself.
+ * True when the surface must take the document's triggers over — replaced by an EMPTY block
+ * (`withoutTriggerDriver`), so nothing starts the animation by itself.
  *
- * Every mode except `playerActionTriggers` — INCLUDING `static`. A component given no control props at
- * all must not start on its own: `<SvgAnimationPlayer document={…} />` renders the first frame and waits.
- * `playerActionTriggers` is the one mode that says "let the triggers decide" — and since the first-use
- * review §1+2 the web `createSvgAnimationPlayer` follows the same rule through its option of the same name.
+ * Every mode except `actionTriggers` — the default, the one mode that says "let the triggers decide" (the file's, or
+ * the block given). `static` takes them over too, and more: see `withStaticPicture`.
  * @public
  */
 export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
-    return mode !== PxControlMode.playerActionTriggers;
+    return mode !== PxControlMode.actionTriggers;
 }
 
 // @px-area control

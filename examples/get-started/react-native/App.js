@@ -6,7 +6,7 @@ export default function App() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <View style={{ width: 300, height: 300 }}>
-        <SvgAnimationPlayer document={animation} playerActionTriggers />
+        <SvgAnimationPlayer document={animation} />
       </View>
     </View>
   );

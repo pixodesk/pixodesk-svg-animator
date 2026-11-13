@@ -94,8 +94,8 @@ Two mechanisms, because virtualisation alone is not enough:
    (`initialNumToRender: 3`, `windowSize: 5`, `removeClippedSubviews`), so most
    cases don't exist as components at all.
 2. **Visibility gating** — `onViewableItemsChanged` tracks which rows are
-   genuinely on screen, and only those get `playerActionTriggers`. Rows that are mounted but
-   scrolled out render their first frame and sit idle, so no off-screen timeline
+   genuinely on screen, and only those play on the file's triggers — the others get
+   `disableActionTriggers`. Rows that are mounted but scrolled out sit idle on their rest pose, so no off-screen timeline
    burns a frame budget.
 
 Each animation is still driven natively on the UI thread by reanimated, so

@@ -4,7 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 import { assert, describe, expect, it } from 'vitest';
-import { applyAnimatorConfig, mergeAnimatorConfig, applyPlaybackOverride, type PxAnimatorConfigPatch } from './PxAnimatorConfigPatch';
+import { applyAnimatorConfig, mergeAnimatorConfig, applyPlaybackOverride, withControlMode, type PxAnimatorConfigPatch } from './PxAnimatorConfigPatch';
+import { PxControlMode } from '../format/PxAnimatorConstants';
 import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxTimeline } from '../format/PxAnimatorTypes';
 import { isRecord } from '../schema/PxSchema';
 import type { PxTimelineOptions, PxActionsOptions, PxPlaybackOverrideInput } from './PxAnimatorConfigPatch';
@@ -352,5 +353,44 @@ describe('applyAnimatorConfig — document level', () => {
     it('an EMPTY `timeline` patch changes nothing', () => {
         const d: PxDocument = { type: 'svg', animator: { timeline: { outTime: 1000, iterations: 4, actionTriggers: { 'playback.start': 'click' } } } };
         expect(animatorOf(applyPlaybackOverride(d, { timelineOptions: {} }).doc).timeline).toEqual(animatorOf(d).timeline);
+    });
+});
+
+describe('applyPlaybackOverride — `actions` and `actionTriggers` REPLACE the file\'s blocks; withControlMode (2026-11-13)', () => {
+    const hoverFile = (): PxDocument => ({
+        type: 'svg',
+        animator: { timeline: { outTime: 1000, actionTriggers: { 'playback.start': 'hoverIn', 'playback.pause': 'hoverOut' }, actions: { 'playback.stop': 'animateToStart', outOfView: 'continue' } } },
+    });
+    const timelineOf = (d: PxDocument): Record<string, unknown> => {
+        const timeline: unknown = animatorOf(d).timeline;
+        return isRecord(timeline) ? timeline : {};
+    };
+
+    it('`actions` is the WHOLE block — a slot left out is gone, never the file\'s value', () => {
+        expect(timelineOf(applyPlaybackOverride(hoverFile(), { actions: { 'playback.stop': 'animateToEnd' } }).doc)).toEqual({
+            outTime: 1000, actionTriggers: { 'playback.start': 'hoverIn', 'playback.pause': 'hoverOut' }, actions: { 'playback.stop': 'animateToEnd' },
+        });
+    });
+
+    it('`actionTriggers` is the WHOLE block; `null` is the control mode\'s to apply, so the override leaves the document as it is', () => {
+        expect(timelineOf(applyPlaybackOverride(hoverFile(), { actionTriggers: { 'playback.start': 'click' } }).doc).actionTriggers)
+            .toEqual({ 'playback.start': 'click' });
+        const d = hoverFile();
+        expect(applyPlaybackOverride(d, { actionTriggers: null }).doc).toBe(d);
+    });
+
+    it('withControlMode: the default keeps the triggers, manual empties them, static also shows the static picture', () => {
+        const d = hoverFile();
+        expect(withControlMode(d, PxControlMode.actionTriggers)).toBe(d);
+        expect(timelineOf(withControlMode(d, PxControlMode.manual)).actionTriggers).toEqual({});
+        const still = timelineOf(withControlMode(d, PxControlMode.static));
+        expect(still.actionTriggers).toEqual({});
+        expect(still.whenIdle).toBe('static');
+    });
+
+    it('withControlMode spares a scroll-driven document — scroll is not an action trigger', () => {
+        const scroll: PxDocument = { type: 'svg', animator: { timeline: { type: 'scroll', outTime: 1000 } } };
+        expect(withControlMode(scroll, PxControlMode.manual)).toBe(scroll);
+        expect(withControlMode(scroll, PxControlMode.static)).toBe(scroll);
     });
 });

@@ -83,6 +83,7 @@ export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from './playbac
 // The shapes every framework component shares (review §9) — one definition, three aliases.
 export type { PxAnimationPlayerHandle, PxAnimationPlayerCallbacks, PxPlaybackListeners } from './format/PxAnimatorTypes';
 export type { PxPlaybackOverride, PxPlaybackOverrideInput, PxTimelineTiming, PxPlaybackOverrideResult } from './playback/PxAnimatorConfigPatch';
+export type { PxCommonControlProps } from './format/PxAnimatorConstants';
 
 // Element-creation factory + glyph-text materializer
 
@@ -112,7 +113,7 @@ export { applyAnimatorConfig, mergeAnimatorConfig } from './playback/PxAnimatorC
 export type { PxTriggerEvents } from './format/PxAnimatorConstants';
 export type { PxPlayExecutor } from './format/PxAnimatorTypes';
 export { PxPlaybackState, PxTriggerAction, PxTriggerList, PxTriggerIssueKind } from './format/PxAnimatorConstants';
-export type { PxRecursivePartial, PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelineOptions, PxActionsOptions } from './playback/PxAnimatorConfigPatch';
+export type { PxRecursivePartial, PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelineOptions, PxActionsInput } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
 // The remaining wire enums (review §2.7). `PxFillMode` / the transition enums (`PxStopPlaybackBehavior` · `PxWhenFinished` · `PxOutOfViewBehavior` · `PxWhenIdle`) /
 // `PxPlaybackDirection` / `PxTriggerEvent` are exported above and must NOT be repeated here —

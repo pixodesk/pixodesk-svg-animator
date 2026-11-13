@@ -1,5 +1,5 @@
 import './style.css';
-import { type PxActionsOptions, type PxDocument, type PxTimelineOptions, type PxActionTriggers } from '@pixodesk/svg-animator-web';
+import { type PxActionsInput, type PxDocument, type PxTimelineOptions, type PxActionTriggers } from '@pixodesk/svg-animator-web';
 import {
   getAnimatorConfig,
   isPxDocument,
@@ -281,9 +281,9 @@ function currentTimelineOverride(): PxTimelineOptions | undefined {
   return Object.keys(override).length ? override : undefined;
 }
 
-/** The actions merge for this mount: with custom triggers, the gate's `outOfView` behavior.
- *  `undefined` = the document's own actions. */
-function currentActionsOverride(): PxActionsOptions | undefined {
+/** The actions block for this mount: with custom triggers, the gate's `outOfView` behavior — a replacement,
+ *  so the stop reads its default. `undefined` = the document's own actions. */
+function currentActionsOverride(): PxActionsInput | undefined {
   if (!useTrigger || useFileConfig) return undefined;
   return { outOfView: { behavior: selectedOutOfViewBehavior() } };
 }

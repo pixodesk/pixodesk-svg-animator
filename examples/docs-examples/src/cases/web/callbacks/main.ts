@@ -4,8 +4,7 @@ const log = document.getElementById('log')!;
 const say = (line: string) => { log.textContent += line + '\n'; };
 
 const animator = createSvgAnimationPlayer({
-  playerActionTriggers: true,
-  document: '../../../../animation.json',
+  document: '../../../../animation.json',   // plays the way the file says — its own trigger starts it on load
   container: '#box',
   onPlaybackStart:  () => say('onPlaybackStart'),   // a playback began — playback.start(), or play() from rest
   onPlaybackResume: () => say('onPlaybackResume'),  // the playback carried on after a freeze — playback.resume(), or play() while paused

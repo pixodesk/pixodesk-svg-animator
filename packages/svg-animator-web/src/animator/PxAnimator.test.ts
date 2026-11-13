@@ -123,7 +123,7 @@ describe('createSvgAnimationPlayer', () => {
         const onPlaybackStart = vi.fn();
         const doc = makeDoc();
         doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' } } };
-        const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container', playerActionTriggers: true, onPlaybackStart });
+        const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container', onPlaybackStart });
         window.dispatchEvent(new Event('load'));     // a no-op when the document was already complete at creation
 
         expect(api.playback.isPlaying()).toBe(true);
@@ -158,13 +158,13 @@ describe('createSvgAnimationPlayer', () => {
         expect(onPlaybackStop).toHaveBeenCalledTimes(1);   // a seek reports nothing
     });
 
-    it('playerActionTriggers: a document with no trigger block waits — absent ≡ {} ≡ manual (1.17)', () => {
-        const api = createSvgAnimationPlayer({ document: makeDoc(), container: '#svg-container', playerActionTriggers: true });
+    it('no control option: a document with no trigger block waits — absent ≡ {} ≡ manual (1.17)', () => {
+        const api = createSvgAnimationPlayer({ document: makeDoc(), container: '#svg-container' });
         expect(api.playback.isPlaying()).toBe(false);
     });
 
     // The no-driver rule (first-use review §1+2): nothing plays until a line names the driver.
-    it('without playerActionTriggers the same document builds still, and the api drives it', () => {
+    it('without the same document builds still, and the api drives it', () => {
         const api = createSvgAnimationPlayer({ document: makeDoc(), container: '#svg-container' });
         expect(api.playback.isPlaying()).toBe(false);
         api.playback.start();
@@ -433,12 +433,12 @@ describe('createSvgAnimationPlayersFromPage', () => {
     it('passes the same options createSvgAnimationPlayer takes to EVERY player it creates (review §15)', async () => {
         document.body.innerHTML =
             '<div data-px-document="a.json"></div><div data-px-document="b.json"></div>';
-        stubFetch(makeDoc());   // a document that would playerActionTriggers on load
+        stubFetch(makeDoc());   // a document that would on load
         const onPlay = vi.fn();
 
         // One trigger block for every player — start on click, not on load — plus an inline callback: both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ playerActionTriggers: { 'playback.start': 'click' }, onPlaybackStart: onPlay });
+        createSvgAnimationPlayersFromPage({ actionTriggers: { 'playback.start': 'click' }, onPlaybackStart: onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-document]'))
