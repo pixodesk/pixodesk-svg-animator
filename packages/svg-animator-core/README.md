@@ -60,7 +60,7 @@ runtime crash on a non-browser platform.
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `toDomProps` (`/engine`), `sanitizeAttributeValue`, `generateNewIds` |
 | **Playback engine** (`/engine`) | `createAdapterSvgAnimationPlayer` + the `PxPlatformAdapter` interface, the time contract, the component control rules |
-| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerEvent`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneOmit`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerEvent.click` and `"playback.start"?: PxTriggerEvents` come from one import |
+| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerEvent`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollFollows`, `PxScrollMoment`, `PxScrollAxis`, `PxScrollLine`, `PxHoldAt`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneOmit`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerEvent.click` and `"playback.start"?: PxTriggerEvents` come from one import |
 
 ### Validating a document
 
@@ -105,13 +105,13 @@ is 150 ms. Only stated fields are keys of it, so asking for a field whose absenc
 "unset" (such as `clone.without`), or for a key the schema has renamed, does not compile. Every
 reader takes the value from there rather than restating it: the player normalises an absent field
 to it, and the Pixodesk editor defaults its model to it, so the two can never disagree about a
-field neither of them was given. `PxTimelineSchema` is a union of the three timeline kinds;
+field neither of them was given. `PxTimelineSchema` is a union of the two timeline kinds — the clock and the scroll;
 `PxTimeTimelineSchema` is the time-driven member an absent `type` selects, exported so its own
 defaults can be read the same way.
 
 There is one schema value per block, named after it: `PxTriggersSchema`, `PxActionsSchema`, `PxElementAnimationSchema`,
 `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxBezierPathSchema`,
-`PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxRetimeEffectSchema` and
+`PxScrollTimelineSchema`, `PxScrollMomentSchema`, `PxHoldOnScreenSchema`, `PxRetimeEffectSchema` and
 `PxGradientStopSchema` among them. Two hold a node's shared halves rather than a block of their
 own — `PxNodeBaseSchema` is what every node has, `PxSvgNodeRootSchema` what only the root `<svg>` adds.
 

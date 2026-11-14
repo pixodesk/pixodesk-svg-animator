@@ -34,7 +34,7 @@ export { carryPrep } from './format/PxAnimatorConstants';
 // main entry) — public code reads the view through `getAnimatorConfig` / `prepareDocument`.
 export { resolveAnimatorTimeline } from './format/PxAnimatorConstants';
 // Our camelCase values spelled the browser's way, where a player hands them to CSS / WAAPI (review §25).
-export { cssPlaybackDirection, cssScrollPhase, type PxCssPlaybackDirection, type PxCssScrollPhase } from './format/PxAnimatorConstants';
+export { cssPlaybackDirection, cssRangeOfMoment, clampShare, type PxCssPlaybackDirection, type PxCssRangeName, type PxScrollMomentSettings, type PxScrollSettings } from './format/PxAnimatorConstants';
 // A motion-path segment table — owned by whoever evaluates segments repeatedly (an animator, a compile).
 export { createMotionPathSegments } from './materialize/PxMotionPath';
 export { PxNormalizedPathValueSchema } from './format/PxAnimatorTypes';
@@ -51,7 +51,9 @@ export { renderPxTree } from './render/PxRenderTree';
 export type { PxElementFactory, PxElementSpec } from './render/PxRenderTree';
 export { materializeMotionPathInPropAnim } from './materialize/PxMotionPath';
 export { createDiagnostics } from './playback/PxDiagnostics';
-export { isScrollTimeline, scrollOffsetProgress, scrollPhaseInterval, scrollResolveAxis, scrollTotalDurationMs, scrollViewProgress } from './playback/PxScrollMath';
+export { isScrollTimeline, scrollDefaultMoments, scrollMomentFor, scrollMomentU, scrollOffsetProgress, scrollResolveAxis, scrollTotalDurationMs, scrollViewProgress } from './playback/PxScrollMath';
+// An element or a ref in `timelineOptions.follows`, taken out before the merge — web, React and Vue share the rule.
+export { takeFollowedOut, type PxFollowedTakenOut } from './playback/PxAnimatorConfigPatch';
 export { PX_UNKNOWN_KEY_ERROR } from './schema/PxSchema';
 export { PX_VALIDATION_ROOT_SEGMENT } from './format/PxAnimatorTypes';
 export { PX_COLOR_ATTR_NAMES, PX_DEFAULT_DURATION_MS, PX_PCT_BASED_ATTR_NAMES, PX_STYLE_ATTR_NAMES, PX_TRANSFORM_FN_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, parseColor, cubicBezier, kebabToCamelCaseWord, reverseEasing, splitEasing, subdivideCubicBezier, toRGBA } from './util/PxAnimatorUtil';

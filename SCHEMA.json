@@ -2506,6 +2506,191 @@
             "type": {
               "const": "scroll"
             },
+            "follows": {
+              "enum": [
+                "thisElement",
+                "parentElement",
+                "pageElement",
+                "pageScroll",
+                "containerScroll"
+              ]
+            },
+            "selector": {
+              "type": "string"
+            },
+            "firstFrameWhen": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "appears",
+                    "halfIn",
+                    "fullyIn",
+                    "centered",
+                    "startsToLeave",
+                    "halfOut",
+                    "gone"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "element": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "top",
+                            "center",
+                            "bottom",
+                            "left",
+                            "right"
+                          ]
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "screen": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "top",
+                            "center",
+                            "bottom",
+                            "left",
+                            "right"
+                          ]
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "element",
+                    "screen"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "scrolled": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "scrolled"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "lastFrameWhen": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "appears",
+                    "halfIn",
+                    "fullyIn",
+                    "centered",
+                    "startsToLeave",
+                    "halfOut",
+                    "gone"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "element": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "top",
+                            "center",
+                            "bottom",
+                            "left",
+                            "right"
+                          ]
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "screen": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "top",
+                            "center",
+                            "bottom",
+                            "left",
+                            "right"
+                          ]
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "element",
+                    "screen"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "scrolled": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "scrolled"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "holdOnScreen": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "at": {
+                      "enum": [
+                        "top",
+                        "center",
+                        "bottom"
+                      ]
+                    },
+                    "forScreens": {
+                      "type": "number"
+                    },
+                    "offset": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "axis": {
+              "enum": [
+                "vertical",
+                "horizontal"
+              ]
+            },
+            "smoothing": {
+              "type": "number"
+            },
             "inTime": {
               "type": "number"
             },
@@ -2521,220 +2706,6 @@
                 "native",
                 "js"
               ]
-            },
-            "frameRate": {
-              "type": "number"
-            },
-            "axis": {
-              "enum": [
-                "block",
-                "inline",
-                "x",
-                "y"
-              ]
-            },
-            "source": {
-              "enum": [
-                "nearest",
-                "root"
-              ]
-            },
-            "subject": {
-              "type": "string"
-            },
-            "smoothing": {
-              "type": "number"
-            },
-            "pin": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "align": {
-                      "enum": [
-                        "top",
-                        "center",
-                        "bottom"
-                      ]
-                    },
-                    "offset": {
-                      "type": "number"
-                    },
-                    "distance": {
-                      "type": "number"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              ]
-            },
-            "range": {
-              "type": "object",
-              "properties": {
-                "start": {
-                  "type": "object",
-                  "properties": {
-                    "phase": {
-                      "enum": [
-                        "cover",
-                        "contain",
-                        "entry",
-                        "exit",
-                        "entryCrossing",
-                        "exitCrossing"
-                      ]
-                    },
-                    "fraction": {
-                      "type": "number"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "end": {
-                  "type": "object",
-                  "properties": {
-                    "phase": {
-                      "enum": [
-                        "cover",
-                        "contain",
-                        "entry",
-                        "exit",
-                        "entryCrossing",
-                        "exitCrossing"
-                      ]
-                    },
-                    "fraction": {
-                      "type": "number"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "view"
-            },
-            "inTime": {
-              "type": "number"
-            },
-            "outTime": {
-              "type": "number"
-            },
-            "iterations": {
-              "type": "number"
-            },
-            "engine": {
-              "enum": [
-                "auto",
-                "native",
-                "js"
-              ]
-            },
-            "frameRate": {
-              "type": "number"
-            },
-            "axis": {
-              "enum": [
-                "block",
-                "inline",
-                "x",
-                "y"
-              ]
-            },
-            "source": {
-              "enum": [
-                "nearest",
-                "root"
-              ]
-            },
-            "subject": {
-              "type": "string"
-            },
-            "smoothing": {
-              "type": "number"
-            },
-            "pin": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "align": {
-                      "enum": [
-                        "top",
-                        "center",
-                        "bottom"
-                      ]
-                    },
-                    "offset": {
-                      "type": "number"
-                    },
-                    "distance": {
-                      "type": "number"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              ]
-            },
-            "range": {
-              "type": "object",
-              "properties": {
-                "start": {
-                  "type": "object",
-                  "properties": {
-                    "phase": {
-                      "enum": [
-                        "cover",
-                        "contain",
-                        "entry",
-                        "exit",
-                        "entryCrossing",
-                        "exitCrossing"
-                      ]
-                    },
-                    "fraction": {
-                      "type": "number"
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                "end": {
-                  "type": "object",
-                  "properties": {
-                    "phase": {
-                      "enum": [
-                        "cover",
-                        "contain",
-                        "entry",
-                        "exit",
-                        "entryCrossing",
-                        "exitCrossing"
-                      ]
-                    },
-                    "fraction": {
-                      "type": "number"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              },
-              "additionalProperties": false
             }
           },
           "required": [

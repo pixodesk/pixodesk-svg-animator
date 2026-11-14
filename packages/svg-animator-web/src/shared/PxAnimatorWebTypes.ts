@@ -9,7 +9,7 @@ import type {
 import type {
     PxEngineAnimationPlayerApi as PxEngineAnimatorApiCore,
 } from '@pixodesk/svg-animator-core/engine';
-import type { PxCssScrollPhase } from '@pixodesk/svg-animator-core/internal';
+import type { PxCssRangeName } from '@pixodesk/svg-animator-core/internal';
 
 /**
  * DOM specializations of the platform-neutral player API types.
@@ -29,10 +29,10 @@ export type PxEngineAnimationPlayerApi<TRoot = Element> = PxEngineAnimatorApiCor
 
 /**
  * A WAAPI `TimelineRangeOffset` — what `Animation.rangeStart` / `rangeEnd` take; not in the DOM typings yet:
- * a CSS percentage (`CSS.percent(…)`), plus the named phase on a VIEW timeline (`cover`, `contain`, …).
+ * a CSS percentage (`CSS.percent(…)`), plus the named range on a VIEW timeline (`cover`, `entry`, …).
  * @internal
  */
 export interface PxNativeRangeOffset {
-    rangeName?: PxCssScrollPhase;
+    rangeName?: PxCssRangeName;
     offset: CSSNumericValue;
 }

@@ -45,7 +45,7 @@ export { toPxDocument, isCompiledAnimation, PxDocumentSchema, PxAnimatorConfigSc
 export { PxTimelineEngine, PxCloneOmit, PxTimelineEngineSetting, PX_PLAYBACK_DEFAULTS, PX_TRANSFORM_PART_KEYS } from './format/PxAnimatorConstants';
 
 // Document / model types
-export type { PxDocument, PxDocumentJson, PxAnimationDefinition, PxAnimationPlayerApi, PxPlaybackControls, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxActionTriggers, PxActionTriggersInput, PxActions, PxTransformValue } from './format/PxAnimatorTypes';
+export type { PxDocument, PxDocumentJson, PxAnimationDefinition, PxAnimationPlayerApi, PxPlaybackControls, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScrollMomentWire, PxHoldOnScreen, PxSvgNode, PxTimeline, PxTransformParts, PxActionTriggers, PxActionTriggersInput, PxActions, PxTransformValue } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerEvent.click`
 // and `start?: PxTriggerEvent` from one import.
@@ -109,9 +109,12 @@ export {
     PxMaskedByEffectSchema,
     PxRepeaterEffectSchema,
     PxRetimeEffectSchema,
-    PxScrollRangePointSchema,
-    PxScrollRangeSchema,
-    PxScrollSchema,
+    PxScrollTimelineSchema,
+    PxScrollMomentSchema,
+    PxScrollPlaceSchema,
+    PxScrollScrolledSchema,
+    PxScrollLineSchema,
+    PxHoldOnScreenSchema,
     PxTextPathEffectSchema,
     PxTextEffectSchema,
     PxTransformByEffectSchema,
@@ -129,11 +132,14 @@ export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt
 // one export per identifier.
 export {
     PxAlongPathMode,
-    PxPinAlign,
+    PxHoldAt,
     PxScrollAxis,
-    PxScrollKind,
-    PxScrollPhase,
-    PxScrollSource,
+    PxScrollFollows,
+    PxScrollLine,
+    PxScrollMoment,
+    PX_SCROLL_MOMENT_ORDER,
+    followsElement,
+    scrollLineShare,
 } from './format/PxAnimatorConstants';
 export type {
     PxEffects,

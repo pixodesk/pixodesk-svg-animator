@@ -6,7 +6,7 @@
 
 import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxPlaybackControls } from '@pixodesk/svg-animator-core';
 import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, resolveControlMode, PxVariablesRuntime, withActionTriggers, triggerEventList, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
-import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
+import { reportDocumentProblems, takeFollowedOut, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -34,9 +34,10 @@ function createAnimatorFromConfig(
     mode: PxControlMode,
     adapter?: PxPlatformAdapter,
     callbacks?: PxPlayerCallbacks,
-    rootElement?: Element | null
+    rootElement?: Element | null,
+    followed?: Element,
 ): PxPlayerEngineApi {
-    return bindWithEngineChoice(doc, adapter, callbacks, rootElement, mode);
+    return bindWithEngineChoice(doc, adapter, callbacks, rootElement, mode, followed);
 }
 
 /** One build of the player: the engine api, the document as rendered (materialized, fresh ids) and its root. */
@@ -62,6 +63,7 @@ interface PxBuiltPlayer {
  * @param mode The control mode the options picked (core `resolveControlMode`).
  * @param renderIntoProvidedRoot A rebuild for a root the caller rendered: the new content replaces the root's
  *        children (the root element itself, and the attributes its framework set, stay).
+ * @param followed The element page code handed over as `timelineOptions.follows` — taken out of `override` already.
  * @returns The build: the engine api, the document as rendered, its root.
  */
 function createAnimatorImpl(
@@ -73,6 +75,7 @@ function createAnimatorImpl(
     override?: PxPlaybackOverrideInput,
     providedRoot?: Element,
     renderIntoProvidedRoot?: boolean,
+    followed?: Element,
 ): PxBuiltPlayer {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
@@ -153,7 +156,7 @@ function createAnimatorImpl(
         rootElement = providedRoot;
     }
 
-    const api = createAnimatorFromConfig(doc, mode, adapter, callbacks, rootElement);
+    const api = createAnimatorFromConfig(doc, mode, adapter, callbacks, rootElement, followed);
 
     // The player put the SVG into the container, so destroy() takes it out again —
     // otherwise a frozen last frame lingers after the animator is gone. Scoped to
@@ -180,10 +183,11 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
  * options (`showAsStatic`, `disableActionTriggers`, `actionTriggers`) and the callbacks are core's shared shapes —
  * the SAME names, inline, as the React, Vue and React Native components take (review §9) — so only what is
  * web-specific is declared here. With no control option the file plays the way the editor saved it: its own
- * `timeline.actionTriggers` start (and gate) playback.
+ * `timeline.actionTriggers` start (and gate) playback. A scroll timeline's `timelineOptions.follows` also takes an
+ * element of the page — the same as `follows: 'pageElement'` with a selector.
  * @public
  */
-export type PxAnimationPlayerOptions = PxPlaybackOverride & PxCommonControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
+export type PxAnimationPlayerOptions = PxPlaybackOverride<Element> & PxCommonControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
     /** The animation document: a URL to fetch it from, or the document itself (see docs/format/README.md) — typed as a
      *  JSON import produces it ({@link PxDocumentJson}), so `import animation from './animation.json'` passes with no
      *  cast. A string is always a URL. (`src` / `doc` until 1.25 — two names for one thing.) */
@@ -223,13 +227,24 @@ export type PxInternalAnimationPlayerOptions = PxAnimationPlayerOptions & {
      * the same marked nodes.
      */
     variablesRuntime?: PxVariablesRuntime;
+
+    /**
+     * The element a component's page code handed over as `timelineOptions.follows` (a React or Vue ref, resolved when
+     * the player is created) — followed as `pageElement`; the component's document never carries it.
+     */
+    followedElement?: Element;
 };
 
 /** The one place `createSvgAnimationPlayer` reads past its public signature — see `PxInternalAnimationPlayerOptions`. */
 function isInternalOptions(options: PxAnimationPlayerOptions): options is PxInternalAnimationPlayerOptions {
     // ANY internal key. Testing `adapter` alone meant a caller passing only `rootElement` —
     // what the React and Vue components do — had it silently ignored.
-    return 'adapter' in options || 'rootElement' in options || 'variablesRuntime' in options;
+    return 'adapter' in options || 'rootElement' in options || 'variablesRuntime' in options || 'followedElement' in options;
+}
+
+/** An element of the page — what `timelineOptions.follows` may hand over on the web (`Element` is absent outside a browser). */
+function isDomElement(value: unknown): value is Element {
+    return typeof Element !== 'undefined' && value instanceof Element;
 }
 
 /** A playback state carried across a rebuild (§7: a change never seeks, pauses or restarts the animation). */
@@ -305,6 +320,10 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const source = options.document;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
     const providedRoot = isInternalOptions(options) ? options.rootElement : undefined;
+    // An element in `timelineOptions.follows` never reaches the document (documents stay JSON): taken out here
+    const takenOut = takeFollowedOut(options.timelineOptions, isDomElement);
+    const override: PxPlaybackOverrideInput = { timelineOptions: takenOut.timelineOptions, actions: options.actions, actionTriggers: options.actionTriggers };
+    const followed = (isInternalOptions(options) ? options.followedElement : undefined) ?? takenOut.followed;
     // The registry hears the playback events and the finish through the player callbacks, and names the PROXY
     // below — the object the caller holds — never the engine API behind it.
     let proxy: PxAnimationPlayerApi | undefined;
@@ -377,7 +396,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             rt.takeChanges();   // the first build reads them all
             // a component that rendered the document passes the document it rendered: resolved already
             const toBuild = providedRuntime || !rt.hasVariables() ? document : rt.resolvedDocument(true);
-            const first = createAnimatorImpl(toBuild, control.mode, adapter, engineCallbacks, container, options, providedRoot);
+            const first = createAnimatorImpl(toBuild, control.mode, adapter, engineCallbacks, container, override, providedRoot, false, followed);
             if (rt.hasVariables()) {
                 variables = new PxWebVariables(rt, { playback: () => animator?.playback, rebuild });
                 variables.bind(first.doc, first.root);
@@ -400,7 +419,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         try {
             const doc = withoutLoadTriggers(rt.resolvedDocument(true));
             const quiet: PxPlayerCallbacks = { ...engineCallbacks, onWarning: undefined, suppressWarnings: true };
-            const next = createAnimatorImpl(doc, control.mode, adapter, quiet, container, options, providedRoot, !container);
+            const next = createAnimatorImpl(doc, control.mode, adapter, quiet, container, override, providedRoot, !container, followed);
             previous.destroy();
             animator = next.api;
             restorePlayback(next.api.playback, snapshot);
@@ -477,7 +496,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
  * diagnostics channel, the playback override.
  * @public
  */
-export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxCommonControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks;
+export type PxPageAnimationPlayerOptions = PxPlaybackOverride<Element> & PxCommonControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks;
 
 /**
  * Scan the page for `<div data-px-document="animation.json">` and create one player per

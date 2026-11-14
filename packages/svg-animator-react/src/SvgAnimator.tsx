@@ -9,7 +9,7 @@ import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-we
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxVariablesOptions, type PxVariableValue } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
-import { createDiagnostics, deepEquals, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { createDiagnostics, deepEquals, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -91,6 +91,28 @@ export interface SvgAnimatorImplProps {
      * every member invoked as a function, so a `suppressWarnings: boolean` in there would not type.
      */
     diagRef: React.RefObject<PxDiagnosticsConfig>;
+
+    /** The element `timelineOptions.follows` hands over, read when the player is created (a ref is filled by then). */
+    followedRef: React.RefObject<() => Element | undefined>;
+}
+
+/** What `timelineOptions.follows` may hand over in React instead of a word: an element of the page, or a ref to one. */
+type PxReactFollowed = Element | { readonly current: Element | null };
+
+/** An element of the page (`Element` is absent when rendering on a server). */
+function isDomElement(value: unknown): value is Element {
+    return typeof Element !== 'undefined' && value instanceof Element;
+}
+
+/** An element, or a ref object holding one (or nothing yet). */
+function isReactFollowed(value: unknown): value is PxReactFollowed {
+    return isDomElement(value)
+        || (typeof value === 'object' && value !== null && 'current' in value && (value.current === null || isDomElement(value.current)));
+}
+
+/** The element handed over — a ref's, as it is now. */
+function elementOf(followed: PxReactFollowed | undefined): Element | undefined {
+    return followed === undefined || isDomElement(followed) ? followed : followed.current ?? undefined;
 }
 
 /**
@@ -107,9 +129,11 @@ export type SvgAnimationPlayerCallbacks =
  * core's shared shapes (review §9) — `PxPlaybackOverride`, `PxControlProps` and
  * `PxAnimationPlayerCallbacks` — so React, Vue and React Native cannot drift apart. Only what is
  * React-specific is declared here. `SvgCssAnimationPlayerProps` derives from this type — a change here is checked there.
+ * A scroll timeline's `timelineOptions.follows` also takes an element or a ref to one
+ * (`timelineOptions={{ type: 'scroll', follows: chapterRef }}`), resolved when the player is created.
  * @public
  */
-export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
+export type SvgAnimationPlayerProps = PxPlaybackOverride<PxReactFollowed> & PxControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
 
     /** Added to the root `<svg>`. */
     className?: string;
@@ -152,7 +176,7 @@ export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxVa
 
 // @px-importance important
 const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
-    className, style, doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef
+    className, style, doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef, followedRef
 }) => {
 
     // Render what the web player renders: materialized, then fresh ids. Rendering the raw
@@ -211,8 +235,10 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             showAsStatic: compMode === PxControlMode.static,
             // the variables the document was resolved with: the player draws their changes, React never re-renders
             variablesRuntime: runtime,
-            // Refs are attached during commit, before this effect runs, so the root exists here.
+            // Refs are attached during commit, before this effect runs, so the root exists here — and a ref handed
+            // over in `timelineOptions.follows` holds its element.
             rootElement: rootRef.current ?? undefined,
+            followedElement: followedRef.current?.(),
             onReady:  cb('onReady'),
             onPlaybackStart:  cb('onPlaybackStart'),
             onPlaybackStop:   cb('onPlaybackStop'),
@@ -232,7 +258,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             api?.destroy();
             apiHolderRef.current = null;
         };
-    }, [doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef]);
+    }, [doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef, followedRef]);
 
     return root;
 };
@@ -305,7 +331,11 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     const docRef = useRef(docInput);
     if (docRef.current !== docInput && !deepEquals(docRef.current, docInput)) docRef.current = docInput;
     const stableDoc = docRef.current;
-    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, actionTriggers ?? null]);
+    // an element or a ref in `timelineOptions.follows` never reaches the document (documents stay JSON) — nor the key:
+    // a DOM element carries React's own circular properties
+    const followsTaken = takeFollowedOut(timelineOptions, isReactFollowed);
+    const jsonTimelineOptions = followsTaken.timelineOptions;
+    const overrideKey = JSON.stringify([jsonTimelineOptions ?? null, actions ?? null, actionTriggers ?? null]);
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `playerRef` is deliberately NOT an input: the handle is populated in
@@ -336,7 +366,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // control mode but `actionTriggers` — the EMPTY block goes on AFTER the caller's override.
     const patched = useMemo(() => {
         let doc = toPxDocument(stableDoc);
-        const overridden = applyPlaybackOverride(doc, { timelineOptions, actions, actionTriggers });
+        const overridden = applyPlaybackOverride(doc, { timelineOptions: jsonTimelineOptions, actions, actionTriggers });
         if (overridden.warnings.length) {
             const diag = makeDiag();
             for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -385,6 +415,10 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // component does (§5).
     const diagRef = useRef<PxDiagnosticsConfig>({});
     diagRef.current = { onWarning, onError, suppressWarnings, suppressErrors };
+
+    // …and the element `timelineOptions.follows` hands over, resolved when the player is created
+    const followedRef = useRef<() => Element | undefined>(() => undefined);
+    followedRef.current = () => elementOf(followsTaken.followed);
 
     // Expose the imperative API via the consumer-provided ref. The ref is an ambient
     // CAPABILITY, never a mode (§10) — but a WRITE call landing while a declarative driver
@@ -449,6 +483,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
             apiHolderRef={apiHolderRef}
             callbacksRef={callbacksRef}
             diagRef={diagRef}
+            followedRef={followedRef}
         />
     );
 };

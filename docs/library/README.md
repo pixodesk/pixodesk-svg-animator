@@ -314,7 +314,7 @@ severity (`onError`, `onWarning`) and read `kind` inside it to decide what to do
 <!-- px-check values PxDiagnosticKind pkg=core -->
 | `kind` | who fixes it | examples |
 |---|---|---|
-| `document` | regenerate or repair the file | effects shape, unknown keys, an invalid document, no or unresolved bindings, a `scroll.subject` that is not a valid selector, a blocked SVG tag |
+| `document` | regenerate or repair the file | effects shape, unknown keys, an invalid document, no or unresolved bindings, a scroll timeline's `selector` that is not a valid selector, a blocked SVG tag |
 | `host` | fix the page or app | no root element, a selector that matched nothing, `setAttribute` finding no element, a failed fetch |
 | `platform` | nothing — the player degraded | unsupported CSS attrs, `smoothing` needing the built-in driver, native scroll-timeline construction failing, `react-native-svg` prop limits |
 | `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `actionTriggers` on a scroll timeline, a playback call on a scroll timeline (PX1505) or on a `showAsStatic` player (PX1506) |
@@ -354,13 +354,15 @@ and implemented once in core, over two clocks — **model time** (content ms, as
   from it ([Moving the playhead](./playback-and-triggers.md#moving-the-playhead)). A speed of `0` is **rejected
   everywhere**, with a warning — `playback.pause()` is how you stop;
 - `playback.getState()` is the one state read — the playback's: `off` · `playing` · `paused` · `finished` · `returning`
-  · `destroyed`; `finished` after the last pass, whatever `whenFinished` then shows; a stop's `animateToStart`
+  · `scrubbing` · `destroyed`; `finished` after the last pass, whatever `whenFinished` then shows; a stop's `animateToStart`
   leg on its way back reads `returning` (no playback, the picture still moves); `playback.isPlaying()` is
   `getState() === 'playing'`, `playback.isActive()` is true while a playback exists; a call after `destroy()`
   is ignored with a warning ([PX1504](../diagnostics.md));
-- on a scroll or view timeline the scroll position owns the playhead: `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`,
-  `playback.resume()`, `playback.setSpeed()` and `playback.setDurationAtSpeed()` are no-ops with a warning
-  ([PX1505](../diagnostics.md#the-props-a-component-was-given)); a seek still applies until the next scroll.
+- on a scroll timeline only the scroll moves the playhead: `playback.getState()` reads `scrubbing` on every engine,
+  no playback callback fires, and `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`,
+  `playback.resume()`, `playback.setSpeed()`, `playback.setDurationAtSpeed()` and the seeks (`showAtProgress` /
+  `showAtTime` too) are ignored with a warning ([PX1505](../diagnostics.md#the-props-a-component-was-given));
+  the reads still answer.
   The full list of such rules: [The contract](./playback-and-triggers.md#the-contract).
 
 ### Why these names

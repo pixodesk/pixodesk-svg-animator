@@ -78,6 +78,16 @@ and `playback.play()` — or the `"playback.play"` trigger list — starts or ca
 is `'stop'`. Stamped 1.25 files are converted on read; a start that used the default `continue` gets its hover and
 click events moved to `"playback.play"`.
 
+**`type: 'view'`, `source`, `subject`, `range` or `pin` is not a timeline key; `PxScroll`, `PxScrollKind`,
+`PxScrollPhase`, `PxScrollSource` or `PxPinAlign` is not exported.** Changed in 1.28: one scroll timeline in plain
+words — `{ type: 'scroll' }` with `follows` (`thisElement` · `parentElement` · `pageElement` + `selector` ·
+`pageScroll` · `containerScroll`) for `type` + `source` + `subject`; `firstFrameWhen` / `lastFrameWhen` (a moment
+word such as `fullyIn`, an exact place `{ element, screen }`, or `{ scrolled }`) for `range`; `holdOnScreen`
+(`at`, `forScreens`, `offset`) for `pin`; `axis: 'vertical' | 'horizontal'` for `block` · `inline` · `x` · `y`;
+no `frameRate`. The types are `PxScrollFollows`, `PxScrollMoment`, `PxScrollLine`, `PxScrollAxis`, `PxHoldAt`,
+`PxScrollMomentWire` and `PxHoldOnScreen`. Stamped 1.27 files are converted on read — see
+[Following the scroll](./playback-and-triggers.md#following-the-scroll).
+
 **`player.startPlayback()` / `player.play()` / `player.getCurrentTime()` is not a function.** Since 1.25 everything a page
 does to the animation sits on ONE object, `player.playback` (`PxPlaybackControls`) — on the web player and on every
 component's `playerRef`: `startPlayback()` → `playback.start()`, `stopPlayback()` → `playback.stop()`, `pausePlayback()`
@@ -185,8 +195,20 @@ in the timeline, with the event that stops it listed in the triggers (`'playback
 
 **How do I play faster or slower?** `timeline.playbackSpeed` in the file (`2` = twice as fast), the same
 key in `timelineOptions`, or `playback.setSpeed(2)` on the handle — `playback.setDurationAtSpeed(ms)` asks for the same
-thing as a length. A speed of `0` is rejected: `playback.pause()` is how you stop. On a scroll or view timeline
-the scroll position owns the playhead, so the playback calls do nothing there (PX1505).
+thing as a length. A speed of `0` is rejected: `playback.pause()` is how you stop. On a scroll timeline
+the scroll owns the playhead, so the playback calls do nothing there (PX1505).
+
+**A scroll-driven file ignores `playback.start()`, `playback.setCurrentProgress()` or `showAtProgress`.** Expected:
+on a scroll timeline only the scrolling moves the playhead — the buttons and the seeks are ignored with a warning
+(PX1505), `playback.getState()` reads `scrubbing` and no playback callback fires. To drive the file from your own
+code, make it a clock timeline: `timelineOptions={{ type: 'time' }}` beside `showAtProgress` — see
+[Following the scroll → From page code](./playback-and-triggers.md#from-page-code).
+
+**A scroll-driven animation starts too early or too late.** Its two moments decide where on the screen the
+first and the last frame are shown — `firstFrameWhen` / `lastFrameWhen`, from `appears` to `gone` by default.
+`"lastFrameWhen": "fullyIn"` finishes once all of it is in; an exact place such as
+`"firstFrameWhen": { "element": "top", "screen": 0.8 }` starts when its top is 80 % down the screen — see
+[The two moments](./playback-and-triggers.md#the-two-moments).
 
 **A trigger event does nothing, or the console warns about the triggers.** Each list names only
 the events that make sense for it — `playback.start` and `playback.play` never `hoverOut`, `playback.stop` never `load` or `hoverIn`,
@@ -213,8 +235,8 @@ For a slider across a finite playback use `playback.getTotalTime()` with `playba
 (`null` when `iterations` is `'infinite'`).
 
 **`onPlaybackFinish` never fires.** It fires when the last pass ends by playing — never on a loop without end,
-and never for a stop that goes to the end (`'playback.stop': 'animateToEnd'` reports `onPlaybackStop`, though the
-state then reads `finished` too).
+never for a stop that goes to the end (`'playback.stop': 'animateToEnd'` reports `onPlaybackStop`, though the
+state then reads `finished` too), and never on a scroll timeline, which never starts or finishes.
 
 **`onPlaybackPause` fires, but nobody paused it.** The out-of-view gate pauses for real since 1.26: scrolled out
 of view (or in a hidden tab) the playback reads `paused` and reports `onPlaybackPause`, then `onPlaybackResume` when
@@ -223,7 +245,8 @@ it is seen again. `actions: { outOfView: 'continue' }` keeps it playing; `'stop'
 
 **Frame rate.** `timeline.frameRate` applies only to the player's own frame loop (`engine: 'js'`,
 or `'auto'` after falling back to it); WAAPI runs at the display rate.
-React Native always runs at the display rate.
+React Native always runs at the display rate. A scroll timeline has no `frameRate`: it draws a frame when the
+scroll moves.
 
 **A property does not animate under `timeline.engine: 'native'`.** WAAPI cannot drive it (the
 console says which); leave `engine` on `auto` so the document switches to the player's frame loop.

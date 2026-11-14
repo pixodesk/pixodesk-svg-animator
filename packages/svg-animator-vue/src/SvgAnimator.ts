@@ -4,14 +4,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionsInput, PxActionTriggersInput, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionsInput, PxActionTriggersInput, PxPlaybackOverride, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback, type PxVariablesApi, type PxVariableValue } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
-import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
-    computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
+    computed, defineComponent, h, isRef, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
 } from 'vue';
 
@@ -39,12 +39,32 @@ const VUE_PROP = { ref: 'ref', style: 'style' } as const;
 
 // -- Helper: apply doc overrides --------------------------------------------
 
+/** What `timelineOptions.follows` may hand over in Vue instead of a word: an element of the page, or a ref to one (a
+ *  template ref unwraps to its element in a template — `null` until it mounts, which reads as left out). */
+type PxVueFollowed = Element | null | { readonly value: Element | null | undefined };
+
+/** An element of the page (`Element` is absent when rendering on a server). */
+function isDomElement(value: unknown): value is Element {
+    return typeof Element !== 'undefined' && value instanceof Element;
+}
+
+/** An element, `null`, or a ref holding an element (or nothing yet). */
+function isVueFollowed(value: unknown): value is PxVueFollowed {
+    return value === null || isDomElement(value) || (isRef(value) && (value.value === null || value.value === undefined || isDomElement(value.value)));
+}
+
+/** The element handed over — a ref's, as it is now. */
+function elementOf(followed: PxVueFollowed | undefined): Element | undefined {
+    if (followed === undefined || followed === null) return undefined;
+    return isDomElement(followed) ? followed : followed.value ?? undefined;
+}
+
 /**
  * What `applyDocOverrides` / `showFixedFrame` read off the props — core's shared shapes, not a local
  * copy (review §9). The runtime `props: {…}` block below stays Vue's own, because Vue needs
  * runtime prop declarations; this is only the TypeScript view of the same members.
  */
-type DocOverrideProps = PxPlaybackOverrideInput & Pick<PxControlProps, 'showAtProgress' | 'showAtTime'>;
+type DocOverrideProps = PxPlaybackOverride<PxVueFollowed> & Pick<PxPlaybackOverrideInput, 'actionTriggers'> & Pick<PxControlProps, 'showAtProgress' | 'showAtTime'>;
 
 // @px-importance important
 function applyDocOverrides(
@@ -57,7 +77,9 @@ function applyDocOverrides(
     // The override, applied ONCE through core's one rule (D4: the timing merged, the `actions` and `actionTriggers`
     // blocks replacing the file's), and then the component's own need to take the triggers over in every control
     // mode but `actionTriggers` — the EMPTY block goes on AFTER the caller's override, so nothing re-arms it.
-    const overridden = applyPlaybackOverride(doc, props);
+    // an element or a ref in `timelineOptions.follows` never reaches the document (documents stay JSON)
+    const timelineOptions = takeFollowedOut(props.timelineOptions, isVueFollowed).timelineOptions;
+    const overridden = applyPlaybackOverride(doc, { timelineOptions, actions: props.actions, actionTriggers: props.actionTriggers });
     for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
     doc = overridden.doc;
     if (controlModeTakesOverTrigger(compMode)) doc = withoutTriggerDriver(doc);
@@ -95,7 +117,8 @@ export const svgAnimationPlayerProps = {
 
     // -- Playback override (D4, playback-layers.md): `timelineOptions` merged over the file's timing, `actions` replacing
     //    its actions block. The triggers travel with the control props, `actionTriggers`. Same names as React / RN.
-    timelineOptions: { type: Object as PropType<PxTimelineOptions> },
+    //    A scroll timeline's `follows` also takes an element or a ref to one, resolved when the player is created.
+    timelineOptions: { type: Object as PropType<PxTimelineOptions<PxVueFollowed>> },
     actions: { type: Object as PropType<PxActionsInput> },
 
     // -- Control — one at a time; none: the file's own triggers drive it
@@ -268,8 +291,10 @@ const SvgAnimationPlayer = defineComponent({
                 showAsStatic: compMode.value === PxControlMode.static,
                 // the variables the document was resolved with: the player draws their changes
                 variablesRuntime: runtime.value,
-                // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
+                // Mounted (or `flush: 'post'`) by the time this runs, so the root exists — and a ref handed over in
+                // `timelineOptions.follows` holds its element.
                 rootElement: rootElement ?? undefined,
+                followedElement: elementOf(takeFollowedOut(props.timelineOptions, isVueFollowed).followed),
                 onReady:  () => emit('ready'),
                 onPlaybackStart:  () => emit('playbackStart'),
                 onPlaybackStop:   () => emit('playbackStop'),

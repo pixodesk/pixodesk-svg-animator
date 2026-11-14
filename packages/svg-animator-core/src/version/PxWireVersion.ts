@@ -495,7 +495,112 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // exact for the picture with the defaults: every binding becomes its value, the two blocks go
         down: downVariables,
     },
+    {
+        from: '1.27',
+        to: '1.28',
+        reason: 'One scroll timeline in plain words (docs/library/playback-and-triggers.md, "Following the scroll"): '
+            + '`type: "view"` and `"scroll"` become `type: "scroll"` with `follows` (`thisElement`, `parentElement`, '
+            + '`pageElement` + `selector`, `pageScroll`, `containerScroll`) in place of `source` and `subject`; `range` '
+            + 'becomes `firstFrameWhen` / `lastFrameWhen` — one of seven words (`appears` … `gone`, the old range names at '
+            + '0, 50 and 100 %), an exact place `{ element, screen }`, or `{ scrolled }`; `pin` becomes `holdOnScreen` '
+            + '(`at`, `forScreens`, `offset`), which follows its own held stretch; `axis` says `vertical` / `horizontal`; '
+            + '`frameRate` leaves the scroll timeline.',
+        kind: PxWireStepKind.converted,
+        up: upScrollTimeline,
+        // no `down`: 1.27 cannot say an exact place on a line other than the screen's top or bottom
+    },
 ];
+
+/** 1.27 → 1.28 (see the step's `reason`). Frozen at the words of the two versions — never the live constants. */
+function upScrollTimeline(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!animator || !timeline) return;
+    const type = timeline['type'];
+    if (type !== 'view' && type !== 'scroll') return;
+    const out: Record<string, unknown> = { type: 'scroll' };
+    for (const key of ['inTime', 'outTime', 'engine', 'smoothing']) if (timeline[key] !== undefined) out[key] = timeline[key];
+    if (typeof timeline['iterations'] === 'number') out['iterations'] = timeline['iterations'];
+    const axis = timeline['axis'];
+    if (axis === 'x' || axis === 'inline') out['axis'] = 'horizontal';
+    else if (axis === 'y') out['axis'] = 'vertical';
+    const horizontal = out['axis'] === 'horizontal';
+    const range = readObjectProp(timeline, 'range');
+    const start = range ? readObjectProp(range, 'start') : undefined;
+    const end = range ? readObjectProp(range, 'end') : undefined;
+    if (type === 'view') {
+        const pin = timeline['pin'];
+        const pinParams = pin && typeof pin === 'object' ? pin as Record<string, unknown> : undefined;
+        if (pin === true || pinParams) {
+            // held: it follows its own held stretch — `subject` goes; the old default range was the whole pass
+            const hold: Record<string, unknown> = {};
+            if (pinParams?.['align'] !== undefined) hold['at'] = pinParams['align'];
+            if (pinParams?.['distance'] !== undefined) hold['forScreens'] = pinParams['distance'];
+            if (pinParams?.['offset'] !== undefined) hold['offset'] = pinParams['offset'];
+            out['holdOnScreen'] = Object.keys(hold).length ? hold : true;
+            const first = viewMomentOf(start, 0, horizontal), last = viewMomentOf(end, 1, horizontal);
+            if (first !== 'fullyIn') out['firstFrameWhen'] = first;
+            if (last !== 'startsToLeave') out['lastFrameWhen'] = last;
+        } else {
+            const subject = timeline['subject'];
+            if (subject === 'parent') out['follows'] = 'parentElement';
+            else if (typeof subject === 'string' && subject && subject !== 'scroller') { out['follows'] = 'pageElement'; out['selector'] = subject; }
+            const first = viewMomentOf(start, 0, horizontal), last = viewMomentOf(end, 1, horizontal);
+            if (first !== 'appears') out['firstFrameWhen'] = first;
+            if (last !== 'gone') out['lastFrameWhen'] = last;
+        }
+    } else {
+        // `pin` on a scroll of the page or a box is not carried: the page's CSS sticks an element
+        out['follows'] = timeline['source'] === 'root' ? 'pageScroll' : 'containerScroll';
+        const share = (point: Record<string, unknown> | undefined, fallback: number): number => {
+            const f = point?.['fraction'];
+            return typeof f === 'number' ? Math.min(1, Math.max(0, f)) : fallback;
+        };
+        const first = share(start, 0), last = share(end, 1);
+        if (first !== 0) out['firstFrameWhen'] = { scrolled: first };
+        if (last !== 1) out['lastFrameWhen'] = { scrolled: last };
+    }
+    animator['timeline'] = out;
+}
+
+/** The 1.28 word a 1.27 view-range point is for every size, or `undefined`. A switch, not a table: the phase names are
+ *  data, and a literal-keyed table would be mangled with the bundle's property names. */
+function viewWordOf(phase: string, f: number): string | undefined {
+    const at = (zero: string | undefined, half: string | undefined, one: string | undefined): string | undefined =>
+        f === 0 ? zero : f === 0.5 ? half : f === 1 ? one : undefined;
+    switch (phase) {
+        case 'cover': return at('appears', 'centered', 'gone');
+        case 'entry': return at('appears', 'halfIn', 'fullyIn');
+        case 'exit': return at('startsToLeave', 'halfOut', 'gone');
+        case 'contain': return at('fullyIn', 'centered', 'startsToLeave');
+        case 'entryCrossing': return at('appears', undefined, undefined);
+        case 'exitCrossing': return at(undefined, undefined, 'gone');
+        default: return undefined;
+    }
+}
+
+/** A 1.27 view-range point as a 1.28 moment: a word where the point IS one for every size (the old names at 0, 50,
+ *  100 %), else the exact place it is for an element that fits the screen. */
+function viewMomentOf(point: Record<string, unknown> | undefined, fallback: number, horizontal: boolean): unknown {
+    const phase = typeof point?.['phase'] === 'string' ? point['phase'] : 'cover';
+    const raw = point?.['fraction'];
+    const f = typeof raw === 'number' ? Math.min(1, Math.max(0, raw)) : fallback;
+    const word = viewWordOf(phase, f);
+    if (word) return word;
+    const line = (share: number): unknown => {
+        const rounded = Math.round(share * 10000) / 10000;
+        if (rounded === 0) return horizontal ? 'left' : 'top';
+        if (rounded === 0.5) return 'center';
+        if (rounded === 1) return horizontal ? 'right' : 'bottom';
+        return rounded;
+    };
+    switch (phase) {
+        case 'entry': case 'entryCrossing': return { element: line(f), screen: line(1) };
+        case 'exit': case 'exitCrossing': return { element: line(f), screen: line(0) };
+        case 'contain': return { element: line(1 - f), screen: line(1 - f) };
+        default: return { element: line(f), screen: line(1 - f) };   // cover
+    }
+}
 
 /** 1.27 → 1.26: every binding replaced by its value with the defaults (an animated default: its first keyframe), the
  *  `variables` and `variableVariants` blocks removed. A binding that has no value leaves its place absent. */

@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_PLAYBACK_DEFAULTS, PxWhenFinished, PxTriggerEvent, resolveTriggers } from '../format/PxAnimatorConstants';
 import {
     PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
-    PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
+    PxPropertyAnimationSchema, PxHoldOnScreenSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
     PxTimeTimelineSchema, PxActionTriggersSchema, PxStopPlaybackActionSchema, PxOutOfViewActionSchema, type PxDocument, type PxActionTriggers,
 } from '../format/PxAnimatorTypes';
 import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
@@ -43,7 +43,9 @@ describe('schema.defaults — what an absent field means', () => {
     });
 
     /** Optional fields whose absence deliberately means NOTHING (a flag that is simply not set). */
-    const ABSENT_MEANS_UNSET = new Set(['clone.omit']);
+    const ABSENT_MEANS_UNSET = new Set(['clone.omit',
+        // a scroll timeline with no axis goes the way the page scrolls — neither `vertical` nor `horizontal`
+        'timeline.axis']);
 
     it('every optional choice in the wire format states what absent means', () => {
         const unstated: Array<string> = [];
@@ -70,14 +72,13 @@ describe('schema.defaults — what an absent field means', () => {
         // Every member of the timeline union — time, scroll and view have fields of their own.
         const timeline = describeSchema(PxTimelineSchema);
         for (const member of timeline.kind === 'discriminatedUnion' ? timeline.members : []) visitCounting('timeline', member);
-        visitCounting('scroll', PxScrollSchema);
-        visitCounting('scrollRangePoint', PxScrollRangePointSchema);
+        visitCounting('holdOnScreen', PxHoldOnScreenSchema);
         visitCounting('maskedBy', PxMaskedByEffectSchema);
         visitCounting('strokeTrim', PxStrokeTrimEffectSchema);
         visitCounting('clone', PxCloneEffectSchema);
         visitCounting('fillGradient', PxFillGradientEffectSchema);
         visitCounting('textPath', PxTextPathEffectSchema);
-        expect(visited).toBeGreaterThanOrEqual(15);   // 16 until 1.26: the start action's block left the schema
+        expect(visited).toBeGreaterThanOrEqual(13);   // 16 until 1.26: the start action's block left the schema; 15 until 1.28: one scroll member and no range point
         // The rule has teeth: the one deliberate flag is the only optional choice without a stated default.
         expect(PxCloneEffectSchema._shape.omit.absentDefault()).toBeUndefined();
         expect(unstated, 'optional choices whose schema does not say what absent means').toEqual([]);

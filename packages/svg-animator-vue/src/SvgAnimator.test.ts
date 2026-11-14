@@ -1004,3 +1004,85 @@ describe("SvgAnimationPlayer (Vue) — variables (2026-11-14)", () => {
         expect(api.value.variables.getKeys()).toEqual(['bg', 'r']);
     });
 });
+
+// A scroll timeline (D3, D16): the scrolling owns the playhead — `scrubbing`, no playback event, `showAtProgress`
+// ignored with PX1505; `timelineOptions.follows` takes a ref or an element (resolved when the player is created).
+describe("SvgAnimationPlayer (Vue) — a scroll timeline (2026-11-14)", () => {
+    /** A clock file: one rect fading in over a second. */
+    const clockDoc = (timeline: Record<string, unknown> = {}): PxDocument => ({
+        type: 'svg', viewBox: '0 0 100 100',
+        animator: { timeline: { engine: 'js', outTime: 1000, ...timeline } },
+        children: [{ type: 'rect', id: 'r1', width: 10, height: 10, opacity: 0, animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }],
+    });
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        // jsdom has no layout: a 400 px screen; a <section> 150 px down it, 100 px tall — half-way across (0.5)
+        Object.defineProperty(document.documentElement, 'clientHeight', { value: 400, configurable: true });
+        vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element): DOMRect {
+            const top = this.tagName === 'SECTION' ? 150 : 0, height = this.tagName === 'SECTION' ? 100 : 0;
+            return { top, left: 0, width: 10, height, right: 10, bottom: top + height, x: 0, y: top, toJSON: () => ({}) };
+        });
+    });
+
+    afterEach(() => {
+        vi.advanceTimersByTime(32);   // drain a pending rAF before the timers go (see the first describe)
+        cleanup();
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+        Reflect.deleteProperty(document.documentElement, 'clientHeight');
+    });
+
+    it("timelineOptions.follows takes a template ref — its element is followed, not the animation", () => {
+        const api = ref<PxAnimationPlayerHandle | null>(null);
+        const onWarning = vi.fn();
+        render(defineComponent({
+            setup() {
+                const chapter = ref<HTMLElement | null>(null);
+                return () => [
+                    h('section', { ref: chapter }),
+                    h(SvgAnimationPlayer, { document: clockDoc(), timelineOptions: { type: 'scroll', follows: chapter }, ref: api, onWarning }),
+                ];
+            },
+        }));
+        assert(api.value, "the template ref is set after render");
+        expect(api.value.playback.getState()).toBe('scrubbing');
+        // the svg itself (rect 0 at the top of a 400 px screen) would read 1 — the section reads 0.5
+        expect(api.value.playback.getCurrentProgress()).toBeCloseTo(0.5);
+        expect(onWarning).not.toHaveBeenCalled();
+    });
+
+    it("timelineOptions.follows takes an element too", () => {
+        const section = document.createElement('section');
+        document.body.append(section);
+        const api = ref<PxAnimationPlayerHandle | null>(null);
+        const onWarning = vi.fn();
+        render(defineComponent({ setup: () => () => h(SvgAnimationPlayer, { document: clockDoc(), timelineOptions: { type: 'scroll', follows: section }, ref: api, onWarning }) }));
+        expect(api.value?.playback.getCurrentProgress()).toBeCloseTo(0.5);
+        expect(onWarning).not.toHaveBeenCalled();   // the element never reached the document
+        section.remove();
+    });
+
+    it("getState() reads 'scrubbing' and no playback event is emitted", () => {
+        const told = vi.fn();
+        const { api } = renderWithApi(clockDoc({ type: 'scroll' }), {
+            onPlaybackStart: told, onPlaybackStop: told, onPlaybackPause: told, onPlaybackResume: told, onPlaybackFinish: told,
+            suppressWarnings: true,
+        });
+        assert(api.value, "the template ref is set after render");
+        api.value.playback.start();
+        api.value.playback.stop();
+        vi.advanceTimersByTime(100);
+        expect(api.value.playback.getState()).toBe('scrubbing');
+        expect(told).not.toHaveBeenCalled();
+    });
+
+    it("showAtProgress is ignored with PX1505 — the scrolling owns the playhead", () => {
+        const api = ref<PxAnimationPlayerHandle | null>(null);
+        const onWarning = vi.fn();
+        render(defineComponent({ setup: () => () => h(SvgAnimationPlayer, { document: clockDoc({ type: 'scroll', follows: 'pageScroll' }), showAtProgress: 0.5, ref: api, onWarning }) }));
+        const ignored = onWarning.mock.calls.filter(c => c[0].code === PxDiagnosticCode.scrollOwnsPlayhead).map(c => c[0].data?.[0]);
+        expect(ignored).toEqual(['playback.setCurrentProgress()']);
+        expect(api.value?.playback.getCurrentProgress()).toBe(1);   // where the scroll put it: nothing to scroll → the end
+    });
+});

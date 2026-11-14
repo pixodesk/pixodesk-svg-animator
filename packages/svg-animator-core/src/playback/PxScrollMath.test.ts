@@ -3,47 +3,69 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Table-driven tests over the scroll-timeline math — the phase intervals mirror the
-// table in `app/src/svgeditor/animation/scroll-timeline.design.md` §4.
+// Table-driven tests over the scroll-timeline maths: the seven moment words (they adapt to the size, exactly as the
+// browser's range names do), an exact place (literal), a share scrolled, and the stretch between two moments.
 
 import { describe, expect, it } from 'vitest';
+import { cssRangeOfMoment, PxScrollMoment, type PxScrollSettings } from '../format/PxAnimatorConstants';
 import {
-    isScrollTimeline, scrollOffsetProgress, scrollPhaseInterval, scrollResolveAxis,
+    isScrollTimeline, scrollMomentFor, scrollMomentU, scrollOffsetProgress, scrollResolveAxis,
     scrollTotalDurationMs, scrollViewProgress,
 } from './PxScrollMath';
 
 
-describe('scrollPhaseInterval — the design-doc table', () => {
+describe('scrollMomentU — the seven words', () => {
 
-    // Subject SMALLER than the scrollport: sH=100, vpH=400.
+    // An element SMALLER than the screen: 100 tall, screen 400.
     it.each([
-        ['cover', [0, 500]],
-        ['entry', [0, 100]],
-        ['contain', [100, 400]],
-        ['exit', [400, 500]],
-        ['entryCrossing', [0, 100]],
-        ['exitCrossing', [400, 500]],
-    ] as const)('small subject: %s → %j', (phase, expected) => {
-        expect(scrollPhaseInterval(phase, 100, 400)).toEqual(expected);
+        ['appears', 0],
+        ['halfIn', 50],
+        ['fullyIn', 100],
+        ['centered', 250],
+        ['startsToLeave', 400],
+        ['halfOut', 450],
+        ['gone', 500],
+    ] as const)('small element: %s → u %d', (moment, expected) => {
+        expect(scrollMomentU({ moment }, 100, 400)).toBe(expected);
     });
 
-    // Subject LARGER than the scrollport: sH=1000, vpH=400 — min/max case-split flips
-    // `contain` to "subject covers the whole scrollport".
+    // An element TALLER than the screen: 1000 tall, screen 400 — `fullyIn` is "it fills the screen" (its top at the
+    // screen's top), `startsToLeave` is "it stops filling it" (its bottom at the screen's bottom).
     it.each([
-        ['cover', [0, 1400]],
-        ['entry', [0, 400]],
-        ['contain', [400, 1000]],
-        ['exit', [1000, 1400]],
-        ['entryCrossing', [0, 1000]],
-        ['exitCrossing', [400, 1400]],
-    ] as const)('large subject: %s → %j', (phase, expected) => {
-        expect(scrollPhaseInterval(phase, 1000, 400)).toEqual(expected);
+        ['appears', 0],
+        ['halfIn', 200],
+        ['fullyIn', 400],
+        ['centered', 700],
+        ['startsToLeave', 1000],
+        ['halfOut', 1200],
+        ['gone', 1400],
+    ] as const)('large element: %s → u %d', (moment, expected) => {
+        expect(scrollMomentU({ moment }, 1000, 400)).toBe(expected);
+    });
+
+    it('the words are the browser\'s own range points', () => {
+        expect(cssRangeOfMoment({ moment: PxScrollMoment.fullyIn }, PxScrollMoment.appears)).toEqual({ name: 'entry', fraction: 1 });
+        expect(cssRangeOfMoment({ moment: PxScrollMoment.startsToLeave }, PxScrollMoment.appears)).toEqual({ name: 'exit', fraction: 0 });
+        expect(cssRangeOfMoment(undefined, PxScrollMoment.gone)).toEqual({ name: 'cover', fraction: 1 });
+        // an exact place on the screen's bottom or top line is a crossing; any other line has no browser spelling
+        expect(cssRangeOfMoment({ element: 0.3, screen: 'bottom' }, PxScrollMoment.appears)).toEqual({ name: 'entry-crossing', fraction: 0.3 });
+        expect(cssRangeOfMoment({ element: 'bottom', screen: 'top' }, PxScrollMoment.appears)).toEqual({ name: 'exit-crossing', fraction: 1 });
+        expect(cssRangeOfMoment({ element: 'top', screen: 0.8 }, PxScrollMoment.appears)).toBeUndefined();
+    });
+
+    it('an exact place is literal: the element\'s line at the screen\'s line', () => {
+        // its top 80 % down the screen: u = (1 − 0.8) × 400 + 0 × 100 = 80, for any size
+        expect(scrollMomentU({ element: 'top', screen: 0.8 }, 100, 400)).toBeCloseTo(80);
+        expect(scrollMomentU({ element: 'top', screen: 0.8 }, 1000, 400)).toBeCloseTo(80);
+        // its bottom at the screen's bottom — `fullyIn` for a small element, NOT for a tall one
+        expect(scrollMomentU({ element: 'bottom', screen: 'bottom' }, 100, 400)).toBe(100);
+        expect(scrollMomentU({ element: 'bottom', screen: 'bottom' }, 1000, 400)).toBe(1000);
     });
 });
 
 
 describe('scrollViewProgress', () => {
-    // sH=100, vpH=400 → default full-cover range = u ∈ [0, 500].
+    // 100 tall, screen 400 → the default stretch appears → gone = u ∈ [0, 500].
     const p = (subjectStart: number) => scrollViewProgress(subjectStart, 100, 400, undefined);
 
     it('0 before entering (leading edge below the fold)', () => {
@@ -59,25 +81,47 @@ describe('scrollViewProgress', () => {
     });
 
     it('honors a custom range (entry 0 → contain 1: "while entering and visible")', () => {
-        const range = { start: { phase: 'entry', fraction: 0 }, end: { phase: 'contain', fraction: 1 } } as const;
-        // u interval = [0, 400]
-        expect(scrollViewProgress(400, 100, 400, range)).toBe(0);            // u=0
-        expect(scrollViewProgress(200, 100, 400, range)).toBeCloseTo(0.5);   // u=200
-        expect(scrollViewProgress(0, 100, 400, range)).toBe(1);              // u=400
+        // appears → startsToLeave: u ∈ [0, 400]
+        const scroll: PxScrollSettings = { lastFrameWhen: { moment: PxScrollMoment.startsToLeave } };
+        expect(scrollViewProgress(400, 100, 400, scroll)).toBe(0);            // u=0
+        expect(scrollViewProgress(200, 100, 400, scroll)).toBeCloseTo(0.5);   // u=200
+        expect(scrollViewProgress(0, 100, 400, scroll)).toBe(1);              // u=400
     });
 
     it('fraction interpolates INSIDE a phase', () => {
-        // entry 50% of a 100-tall subject → uStart = 50; end cover 100% → 500.
-        const range = { start: { phase: 'entry', fraction: 0.5 }, end: { phase: 'cover', fraction: 1 } } as const;
-        expect(scrollViewProgress(350, 100, 400, range)).toBe(0);                 // u=50 — at start
-        expect(scrollViewProgress(350 - 225, 100, 400, range)).toBeCloseTo(0.5);  // u=275 = mid of [50,500]
+        // halfIn of a 100-tall element → u 50; gone → 500.
+        const scroll: PxScrollSettings = { firstFrameWhen: { moment: PxScrollMoment.halfIn } };
+        expect(scrollViewProgress(350, 100, 400, scroll)).toBe(0);                 // u=50 — at start
+        expect(scrollViewProgress(350 - 225, 100, 400, scroll)).toBeCloseTo(0.5);  // u=275 = mid of [50,500]
     });
 
     it('degenerate range (zero-size subject, entry) never NaNs: 0 before, 1 after', () => {
-        // sH=0 → entry interval [0,0] → uStart === uEnd.
-        const range = { start: { phase: 'entry', fraction: 0 }, end: { phase: 'entry', fraction: 1 } } as const;
-        expect(scrollViewProgress(500, 0, 400, range)).toBe(0);   // u=-100, before
-        expect(scrollViewProgress(-10, 0, 400, range)).toBe(1);   // u=410, after
+        // a 0-tall element: appears and fullyIn are the same point
+        const scroll: PxScrollSettings = { lastFrameWhen: { moment: PxScrollMoment.fullyIn } };
+        expect(scrollViewProgress(500, 0, 400, scroll)).toBe(0);   // u=-100, before
+        expect(scrollViewProgress(-10, 0, 400, scroll)).toBe(1);   // u=410, after
+    });
+
+    it('two moments that come out reversed are taken in scroll order — nothing jumps', () => {
+        const reversed: PxScrollSettings = { firstFrameWhen: { moment: PxScrollMoment.gone }, lastFrameWhen: { moment: PxScrollMoment.appears } };
+        expect(scrollViewProgress(150, 100, 400, reversed)).toBeCloseTo(0.5);
+        expect(scrollViewProgress(400, 100, 400, reversed)).toBe(0);
+        expect(scrollViewProgress(-100, 100, 400, reversed)).toBe(1);
+    });
+
+    it('held: the default stretch is fullyIn → startsToLeave of the section it is held in', () => {
+        // a 1200-tall section, screen 400: caught when it fills the screen (u 400), let go when it stops (u 1200)
+        const held: PxScrollSettings = { holdOnScreen: true };
+        expect(scrollViewProgress(0, 1200, 400, held)).toBe(0);              // its top at the screen's top: u = 400
+        expect(scrollViewProgress(-400, 1200, 400, held)).toBeCloseTo(0.5);  // u = 800
+        expect(scrollViewProgress(-800, 1200, 400, held)).toBe(1);           // u = 1200
+    });
+
+    it('a moment that does not fit what is followed is replaced by the default', () => {
+        // `{ scrolled }` on an element → the default `appears`
+        expect(scrollMomentFor({ firstFrameWhen: { scrolled: 0.5 } }, 'first')).toEqual({ moment: PxScrollMoment.appears });
+        // a word on the page's scroll → the default `{ scrolled: 1 }`
+        expect(scrollMomentFor({ follows: 'pageScroll', lastFrameWhen: { moment: PxScrollMoment.fullyIn } }, 'last')).toEqual({ scrolled: 1 });
     });
 });
 
@@ -92,25 +136,27 @@ describe('scrollOffsetProgress', () => {
         expect(scrollOffsetProgress(0, 0, undefined)).toBe(1);
     });
     it('range slices the scroll distance', () => {
-        const range = { start: { fraction: 0.25 }, end: { fraction: 0.75 } };
-        expect(scrollOffsetProgress(250, 1000, range)).toBe(0);
-        expect(scrollOffsetProgress(500, 1000, range)).toBeCloseTo(0.5);
-        expect(scrollOffsetProgress(750, 1000, range)).toBe(1);
-        expect(scrollOffsetProgress(100, 1000, range)).toBe(0);    // clamped below
-        expect(scrollOffsetProgress(900, 1000, range)).toBe(1);    // clamped above
+        const scroll: PxScrollSettings = { follows: 'pageScroll', firstFrameWhen: { scrolled: 0.25 }, lastFrameWhen: { scrolled: 0.75 } };
+        expect(scrollOffsetProgress(250, 1000, scroll)).toBe(0);
+        expect(scrollOffsetProgress(500, 1000, scroll)).toBeCloseTo(0.5);
+        expect(scrollOffsetProgress(750, 1000, scroll)).toBe(1);
+        expect(scrollOffsetProgress(100, 1000, scroll)).toBe(0);    // clamped below
+        expect(scrollOffsetProgress(900, 1000, scroll)).toBe(1);    // clamped above
+    });
+    it('a share outside 0–1 is kept inside it', () => {
+        const scroll: PxScrollSettings = { follows: 'pageScroll', firstFrameWhen: { scrolled: -1 }, lastFrameWhen: { scrolled: 3 } };
+        expect(scrollOffsetProgress(500, 1000, scroll)).toBeCloseTo(0.5);
     });
 });
 
 
 describe('scrollResolveAxis', () => {
     it.each([
-        [undefined, undefined, 'y'],            // default block, horizontal writing
-        ['block', 'horizontal-tb', 'y'],
-        ['inline', 'horizontal-tb', 'x'],
-        ['block', 'vertical-rl', 'x'],
-        ['inline', 'vertical-rl', 'y'],
-        ['x', 'vertical-rl', 'x'],              // physical wins over writing mode
-        ['y', 'horizontal-tb', 'y'],
+        [undefined, undefined, 'y'],            // absent: the way the page scrolls — vertical in horizontal writing
+        [undefined, 'horizontal-tb', 'y'],
+        [undefined, 'vertical-rl', 'x'],        // …and horizontal in vertical writing
+        ['vertical', 'vertical-rl', 'y'],       // a named axis wins over the writing mode
+        ['horizontal', 'horizontal-tb', 'x'],
     ] as const)('axis=%s writingMode=%s → %s', (axis, wm, expected) => {
         expect(scrollResolveAxis(axis, wm)).toBe(expected);
     });

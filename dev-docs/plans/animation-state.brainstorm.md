@@ -318,7 +318,7 @@ Scroll can drive an animation in three ways. The contract of the second one is �
 | Way | What scrolling does | Status |
 |---|---|---|
 | **A. Play when seen** | starts the clock; out of view it pauses or stops | ✅ |
-| **B. The file follows the scroll** | `timeline.type: "view"` / `"scroll"` — the scroll position is the playhead | 🧪 player and SVG + JS export; the editor's picker is behind the experimental switch |
+| **B. The file follows the scroll** | `timeline.type: "scroll"` — the scroll position is the playhead (schema 1.28) | ✅ web player (so React and Vue) and the SVG + JS export; enabled in the editor; not React Native |
 | **C. The page follows the scroll** | the page measures, then seeks | ✅ |
 
 **A. Play when seen** ✅ — a clock timeline behind the visibility gate.
@@ -331,29 +331,34 @@ Scroll can drive an animation in three ways. The contract of the second one is �
 "timeline": { "actionTriggers": { "playback.start": "load" }, "actions": { "outOfView": "stop" } }
 ```
 
-**B. The file follows the scroll** 🧪 — read from the source, not run in a browser in this pass.
+**B. The file follows the scroll** ✅ — schema 1.28 (2026-11-14): one `type: "scroll"`, `follows` says what is
+followed, `firstFrameWhen` / `lastFrameWhen` the two moments, `holdOnScreen` a held element. User docs:
+`docs/library/playback-and-triggers.md`, "Following the scroll".
 
 ```json
-// First frame as it enters the viewport, last frame as it leaves
-"timeline": { "type": "view" }
+// First frame as it appears at the bottom of the screen, last frame as it is gone at the top (the defaults)
+"timeline": { "type": "scroll" }
 
-// Draws itself while entering: done once it is fully in view
-"timeline": { "type": "view", "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "entry", "fraction": 1 } } }
+// Draws itself while it comes in: done once all of it is in
+"timeline": { "type": "scroll", "lastFrameWhen": "fullyIn" }
 
 // A reading-progress bar: top of the page → bottom of the page
-"timeline": { "type": "scroll", "source": "root" }
+"timeline": { "type": "scroll", "follows": "pageScroll" }
 
-// Follows a horizontal scroller (the nearest one)
-"timeline": { "type": "scroll", "axis": "x" }
+// Follows a horizontal scroller (the box around it)
+"timeline": { "type": "scroll", "follows": "containerScroll", "axis": "horizontal" }
 
 // Scrollytelling: held in the centre for three screens while the section scrolls past, with a soft catch-up
-"timeline": { "type": "view", "subject": "parent", "pin": { "align": "center", "distance": 3 }, "smoothing": 150 }
+"timeline": { "type": "scroll", "holdOnScreen": { "at": "center", "forScreens": 3 }, "smoothing": 150 }
 
-// Another element's journey drives it
-"timeline": { "type": "view", "subject": "#chapter-2" }
+// Another element's way across the screen drives it
+"timeline": { "type": "scroll", "follows": "pageElement", "selector": "#chapter-2" }
 
-// Only a window of the keyframes, twice across the range
-"timeline": { "type": "view", "inTime": 1000, "outTime": 3000, "iterations": 2 }
+// An exact place: the first frame when its top is 80 % down the screen
+"timeline": { "type": "scroll", "firstFrameWhen": { "element": "top", "screen": 0.8 } }
+
+// Only a window of the keyframes, twice between the two moments
+"timeline": { "type": "scroll", "inTime": 1000, "outTime": 3000, "iterations": 2 }
 ```
 
 ```js
@@ -362,15 +367,23 @@ const chart = createSvgAnimationPlayer({ container, document: '/chart.json' });
 
 // A clock file made scroll-driven by the page (the file's clock-only keys are dropped, with a warning)
 createSvgAnimationPlayer({ container, document: ballDoc,
-  timelineOptions: { type: 'view', subject: 'parent', pin: true } });
+  timelineOptions: { type: 'scroll', holdOnScreen: true } });
 
+// The element itself instead of a selector
+createSvgAnimationPlayer({ container, document: ballDoc,
+  timelineOptions: { type: 'scroll', follows: document.querySelector('#chapter-2') } });
+
+chart.playback.getState();              // 'scrubbing' — on every engine, held or not
 chart.playback.getCurrentProgress();    // readouts work: where the scroll has put the playhead
 chart.playback.start();                 // buttons do nothing, and warn (PX1505)
+chart.playback.setCurrentProgress(0.5); // seeks do nothing either (PX1505): the scroll owns the playhead
 ```
 
 ```jsx
-<SvgAnimationPlayer document={chart} />                                                  // a scroll-driven file
-<SvgAnimationPlayer document={ball} timelineOptions={{ type: 'view', subject: 'parent', pin: true }} />   // made so by the page
+<SvgAnimationPlayer document={chart} />                                                      // a scroll-driven file
+<SvgAnimationPlayer document={ball} timelineOptions={{ type: 'scroll', holdOnScreen: true }} />   // made so by the page
+<SvgAnimationPlayer document={chart} timelineOptions={{ type: 'scroll', follows: chapterRef }} /> // a ref, not a selector
+<SvgAnimationPlayer document={chart} timelineOptions={{ type: 'time' }} showAtProgress={p} />      // the page drives it: way C
 ```
 
 **C. The page follows the scroll** ✅ — a clock file, the page's own measuring, a seek.
@@ -391,33 +404,28 @@ useMotionValueEvent(scrollYProgress, 'change', setProgress);
 <SvgAnimationPlayer document={chart} showAtProgress={progress} />
 ```
 
-**What scroll most likely gets next** 💡 — sketches, none of it exists.
+**What scroll most likely gets next** 💡 — sketches, none of it exists. (Done in 1.28: the one `scrubbing` state; a
+ref through `timelineOptions.follows`. Rejected: a `scroll={…}` prop of its own — `timelineOptions` already carries it.)
 
 ```js
-player.playback.getState();                          // 'scrubbing' — one state on every engine (today it depends on the engine)
 createSvgAnimationPlayer({ container, document: '/chart.json',
   onScrollProgress(progress) {},                     // the playhead moved with the scroll
-  onScrollRangeEnter() {}, onScrollRangeLeave() {},  // the range began / ended (either direction)
+  onScrollStretchEnter() {}, onScrollStretchLeave() {},  // the first / last moment passed (either direction) — "before / between / after"
 });
-```
-
-```jsx
-// A prop of its own, instead of a timeline type inside timelineOptions; the subject as a ref
-<SvgAnimationPlayer document={ball} scroll={{ type: 'view', subject: sectionRef, pin: true }} onScrollProgress={setProgress} />
 ```
 
 ```html
 <!-- The tag: scroll settings without code -->
-<div data-px-document="/ball.json" data-px-scroll="view" data-px-scroll-pin></div>
+<div data-px-document="/ball.json" data-px-scroll data-px-scroll-hold-on-screen></div>
 ```
 
 ```json
 // Stops along the way: when the scrolling ends, the playhead settles on the nearest one
-"timeline": { "type": "view", "snap": [0, 0.5, 1] }
+"timeline": { "type": "scroll", "snap": [0, 0.5, 1] }
 
 // Scroll as an input instead of a timeline type: the clock model stays, and the scroll position picks the part (§7)
 "timeline": { "segments": { "intro": { "outTime": 1000 }, "chart": { "inTime": 1000, "outTime": 3000 } },
-              "scroll": { "subject": "parent", "enter": [{ "at": 0, "segment": "intro" }, { "at": 0.4, "segment": "chart" }] } }
+              "scroll": { "follows": "parentElement", "enter": [{ "at": 0, "segment": "intro" }, { "at": 0.4, "segment": "chart" }] } }
 ```
 
 ## 4. Inside the box — the playback's state machine
@@ -450,7 +458,7 @@ stateDiagram-v2
 | `paused` into `finished` | cleared: `start`, `play`, `stop` and the engine's end set the freeze off |
 | The gate | out of view: `pause` pauses a playing playback; `stop` stops a playing or finished one at once (never animated, whatever the stop action says). In view: it resumes, or starts again — only what it did itself |
 | Seeks | `playing` keeps playing; otherwise `paused` at that frame. Nothing is reported |
-| Scroll / view timelines | §6 (the contract), §3.4 (cases) |
+| Scroll timelines | `scrubbing`, always — none of the arrows above; §6 (the contract), §3.4 (cases) |
 
 ## 5. Why these words
 
@@ -482,26 +490,28 @@ if ( this.clampWhenFinished ) this.paused = true;   // the end of a one-shot: = 
 else this.enabled = false;                          // = our whenFinished: jumpToStart
 ```
 
-## 6. Scroll and view timelines
+## 6. Scroll timelines
 
-On a scroll or view timeline (`timeline.type: "scroll" | "view"`) the scroll position owns the playhead. What that means
-for the model, read from the source on 2026-11-13 (not yet checked in a browser). How to set one up, and what it most
-likely gets next: §3.4.
+On a scroll timeline (`timeline.type: "scroll"`, one type since 1.28 — `"view"` until 1.27) the scroll owns the
+playhead: it is always on, and nothing starts, pauses, stops or finishes it. The contract as decided on 2026-11-14 (schema
+1.28); how to set one up, and what it most likely gets next: §3.4.
 
-| Part | On a scroll / view timeline |
+| Part | On a scroll timeline |
 |---|---|
+| Readout `getState()` | `scrubbing`, on every engine — before the first moment, between the two and after the last, held or not; `isPlaying()` is false |
+| Callbacks | none fire: a scroll timeline never starts and never finishes, so no `onPlaybackStart` … `onPlaybackFinish`, on any engine |
 | Buttons | `start()` `play()` `stop()` `pause()` `resume()` `setSpeed()` `setDurationAtSpeed()` do nothing and warn (PX1505 `scrollOwnsPlayhead`) |
-| Seeks | apply until the next scroll moves the playhead again |
+| Seeks | `setCurrentTime()` `setCurrentProgress()` `setTotalTime()` and the `showAtProgress` / `showAtTime` props do nothing and warn (PX1505) too; a page that wants to drive a scroll file makes it a clock timeline (`timelineOptions: { type: 'time' }`) |
+| Reads | answer as usual: `getCurrentProgress()` is where the scroll has put the playhead |
 | Wiring | inert — the file has no `actionTriggers` there, and a block that slips in is warned about and skipped |
-| Settings | the scroll member of the schema has no `actions`, `whenFinished`, `whenIdle`, `playbackSpeed`, `delay` or gate numbers; it keeps `inTime` / `outTime`, a finite `iterations`, `engine`, `frameRate` and its own scroll keys (`axis`, `source`, `subject`, `smoothing`, `pin`, `range`) |
-| Sensors | no visibility gate; the clock is the scroll position |
-| Readout `getState()` | depends on the engine today: with the browser's own scroll timeline (`engine: auto` / `native` where supported) the animations run, so it reads `playing` — and `finished` from the first time the range end is reached; with the player's own measuring it reads `off` (or `paused` after a page seek) |
-| Callbacks | `onPlaybackFinish` can fire when the browser's scroll timeline reaches the end of its range; the other playback callbacks never fire |
-| Editor | the Timeline picker (Time · Scroll) shows only in experimental builds, or for a file that is already scroll-driven |
+| Settings | the scroll member of the schema has no `actions`, `whenFinished`, `whenIdle`, `playbackSpeed`, `delay`, `iterationDirection`, `frameRate` or gate numbers; it keeps `inTime` / `outTime`, a finite `iterations`, `engine` and its own keys (`follows`, `selector`, `firstFrameWhen`, `lastFrameWhen`, `holdOnScreen`, `axis`, `smoothing`) |
+| Sensors | no visibility gate; the clock is the scroll position — the element's place in the layout, whatever moves it (a CSS transform counts only for the player's own measuring) |
+| Page code | `timelineOptions.follows` also takes an element (web) or a React / Vue ref, in place of the word |
+| Editor | the Timeline choice (Time · Scroll) is always offered |
 
-Open, for a later step: whether a scroll timeline should read one state of its own (for example `scrubbing`) on every
-engine, and whether `onPlaybackFinish` belongs to it at all; whether scroll stays a timeline type or becomes an input that
-drives progress (layer 4 of [playback-layers.md](./playback-layers.md)), which decides how it combines with segments.
+Still open, for a later step: a named readout and events for "before / between / after" (GSAP's `onEnter` /
+`onLeave`); whether scroll stays a timeline type or also becomes an input that drives progress (layer 4 of
+[playback-layers.md](./playback-layers.md)), which decides how it combines with segments.
 
 ## 7. Several parts, several animations — options
 
@@ -716,3 +726,6 @@ at once becomes a real request.
   on every surface; `playerActionTriggers` removed (no alias); `actionTriggers` (a whole block instead of the file's;
   `null` / `{}` = none), `disableActionTriggers` (manual), `showAsStatic` (the picture as drawn, playback calls ignored,
   PX1506); `actions` replaces the file's block (it merged). §2 and §3 updated; the 1.26 entry above keeps its words.
+- 2026-11-14: schema 1.28 — one scroll timeline in plain words (`follows`, `firstFrameWhen` / `lastFrameWhen`,
+  `holdOnScreen`; `type: "view"` gone), the state `scrubbing` on every engine, no playback callbacks, seeks ignored
+  like the buttons (PX1505); §3.4 B and §6 rewritten in the new words.

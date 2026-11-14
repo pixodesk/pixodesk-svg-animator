@@ -135,7 +135,7 @@ timeline and `start()`, `stop()` and `setCurrentProgress()` say the same):
 | `stop()`                | The built-in stop, per `actions["playback.stop"].behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` · `animateToEndAndBack`; reports `onPlaybackStop` |
 | `pause()`               | Freeze the playback at the current frame (only while playing); reports `onPlaybackPause` |
 | `resume()`              | Carry on from the frozen frame (only while paused); reports `onPlaybackResume` |
-| `getState()`            | The one state read — the playback's: `off` · `playing` · `paused` · `finished` · `returning` · `destroyed`; `finished` after the natural end whatever `whenFinished` then shows; a stop's `animateToStart` leg on its way back reads `returning` |
+| `getState()`            | The one state read — the playback's: `off` · `playing` · `paused` · `finished` · `returning` · `scrubbing` · `destroyed`; `finished` after the natural end whatever `whenFinished` then shows; a stop's `animateToStart` leg on its way back reads `returning`; a scroll timeline always reads `scrubbing` |
 | `isActive()`            | A playback exists: `playing` · `paused` · `finished`              |
 | `isPlaying()`           | `getState() === 'playing'` — a picture moving back to the start is not playing |
 | `getDuration()`         | One pass of the content window, ms — a looping file's slider maximum (`null` before a URL loads) |
@@ -158,7 +158,7 @@ second), `total…` names span the **whole playback** (including repeats — GSA
 the same values **at the current speed** — content time ÷ the speed — the one contract on every player
 ([Two clocks](../../docs/library/playback-and-triggers.md#two-clocks)). A seek while playing keeps playing; in
 every other state it leaves the playback `paused` there, and reports nothing. On a
-scroll or view timeline the playback verbs are no-ops (PX1505): the scroll position owns the playhead.
+scroll timeline the playback verbs and the seeks are no-ops (PX1505): the scrolling owns the playhead.
 
 ### Callbacks
 
@@ -199,7 +199,7 @@ stylesheet, the predefined `player.pointer` and how a change is drawn: [Variable
 
 - `'auto'` (default) — the browser where it can (Web Animations API; its ScrollTimeline for scroll-driven documents), the player's frame loop where it must.
 - `'native'` — the browser only (Web Animations API).
-- `'js'` — the player's `requestAnimationFrame` loop only; honors `timeline.frameRate`. Required for path morphing in Safari < 18.5.
+- `'js'` — the player's `requestAnimationFrame` loop only (and its own scroll measuring); honors `timeline.frameRate` on a clock timeline. Required for path morphing in Safari < 18.5.
 
 ### Document format & effects
 

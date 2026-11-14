@@ -147,11 +147,12 @@ interface PxAnimationPlayerOptions {
     actionTriggers?: PxActionTriggersInput | null; // the triggers INSTEAD of the file's, as a whole (lists
                                            //   left out are not listed, never the file's); null or {}: none
 
-    // Per-instance playback override: `PxPlaybackOverride`; the document is never modified.
+    // Per-instance playback override: `PxPlaybackOverride<Element>`; the document is never modified.
     // The rules: Playback settings & triggers → Overriding from a player
-    timelineOptions?: PxTimelineOptions;   // MERGED over the document's `timeline` block — same shape as
+    timelineOptions?: PxTimelineOptions<Element>;  // MERGED over the document's `timeline` block — same shape as
                                            //   the file, minus `actionTriggers` and `actions`. A key left
-                                           //   out keeps the file's value
+                                           //   out keeps the file's value. On a scroll timeline `follows`
+                                           //   also takes an element: { type: 'scroll', follows: chapterEl }
     actions?: PxActionsInput;              // the `timeline.actions` block INSTEAD of the file's — how a stop
                                            //   looks (+ the gate's outOfView): `{ 'playback.stop': 'animateToStart' }`;
                                            //   a slot left out reads its default. What a finished playback
@@ -214,6 +215,23 @@ the override changes the kind of timeline — are in
 [Playback settings & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 Every field and its meaning is in [Playback settings & triggers](./playback-and-triggers.md).
 
+**Following the scroll.** A file saved with a scroll timeline needs nothing: create the player and the scrolling
+moves the playhead. `timelineOptions` makes a clock file follow the scroll, and its `follows` also takes an
+element of your page instead of a word:
+
+```js
+// Held in the centre of the screen for three screens of scrolling, playing meanwhile
+createSvgAnimationPlayer({ document: '/ball.json', container: '#box',
+  timelineOptions: { type: 'scroll', holdOnScreen: { at: 'center', forScreens: 3 } } });
+
+// The chapter, on its way across the screen, drives the chart
+createSvgAnimationPlayer({ document: '/chart.json', container: '#chart',
+  timelineOptions: { type: 'scroll', follows: document.querySelector('#chapter-2') } });
+```
+
+The keys, the seven moments and what page code can still do:
+[Following the scroll](./playback-and-triggers.md#following-the-scroll).
+
 ## The playback API
 
 `createSvgAnimationPlayer` returns a `PxAnimationPlayerApi`: the player's own lifecycle, and `playback` — a
@@ -259,7 +277,8 @@ interface PxPlaybackControls {
                                            //   a seek made while not playing) | 'finished' (reached its end,
                                            //   whatever `whenFinished` then shows) | 'returning' (no playback, but
                                            //   the picture still plays back to the rest pose — a stop's return leg)
-                                           //   | 'destroyed' (after destroy(); every call is then a no-op)
+                                           //   | 'scrubbing' (a scroll timeline, always: the scrolling moves the
+                                           //   playhead) | 'destroyed' (after destroy(); every call is then a no-op)
     isActive(): boolean;                   // a playback exists: playing · paused · finished
     isPlaying(): boolean;                  // getState() === 'playing' — a picture moving back is not playing
 
@@ -319,9 +338,11 @@ playback and `null` when `iterations` is `'infinite'` (the honest answer, no div
 says which pass. The `…AtSpeed` names are the same values **at the current speed** — content time ÷ the speed:
 `playback.getDurationAtSpeed()` is how long one pass takes, `playback.getTotalDurationAtSpeed()` the whole playback
 ("finishes in 3 s"), `playback.getCurrentTimeAtSpeed()` / `playback.getTotalTimeAtSpeed()` where the playhead is.
-The file's `timeline.playbackSpeed` is the initial speed and `playback.setSpeed()` replaces it. On a scroll or
-view timeline the scroll position owns the playhead: the playback verbs are no-ops with a `usage`
-warning ([PX1505](../diagnostics.md#the-props-a-component-was-given)). After `destroy()` every
+The file's `timeline.playbackSpeed` is the initial speed and `playback.setSpeed()` replaces it. On a scroll
+timeline the scroll owns the playhead: `playback.getState()` reads `'scrubbing'`, no playback callback fires,
+and the buttons and the seeks are ignored with a `usage` warning
+([PX1505](../diagnostics.md#the-props-a-component-was-given)) — the reads still answer
+([Following the scroll](./playback-and-triggers.md#from-page-code)). After `destroy()` every
 call is ignored with a `usage` warning ([PX1504](../diagnostics.md)) and `playback.getState()` says
 `'destroyed'`.
 
@@ -463,8 +484,8 @@ you need to attach them to the new ones.
 <!-- px-check values PxTimelineEngineSetting pkg=web -->
 | Value | Behavior |
 |---|---|
-| `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For scroll-driven documents: the browser's `ScrollTimeline` where supported, else the player measures progress itself |
-| `'native'` | Web Animations API only (and the browser's `ScrollTimeline` for scroll-driven documents) |
+| `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For a scroll timeline: the browser's `ScrollTimeline` / `ViewTimeline` when it can say both moments and `smoothing` is off, else the player measures the scroll itself |
+| `'native'` | Web Animations API only (and the browser's `ScrollTimeline` / `ViewTimeline` for a scroll timeline, where it can say both moments) |
 | `'js'` | the player's frame loop only; honors `timeline.frameRate`. Required for path morphing in Safari < 18.5 |
 
 The fallback is per document: if any animated attribute fails the runtime `CSS.supports` gate,
@@ -676,7 +697,7 @@ there and `bindSvgAnimationPlayer` the member `bind`; ESM and CJS consumers impo
 | `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
 | `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE`, `PX_PLAYER_BIND` | ▪ the `<script>` builds' global (`'Pixodesk.SvgAnimator'`) and its two members, `'create'` and `'bind'` — the editor's SVG + JS export builds its call from them |
 | `createVisibilityGate(root, gate, host)`, `PxVisibilityGate`, `PxGateHost` | ▪ the gate `setupAnimationTriggers` wires for every document — it opens at `inViewThreshold`, closes only at zero visibility, waits out `inViewDebounce` and treats a hidden tab as off screen; `gate` is core's `resolveGate(view)`, the host's verbs `leaveView` / `returnToView` (the executor presses the real buttons, and undoes only what it did). Exported so the CSS-only React and Vue wrappers gate on the same rules rather than each growing their own observer |
-| `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxActionTriggersSchema`, `PxActionsSchema`, `PxScrollSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
+| `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxActionTriggersSchema`, `PxActionsSchema`, `PxScrollTimelineSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics every player shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |
 | `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerEvent`, `PxTriggerEvents`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle` | ● named wire values — one const per wire enum, with the string type derived from it under the same name (`PxTriggerEvent.click` and `"playback.start"?: PxTriggerEvents` come from one import). `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxFillMode` is the engines' CSS-style fill mode derived from `whenIdle` + `whenFinished`, not a wire key |
 | `PxDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxActionTriggers`, `PxActions`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [the JSON format](../format/README.md#schema-at-a-glance) |

@@ -324,6 +324,23 @@ numbers `inViewThreshold` and `inViewDebounce` are timeline keys and go in `time
 `loop` prop. A `loop` inside a file means something narrower: it repeats part of one property's
 keyframes ([per-property loops](../format/README.md#per-property-loops)).
 
+**To follow the scroll**, a file saved with a scroll timeline needs no prop. `timelineOptions` makes a clock file
+follow it, and its `follows` also takes a ref to an element of your page — the same as `pageElement` with a
+`selector`, without needing an id:
+
+```tsx
+const chapterRef = useRef<HTMLElement>(null);
+
+<section ref={chapterRef}>…</section>
+// The chapter, on its way across the screen, drives the chart
+<SvgAnimationPlayer document={chart} timelineOptions={{ type: 'scroll', follows: chapterRef }} />
+```
+
+On a scroll timeline `playback.getState()` reads `'scrubbing'`, no playback callback fires, and the buttons, the
+seeks and `showAtProgress` are ignored (PX1505) — to drive a scroll file yourself, pass
+`timelineOptions={{ type: 'time' }}` beside `showAtProgress`. The keys and the seven moments:
+[Following the scroll](./playback-and-triggers.md#following-the-scroll).
+
 Full merge rules — including what happens when the override changes the kind of timeline — are
 in [Playback & triggers → How the merge works](./playback-and-triggers.md#how-the-merge-works).
 
@@ -346,7 +363,7 @@ Everything else — who wins, the stylesheet, the predefined `player.pointer`: [
 Only `document` is required; everything else overrides what the document already says. React renders
 the SVG; the player drives its attributes.
 
-<!-- px-check signature pkg=react -->
+<!-- px-check signature pkg=react loose=SvgAnimationPlayerProps.timelineOptions -->
 ```typescript
 const SvgAnimationPlayer: FC<SvgAnimationPlayerProps>;
 

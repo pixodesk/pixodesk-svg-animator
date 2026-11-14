@@ -4,112 +4,45 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// The DOM half of `animator.timelineSource: 'scroll'` (`timeline.engine: 'js'` — and the fallback of `auto`
-// and the reference implementation): measures the scroller/subject and turns scroll
-// position into animation progress via the pure math in core `PxScrollMath`. The
-// consumer decides what a progress value does (frames: seek `setCurrentTime`; waapi:
-// same, via the engine-agnostic API).
+// The DOM half of a scroll timeline (`animator.timelineSource: 'scroll'`): finds what is followed and its screen in the
+// page, and turns its place into progress through core's `PxScrollMath` — the player's own measuring (`engine: 'js'`,
+// `smoothing`, the fallback of `auto`) — or hands both to the browser's own timeline (`createNativeScrollTimeline`).
 //
-// Event model: `scroll` (+`resize`) listeners, passive, coalesced into ONE
-// requestAnimationFrame tick — at most one measurement + one seek per frame. A
-// `ResizeObserver` (where available) catches subject/scroller size changes that happen
-// without a scroll. TODO (optimization, deliberate v1 omission): an IntersectionObserver
-// gate to park the listeners entirely while the subject is far outside its range.
+// | What is followed | Resolved to |
+// |---|---|
+// | `thisElement` (default) | the animation's root |
+// | `parentElement`, and a held element | the nearest ancestor that really moves (sticky / fixed ones skipped) |
+// | `pageElement` + `selector` | the page's element; an element handed over by page code wins |
+// | `pageScroll` | the page's scroller |
+// | `containerScroll` (+ `selector`) | the scrolling box around the animation, or the box the selector names |
+//
+// "The screen" is the scrolling box around the FOLLOWED element — on both engines (the browser's view timeline takes
+// the subject's own nearest scroller).
+//
+// | What moves the playhead | How our measuring sees it |
+// |---|---|
+// | scrolling | `scroll` listener (on `window` for the page), coalesced into one frame |
+// | a resize | `resize` listener, `ResizeObserver` |
+// | a layout move with no scroll (D8) | an element is measured every frame while it is within a screen of the screen (`IntersectionObserver`) |
+// | a CSS transform | counted (we read the box as drawn), not by the browser's timeline — accepted limit |
 
-import { PxDiagnosticCode, PxDiagnosticKind, PxScrollPhase, type PxAnimatorRuntimeConfig, type PxDiagnostics, type PxScroll, type PxScrollRangePoint } from '@pixodesk/svg-animator-core';
+import { followsElement, PxDiagnosticCode, PxDiagnosticKind, PxHoldAt, PxScrollAxis, PxScrollFollows, PxScrollMoment, PX_SCROLL_MOMENT_ORDER, type PxAnimatorRuntimeConfig, type PxDiagnostics } from '@pixodesk/svg-animator-core';
+import { isNativeForced } from '@pixodesk/svg-animator-core/engine';
 import type { PxNativeRangeOffset } from '../shared/PxAnimatorWebTypes';
-import { createDiagnostics, cssScrollPhase, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
+import { clampShare, createDiagnostics, cssRangeOfMoment, isScrollTimeline, scrollMomentFor, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress, type PxCssRangeName, type PxScrollMomentSettings, type PxScrollSettings } from '@pixodesk/svg-animator-core/internal';
 
 
-// ── Native timeline support (`timeline.engine: 'native'`, tried first by `auto`) ────────────────────────────────────────
-// `ScrollTimeline`/`ViewTimeline` aren't in TS's dom lib yet — minimal local declarations,
-// resolved from globalThis so absence is an ordinary feature-detect, never a crash.
+// ── What is followed ─────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The constructor options of the browser's `ScrollTimeline` (`source`) / `ViewTimeline` (`subject`), plus the axis — not in the DOM typings. */
-interface PxNativeTimelineOptions { source?: Element | null; subject?: Element | null; axis?: string }
-interface NativeTimelineCtor { new(options: PxNativeTimelineOptions): AnimationTimeline }
-
-/** A browser timeline constructor (`ScrollTimeline` / `ViewTimeline`) — absent where unsupported, and not in the DOM typings. */
-function isTimelineCtor(value: unknown): value is NativeTimelineCtor {
-    return typeof value === 'function';
+/** The settings as followed: an element handed over by page code is `pageElement` (a held element ignores it). */
+function settingsFollowing(scroll: PxScrollSettings | undefined, handed: Element | undefined): PxScrollSettings {
+    const settings = scroll ?? {};
+    return handed && !settings.holdOnScreen ? { ...settings, follows: PxScrollFollows.pageElement } : settings;
 }
 
-interface PxNativeScrollTimeline {
-    timeline: AnimationTimeline;
-    /** WAAPI `Animation.rangeStart/rangeEnd` values. */
-    rangeStart?: PxNativeRangeOffset;
-    rangeEnd?: PxNativeRangeOffset;
-}
-
-function nativeRangeOffset(point: PxScrollRangePoint | undefined, defaultFraction: number, view: boolean): PxNativeRangeOffset | undefined {
-    const fraction = typeof point?.fraction === 'number' ? point.fraction : defaultFraction;
-    // `CSS.percent` is feature-detected: the Typed OM is absent in some browsers
-    const pct = (globalThis as { CSS?: { percent?: (n: number) => CSSNumericValue } }).CSS?.percent?.(fraction * 100);
-    if (pct === undefined) return undefined;
-    // Named phases exist only on VIEW timelines (the CSS range name); a scroll timeline takes a bare offset.
-    if (!view) return { offset: pct };
-    return { rangeName: cssScrollPhase(point?.phase ?? PxScrollPhase.cover), offset: pct };
-}
-
-// @px-importance important
-/**
- * Build the browser-native timeline (`mode: 'native'` / `auto`), or `null` when the platform
- * doesn't support scroll-driven WAAPI timelines — the caller then falls back to the
- * custom driver (D8: the option is a preference, never a requirement).
- */
-export function createNativeScrollTimeline(
-    subject: Element,
-    config: PxAnimatorRuntimeConfig | undefined,
-    diag?: PxDiagnostics,
-): PxNativeScrollTimeline | null {
-    // Exported, so the channel is optional and falls back to the console (review §5).
-    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
-    if (!config || !isScrollTimeline(config)) return null;
-    const scroll: PxScroll = config.scroll || {};
-    const kind = scroll.kind ?? 'view';
-
-    // Smoothing is a per-frame easing of progress, which a browser-native timeline (a direct
-    // scroll→time mapping) cannot express. Honor the authored LOOK over the perf hint — D8
-    // already makes `native` a preference rather than a requirement.
-    if (scroll.smoothing) {
-        report.warn(PxDiagnosticKind.platform, PxDiagnosticCode.scrollSmoothingNeedsOwnDriver);
-        return null;
-    }
-
-    const view = kind === 'view';
-    const Ctor: unknown = Reflect.get(globalThis, view ? 'ViewTimeline' : 'ScrollTimeline');
-    if (!isTimelineCtor(Ctor)) return null;
-
-    const axis = scroll.axis ?? 'block';
-    let timeline: AnimationTimeline;
-    try {
-        if (view) {
-            // `scroll.subject` is the same indirection the platform's own ViewTimeline takes.
-            timeline = new Ctor({ subject: resolveScrollSubject(subject, scroll.subject, report), axis });
-        } else {
-            const source = scroll.source === 'root'
-                ? documentScroller()
-                : (findNearestScroller(subject, 'y') || findNearestScroller(subject, 'x') || documentScroller());
-            timeline = new Ctor({ source, axis });
-        }
-    } catch (e) {
-        report.warn(PxDiagnosticKind.platform, PxDiagnosticCode.scrollNativeUnavailable, e);
-        return null;
-    }
-
-    return {
-        timeline,
-        rangeStart: nativeRangeOffset(scroll.range?.start, 0, view),
-        rangeEnd: nativeRangeOffset(scroll.range?.end, 1, view),
-    };
-}
-
-
-export interface PxScrollDriver {
-    /** Detach every listener/observer. Idempotent. */
-    destroy(): void;
-    /** Re-measure and emit now (also called once on attach). */
-    refresh(): void;
+/** An element's place on the screen is followed — the `…Element` words and a held element — not a scrolled amount. */
+function followsAnElement(scroll: PxScrollSettings): boolean {
+    return !!scroll.holdOnScreen || followsElement(scroll.follows);
 }
 
 /**
@@ -145,175 +78,309 @@ function documentScroller(): Element {
     return document.scrollingElement || document.documentElement;
 }
 
-/** `scroll.subject` keywords (anything else is treated as a CSS selector). */
-const SUBJECT_PARENT = 'parent';
-const SUBJECT_SCROLLER = 'scroller';
+/** The scrolling box around an element — its nearest scroller (vertical first), else the page's. */
+function screenAround(el: Element): Element {
+    return findNearestScroller(el, 'y') || findNearestScroller(el, 'x') || documentScroller();
+}
 
 /**
- * WHICH element's journey `kind: 'view'` measures — `scroll.subject`. Unset = the animation's
- * own `<svg>` (the original behavior).
- *
- * `'parent'` is the pinned-section answer and needs no knowledge of the host's markup: a
- * `position: sticky` element STOPS MOVING once stuck, so measuring the graphic itself freezes
- * progress for exactly the stretch that should be animating. Walking out to the outermost
- * sticky/fixed ancestor's container gives the element that really does scroll past — and its
- * `contain` phase is precisely the pinned stretch.
- *
- * Never throws and never returns null: an unresolvable selector warns and falls back to the
- * `<svg>`, because a silent freeze is indistinguishable from a broken animation.
+ * The nearest ancestor that really moves: a `position: sticky` element STOPS MOVING once stuck, so following it would
+ * freeze the progress for exactly the stretch that should play. Walking out to the outermost sticky / fixed ancestor's
+ * parent gives the element that really scrolls past — for a held element, its held section (the wrapper the player
+ * injects for `forScreens`, or the page's own tall section).
  */
-export function resolveScrollSubject(svgRoot: Element, subject: string | undefined, diag?: PxDiagnostics): Element {
-    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
-    const spec = subject?.trim();
-    if (!spec) return svgRoot;
-
-    if (spec === SUBJECT_PARENT) {
-        // Outermost sticky/fixed ancestor wins — nested sticky wrappers are common.
-        let outermostPinned: Element | null = null;
-        for (let p = svgRoot.parentElement; p && p !== document.body; p = p.parentElement) {
-            const position = getComputedStyle(p).position;
-            if (position === 'sticky' || position === 'fixed') outermostPinned = p;
-        }
-        return outermostPinned?.parentElement ?? svgRoot.parentElement ?? svgRoot;
+function movingAncestor(root: Element): Element {
+    let outermostPinned: Element | null = null;   // nested sticky wrappers are common
+    for (let p = root.parentElement; p && p !== document.body; p = p.parentElement) {
+        const position = getComputedStyle(p).position;
+        if (position === 'sticky' || position === 'fixed') outermostPinned = p;
     }
+    return outermostPinned?.parentElement ?? root.parentElement ?? root;
+}
 
-    if (spec === SUBJECT_SCROLLER) {
-        return findNearestScroller(svgRoot, 'y') || findNearestScroller(svgRoot, 'x') || documentScroller();
-    }
-
+/** `selector` in the page — `null`, with a warning, when it is invalid (1303, the file's value) or matches nothing (1304,
+ *  the page's business): a silent freeze is indistinguishable from a broken animation. */
+function queryPage(selector: string, root: Element, report: PxDiagnostics): Element | null {
+    const spec = selector.trim();
     let found: Element | null = null;
     try {
-        found = document.querySelector(spec);
+        found = (root.ownerDocument ?? document).querySelector(spec);
     } catch {
-        // `document`: the bad selector is a VALUE IN THE FILE, so the fix is to the document...
         report.warn(PxDiagnosticKind.document, PxDiagnosticCode.scrollSubjectInvalid, spec);
-        return svgRoot;
+        return null;
     }
-    if (!found) {
-        // ...whereas a valid selector that matches nothing is the page's business.
-        report.warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollSubjectNoMatch, spec);
-        return svgRoot;
-    }
+    if (!found) report.warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollSubjectNoMatch, spec);
     return found;
+}
+
+/**
+ * The element whose place on the screen is followed (the `…Element` words, a held element). Never throws, never null:
+ * what cannot be resolved falls back to the animation's root.
+ * - held → its held section ({@link movingAncestor}); `follows`, `selector` and a handed-over element are not used
+ * - an element handed over by page code (`timelineOptions.follows`) → it
+ * - `parentElement` → {@link movingAncestor}; `pageElement` → `selector` in the page; otherwise the root
+ */
+export function resolveFollowedElement(root: Element, scroll: PxScrollSettings | undefined, diag?: PxDiagnostics, handed?: Element): Element {
+    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
+    if (scroll?.holdOnScreen) return movingAncestor(root);
+    if (handed) return handed;
+    if (scroll?.follows === PxScrollFollows.parentElement) return movingAncestor(root);
+    if (scroll?.follows === PxScrollFollows.pageElement && scroll.selector) return queryPage(scroll.selector, root, report) ?? root;
+    return root;
+}
+
+/** The scroller whose scrolled amount is followed (the `…Scroll` words): `pageScroll` → the page's; `containerScroll` →
+ *  the box `selector` names, else (or when it cannot be found) the scrolling box around the animation. */
+export function resolveScrollSource(root: Element, scroll: PxScrollSettings | undefined, diag?: PxDiagnostics): Element {
+    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
+    if (scroll?.follows === PxScrollFollows.pageScroll) return documentScroller();
+    const named = scroll?.selector ? queryPage(scroll.selector, root, report) : null;
+    if (named === document.body || named === document.documentElement) return documentScroller();   // the viewport scrolls for these
+    return named ?? screenAround(root);
+}
+
+
+// ── Native timeline support (`timeline.engine: 'native'`, tried first by `auto`) ────────────────────────────────────────
+// `ScrollTimeline`/`ViewTimeline` aren't in TS's dom lib yet — minimal local declarations,
+// resolved from globalThis so absence is an ordinary feature-detect, never a crash.
+
+/** The constructor options of the browser's `ScrollTimeline` (`source`) / `ViewTimeline` (`subject`), plus the axis — not in the DOM typings. */
+interface PxNativeTimelineOptions { source?: Element | null; subject?: Element | null; axis?: string }
+interface NativeTimelineCtor { new(options: PxNativeTimelineOptions): AnimationTimeline }
+
+/** A browser timeline constructor (`ScrollTimeline` / `ViewTimeline`) — absent where unsupported, and not in the DOM typings. */
+function isTimelineCtor(value: unknown): value is NativeTimelineCtor {
+    return typeof value === 'function';
+}
+
+interface PxNativeScrollTimeline {
+    timeline: AnimationTimeline;
+    /** WAAPI `Animation.rangeStart/rangeEnd` values. */
+    rangeStart?: PxNativeRangeOffset;
+    rangeEnd?: PxNativeRangeOffset;
+}
+
+/** One end of the stretch as the browser's range takes it: a share of a named range (a view timeline), or of the whole
+ *  scroll (a scroll timeline — no name). */
+interface PxNativeEnd { rangeName?: PxCssRangeName; share: number }
+
+/** The axis the browser's constructors take: absent → `block` (the way the page scrolls), else `y` / `x`. */
+function nativeAxis(axis: PxScrollAxis | undefined): 'block' | 'x' | 'y' {
+    return axis === PxScrollAxis.vertical ? 'y' : axis === PxScrollAxis.horizontal ? 'x' : 'block';
+}
+
+/** A moment that is an exact place (`{ element, screen }`) — no word. */
+function isExactPlace(moment: PxScrollMomentSettings): boolean {
+    return moment.moment === undefined && moment.scrolled === undefined;
+}
+
+/**
+ * The two ends as the browser's range, in scroll order — `null` when one has no spelling with a known order:
+ * - an element: two words only — compared by {@link PX_SCROLL_MOMENT_ORDER}, a reversed pair swapped; an exact place
+ *   (even one CSS can say, `entry-crossing`) has no order the browser knows, so the player measures by itself
+ * - a scrolled amount: two shares, clamped and swapped into scroll order
+ */
+function nativeEnds(scroll: PxScrollSettings): [PxNativeEnd, PxNativeEnd] | null {
+    const first = scrollMomentFor(scroll, 'first');
+    const last = scrollMomentFor(scroll, 'last');
+    if (!followsAnElement(scroll)) {
+        const a = clampShare(first.scrolled ?? 0), b = clampShare(last.scrolled ?? 1);
+        return a <= b ? [{ share: a }, { share: b }] : [{ share: b }, { share: a }];
+    }
+    if (first.moment === undefined || last.moment === undefined) return null;
+    const inOrder = PX_SCROLL_MOMENT_ORDER.indexOf(first.moment) <= PX_SCROLL_MOMENT_ORDER.indexOf(last.moment);
+    const start = cssRangeOfMoment(inOrder ? first : last, PxScrollMoment.appears);
+    const end = cssRangeOfMoment(inOrder ? last : first, PxScrollMoment.gone);
+    if (!start || !end) return null;
+    return [{ rangeName: start.name, share: start.fraction }, { rangeName: end.name, share: end.fraction }];
+}
+
+/** An end as `Animation.rangeStart` / `rangeEnd` take it — `undefined` without the CSS Typed OM (`CSS.percent`). */
+function nativeRangeOffset(end: PxNativeEnd): PxNativeRangeOffset | undefined {
+    if (typeof CSS === 'undefined' || typeof CSS.percent !== 'function') return undefined;
+    const offset = CSS.percent(end.share * 100);
+    return end.rangeName ? { rangeName: end.rangeName, offset } : { offset };
 }
 
 // @px-importance important
 /**
- * Attach a scroll driver for `subject` (the animation's root `<svg>`).
- * Emits `onProgress(0..1)` — clamped, range-mapped — on attach and on every
- * scroll/resize tick. Returns `null` when the document isn't scroll-driven.
+ * Build the browser's own timeline (`engine: 'native'` / `auto`), or `null` when the player must measure by itself —
+ * the caller then falls back to {@link createScrollDriver} (`native` is a preference, never a requirement):
+ * - `smoothing` (warns 1301); an exact place (warns 1307 when `native` asked for the browser's); no `ScrollTimeline` /
+ *   `ViewTimeline` or no `CSS.percent` in this browser; a constructor that throws (warns 1302)
+ * - the `…Element` words and a held element → `ViewTimeline({ subject: followed })`; the `…Scroll` words →
+ *   `ScrollTimeline({ source })`
+ */
+export function createNativeScrollTimeline(
+    root: Element,
+    config: PxAnimatorRuntimeConfig | undefined,
+    diag?: PxDiagnostics,
+    handed?: Element,
+): PxNativeScrollTimeline | null {
+    // Exported, so the channel is optional and falls back to the console (review §5).
+    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
+    if (!config || !isScrollTimeline(config)) return null;
+    const scroll = settingsFollowing(config.scroll, handed);
+
+    // Smoothing is a per-frame easing of progress, which a browser-native timeline (a direct
+    // scroll→time mapping) cannot express. Honor the authored LOOK over the perf hint.
+    if (scroll.smoothing) {
+        report.warn(PxDiagnosticKind.platform, PxDiagnosticCode.scrollSmoothingNeedsOwnDriver);
+        return null;
+    }
+
+    const ends = nativeEnds(scroll);
+    if (!ends) {
+        if (isNativeForced(config.engine)) {
+            const place = [scrollMomentFor(scroll, 'first'), scrollMomentFor(scroll, 'last')].find(isExactPlace);
+            report.warn(PxDiagnosticKind.platform, PxDiagnosticCode.scrollPlaceNeedsOwnDriver, place);
+        }
+        return null;
+    }
+    const rangeStart = nativeRangeOffset(ends[0]);
+    const rangeEnd = nativeRangeOffset(ends[1]);
+    if (!rangeStart || !rangeEnd) return null;
+
+    const ofElement = followsAnElement(scroll);
+    const Ctor: unknown = Reflect.get(globalThis, ofElement ? 'ViewTimeline' : 'ScrollTimeline');
+    if (!isTimelineCtor(Ctor)) return null;
+
+    const axis = nativeAxis(scroll.axis);
+    let timeline: AnimationTimeline;
+    try {
+        timeline = ofElement
+            ? new Ctor({ subject: resolveFollowedElement(root, scroll, report, handed), axis })
+            : new Ctor({ source: resolveScrollSource(root, scroll, report), axis });
+    } catch (e) {
+        report.warn(PxDiagnosticKind.platform, PxDiagnosticCode.scrollNativeUnavailable, e);
+        return null;
+    }
+    return { timeline, rangeStart, rangeEnd };
+}
+
+
+// ── The player's own measuring ───────────────────────────────────────────────────────────────────────────────────
+
+export interface PxScrollDriver {
+    /** Detach every listener/observer. Idempotent. */
+    destroy(): void;
+    /** Re-measure and emit now (also called once on attach). */
+    refresh(): void;
+}
+
+/** "Near the screen" for the per-frame measuring (D8): within one screen of it, on every side. */
+const NEAR_SCREEN_MARGIN = '100%';
+
+/** An exponential ease only approaches its target: the last sliver (0.1 % of progress — 1 ms of a 1 s animation) is
+ *  snapped, so the frame loop ends instead of idling. */
+const SETTLE_EPSILON = 0.001;
+
+/** Progress of an element's place on its screen. `pageScrolls`: the screen is the viewport (`documentElement.client*`
+ *  excludes the scrollbars, `window.inner*` does not). */
+function elementProgress(followed: Element, screen: Element, pageScrolls: boolean, axis: 'x' | 'y', scroll: PxScrollSettings): number {
+    const rect = followed.getBoundingClientRect();
+    let screenStart: number, screenSize: number;
+    if (pageScrolls) {
+        screenStart = 0;
+        screenSize = axis === 'y' ? document.documentElement.clientHeight : document.documentElement.clientWidth;
+    } else {
+        const screenRect = screen.getBoundingClientRect();
+        screenStart = axis === 'y' ? screenRect.top : screenRect.left;
+        screenSize = axis === 'y' ? screen.clientHeight : screen.clientWidth;
+    }
+    const start = (axis === 'y' ? rect.top : rect.left) - screenStart;
+    return scrollViewProgress(start, axis === 'y' ? rect.height : rect.width, screenSize, scroll);
+}
+
+/** Progress of how far a scroller is scrolled. */
+function scrolledProgress(scroller: Element, axis: 'x' | 'y', scroll: PxScrollSettings): number {
+    const offset = axis === 'y' ? scroller.scrollTop : scroller.scrollLeft;
+    const maxOffset = axis === 'y' ? scroller.scrollHeight - scroller.clientHeight : scroller.scrollWidth - scroller.clientWidth;
+    return scrollOffsetProgress(offset, maxOffset, scroll);
+}
+
+// @px-importance important
+/**
+ * Attach the player's own measuring for the animation whose root is `root`. Emits `onProgress(0..1)` on attach and
+ * whenever the place changes; `null` when the document is not scroll-driven. `handed`: an element page code handed over
+ * in `timelineOptions.follows`.
+ * - events: `scroll` / `resize` / `ResizeObserver`, coalesced into ONE frame — one measurement, one emit
+ * - D8: an element is also measured every frame while near the screen, so a layout move with no scroll is followed
+ * - `smoothing` (GSAP's `scrub: <seconds>`): the emitted value chases the measurement, frame-rate independent
  */
 export function createScrollDriver(
-    subject: Element,
+    root: Element,
     config: PxAnimatorRuntimeConfig | undefined,
     onProgress: (progress: number) => void,
     diag?: PxDiagnostics,
+    handed?: Element,
 ): PxScrollDriver | null {
     if (!config || !isScrollTimeline(config)) return null;
 
     const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
-    const scroll: PxScroll = config.scroll || {};
-    const kind = scroll.kind ?? 'view';
+    const scroll = settingsFollowing(config.scroll, handed);
 
-    // WHAT is measured (`view` only): the SVG itself by default, or whatever `scroll.subject`
-    // names — the pinned-section case measures the wrapper that actually scrolls past.
-    const measured = resolveScrollSubject(subject, scroll.subject, report);
-
-    // Scroller resolution (once, at attach): `view` always tracks the nearest scrollport;
-    // `scroll` honors `source`. Axis resolves against the SCROLLER's writing mode.
-    const nearest = findNearestScroller(subject, 'y') || findNearestScroller(subject, 'x');
-    const scroller: Element = (kind === 'scroll' && scroll.source === 'root')
-        ? documentScroller()
-        : (nearest || documentScroller());
-    const isRootScroller = scroller === documentScroller();
+    // WHAT is followed, and its screen — resolved once, at attach. The axis resolves against the scroller's writing mode.
+    const followed = followsAnElement(scroll) ? resolveFollowedElement(root, scroll, report, handed) : null;
+    const scroller = followed ? screenAround(followed) : resolveScrollSource(root, scroll, report);
+    const pageScrolls = scroller === documentScroller();
     const axis = scrollResolveAxis(scroll.axis, getComputedStyle(scroller).writingMode);
+    const measure = followed
+        ? (): number => elementProgress(followed, scroller, pageScrolls, axis, scroll)
+        : (): number => scrolledProgress(scroller, axis, scroll);
 
-    const compute = (): number => {
-        if (kind === 'scroll') {
-            const offset = axis === 'y' ? scroller.scrollTop : scroller.scrollLeft;
-            const maxOffset = axis === 'y'
-                ? scroller.scrollHeight - scroller.clientHeight
-                : scroller.scrollWidth - scroller.clientWidth;
-            return scrollOffsetProgress(offset, maxOffset, scroll.range);
-        }
-
-        // view: the MEASURED element's journey across the scrollport, in scrollport coordinates.
-        const subjectRect = measured.getBoundingClientRect();
-        let portStart: number, portSize: number;
-        if (isRootScroller) {
-            portStart = 0;
-            // documentElement.client* excludes scrollbars (window.inner* does not).
-            portSize = axis === 'y' ? document.documentElement.clientHeight : document.documentElement.clientWidth;
-        } else {
-            const portRect = scroller.getBoundingClientRect();
-            portStart = axis === 'y' ? portRect.top : portRect.left;
-            portSize = axis === 'y' ? scroller.clientHeight : scroller.clientWidth;
-        }
-        const subjectStart = (axis === 'y' ? subjectRect.top : subjectRect.left) - portStart;
-        const subjectSize = axis === 'y' ? subjectRect.height : subjectRect.width;
-        return scrollViewProgress(subjectStart, subjectSize, portSize, scroll.range);
-    };
-
-    // ── smoothing (`scroll.smoothing`, GSAP's `scrub: <seconds>`) ───────────────────────
-    // Without it, emitted progress IS the measurement. With it, the emitted value chases the
-    // measurement with an exponential ease, so momentum scrolling and trackpad jitter read as
-    // a glide instead of a snap. Frame-rate independent (`1 - exp(-dt/tau)`), and it SETTLES
-    // exactly on the target rather than asymptotically near it.
     const smoothingSec = Math.max(0, scroll.smoothing ?? 0) / 1000;   // schema is in ms
-    // An exponential ease only approaches its target, so snap the last sliver and stop the rAF
-    // loop rather than idling for another second. 0.1% of progress = 1ms of a 1s animation —
-    // far below anything visible, and it keeps the tail off the battery.
-    const SETTLE_EPSILON = 0.001;
     let destroyed = false;
-    let smoothed: number | null = null;      // null until the first emit (which is instant)
-    let smoothRaf: number | null = null;
-    let lastFrameMs = 0;
+    let shown: number | null = null;     // the last progress emitted
+    let frameId: number | null = null;
+    let lastFrameMs = 0;                 // 0 while no frame loop runs: the next eased step assumes one 60 fps frame
+    // D8 — the per-frame measuring: an element only, ON until the observer says it is far
+    let near = !!followed;
 
-    const emit = (target: number) => {
-        if (!smoothingSec) { onProgress(target); return; }
-        if (smoothed === null) { smoothed = target; onProgress(target); return; }   // no lag on load
-        if (smoothRaf !== null) return;      // already chasing
-        lastFrameMs = 0;
-        const step = (nowMs: number) => {
-            smoothRaf = null;
-            if (destroyed) return;
-            const dtSec = lastFrameMs ? Math.min(0.1, (nowMs - lastFrameMs) / 1000) : 1 / 60;
-            lastFrameMs = nowMs;
-            const goal = compute();          // re-measure: the user may still be scrolling
-            const k = 1 - Math.exp(-dtSec / smoothingSec);
-            const from = smoothed ?? goal;   // set before the first chase starts
-            let next = from + (goal - from) * k;
-            if (Math.abs(goal - next) < SETTLE_EPSILON) next = goal;   // land exactly
-            smoothed = next;
-            onProgress(next);
-            if (next !== goal) smoothRaf = requestAnimationFrame(step);
-        };
-        smoothRaf = requestAnimationFrame(step);
+    const show = (progress: number): void => { shown = progress; onProgress(progress); };
+    const eased = (from: number, target: number, nowMs: number): number => {
+        const dtSec = lastFrameMs ? Math.min(0.1, (nowMs - lastFrameMs) / 1000) : 1 / 60;
+        const next = from + (target - from) * (1 - Math.exp(-dtSec / smoothingSec));
+        return Math.abs(target - next) < SETTLE_EPSILON ? target : next;   // land exactly
     };
-
-    // rAF coalescing: any number of scroll/resize events in a frame → one measurement.
-    let rafId: number | null = null;
-    const tick = () => {
-        rafId = null;
+    const frame = (nowMs: number): void => {
+        frameId = null;
         if (destroyed) return;
-        emit(compute());
+        const target = measure();
+        const next = smoothingSec && shown !== null ? eased(shown, target, nowMs) : target;
+        if (next !== shown) show(next);
+        const goOn = near || next !== target;
+        lastFrameMs = goOn ? nowMs : 0;
+        if (goOn) schedule();
     };
-    const schedule = () => {
-        if (destroyed || rafId !== null) return;
-        rafId = requestAnimationFrame(tick);
+    // any number of events in a frame → one measurement
+    const schedule = (): void => {
+        if (!destroyed && frameId === null) frameId = requestAnimationFrame(frame);
     };
 
-    // Root scrolling fires on window; container scrolling on the container.
-    const scrollTarget: EventTarget = isRootScroller ? window : scroller;
+    // Page scrolling fires on window; a box's scrolling on the box.
+    const scrollTarget: EventTarget = pageScrolls ? window : scroller;
     scrollTarget.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule, { passive: true });
 
     let resizeObserver: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(schedule);
-        resizeObserver.observe(measured);
-        if (measured !== subject) resizeObserver.observe(subject);
-        if (!isRootScroller) resizeObserver.observe(scroller);
+        resizeObserver.observe(followed ?? root);
+        if (followed && followed !== root) resizeObserver.observe(root);
+        if (!pageScrolls) resizeObserver.observe(scroller);
+    }
+
+    // D8: measure every frame only while the followed element is within a screen of its screen; far away, scrolling
+    // and resizing still reach it. Without an observer the per-frame measuring stays on.
+    let nearObserver: IntersectionObserver | undefined;
+    if (followed && typeof IntersectionObserver !== 'undefined') {
+        nearObserver = new IntersectionObserver(entries => {
+            const latest = entries[entries.length - 1];
+            if (latest) near = latest.isIntersecting;
+            schedule();   // one measurement now; the loop goes on only while near
+        }, { root: pageScrolls ? null : scroller, rootMargin: NEAR_SCREEN_MARGIN });
+        nearObserver.observe(followed);
     }
 
     const driver: PxScrollDriver = {
@@ -323,60 +390,58 @@ export function createScrollDriver(
             scrollTarget.removeEventListener('scroll', schedule);
             window.removeEventListener('resize', schedule);
             resizeObserver?.disconnect();
-            if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-            if (smoothRaf !== null) { cancelAnimationFrame(smoothRaf); smoothRaf = null; }
+            nearObserver?.disconnect();
+            if (frameId !== null) { cancelAnimationFrame(frameId); frameId = null; }
         },
         // `refresh` is a deliberate JUMP (attach, host relayout) — never eased.
-        refresh: () => { if (!destroyed) { smoothed = compute(); onProgress(smoothed); } },
+        refresh: () => { if (!destroyed) show(measure()); },
     };
 
-    // Initial pose: reflect the CURRENT scroll position immediately (a page loaded
-    // mid-scroll must not flash frame 0).
+    // Initial pose: the CURRENT place at once (a page loaded mid-scroll must not flash frame 0); then the frame loop.
     driver.refresh();
+    if (near) schedule();
 
     return driver;
 }
 
 
-/**
- * Pin the canvas on screen for the scrubbed stretch — GSAP's `pin: true`, expressed as
- * `position: sticky`. Sticky keeps the element's space in normal flow, so (unlike GSAP's
- * `position: fixed`) no spacer has to be injected into the host's layout to stop the page
- * collapsing. Optionally wraps the canvas in a tall block so the PLAYER creates the scroll
- * travel and the host page needs no CSS at all.
- *
- * Returns a cleanup that restores the DOM exactly. No-op (and no cleanup cost) when `pin` is off.
- */
+// ── Held on screen ───────────────────────────────────────────────────────────────────────────────────────────────
+
 /** Height of the scrollport the canvas is held inside — the nearest y-scroller's, else the
  *  document's. `clientHeight` (not `innerHeight`) so scrollbars are excluded, matching the
- *  progress math above. Pinning is a `top` offset, so it is always the VERTICAL size. */
-function pinScrollportHeight(svgRoot: Element): number {
-    const scroller = findNearestScroller(svgRoot, 'y');
+ *  progress math above. Holding is a `top` offset, so it is always the VERTICAL size. */
+function holdScrollportHeight(root: Element): number {
+    const scroller = findNearestScroller(root, 'y');
     return scroller ? scroller.clientHeight : document.documentElement.clientHeight;
 }
 
-export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): () => void {
-    const styled = svgRoot as Element & Partial<ElementCSSInlineStyle>;
-    if (!scroll?.pin || !styled.style) return () => { /* nothing pinned */ };
+/**
+ * `holdOnScreen` — the canvas stays on screen while the page scrolls on (GSAP's `pin: true`), as `position: sticky`:
+ * sticky keeps the element's space in normal flow, so no spacer has to be injected into the host's layout.
+ * - `at` / `offset`: where it is held — a `top` offset; `center` / `bottom` are measured and re-applied on resize
+ * - `forScreens`: wraps the canvas in a block that tall, so the PLAYER makes the scroll travel and the page needs no CSS
+ *
+ * Returns a cleanup that restores the DOM exactly. No-op (and no cleanup cost) when not held.
+ */
+export function applyHoldOnScreen(root: Element, scroll: PxScrollSettings | undefined): () => void {
+    if (!scroll?.holdOnScreen || !(root instanceof HTMLElement || root instanceof SVGElement)) return () => { /* nothing held */ };
 
-    const style = styled.style;
+    const style = root.style;
     const prevPosition = style.position;
     const prevTop = style.top;
     style.position = 'sticky';
 
-    // WHERE it is held: `top` is the alignment position plus the `pinOffset` fine-tune.
-    // `center`/`bottom` depend on the canvas's own height AND the scrollport height, neither
-    // of which CSS can express for a sticky offset (a `top` percentage resolves against the
-    // CONTAINING BLOCK, not the element), so they are measured and re-applied on resize.
-    const alignFactor = scroll.pinAlign === 'center' ? 0.5 : scroll.pinAlign === 'bottom' ? 1 : 0;
+    // `center` / `bottom` depend on the canvas's own height AND the scrollport height, neither of which CSS can express
+    // for a sticky offset (a `top` percentage resolves against the CONTAINING BLOCK, not the element).
+    const alignFactor = scroll.holdAt === PxHoldAt.center ? 0.5 : scroll.holdAt === PxHoldAt.bottom ? 1 : 0;
     const applyTop = (): void => {
-        const extra = scroll.pinOffset ?? 0;
+        const extra = scroll.holdOffset ?? 0;
         if (!alignFactor) {
             style.top = extra + 'px';
             return;
         }
-        const portSize = pinScrollportHeight(svgRoot);
-        const ownSize = svgRoot.getBoundingClientRect().height;
+        const portSize = holdScrollportHeight(root);
+        const ownSize = root.getBoundingClientRect().height;
         style.top = Math.round((portSize - ownSize) * alignFactor + extra) + 'px';
     };
     applyTop();
@@ -388,19 +453,19 @@ export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): 
         if (onWindowResize) window.addEventListener('resize', onWindowResize);
         if (typeof ResizeObserver !== 'undefined') {
             resizeObserver = new ResizeObserver(applyTop);
-            resizeObserver.observe(svgRoot);
+            resizeObserver.observe(root);
         }
     }
 
-    // `pinDistance` (in viewport heights) — the travel the pin should last for.
+    // `forScreens` (in viewport heights) — the travel the hold lasts for.
     let wrapper: HTMLElement | null = null;
-    const parent = svgRoot.parentElement;
-    if (scroll.pinDistance && scroll.pinDistance > 0 && parent) {
+    const parent = root.parentElement;
+    if (scroll.holdForScreens && scroll.holdForScreens > 0 && parent) {
         wrapper = document.createElement('div');
         wrapper.setAttribute('data-px-pin', '');
-        wrapper.style.height = (scroll.pinDistance * 100) + 'vh';
-        parent.insertBefore(wrapper, svgRoot);
-        wrapper.appendChild(svgRoot);
+        wrapper.style.height = (scroll.holdForScreens * 100) + 'vh';
+        parent.insertBefore(wrapper, root);
+        wrapper.appendChild(root);
     }
 
     return () => {
@@ -409,7 +474,7 @@ export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): 
         style.position = prevPosition;
         style.top = prevTop;
         if (wrapper?.parentElement) {
-            wrapper.parentElement.insertBefore(svgRoot, wrapper);
+            wrapper.parentElement.insertBefore(root, wrapper);
             wrapper.remove();
         }
     };

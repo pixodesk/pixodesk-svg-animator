@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
 import { applyPlaybackOverride, composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -14,7 +14,7 @@ import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import { webRaf } from '../shared/PxWebRaf';
 import type { PxAnimationPlayerApi, PxEngineAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
-import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '../scroll/PxScrollDriver';
+import { applyHoldOnScreen, createNativeScrollTimeline, createScrollDriver } from '../scroll/PxScrollDriver';
 
 /**
  * Engine construction, shared by the full player and the pre-rendered builds.
@@ -32,6 +32,7 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * `whenFinished` is composed here so BOTH engines get it: the engine's raw end goes to the player's executor, which
  * decides whether it is the playback's finish (`onPlaybackFinish`, then hold / reset / rewind) or the end of a return
  * leg. The executor is taken right after creation — a finish always happens asynchronously later.
+ * A scroll timeline never starts, pauses or finishes (D3): no playback event is told, and the engine's end is no finish.
  */
 export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
@@ -39,22 +40,30 @@ export function finaliseAnimator(
     make: (engineCallbacks?: PxEngineCallbacks) => PxEngineAnimationPlayerApi<Element>
 ): PxPlayerEngineApi {
 
+    const told = tellsPlaybackEvents(animatorConfig);
+    const listeners = told ? callbacks : undefined;
     let executor: PxPlayExecutor | undefined;
     const engineCallbacks: PxEngineCallbacks = {
         ...toEngineCallbacks(callbacks),
         // the playback events ride along for the executor the engine's own triggers press (a `load` start happens inside
         // `make`, before `composeApiExtras` could attach them); the engine never fires them itself
-        playbackListeners: callbacks,
-        onFinish: () => { executor?.onNaturalFinish(); },
+        playbackListeners: listeners,
+        onFinish: told ? () => { executor?.onNaturalFinish(); } : undefined,
     };
 
     // `playback` (the buttons, the seeks, the reads) is composed ON TOP of the engine — the one shared rule (review
     // §10, D5); the playback events are the executor's to tell (when it performs the act), never the engine's
-    const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, playbackListeners: callbacks }, webRaf);
+    const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, playbackListeners: listeners }, webRaf);
     executor = res.playExecutor;
 
     // the file's `playbackSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
     return res;
+}
+
+/** The playback events (`onPlaybackStart` … `onPlaybackFinish`) are told — not on a scroll timeline, which never starts
+ *  or finishes: the playhead only moves inside 0–1 (D3). */
+function tellsPlaybackEvents(animatorConfig: PxAnimatorRuntimeConfig): boolean {
+    return !isScrollTimeline(animatorConfig);
 }
 
 // @px-importance important
@@ -62,7 +71,8 @@ export function finaliseAnimator(
  * Picks the engine the way the full player does, from `timeline.engine`: `player` pins the
  * frame loop; otherwise waapi, with a frames fallback for unsupported attrs unless
  * `native` demands waapi. `mode` `static` (`showAsStatic`) builds the engine but never lets anything move it: no
- * scroll attached, every playback call ignored with a warning (PX1506).
+ * scroll attached, every playback call ignored with a warning (PX1506). `followed`: an element page code handed over in
+ * `timelineOptions.follows` — what a scroll timeline follows.
  */
 export function bindWithEngineChoice(
     doc: PxDocument,
@@ -70,11 +80,12 @@ export function bindWithEngineChoice(
     callbacks?: PxPlayerCallbacks,
     rootElement?: Element | null,
     mode: PxControlMode = PxControlMode.actionTriggers,
+    followed?: Element,
 ): PxPlayerEngineApi {
     // One channel for everything this binder and the scroll driver have to say (review §5).
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
     if (mode === PxControlMode.static) return guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false));
-    return bindEngine(doc, adapter, callbacks, rootElement, diag, true);
+    return bindEngine(doc, adapter, callbacks, rootElement, diag, true, followed);
 }
 
 /** {@link bindWithEngineChoice}'s engine; `followScroll` false builds a scroll-driven document's engine with no scroll
@@ -86,6 +97,7 @@ function bindEngine(
     rootElement: Element | null | undefined,
     diag: ReturnType<typeof createDiagnostics>,
     followScroll: boolean,
+    followed?: Element,
 ): PxPlayerEngineApi {
     const animatorConfig = getAnimatorConfig(doc) || {};
 
@@ -97,20 +109,20 @@ function bindEngine(
     //            frames, if waapi declines the doc) applies — the fallback cascade (D8)
     // Triggers are inert either way (D3 — both engines warn + skip
     // `setupAnimationTriggers` for scroll docs). The animator is never `play()`ed by us
-    // for custom driving; scrubbing via `setCurrentTime` holds the pose.
+    // for custom driving; scrubbing via the engine's own `setTotalTime` holds the pose.
     if (followScroll && isScrollTimeline(animatorConfig)) {
         return guardScrollDrivenPlayback(diag, finaliseAnimator(animatorConfig, callbacks, cb => {
 
-            // `pin` — hold the canvas on screen for the scrubbed stretch (`position: sticky`,
+            // `holdOnScreen` — hold the canvas on screen for the scrubbed stretch (`position: sticky`,
             // + an optional tall wrapper the player injects). MUST be applied before anything
-            // measures: it changes the very geometry the timeline reads, and
-            // `subject: 'parent'` is meant to resolve THROUGH the injected wrapper.
-            let unpin = () => { /* nothing pinned */ };
+            // measures: it changes the very geometry the timeline reads, and the held section
+            // is meant to resolve THROUGH the injected wrapper.
+            let unpin = () => { /* nothing held */ };
 
             // `auto` / `native`: try the browser's own timeline first.
             if (mayUseNativeScrollTimeline(animatorConfig.engine) && rootElement) {
-                unpin = applyScrollPin(rootElement, animatorConfig.scroll);
-                const native = createNativeScrollTimeline(rootElement, animatorConfig, diag);
+                unpin = applyHoldOnScreen(rootElement, animatorConfig.scroll);
+                const native = createNativeScrollTimeline(rootElement, animatorConfig, diag, followed);
                 if (native) {
                     const api = createWebApiAnimator(doc, cb, rootElement,
                         isNativeForced(animatorConfig.engine), native);
@@ -121,8 +133,8 @@ function bindEngine(
                     }
                     // unsupported attrs → fall through to frames + custom below
                 }
-                unpin();                        // …and undo the pin so the fallback re-applies it
-                unpin = () => { /* re-pinned below */ };
+                unpin();                        // …and undo the hold so the fallback re-applies it
+                unpin = () => { /* held again below */ };
             }
 
             // The player measures progress (the reference implementation). Engine per
@@ -134,16 +146,17 @@ function bindEngine(
             ) || createFrameLoopAnimator(doc, adapter, cb, rootElement);
 
             // The animator knows its real root — for an SVG+JS export the runtime binds to the
-            // `<svg>` already in the document, which is NOT the container passed in. Pin and
-            // measure the same element, or the pin lands on nothing (it silently did).
-            const subject = api.getRootElement?.() || rootElement;
-            if (subject) {
-                unpin = applyScrollPin(subject, animatorConfig.scroll);
+            // `<svg>` already in the document, which is NOT the container passed in. Hold and
+            // measure the same element, or the hold lands on nothing (it silently did).
+            const root = api.getRootElement?.() || rootElement;
+            if (root) {
+                unpin = applyHoldOnScreen(root, animatorConfig.scroll);
                 const totalMs = scrollTotalDurationMs(animatorConfig);
-                const driver = createScrollDriver(subject, animatorConfig,
-                    progress => api.setTotalTime(progress * totalMs), diag);
+                // the ENGINE's own seek — the public seeks are ignored on a scroll timeline (D16); the driver owns the playhead
+                const driver = createScrollDriver(root, animatorConfig,
+                    progress => api.setTotalTime(progress * totalMs), diag, followed);
                 if (driver) {
-                    // Tie the driver's (and the pin's) lifetime to the animator's.
+                    // Tie the driver's (and the hold's) lifetime to the animator's.
                     const destroy = api.destroy.bind(api);
                     api.destroy = () => { driver.destroy(); unpin(); destroy(); };
                 }
@@ -170,11 +183,17 @@ function bindEngine(
     });
 }
 
-/** On a scroll / view timeline the scroll position owns the playhead: the playback verbs are no-ops that say so
- *  (PX1505 `scrollOwnsPlayhead`); seeks still apply until the next scroll moves the playhead. */
+/** On a scroll timeline the scrolling owns the playhead, on every engine:
+ *  - the state reads `scrubbing` (D3) — never playing, paused or finished; `destroyed` after `destroy()`
+ *  - the buttons, the speed and the seeks are no-ops that say so (PX1505 `scrollOwnsPlayhead`, D16); the reads answer
+ *  - the driver moves the engine's own clock, which no guard touches */
 function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxPlayerEngineApi): PxPlayerEngineApi {
     const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
     const playback = api.playback;
+    let destroyed = false;
+    playback.getState = () => destroyed ? PxPlaybackState.destroyed : PxPlaybackState.scrubbing;
+    playback.isActive = () => false;
+    playback.isPlaying = () => false;
     playback.start = ignored(PxPlaybackWrite.start);
     playback.stop = ignored(PxPlaybackWrite.stop);
     playback.pause = ignored(PxPlaybackWrite.pause);
@@ -182,6 +201,11 @@ function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, a
     playback.play = ignored(PxPlaybackWrite.play);
     playback.setSpeed = ignored(PxPlaybackWrite.setSpeed);
     playback.setDurationAtSpeed = ignored(PxPlaybackWrite.setDurationAtSpeed);
+    playback.setCurrentTime = ignored(PxPlaybackWrite.setCurrentTime);
+    playback.setCurrentProgress = ignored(PxPlaybackWrite.setCurrentProgress);
+    playback.setTotalTime = ignored(PxPlaybackWrite.setTotalTime);
+    const destroyApi = api.destroy.bind(api);
+    api.destroy = () => { destroyed = true; destroyApi(); };
     return api;
 }
 

@@ -4,15 +4,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Scroll-timeline PROGRESS MATH — pure functions, no DOM. This is the reference
-// implementation for `animator.timelineSource: 'scroll'` (the player-measured path — `timeline.engine: 'js'`, and the fallback of `auto`,
-// both engines): the DOM driver in svg-animator-web measures rects/offsets and calls in
-// here; the editor's design doc (`app/src/svgeditor/animation/scroll-timeline.design.md`
-// §4) documents the same formulas — keep them in sync.
+// Scroll-timeline PROGRESS MATH — pure functions, no DOM. The reference implementation for `timeline: { type: 'scroll' }`
+// when the player measures by itself (`engine: 'js'`, `smoothing`, and the fallback of `auto`): the DOM driver in
+// svg-animator-web measures rects and offsets and calls in here. The seven moment words are the same points as the
+// browser's own range names (`cssRangeOfMoment`), so both engines agree.
 
 import { clamp, PX_DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
-import type { PxAnimatorRuntimeConfig, PxScroll, PxScrollRangePoint } from '../format/PxAnimatorTypes';
-import { PxScrollPhase } from '../format/PxAnimatorConstants';
+import type { PxAnimatorRuntimeConfig } from '../format/PxAnimatorTypes';
+import { clampShare, followsElement, PxScrollAxis, PxScrollMoment, scrollLineShare, type PxScrollMomentSettings, type PxScrollSettings } from '../format/PxAnimatorConstants';
 
 
 /** Is this document scroll-driven? (`animator.timelineSource === 'scroll'`) @internal */
@@ -34,98 +33,95 @@ export function scrollTotalDurationMs(config: PxAnimatorRuntimeConfig | undefine
     return duration * iterations;
 }
 
+/** The two default moments of a scroll timeline — what an absent `firstFrameWhen` / `lastFrameWhen` means:
+ *  `appears` → `gone` for an element, the held stretch `fullyIn` → `startsToLeave` when held, the whole scroll
+ *  otherwise. @internal */
+export function scrollDefaultMoments(scroll: PxScrollSettings | undefined): [PxScrollMomentSettings, PxScrollMomentSettings] {
+    if (scroll?.holdOnScreen) return [{ moment: PxScrollMoment.fullyIn }, { moment: PxScrollMoment.startsToLeave }];
+    if (!followsElement(scroll?.follows)) return [{ scrolled: 0 }, { scrolled: 1 }];
+    return [{ moment: PxScrollMoment.appears }, { moment: PxScrollMoment.gone }];
+}
+
+/** The moment a scroll timeline uses for one end: the file's, when it fits what is followed — a word or an exact
+ *  place for an element, a share scrolled for a scroll — else the default. @internal */
+export function scrollMomentFor(scroll: PxScrollSettings | undefined, end: 'first' | 'last'): PxScrollMomentSettings {
+    const [first, last] = scrollDefaultMoments(scroll);
+    const given = end === 'first' ? scroll?.firstFrameWhen : scroll?.lastFrameWhen;
+    const fallback = end === 'first' ? first : last;
+    if (!given) return fallback;
+    const ofElement = scroll?.holdOnScreen || followsElement(scroll?.follows);
+    const fits = ofElement ? given.scrolled === undefined : given.scrolled !== undefined;
+    return fits ? given : fallback;
+}
+
 /**
- * A named phase's interval in `u`-space.
- *
- * `u` is the subject's "journey distance": with `sTop` = subject's leading edge in
- * scrollport coordinates, `u = vpSize − sTop` — 0 exactly when the subject is about to
- * enter (leading edge at the scrollport's trailing edge), growing as the user scrolls.
- * The `min`/`max` pairs make every formula valid BOTH for a subject smaller than the
- * scrollport and one larger than it (where "fully visible" flips to "covers the
- * scrollport") — the same case split CSS specifies for its named timeline ranges.
+ * Where a moment happens on an element's journey, in `u`-space: `u` = the distance scrolled since the element's start
+ * edge reached the screen's end edge — 0 when it is about to appear, `size + screen` when it is gone. The seven words
+ * adapt to the size (an element taller than the screen is `fullyIn` once it fills it); an exact place is literal: the
+ * line `element` of the element at the line `screen` of the screen, `u = (1 − screen) × screenSize + element × size`.
  * @internal
  */
-export function scrollPhaseInterval(
-    phase: PxScrollPhase, subjectSize: number, scrollportSize: number
-): [number, number] {
+export function scrollMomentU(moment: PxScrollMomentSettings, subjectSize: number, scrollportSize: number): number {
     const s = subjectSize, vp = scrollportSize;
-    switch (phase) {
-        case 'cover': return [0, s + vp];
-        case 'entry': return [0, Math.min(s, vp)];
-        case 'contain': return [Math.min(s, vp), Math.max(s, vp)];
-        case 'exit': return [Math.max(s, vp), s + vp];
-        case PxScrollPhase.entryCrossing: return [0, s];
-        case PxScrollPhase.exitCrossing: return [vp, s + vp];
+    switch (moment.moment) {
+        case PxScrollMoment.appears: return 0;
+        case PxScrollMoment.halfIn: return Math.min(s, vp) / 2;
+        case PxScrollMoment.fullyIn: return Math.min(s, vp);
+        case PxScrollMoment.centered: return (s + vp) / 2;
+        case PxScrollMoment.startsToLeave: return Math.max(s, vp);
+        case PxScrollMoment.halfOut: return Math.max(s, vp) + Math.min(s, vp) / 2;
+        case PxScrollMoment.gone: return s + vp;
     }
+    const element = clampShare(scrollLineShare(moment.element, 0));
+    const screen = clampShare(scrollLineShare(moment.screen, 1));
+    return (1 - screen) * vp + element * s;
 }
 
-const DEFAULT_PHASE: PxScrollPhase = 'cover';
-
-/** One range endpoint resolved to a `u`-space value. */
-function resolveRangePointU(
-    point: PxScrollRangePoint | undefined, defaultFraction: number,
-    subjectSize: number, scrollportSize: number
-): number {
-    const [u0, u1] = scrollPhaseInterval(point?.phase ?? DEFAULT_PHASE, subjectSize, scrollportSize);
-    const fraction = typeof point?.fraction === 'number' ? point.fraction : defaultFraction;
-    return u0 + fraction * (u1 - u0);
+/** Progress 0..1 between two points: taken in scroll order (two points that come out reversed are swapped — nothing
+ *  ever jumps); a stretch of no length steps from 0 to 1 at its point. */
+function progressBetween(at: number, a: number, b: number): number {
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    if (hi <= lo) return at >= hi ? 1 : 0;
+    return clamp((at - lo) / (hi - lo), 0, 1);
 }
 
 /**
- * `kind: 'view'` progress ∈ [0, 1]: where the subject's journey sits within the
- * configured range.
+ * Progress ∈ [0, 1] of a scroll timeline that follows an ELEMENT across the screen.
  *
- * @param subjectStart   subject's leading edge in scrollport coordinates
- *                       (`subjectRect.top − scrollportRect.top` on the resolved axis)
- * @param subjectSize    subject size on the axis
- * @param scrollportSize scrollport size on the axis
- *
- * A degenerate/inverted range (uStart ≥ uEnd — e.g. zero-size subject with an `entry`
- * range) reports 1 once the point is passed, 0 before — never NaN.
+ * @param subjectStart   the followed element's start edge in screen coordinates (`rect.top − screenRect.top`)
+ * @param subjectSize    its size on the axis
+ * @param scrollportSize the screen's size on the axis
  * @internal
  */
 export function scrollViewProgress(
-    subjectStart: number, subjectSize: number, scrollportSize: number,
-    range: PxScroll['range'] | undefined
+    subjectStart: number, subjectSize: number, scrollportSize: number, scroll: PxScrollSettings | undefined,
 ): number {
     const u = scrollportSize - subjectStart;
-    const uStart = resolveRangePointU(range?.start, 0, subjectSize, scrollportSize);
-    const uEnd = resolveRangePointU(range?.end, 1, subjectSize, scrollportSize);
-    if (uEnd <= uStart) return u >= uEnd ? 1 : 0;
-    return clamp((u - uStart) / (uEnd - uStart), 0, 1);
+    const a = scrollMomentU(scrollMomentFor(scroll, 'first'), subjectSize, scrollportSize);
+    const b = scrollMomentU(scrollMomentFor(scroll, 'last'), subjectSize, scrollportSize);
+    return progressBetween(u, a, b);
 }
 
 /**
- * `kind: 'scroll'` progress ∈ [0, 1]: the scroller's offset ratio mapped through the
- * range (phases don't exist here — `fraction` is of the total scroll range).
- *
- * `maxOffset === 0` (nothing to scroll) reports 1, matching the CSS spec's rule that a
- * zero-length timeline is at 100%.
+ * Progress ∈ [0, 1] of a scroll timeline that follows how far something is SCROLLED, between the two shares.
+ * `maxOffset === 0` (nothing to scroll) reports 1, matching the CSS spec's rule that a zero-length timeline is at 100%.
  * @internal
  */
-export function scrollOffsetProgress(
-    offset: number, maxOffset: number,
-    range: PxScroll['range'] | undefined
-): number {
+export function scrollOffsetProgress(offset: number, maxOffset: number, scroll: PxScrollSettings | undefined): number {
     const raw = maxOffset > 0 ? clamp(offset / maxOffset, 0, 1) : 1;
-    const start = typeof range?.start?.fraction === 'number' ? range.start.fraction : 0;
-    const end = typeof range?.end?.fraction === 'number' ? range.end.fraction : 1;
-    if (end <= start) return raw >= end ? 1 : 0;
-    return clamp((raw - start) / (end - start), 0, 1);
+    const start = clampShare(scrollMomentFor(scroll, 'first').scrolled ?? 0);
+    const end = clampShare(scrollMomentFor(scroll, 'last').scrolled ?? 1);
+    return progressBetween(raw, start, end);
 }
 
 /**
- * Resolve a logical axis to a physical one. `block`/`inline` are writing-mode relative:
- * in horizontal writing (`horizontal-tb`, the default) block flows vertically; in
- * vertical writing modes it flows horizontally.
+ * The physical axis: `vertical` → `y`, `horizontal` → `x`; absent = the way the page scrolls — vertical in
+ * horizontal writing (the default), horizontal in vertical writing modes.
  * @internal
  */
-export function scrollResolveAxis(
-    axis: PxScroll['axis'] | undefined, writingMode: string | undefined
-): 'x' | 'y' {
-    const a = axis ?? 'block';
-    if (a === 'x' || a === 'y') return a;
-    const vertical = !!writingMode && writingMode.startsWith('vertical');
-    if (a === 'inline') return vertical ? 'y' : 'x';
-    return vertical ? 'x' : 'y';   // block
+export function scrollResolveAxis(axis: PxScrollAxis | undefined, writingMode: string | undefined): 'x' | 'y' {
+    if (axis === PxScrollAxis.vertical) return 'y';
+    if (axis === PxScrollAxis.horizontal) return 'x';
+    const verticalWriting = !!writingMode && writingMode.startsWith('vertical');
+    return verticalWriting ? 'x' : 'y';
 }

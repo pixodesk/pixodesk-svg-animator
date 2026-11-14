@@ -10,14 +10,16 @@ import { implementsInterface, px, PxValidationFindingKind, reportValidationError
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_PLAYBACK_DEFAULTS, PxTimelineEngineSetting, PxCloneOmit, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
+    followsElement, PX_SCROLL_MOMENT_ORDER,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
-    PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxPinAlign, PxPlaybackDirection,
-    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType } from './PxAnimatorConstants';
-import type { PxPlaybackState, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
+    PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxHoldAt, PxPlaybackDirection,
+    PxScrollAxis, PxScrollFollows, PxScrollLine, PxScrollMoment, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType } from './PxAnimatorConstants';
+import type { PxPlaybackState, PxScrollSettings, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
 // `PxSchemaVersion`, so this edge creates no cycle.
 import { parseWireVersion } from '../version/PxWireVersion';
+import { animatorOf } from './PxDocStage';
 // Variables (schema 1.27): the validator checks the document with every binding replaced by its default, plus the
 // bindings themselves. These modules import only TYPES from here, so the edges create no cycle.
 import { isVariableName } from '../variables/PxFormula';
@@ -822,181 +824,61 @@ const _ck_PxDefs: KeysMatch<PxDefinitions, _PxDefs> = true; // the key sets are 
 
 
 // ============================================================================
-// SCROLL TIMELINE
+// SCROLL TIMELINE — the parts of `timeline: { type: 'scroll' }`
 // ============================================================================
 
-/**
- * A point on a scroll timeline's range, anchoring where the animation's 0%/100% sit.
- *
- * For `kind: 'view'`, `phase` names WHICH slice of the subject's journey across the
- * scrollport the point is measured in (CSS "timeline range name"), and `fraction` is the
- * 0..1 position within that slice. For `kind: 'scroll'` there are no phases — `phase` is
- * ignored and `fraction` is a fraction of the scroller's total scroll range.
- *
- * Structured on purpose (never a CSS string like `"cover 0%"`): atomic values, mechanical
- * translation to CSS `animation-range` / WAAPI `rangeStart/rangeEnd` where needed.
- */
-export interface _PxScrollRangePoint {
-    /** `view` kind only: the journey phase this point is anchored in. Default `'cover'`. */
-    phase?: PxScrollPhase;
-    /** 0..1 within the phase (or of the total scroll range for `kind: 'scroll'`). */
-    fraction?: number;
-}
+/** A line across the element or the screen: a named line, or a share 0–1 from the start edge. @public @advanced */
+export const PxScrollLineSchema = px.union([
+    px.enum([PxScrollLine.top, PxScrollLine.center, PxScrollLine.bottom, PxScrollLine.left, PxScrollLine.right] as const),
+    px.number(),
+]);
 
-/** @public @advanced */
-export const PxScrollRangePointSchema = implementsInterface<_PxScrollRangePoint>()(px.object({
-    phase: px.enum([PxScrollPhase.cover, PxScrollPhase.contain, PxScrollPhase.entry,
-                    PxScrollPhase.exit, PxScrollPhase.entryCrossing, PxScrollPhase.exitCrossing] as const, PxScrollPhase.cover).optional(),
-    fraction: px.number().optional(),
-}));
-/** @public */
-export type PxScrollRangePoint = PxInfer<typeof PxScrollRangePointSchema>;
-const _ck_PxScrollRangePoint: KeysMatch<PxScrollRangePoint, _PxScrollRangePoint> = true; // the key sets are identical
-
-/**
- * Scroll-timeline configuration — consulted only when `timelineSource: 'scroll'`.
- * All fields optional; the defaults give "scrub the whole animation as the SVG crosses
- * the viewport" (`view` / `block` / full `cover` range).
- */
-export interface _PxScroll {
-    /** What progress measures. `'view'` (default): the SVG's own journey across the
-     *  scrollport (enter → leave). `'scroll'`: the scroll container's offset ratio,
-     *  regardless of where the SVG sits. */
-    kind?: 'view' | 'scroll';
-
-    /** Scroll axis. `block`/`inline` are writing-mode relative (block = vertical in
-     *  horizontal writing); `x`/`y` are physical. Default `'block'`. */
-    axis?: 'block' | 'inline' | 'x' | 'y';
-
-    /** `kind: 'scroll'` only: which scroller. `'nearest'` (default) = nearest scrollable
-     *  ancestor of the SVG; `'root'` = the document. (`view` always tracks the nearest
-     *  scrollport.) */
-    source?: 'nearest' | 'root';
-
-    /**
-     * `kind: 'view'` only — WHICH ELEMENT'S journey is measured. Unset (default) = the
-     * animation's own `<svg>`. The same indirection CSS gives via `view-timeline-name` +
-     * `timeline-scope`, GSAP via `trigger`, Framer via "Section in view".
-     *
-     * - `'parent'` — the nearest ancestor that actually scrolls past: any `sticky`/`fixed`
-     *   ancestors are skipped and their container is used instead. This is what makes a
-     *   PINNED section work (a stuck element's rect stops moving, so measuring the graphic
-     *   itself would freeze); its `contain` phase is exactly the pinned stretch.
-     * - `'scroller'` — the scroll container itself.
-     * - anything else — a CSS selector, resolved against the host document.
-     *
-     * An unresolvable selector warns and falls back to the `<svg>` (never a silent freeze).
-     */
-    subject?: string;
-
-    /**
-     * MILLISECONDS of catch-up lag — the same idea as GSAP's `scrub: <seconds>`, in the unit
-     * the rest of this schema uses (`duration`, `delay`). Unset/0 = the playhead is locked to
-     * the scrollbar; above 0 the progress eases toward the scroll position instead of snapping
-     * to it, which reads far smoother under momentum scrolling and trackpads.
-     * Custom driver only — a browser-native `ScrollTimeline` has no equivalent, so setting
-     * this forces the player's own measurement (the browser timeline is skipped).
-     */
-    smoothing?: number;
-
-    /**
-     * Hold the canvas still on screen while scrolling scrubs it — GSAP's `pin: true`, done with
-     * `position: sticky` (which keeps the element's space in normal flow, so unlike GSAP's
-     * `position: fixed` no spacer padding has to be injected into the host's layout).
-     *
-     * The player owns the DOM inside its own container, so this needs NO host CSS. Pair it with
-     * `subject: 'parent'` for the complete scrollytelling pattern.
-     */
-    pin?: boolean;
-
-    /**
-     * `pin` only: WHERE in the scrollport the canvas is held — the alignment the sticky
-     * offset is computed from. `top` (default) holds it against the top edge; `center`
-     * and `bottom` need the canvas's own height, so the player measures it and keeps the
-     * offset in sync on resize. `pinOffset` is added on top of whichever alignment is chosen.
-     */
-    pinAlign?: 'top' | 'center' | 'bottom';
-
-    /** `pin` only: offset from the alignment position (see `pinAlign`), in px. Default 0.
-     *  The runtime-view twin of the wire `timeline.pin.offset` (review §2.6). */
-    pinOffset?: number;
-
-    /**
-     * `pin` only: how much scroll travel the pin should last, in VIEWPORT HEIGHTS — the player
-     * injects a wrapper of that height around the canvas to create it. Omit to pin inside
-     * whatever tall section the host page already provides.
-     */
-    pinDistance?: number;
-
-    /** The timeline slice mapped onto animation progress 0..1.
-     *  Default `{ start: {phase:'cover', fraction:0}, end: {phase:'cover', fraction:1} }`. */
-    range?: {
-        start?: _PxScrollRangePoint;
-        end?: _PxScrollRangePoint;
-    };
-}
-
-/** The `range` sub-object — named so consumers can derive its keys. @public @advanced */
-export const PxScrollRangeSchema = px.object({
-    start: PxScrollRangePointSchema.optional(),
-    end: PxScrollRangePointSchema.optional(),
+/** An exact place: the line `element` of the followed element is at the line `screen` of the screen — literal, it
+ *  does not adapt to the size. `{ element: 'top', screen: 0.8 }` = its top is 80 % down the screen. @public @advanced */
+export const PxScrollPlaceSchema = px.object({
+    element: PxScrollLineSchema,
+    screen: PxScrollLineSchema,
 });
 
-/** @public @advanced */
-export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
-    kind: px.enum([PxScrollKind.view, PxScrollKind.scroll] as const, PxScrollKind.view).optional(),
-    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const, PxScrollAxis.block).optional(),
-    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const, PxScrollSource.nearest).optional(),
-    // Free-form: the two keywords `parent`/`scroller` plus any CSS selector.
-    subject: px.string().optional(),
-    smoothing: px.number().optional(),
-    pin: px.boolean(false).optional(),
-    pinAlign: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const, PxPinAlign.top).optional(),
-    pinOffset: px.number().optional(),
-    pinDistance: px.number().optional(),
-    range: PxScrollRangeSchema.optional(),
-}));
+/** A share 0–1 of all there is to scroll — the moment form of `pageScroll` / `containerScroll`. @public @advanced */
+export const PxScrollScrolledSchema = px.object({
+    scrolled: px.number(),
+});
+
+/** One end of the stretch: one of the seven words (they adapt to the size), an exact place, or a share scrolled.
+ *  @public @advanced */
+export const PxScrollMomentSchema = px.union([
+    px.enum([PxScrollMoment.appears, PxScrollMoment.halfIn, PxScrollMoment.fullyIn, PxScrollMoment.centered,
+        PxScrollMoment.startsToLeave, PxScrollMoment.halfOut, PxScrollMoment.gone] as const),
+    PxScrollPlaceSchema,
+    PxScrollScrolledSchema,
+]);
+
+/** A moment as a file writes it. @public */
+export type PxScrollMomentWire = PxInfer<typeof PxScrollMomentSchema>;
+
+/** `holdOnScreen` as an object — where it is held and for how long. @public @advanced */
+export const PxHoldOnScreenSchema = px.object({
+    /** Where on the screen it stays. Default `top`. */
+    at: px.enum([PxHoldAt.top, PxHoldAt.center, PxHoldAt.bottom] as const, PxHoldAt.top).optional(),
+    /** How many screens of scrolling it is held for — the player makes that room. Absent = the page's own tall section. */
+    forScreens: px.number().optional(),
+    /** px from `at`. Default 0. */
+    offset: px.number(0).optional(),
+});
+
 /** @public */
-export type PxScroll = PxInfer<typeof PxScrollSchema>;
-const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are identical
+export type PxHoldOnScreen = PxInfer<typeof PxHoldOnScreenSchema>;
 
 
 // ============================================================================
 // TIMELINE — what advances the animation's progress (review §2.1)
 // ============================================================================
 //
-// `animator.timeline` is a discriminated object: `type?: 'time' | 'scroll' | 'view'`,
-// deliberately mirroring WAAPI's three timeline classes (DocumentTimeline /
-// ScrollTimeline / ViewTimeline) and CSS `animation-timeline: auto | scroll() | view()`.
-// Each mode carries ONLY its own parameters, so a key that is dead in the other mode is
-// structurally unwritable — the old flat spelling (`timelineSource` + sibling `scroll` +
-// clock knobs loose at the animator root) required design rules (D3/D4) to keep dead keys
-// out; readers accept BOTH spellings (see `resolveAnimatorTimeline`), writers emit only
-// this one.
-
-/** Pin parameters as one object — presence enables pinning (review §2.2; the flat runtime-view
- *  spelling is `scroll.pin/pinAlign/pinOffset/pinDistance`). */
-export interface _PxTimelinePin {
-    /** Where the pinned canvas sits in the viewport. Default `'top'`. */
-    align?: 'top' | 'center' | 'bottom';
-    /** Offset from the alignment position, in px. Default 0. Named `offset`, not `top`: it is a
-     *  delta from whichever edge `align` picked, so `{ align: 'bottom', top: 20 }` read as a
-     *  contradiction (review §2.6). */
-    offset?: number;
-    /** How much scroll travel the pin lasts, in VIEWPORT HEIGHTS. Omit to pin inside
-     *  whatever tall section the host page already provides. */
-    distance?: number;
-}
-
-/** @public @advanced */
-export const PxTimelinePinSchema = implementsInterface<_PxTimelinePin>()(px.object({
-    align: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const, PxPinAlign.top).optional(),
-    offset: px.number().optional(),
-    distance: px.number().optional(),
-}));
-/** @public */
-export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
-const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the key sets are identical
+// `animator.timeline` is a discriminated object: `type?: 'time' | 'scroll'` — who moves the playhead, the clock or
+// the scrolling. Each member carries ONLY its own keys, so a key that means nothing for a type cannot be written.
+// The flat spelling (`timelineSource` + `scroll` + the clock keys at the animator root) is the internal runtime
+// view only (see `resolveAnimatorTimeline`).
 
 // Time-driven — playback on its own clock (not scroll): something STARTS it (trigger) and it has the
 // WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
@@ -1092,72 +974,61 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
 }));
 const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
 
-// Scroll-driven modes — progress scrubbed from scroll position; nothing starts or
-// finishes it, so none of the clock knobs exist here. `'scroll'` tracks a scroller's
-// scroll offset, `'view'` tracks the subject's visibility through the viewport —
-// exactly WAAPI ScrollTimeline vs ViewTimeline (the old nested `scroll.kind` dissolved
-// into this discriminant). `mode` (shared by every timeline type) says who runs the
-// animation; `pin` is boolean-or-object (§2.2).
-const scrollishTimelineShape = {
-    // First-use review §4: the content WINDOW — under scrubbing it is the keyframe span the
-    // scroll range maps onto. No `playDuration` here: scroll owns the pace.
-    inTime: px.number(0).optional(),
-    outTime: px.number().optional(),
-    // Finite repeat count IS meaningful when scrubbing — the scroll range maps onto
-    // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
-    iterations: px.number().optional(),
-    engine: PxTimelineEngineSchema,
-    frameRate: px.number().optional(),
-    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const, PxScrollAxis.block).optional(),
-    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const, PxScrollSource.nearest).optional(),
-    subject: px.string().optional(),   // 'parent' | 'scroller' | any CSS selector
-    smoothing: px.number().optional(), // ms
-    pin: px.union([px.boolean(), PxTimelinePinSchema]).optional(),
-    range: PxScrollRangeSchema.optional(),
-};
-/** The keys both scroll-driven members carry. Locked the same way as the time member. */
-export interface _PxScrollishTimelineShape {
+// Scroll-driven — the scrolling moves the playhead; nothing starts, pauses or finishes it, so none of the clock keys
+// exist here. One member for every case: `follows` says what is followed (an element across the screen, or how far
+// something is scrolled), `firstFrameWhen` / `lastFrameWhen` the stretch, `holdOnScreen` a held element.
+// Inside the player the `…Element` words become the browser's ViewTimeline, the `…Scroll` words its ScrollTimeline.
+
+/** The scroll timeline. Locked by an interface, like the time member. */
+export interface _PxScrollTimeline {
+    type: 'scroll';
+    /** What the playhead follows. Default `thisElement`. */
+    follows?: PxScrollFollows;
+    /** A CSS selector in the page: the element for `pageElement`, the scrolling box for `containerScroll`. */
+    selector?: string;
+    /** When the first frame is shown. Default `appears` (an element), `{ scrolled: 0 }` (a scroll), `fullyIn` (held). */
+    firstFrameWhen?: PxScrollMomentWire;
+    /** When the last frame is shown. Default `gone` (an element), `{ scrolled: 1 }` (a scroll), `startsToLeave` (held). */
+    lastFrameWhen?: PxScrollMomentWire;
+    /** Held in place on the screen while the page scrolls on, and plays meanwhile — instead of `follows`. */
+    holdOnScreen?: boolean | PxHoldOnScreen;
+    /** Which way the scrolling goes. Absent = the way the page scrolls. */
+    axis?: PxScrollAxis;
+    /** How long the playhead takes to catch up with the scrolling, ms. */
+    smoothing?: number;
     /** CONTENT ms where the window begins. Default 0. */
     inTime?: number;
-    /** CONTENT ms where the window ends; under scrubbing the scroll range maps onto the window. */
+    /** CONTENT ms where the window ends — the keyframes spread between the two moments end here. */
     outTime?: number;
-    /** Finite only — `'infinite'` cannot map onto a range (rule D4). */
+    /** How many times it plays between the two moments. Finite only. */
     iterations?: number;
     /** How the animated attributes get updated. Default `auto`. */
     engine?: PxTimelineEngineSetting;
-    /** Target fps for the player's frame loop (shared with the time member). */
-    frameRate?: number;
-    /** `block`/`inline` are writing-mode relative; `x`/`y` are physical. Default `'block'`. */
-    axis?: 'block' | 'inline' | 'x' | 'y';
-    /** `'nearest'` (default) scrollable ancestor, or `'root'`, the document. */
-    source?: 'nearest' | 'root';
-    /** `'parent'` · `'scroller'` · any CSS selector. */
-    subject?: string;
-    /** How long the playhead takes to catch up with the scrollbar, ms. */
-    smoothing?: number;
-    /** `true` to pin with defaults, or the parameters (review §2.2). */
-    pin?: boolean | _PxTimelinePin;
-    /** The slice of the timeline mapped onto progress 0..1. */
-    range?: { start?: _PxScrollRangePoint; end?: _PxScrollRangePoint };
 }
 
-/** `interface X extends Y { type: 'scroll' }` — spelled as an intersection so the key-set
- *  check below compares exactly the discriminant plus the shared shape. */
-export type _PxScrollTimeline = _PxScrollishTimelineShape & { type: 'scroll' };
-export type _PxViewTimeline = _PxScrollishTimelineShape & { type: 'view' };
-
-const PxScrollTimelineSchema = implementsInterface<_PxScrollTimeline>()(
-    px.object({ type: px.literal('scroll'), ...scrollishTimelineShape }));
-const PxViewTimelineSchema = implementsInterface<_PxViewTimeline>()(
-    px.object({ type: px.literal('view'), ...scrollishTimelineShape }));
+/** The scroll member of {@link PxTimelineSchema}. @public @advanced */
+export const PxScrollTimelineSchema = implementsInterface<_PxScrollTimeline>()(px.object({
+    type: px.literal('scroll'),
+    follows: px.enum([PxScrollFollows.thisElement, PxScrollFollows.parentElement, PxScrollFollows.pageElement,
+        PxScrollFollows.pageScroll, PxScrollFollows.containerScroll] as const, PxScrollFollows.thisElement).optional(),
+    selector: px.string().optional(),
+    firstFrameWhen: PxScrollMomentSchema.optional(),
+    lastFrameWhen: PxScrollMomentSchema.optional(),
+    holdOnScreen: px.union([px.boolean(), PxHoldOnScreenSchema]).optional(),
+    // no stated default: absent is "the way the page scrolls", which is neither value
+    axis: px.enum([PxScrollAxis.vertical, PxScrollAxis.horizontal] as const).optional(),
+    smoothing: px.number().optional(),
+    inTime: px.number(0).optional(),
+    outTime: px.number().optional(),
+    iterations: px.number().optional(),
+    engine: PxTimelineEngineSchema,
+}));
 const _ck_PxScrollTimeline: KeysMatch<PxInfer<typeof PxScrollTimelineSchema>, _PxScrollTimeline> = true;
-const _ck_PxViewTimeline: KeysMatch<PxInfer<typeof PxViewTimelineSchema>, _PxViewTimeline> = true;
 
 /** @public @advanced */
 export const PxTimelineSchema = px.discriminatedUnion('type', [
     PxTimeTimelineSchema,   // first = the member an absent `type` selects
     PxScrollTimelineSchema,
-    PxViewTimelineSchema,
 ]);
 /** @public */
 export type PxTimeline = PxInfer<typeof PxTimelineSchema>;
@@ -1255,23 +1126,21 @@ export interface _PxAnimatorConfig {
      * is the player's own clock; `'scroll'` is scroll-linked playback ("scrubbing"), matching
      * CSS scroll-driven animations.
      *
-     * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll'/'view');
+     * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll');
      * `resolveAnimatorTimeline` folds it into this field for the engines.
      * Distinct from `actionTriggers["playback.start"]`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
-     * Design: app `svgeditor/animation/scroll-timeline.design.md`.
      */
     timelineSource?: string;
 
-    /** RUNTIME VIEW ONLY (not wire) — scroll-timeline parameters, only consulted when
+    /** RUNTIME VIEW ONLY (not wire) — the scroll timeline's own settings, only consulted when
      *  `timelineSource: 'scroll'`. The wire spells them inside `timeline`. */
-    scroll?: PxScroll;
+    scroll?: PxScrollSettings;
 
     /** What advances the animation — THE wire spelling (review §2.1): a discriminated
-     *  `{ type?: 'time' | 'scroll' | 'view', … }` object mirroring WAAPI's timeline
-     *  classes. Carries the playback dynamics (`trigger`/`delay`/`iterations`/`fillMode`/
-     *  `direction` for time; scroll geometry for scroll/view); the flat fields above
-     *  are the internal runtime view `resolveAnimatorTimeline` produces from it. */
+     *  `{ type?: 'time' | 'scroll', … }` object. Carries the playback dynamics for time, what is followed and the
+     *  stretch for scroll; the flat fields above are the internal runtime view `resolveAnimatorTimeline` produces
+     *  from it. */
     timeline?: PxTimeline;
 
     /**
@@ -1335,7 +1204,7 @@ const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets ar
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     // (`mode`, `duration` and `frameRate` live INSIDE `timeline` on the wire — §2.8; they exist
     // at this level only on the runtime view, like the rest of the playback dynamics.)
-    // THE spelling of "what advances progress" — clock / scroll / view (review §2.1).
+    // THE spelling of "what advances progress" — the clock or the scrolling (review §2.1).
     timeline: PxTimelineSchema.optional(),
     definitions: PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
@@ -2166,6 +2035,54 @@ function collectVersionStampProblems(doc: PxDocument, ctx: PxValidationContext):
         JSON.stringify(version) + ' is not a version stamp ("a.b" or "a.b.c") — it reads as unstamped', { once: true });
 }
 
+/** The scroll timeline's rules the schema cannot say: a moment fits what is followed, shares are 0–1, the two words
+ *  come in scroll order, `pageElement` names its element, `holdOnScreen` stands instead of `follows`. The player keeps
+ *  playing in each case — it takes the default, clamps, or takes the stretch in scroll order. */
+function collectScrollProblems(doc: PxDocument, ctx: PxValidationContext): void {
+    const timeline = (animatorOf(doc) as PxAnimatorConfig | undefined)?.timeline;
+    if (!timeline || typeof timeline !== 'object' || timeline.type !== 'scroll') return;
+    const path = (...keys: Array<string>) => [PX_VALIDATION_ROOT_SEGMENT, 'animator', 'timeline', ...keys];
+    const held = timeline.holdOnScreen === true || (!!timeline.holdOnScreen && typeof timeline.holdOnScreen === 'object');
+    const ofElement = held || followsElement(timeline.follows);
+    if (held && (timeline.follows !== undefined || timeline.selector !== undefined)) {
+        reportValidationError(ctx, path(timeline.follows !== undefined ? 'follows' : 'selector'), PxValidationFindingKind.invalidValue,
+            'holdOnScreen follows its own held stretch — follows and selector are not used with it');
+    }
+    if (!held && timeline.follows === PxScrollFollows.pageElement && !timeline.selector) {
+        reportValidationError(ctx, path('selector'), PxValidationFindingKind.missingValue,
+            'follows "pageElement" needs a selector — without one the animation itself is followed');
+    }
+    if (!held && timeline.selector !== undefined && timeline.follows !== PxScrollFollows.pageElement && timeline.follows !== PxScrollFollows.containerScroll) {
+        reportValidationError(ctx, path('selector'), PxValidationFindingKind.invalidValue,
+            'a selector is used only with follows "pageElement" or "containerScroll"');
+    }
+    const checkShare = (value: unknown, keys: Array<string>): void => {
+        if (typeof value === 'number' && (value < 0 || value > 1)) {
+            reportValidationError(ctx, path(...keys), PxValidationFindingKind.invalidValue, value + ' is not a share — a share is 0–1');
+        }
+    };
+    const words: Array<number> = [];
+    for (const key of ['firstFrameWhen', 'lastFrameWhen'] as const) {
+        const moment = timeline[key];
+        if (moment === undefined) continue;
+        const isScrolled = typeof moment === 'object' && 'scrolled' in moment;
+        if (ofElement === isScrolled) {
+            reportValidationError(ctx, path(key), PxValidationFindingKind.invalidValue, ofElement
+                ? '{ scrolled } fits only follows "pageScroll" or "containerScroll" — the default moment is used'
+                : 'a moment word or an exact place fits only an element — use { scrolled }; the default moment is used');
+            continue;
+        }
+        if (typeof moment === 'string') words.push(PX_SCROLL_MOMENT_ORDER.indexOf(moment));
+        else if ('scrolled' in moment) checkShare(moment.scrolled, [key, 'scrolled']);
+        else { checkShare(moment.element, [key, 'element']); checkShare(moment.screen, [key, 'screen']); }
+    }
+    if (words.length === 2 && words[0] > words[1]) {
+        reportValidationError(ctx, path('lastFrameWhen'), PxValidationFindingKind.invalidValue,
+            JSON.stringify(timeline.lastFrameWhen) + ' comes before ' + JSON.stringify(timeline.firstFrameWhen)
+            + ' while scrolling on — the stretch is taken in scroll order');
+    }
+}
+
 /**
  * THE one validation call (review §15). Checks a WHOLE document against the wire schema — plus
  * every node's `effects` bucket, the glyph-font and easing references and the version stamp —
@@ -2204,6 +2121,7 @@ function collectDocumentProblems(doc: unknown, options?: { strict?: boolean }): 
         collectGlyphFontRefProblems(subject as PxNode, defs?.fonts, ctx);
         collectEasingRefProblems(subject as PxNode, defs?.easings, ctx);
         collectVersionStampProblems(subject as PxDocument, ctx);
+        collectScrollProblems(subject as PxDocument, ctx);
     }
     return { errors: ctx.errors, findings: ctx.findings };
 }

@@ -194,14 +194,16 @@ export enum PxDiagnosticCode {
     scrollNativeUnavailable = 1302,
 
     /**
-     * `timeline.subject` is not a valid CSS selector, so the SVG itself is measured instead.
-     * @data the subject
+     * `timeline.selector` is not a valid CSS selector, so the animation itself is followed instead (`containerScroll`:
+     * the scrolling box around it).
+     * @data the selector
      */
     scrollSubjectInvalid = 1303,
 
     /**
-     * `timeline.subject` matched no element, so the SVG itself is measured instead.
-     * @data the subject
+     * `timeline.selector` matched no element in the page, so the animation itself is followed instead
+     * (`containerScroll`: the scrolling box around it).
+     * @data the selector
      */
     scrollSubjectNoMatch = 1304,
 
@@ -210,6 +212,13 @@ export enum PxDiagnosticCode {
 
     /** `timeline.triggers` does not apply to a scroll timeline — the scrollbar is the playhead. */
     scrollTriggerIgnored = 1306,
+
+    /**
+     * `engine: "native"` asked for the browser's scroll timeline, but a moment is an exact place (`{ element, screen }`),
+     * which the browser cannot be given with its order known — the player measures by itself.
+     * @data the moment
+     */
+    scrollPlaceNeedsOwnDriver = 1307,
 
     // ── 1400 · playback control ──────────────────────────────────────────────────────────────
 
@@ -247,10 +256,11 @@ export enum PxDiagnosticCode {
     callAfterDestroy = 1504,
 
     /**
-     * A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.play()`,
-     * `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a
-     * scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next
-     * scroll moves it.
+     * A playback call on a scroll timeline — a button (`playback.start()`, `playback.play()`, `playback.stop()`,
+     * `playback.pause()`, `playback.resume()`), the speed (`playback.setSpeed()`, `playback.setDurationAtSpeed()`) or a
+     * seek (`playback.setCurrentTime()`, `playback.setCurrentProgress()`, `playback.setTotalTime()`, and the components'
+     * `showAtProgress` / `showAtTime`, which seek through them) — ignored: the scrolling owns the playhead. The reads still
+     * answer. To drive it from code, make it a clock timeline: `timelineOptions: { type: 'time' }`.
      * @data the call
      */
     scrollOwnsPlayhead = 1505,

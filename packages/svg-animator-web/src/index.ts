@@ -82,10 +82,10 @@ export type { PxVariableValue, PxVariablesApi, PxVariablesOptions, PxVariableDef
 // The time contract (review §3) and the trigger defaults, so the components map `progress` and
 // thresholds with core's rule instead of re-deriving it.
 
-// The schema-version API, `diagnoseDocument` and the timeline / pin / scroll schema values
+// The schema-version API, `diagnoseDocument` and the timeline / scroll schema values
 // (review §17): a web-only install no longer needs core beside it for these.
 export {
-    PxScrollSchema,
+    PxScrollTimelineSchema,
 } from '@pixodesk/svg-animator-core';
 
 // Triggers

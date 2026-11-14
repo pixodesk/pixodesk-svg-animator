@@ -279,6 +279,8 @@ page shows the new animation; refresh if it does not.
   the file: [playback settings in the editor](https://pixodesk.com/docs/svga/editor/playback-settings).
   To change them for one place in your app without touching the file, pass them to the player:
   [Playback settings & triggers](./playback-and-triggers.md).
+- **Let the scrolling drive it** — the playhead follows the animation on its way across the screen, or how far
+  the page is scrolled; also saved in the file: [Following the scroll](./playback-and-triggers.md#following-the-scroll).
 - **Play, pause, jump to a time from your code** — the handle every player gives you:
   [React](./react.md#imperative-api-playerref) · [Vue](./vue.md) ·
   [Web player](./web-player.md#the-playback-api).

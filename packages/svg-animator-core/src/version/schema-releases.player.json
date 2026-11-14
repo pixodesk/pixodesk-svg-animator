@@ -463,5 +463,49 @@
   ],
   "removed": [],
   "note": "Variables (docs/library/variables.md): `definitions.variables` declares named, typed values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere may be written `\"variable(name)\"` or `\"calc(…)\"` instead of the value. Nothing older has any of it, so there is nothing to convert up."
+ },
+ {
+  "version": "1.28",
+  "date": "2026-11-14",
+  "added": [
+   "animator.timeline|scroll.firstFrameWhen",
+   "animator.timeline|scroll.firstFrameWhen|1.element",
+   "animator.timeline|scroll.firstFrameWhen|1.screen",
+   "animator.timeline|scroll.firstFrameWhen|2.scrolled",
+   "animator.timeline|scroll.follows",
+   "animator.timeline|scroll.holdOnScreen",
+   "animator.timeline|scroll.holdOnScreen|1.at",
+   "animator.timeline|scroll.holdOnScreen|1.forScreens",
+   "animator.timeline|scroll.holdOnScreen|1.offset",
+   "animator.timeline|scroll.lastFrameWhen",
+   "animator.timeline|scroll.selector"
+  ],
+  "removed": [
+   "animator.timeline|scroll.frameRate",
+   "animator.timeline|scroll.pin",
+   "animator.timeline|scroll.pin|1.align",
+   "animator.timeline|scroll.pin|1.distance",
+   "animator.timeline|scroll.pin|1.offset",
+   "animator.timeline|scroll.range",
+   "animator.timeline|scroll.range.end",
+   "animator.timeline|scroll.range.start",
+   "animator.timeline|scroll.range.start.fraction",
+   "animator.timeline|scroll.range.start.phase",
+   "animator.timeline|scroll.source",
+   "animator.timeline|scroll.subject",
+   "animator.timeline|view.axis",
+   "animator.timeline|view.engine",
+   "animator.timeline|view.frameRate",
+   "animator.timeline|view.inTime",
+   "animator.timeline|view.iterations",
+   "animator.timeline|view.outTime",
+   "animator.timeline|view.pin",
+   "animator.timeline|view.range",
+   "animator.timeline|view.smoothing",
+   "animator.timeline|view.source",
+   "animator.timeline|view.subject",
+   "animator.timeline|view.type"
+  ],
+  "note": "One scroll timeline in plain words (docs/library/playback-and-triggers.md, \"Following the scroll\"): `type: \"view\"` and `\"scroll\"` become `type: \"scroll\"` with `follows` (`thisElement`, `parentElement`, `pageElement` + `selector`, `pageScroll`, `containerScroll`) in place of `source` and `subject`; `range` becomes `firstFrameWhen` / `lastFrameWhen` — one of seven words (`appears` … `gone`, the old range names at 0, 50 and 100 %), an exact place `{ element, screen }`, or `{ scrolled }`; `pin` becomes `holdOnScreen` (`at`, `forScreens`, `offset`), which follows its own held stretch; `axis` says `vertical` / `horizontal`; `frameRate` leaves the scroll timeline."
  }
 ]

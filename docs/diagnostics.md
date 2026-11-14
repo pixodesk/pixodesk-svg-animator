@@ -67,10 +67,11 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 |---|---|---|
 | <a id="px1301"></a>**1301** | `smoothing` needs the player's own driver, so the browser's scroll timeline was not used. | — |
 | <a id="px1302"></a>**1302** | The browser refused to build a native scroll timeline; the player measures progress itself. | — |
-| <a id="px1303"></a>**1303** | `timeline.subject` is not a valid CSS selector, so the SVG itself is measured instead. | the subject |
-| <a id="px1304"></a>**1304** | `timeline.subject` matched no element, so the SVG itself is measured instead. | the subject |
+| <a id="px1303"></a>**1303** | `timeline.selector` is not a valid CSS selector, so the animation itself is followed instead (`containerScroll`: the scrolling box around it). | the selector |
+| <a id="px1304"></a>**1304** | `timeline.selector` matched no element in the page, so the animation itself is followed instead (`containerScroll`: the scrolling box around it). | the selector |
 | <a id="px1305"></a>**1305** | There is no root element to observe, so a scroll-driven animation stays on its first frame. | — |
 | <a id="px1306"></a>**1306** | `timeline.triggers` does not apply to a scroll timeline — the scrollbar is the playhead. | — |
+| <a id="px1307"></a>**1307** | `engine: "native"` asked for the browser's scroll timeline, but a moment is an exact place (`{ element, screen }`), which the browser cannot be given with its order known — the player measures by itself. | the moment |
 
 ## Playback control
 
@@ -88,7 +89,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1502"></a>**1502** | Retired (1.24): `pause` without `play` could be written with two boolean props; the one `playback` lever has no invalid position pair. The number stays reserved so older hosts' switches keep their meaning. | the explanation |
 | <a id="px1503"></a>**1503** | An imperative write call (`playback.start()`, `playback.pause()`, `playback.play()`, …) landed while a declarative driver (the `playback` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
 | <a id="px1504"></a>**1504** | A call on a destroyed player — ignored; `playback.getState()` says `destroyed`. | the call |
-| <a id="px1505"></a>**1505** | A playback call (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.play()`, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a scroll- or view-driven player — ignored: the scroll position owns the playhead. Seeks still apply until the next scroll moves it. | the call |
+| <a id="px1505"></a>**1505** | A playback call on a scroll timeline — a button (`playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`), the speed (`playback.setSpeed()`, `playback.setDurationAtSpeed()`) or a seek (`playback.setCurrentTime()`, `playback.setCurrentProgress()`, `playback.setTotalTime()`, and the components' `showAtProgress` / `showAtTime`, which seek through them) — ignored: the scrolling owns the playhead. The reads still answer. To drive it from code, make it a clock timeline: `timelineOptions: { type: 'time' }`. | the call |
 | <a id="px1506"></a>**1506** | A playback call (`playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, a seek, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a player shown with `showAsStatic` — ignored: the picture stays as drawn. The reads still answer. | the call |
 
 ## React Native

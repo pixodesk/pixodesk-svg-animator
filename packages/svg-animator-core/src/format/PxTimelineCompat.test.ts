@@ -83,33 +83,31 @@ describe('animator.timeline spelling compat', () => {
         expect(stamped?.resetOnFinish).toBe(true);
     });
 
-    it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; engine is shared", () => {
+    it("flattens a scroll timeline to timelineSource:'scroll' + its settings: a word moment → { moment }, holdOnScreen → flat flags; engine is shared", () => {
         const flat = resolveAnimatorTimeline({
             timeline: {
-                type: 'view', outTime: 4000, engine: 'js', axis: 'block', subject: 'parent',
-                smoothing: 120, pin: { align: 'center', offset: 24, distance: 600 },
-                range: { start: { phase: 'entry', fraction: 0.1 } }
+                type: 'scroll', outTime: 4000, engine: 'js', axis: 'vertical',
+                smoothing: 120, holdOnScreen: { at: 'center', offset: 24, forScreens: 3 },
+                firstFrameWhen: 'halfIn', lastFrameWhen: { element: 'top', screen: 0.8 },
             }
         });
         expect(flat.timelineSource).toBe('scroll');
         expect(flat.engine).toBe('js');
         expect(flat.scroll).toEqual({
-            kind: 'view', axis: 'block', subject: 'parent', smoothing: 120,
-            pin: true, pinAlign: 'center', pinOffset: 24, pinDistance: 600,
-            range: { start: { phase: 'entry', fraction: 0.1 } }
+            axis: 'vertical', smoothing: 120,
+            holdOnScreen: true, holdAt: 'center', holdOffset: 24, holdForScreens: 3,
+            firstFrameWhen: { moment: 'halfIn' }, lastFrameWhen: { element: 'top', screen: 0.8 },
         });
-        expect(resolveAnimatorTimeline({ timeline: { type: 'scroll', pin: true } }))
-            .toMatchObject({ timelineSource: 'scroll', scroll: { kind: 'scroll', pin: true } });
+        expect(resolveAnimatorTimeline({ timeline: { type: 'scroll', follows: 'pageScroll', holdOnScreen: true, firstFrameWhen: { scrolled: 0.2 } } }))
+            .toMatchObject({ timelineSource: 'scroll', scroll: { follows: 'pageScroll', holdOnScreen: true, firstFrameWhen: { scrolled: 0.2 } } });
     });
 
     it('finite iterations survive a scroll timeline in both directions (D4); infinite does not nest', () => {
-        // No `scroll` block, so the kind sits at its default — `'view'` (see the kind-default
-        // case below); `timelineSource: 'scroll'` names the FAMILY, not the member.
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 3 }))
-            .toEqual({ timeline: { type: 'view', outTime: 1, iterations: 3 } });
+            .toEqual({ timeline: { type: 'scroll', outTime: 1, iterations: 3 } });
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 'infinite' }))
-            .toEqual({ timeline: { type: 'view', outTime: 1 } });
-        expect(resolveAnimatorTimeline({ timeline: { type: 'view', iterations: 2 } }))
+            .toEqual({ timeline: { type: 'scroll', outTime: 1 } });
+        expect(resolveAnimatorTimeline({ timeline: { type: 'scroll', iterations: 2 } }))
             .toMatchObject({ timelineSource: 'scroll', iterations: 2 });
     });
 
@@ -182,40 +180,37 @@ describe('animator.timeline spelling compat', () => {
         expect(nestAnimatorTimeline({ fill: 'forwards' })).toEqual({});
     });
 
-    it("nests flat scroll config under timeline{type:'view'|'scroll'}; the dead clock keys (triggers, …) do not survive", () => {
+    it("nests flat scroll settings under timeline{type:'scroll'}; the dead clock keys (triggers, frame rate, …) do not survive", () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, timelineSource: 'scroll',
             actionTriggers: { 'playback.start': 'load' },      // dead under scroll (D3) — dropped by nesting
+            frameRate: 30,                                      // no frame rate on a scroll timeline
             engine: 'native',
-            scroll: { kind: 'view', axis: 'block', smoothing: 120,
-                      pin: true, pinAlign: 'center', pinOffset: 24 }
+            scroll: { axis: 'horizontal', smoothing: 120, holdOnScreen: true, holdAt: 'center', holdOffset: 24,
+                      lastFrameWhen: { moment: 'fullyIn' } }
         });
         expect(nested).toEqual({
             timeline: {
-                type: 'view', engine: 'native', outTime: 4000, axis: 'block', smoothing: 120,
-                pin: { align: 'center', offset: 24 }
+                type: 'scroll', engine: 'native', outTime: 4000, axis: 'horizontal', smoothing: 120,
+                holdOnScreen: { at: 'center', offset: 24 }, lastFrameWhen: 'fullyIn',
             }
         });
     });
 
-    it("an absent scroll.kind nests as 'view', and a view document survives the round trip", () => {
-        // REGRESSION. `scroll.kind` defaults to `'view'` (`_PxScroll.kind`), and the editor
-        // omits it at that default — so nesting it as `'scroll'` rewrote the commonest scroll
-        // document there is: "element enters the viewport" was saved as "container scrolled".
-        expect(nestAnimatorTimeline({ timelineSource: 'scroll', scroll: {} }).timeline?.type)
-            .toBe('view');
-        expect(nestAnimatorTimeline({ timelineSource: 'scroll' }).timeline?.type)
-            .toBe('view');
-        // Only the explicit spelling selects the scroller member.
-        expect(nestAnimatorTimeline({ timelineSource: 'scroll', scroll: { kind: 'scroll' } }).timeline?.type)
-            .toBe('scroll');
+    it("an empty scroll block nests as a bare scroll timeline, and every settings form survives the round trip", () => {
+        expect(nestAnimatorTimeline({ timelineSource: 'scroll', scroll: {} }).timeline).toEqual({ type: 'scroll' });
+        expect(nestAnimatorTimeline({ timelineSource: 'scroll' }).timeline).toEqual({ type: 'scroll' });
+        // held with no settings is the word `true`
+        expect(nestAnimatorTimeline({ timelineSource: 'scroll', scroll: { holdOnScreen: true } }).timeline)
+            .toEqual({ type: 'scroll', holdOnScreen: true });
 
-        // …and the whole trip is stable: a kind, once written, comes back as itself.
-        for (const kind of ['view', 'scroll'] as const) {
-            const flat: PxAnimatorRuntimeConfig = { timelineSource: 'scroll', scroll: { kind } };
-            expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat)))
-                .toMatchObject({ timelineSource: 'scroll', scroll: { kind } });
-        }
+        // …and the whole trip is stable: a moment, once written, comes back as itself.
+        const flats: Array<PxAnimatorRuntimeConfig> = [
+            { timelineSource: 'scroll', scroll: { follows: 'parentElement', firstFrameWhen: { moment: 'centered' } } },
+            { timelineSource: 'scroll', scroll: { follows: 'pageElement', selector: '#a', lastFrameWhen: { element: 0.3, screen: 'top' } } },
+            { timelineSource: 'scroll', scroll: { follows: 'containerScroll', firstFrameWhen: { scrolled: 0.25 } } },
+        ];
+        for (const flat of flats) expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat))).toMatchObject(flat);
     });
 
     it('omits an empty time timeline entirely, and passes a config that already has one through unchanged', () => {
@@ -253,13 +248,13 @@ describe('animator.timeline spelling compat', () => {
     it('the nested spelling validates strictly; a time knob inside a scroll timeline is a schema error', () => {
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            timeline: { type: 'view', outTime: 4000, axis: 'block', pin: { align: 'top' } }
+            timeline: { type: 'scroll', outTime: 4000, axis: 'vertical', holdOnScreen: { at: 'top' }, firstFrameWhen: 'fullyIn' }
         }, ctx)).toBe(true);
         expect(ctx.errors).toEqual([]);
 
         const bad: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            timeline: { type: 'view', actionTriggers: { 'playback.start': 'click' } }   // dead key — no slot
+            timeline: { type: 'scroll', actionTriggers: { 'playback.start': 'click' } }   // dead key — no slot
         }, bad)).toBe(false);
         expect(bad.errors.length).toBeGreaterThan(0);
     });
@@ -289,7 +284,7 @@ describe('animator.timeline spelling compat', () => {
 
         const scrollCtx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            timelineSource: 'scroll', scroll: { kind: 'view' }
+            timelineSource: 'scroll', scroll: { follows: 'pageScroll' }
         }, scrollCtx)).toBe(false);
         expect(scrollCtx.errors.length).toBeGreaterThan(0);
     });

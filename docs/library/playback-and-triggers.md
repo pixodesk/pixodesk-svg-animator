@@ -102,6 +102,7 @@ on every player; `playback.isActive()` is true while a playback exists (`playing
 | `paused` | the playback is on, frozen by `playback.pause` — or held on a frame by a seek made while it was not playing ([Moving the playhead](#moving-the-playhead)); `playback.resume` carries on from there |
 | `finished` | the playback reached its end — whatever `whenFinished` then shows, until the next start, stop or seek; `playback.stop` still acts on it, `playback.start` makes a fresh playback |
 | `returning` | no playback, but the picture still plays back to the rest pose — a stop with `animateToStart` (or the way back of `animateToEndAndBack`) on its way; `playback.play()` turns it around, `playback.start()` plays from the start |
+| `scrubbing` | a scroll timeline, always: the scrolling moves the playhead, so nothing starts, pauses or finishes it — [Following the scroll](#following-the-scroll) |
 | `destroyed` | after `destroy()` — every call is a no-op ([PX1504](../diagnostics.md#the-props-a-component-was-given)) |
 
 `playback.isPlaying()` is `playback.getState() === 'playing'`: a picture moving back to the start is not playing —
@@ -112,18 +113,16 @@ of view reads `paused` (or `off`, with `outOfView: 'stop'`) and reports it.
 ## The `timeline` — what advances the playhead
 
 `animator.timeline` says what *drives* the animation's progress, exactly like a Web Animations
-API timeline. Its `type` picks the kind, mirroring WAAPI's `DocumentTimeline` /
-`ScrollTimeline` / `ViewTimeline`:
+API timeline. Its `type` answers one question — who moves the playhead:
 
 <!-- px-check schema PxTimelineSchema values=type -->
 | `timeline.type` | The playhead follows… |
 |---|---|
 | `time` (default — may be omitted) | the player's clock — something *starts* a playback (the `actionTriggers`), and it has the playback dynamics below |
-| `scroll` | a scroll container's offset — [Scroll-driven playback](#scroll-driven-playback-in-development) |
-| `view` | the SVG's journey through the viewport — [Scroll-driven playback](#scroll-driven-playback-in-development) |
+| `scroll` | the scrolling — an element on its way across the screen, or how far the page or a box is scrolled — [Following the scroll](#following-the-scroll) |
 
-Each type carries only the fields that mean something for it — a scrubbed timeline has no
-`actionTriggers`, no `actions` and no `delay`, and the format gives them no slot there. Omitting
+Each type carries only the fields that mean something for it — a scroll timeline has no
+`actionTriggers`, no `actions`, no `delay` and no `frameRate`, and the format gives them no slot there. Omitting
 `timeline` entirely means a time-driven timeline with every default.
 
 ## Timing
@@ -138,7 +137,7 @@ in the timeline. `animator` itself keeps only what is not playback: the lookup t
 | `timeline.inTime` | ms | `0` | where the content WINDOW begins. Keyframe times are absolute content ms |
 | `timeline.outTime` | ms | max keyframe time | …and where it ends — one pass plays `inTime` → `outTime`. The editor always writes it |
 | `timeline.playbackSpeed` | factor | `1` | the speed one pass plays at: `2` plays one pass in half the time, `0.5` in twice. Content ms stay content ms — only the speed changes. Must be positive in a file (the direction is `iterationDirection`). The handle's `playback.setSpeed()` replaces it at runtime; `playback.setDurationAtSpeed(ms)` asks for the same knob as a length. WHY a speed, not a duration (`playDuration` until 1.15): every player spells speed as a factor (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`) and a factor needs no knowledge of the content's length. WHY `playback…` (`playSpeed` until 1.21): "playback speed" is how media players say it, and the handle's family reads the same (`playback.getDurationAtSpeed()`, `playback.getCurrentTimeAtSpeed()`) |
-| `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.engine` selects, so it sits beside it |
+| `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.engine` selects, so it sits beside it. A clock timeline only: a scroll timeline draws a frame when the scroll moves |
 | `timeline.engine` | `auto` · `native` · `js` | `auto` | how the animated attributes get updated — [Engine](#engine) |
 | `timeline.delay` | ms | `0` | waited whenever a playback starts from the beginning — every `playback.start`, a `playback.play` from rest — never on a resume from a paused position. Scaled by the speed as WAAPI's `delay` is: at `playbackSpeed: 2` a `delay: 500` waits 250 ms. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s |
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
@@ -187,6 +186,7 @@ A **seek** — `playback.setCurrentTime(ms)` (inside the current iteration), `pl
 |---|---|
 | `playing` | the time is corrected and it keeps playing from there |
 | `off`, `paused`, `finished`, `returning` | `paused` at that frame — `playback.resume()` (or `playback.play()`) plays on from it |
+| `scrubbing` | nothing: the seek is ignored with a warning — on a scroll timeline only the scroll moves the playhead ([From page code](#from-page-code)) |
 
 A seek reports no callback. A seek to the exact end is `paused` too: only playing to the end gives `finished`.
 To show one frame with no code, the components take `showAtProgress` / `showAtTime`, which hold the frame the
@@ -603,7 +603,8 @@ a.playback.stop();   // plays on to the end of the current pass, then rests — 
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
 | **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0, whenFinished: 'hold' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
 | **`actionTriggers` and `actions` are not timeline keys here** | the file nests them, the props lift them: only `actionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error. Both are whole blocks, set as given (`actions` merged until 1.25) |
-| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `whenFinished`, `delay`, `playbackSpeed`, `iterationDirection`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning |
+| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations` and `engine` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `whenFinished`, `delay`, `playbackSpeed`, `iterationDirection`, `frameRate`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning; so is `iterations: 'infinite'` |
+| **A moment and `holdOnScreen` are one value each** | on a scroll timeline, `firstFrameWhen`, `lastFrameWhen` and `holdOnScreen` are replaced whole — a word and an object never mix: `timelineOptions: { holdOnScreen: { at: 'center' } }` over a file's `{ forScreens: 3 }` holds at the centre for the page's own tall section |
 
 Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions, actionTriggers })`
 is the one implementation the web player and the three components call: the timing merged
@@ -616,7 +617,9 @@ and the merge's warnings. `applyAnimatorConfig(doc, patch)` applies a patch to a
 and could not do in a `PxAnimatorConfigMergeResult`. A patch is a `PxRecursivePartial` of the wire type —
 every key optional at every depth, arrays and primitives replaced whole, no delete — so
 `PxAnimatorConfigPatch` patches the `animator` block and `PxTimelineOptions` (the `timelineOptions` prop) the
-timing, typed from `PxTimelineTiming` (the timeline minus `actionTriggers` and `actions`). `PxActionsInput`
+timing, typed from `PxTimelineTiming` (the timeline minus `actionTriggers` and `actions`); its parameter,
+`PxTimelineOptions<TFollowed>`, is what a scroll timeline's `follows` may also take from page code — an `Element`
+on the web player, none by default ([From page code](#from-page-code)). `PxActionsInput`
 (the `actions` prop) is the `actions` block itself (`PxActions`), and `PxActionTriggersInput` the triggers
 block. WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until
 1.25): `PxRecursivePartial` says what the type IS — the common `RecursivePartial`; "options" is the word
@@ -693,7 +696,7 @@ write yourself cannot drift from the four shipped ones:
   slot — `PxStopPlaybackActionSchema`, `PxOutOfViewActionSchema` — each stating its
   defaults; `PxWhenFinishedSchema` is the `whenFinished` enum on the timeline (`hold` · `jumpToStart` · `animateToStart`, default `hold`).
 - **The event rule.** `triggerActionFor(triggers, state, event, whenFinished)` — the playback's state (`PxPlaybackState`:
-  off · playing · paused · finished · returning — and `destroyed`, which answers nothing) picks the lists, in the order of
+  off · playing · paused · finished · returning — and `scrubbing` and `destroyed`, which answer nothing) picks the lists, in the order of
   [One event, several lists](#one-event-several-lists) (`whenFinished` decides the order while finished), and the answer is a
   `PxTriggerAction`: `playback.start`, `playback.play`, `playback.stop`, `playback.pause` or `playback.resume`.
   `triggerListsEvent` says which listeners to attach at all.
@@ -745,65 +748,306 @@ What the names alone do not settle — each row is a test in the packages:
 | A seek holds the frame unless playing | `playback.setCurrentTime()`, `playback.setCurrentProgress()` and `playback.setTotalTime()` while `playing` keep playing from there; in every other state the playback becomes `paused` at that frame, and `playback.resume()` plays on from it. A seek reports no callback |
 | Progress counts iterations | `playback.getCurrentProgress()` / `playback.setCurrentProgress()` and `showAtProgress`: `1.2` is 20 % into the second iteration, in play order; clamped to `0 … iterations`, no upper bound when endless; nothing wraps |
 | A negative speed multiplies with `iterationDirection` | `playback.setSpeed(-1)` plays a `reverse` pass forwards. A file's `playbackSpeed` must be positive — in a file the direction is `iterationDirection` |
-| Playback verbs do nothing on a scroll or view timeline | the scroll position owns the playhead: `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.setSpeed()` and `playback.setDurationAtSpeed()` are no-ops with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); a seek still applies until the next scroll moves it |
+| On a scroll timeline only the scroll moves the playhead | `playback.getState()` reads `scrubbing` on every engine and no playback callback fires. The buttons — `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()` — `playback.setSpeed()`, `playback.setDurationAtSpeed()` and the seeks — `playback.setCurrentTime()`, `playback.setCurrentProgress()`, `playback.setTotalTime()`, the components' `showAtProgress` / `showAtTime` — are ignored with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); the reads still answer |
 | With no control prop the file drives | no `showAsStatic`, `showAt…`, `playback`, `disableActionTriggers` or `actionTriggers`: the document's own `actionTriggers` start it, on every player — a file saved with `"playback.start": "load"` plays at once, a file without triggers stays still until code calls `playback.start()` |
 | A player shown with `showAsStatic` never moves | the picture as drawn, whatever the file says: no triggers, no scroll, and `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, every seek, `playback.setSpeed()` and `playback.setDurationAtSpeed()` are no-ops with the usage warning `showAsStaticIgnoresCall` ([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer. It beats every other control prop |
 | `playback="off"` on mount does nothing | a component mounted with `playback="off"` presses no button — there is nothing to stop yet; a change from `"on"` to `"off"` stops. A mount with `"on"` starts the playback, with `"paused"` starts it frozen |
 | The gate presses the real buttons | scrolled out of view, `outOfView: 'pause'` makes the state `paused` and reports `onPlaybackPause` (`onPlaybackResume` when seen again); `'stop'` makes it `off` and reports `onPlaybackStop` (`onPlaybackStart` when it starts again). It only undoes what it did: a playback the page paused stays paused |
 
-## Scroll-driven playback (in development)
+## Following the scroll
 
-> **In development.** Scroll-driven playback is not finished yet: the fields below may change,
-> and not every combination works in every player. Time-driven playback — the default — is
-> not affected.
-
-Instead of playing on a clock, the animation can **follow the scroll position** — the playhead
-moves as the user scrolls: scroll down and the animation goes forward, scroll back up and it
-goes backward, stop and it stays on that frame. This is the model of CSS scroll-driven
-animations. Choose
-*Timeline → scroll* in the editor's playback panel, or set it in the document:
+Instead of a clock, the **scrolling** can move the playhead: scroll on and the animation goes forward, scroll
+back and it goes backward, stop and it stays on that frame. Nothing starts, pauses or finishes it — it is always
+on, and where the page is scrolled decides which frame is on screen. Choose *Timeline → Scroll* in the editor's
+playback panel, or set it in the file:
 
 ```js
 "animator": {
-  // The playhead follows the SVG's journey through the viewport instead of the clock;
-  // `outTime` is the keyframe span the scroll range maps onto.
-  "timeline": { "type": "view", "outTime": 3000, "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
+  // The playhead follows this animation on its way across the screen: the first frame as it
+  // appears at the bottom, the last frame as it is gone at the top. The keyframes up to
+  // `outTime` are spread between those two moments.
+  "timeline": { "type": "scroll", "outTime": 3000 }
 }
 ```
 
-`timeline: { "type": "view" }` alone means *"show the whole animation, first frame to last, as
-the SVG travels across the viewport — the scroll position, not the clock, decides which frame
-is on screen"*; `type: "scroll"` follows the scroll container's offset instead. The clock
-fields (`actionTriggers`, `actions`, `delay`, `"infinite"`) have no slot in these timelines. The
-rest of the object tunes it:
+A scroll timeline answers three questions, one key each. Every key has a default, so `{ "type": "scroll" }`
+alone is a whole timeline:
 
-<!-- px-check schema PxTimelineSchema variant=scroll omit=inTime,outTime,frameRate -->
-| `timeline.` | Values | Meaning |
+- **what** the playhead follows — `follows`: this animation, unless it says otherwise;
+- **from which moment to which** — `firstFrameWhen` and `lastFrameWhen`: from when it appears to when it is
+  gone, unless they say otherwise;
+- whether it is **held on screen** meanwhile — `holdOnScreen`.
+
+The clock keys — `actionTriggers`, `actions`, `delay`, `playbackSpeed`, `iterationDirection`, `whenIdle`,
+`whenFinished`, `frameRate` and the gate numbers — have no slot on a scroll timeline.
+
+<!-- px-check schema PxScrollTimelineSchema -->
+| `timeline.` | Values | Default | Meaning |
+|---|---|---|---|
+| `type` | `scroll` | — | the scrolling moves the playhead |
+| `follows` | `thisElement` · `parentElement` · `pageElement` · `pageScroll` · `containerScroll` | `thisElement` | what the playhead follows — [What it follows](#what-it-follows) |
+| `selector` | a CSS selector **in the page** | — | the element `pageElement` follows, or the scrolling box `containerScroll` follows (without one: the box around the animation) |
+| `firstFrameWhen` | a moment word · `{ element, screen }` · `{ scrolled }` | `appears` — `{ scrolled: 0 }` with a `…Scroll` word, `fullyIn` when held | when the first frame is shown — [The two moments](#the-two-moments) |
+| `lastFrameWhen` | the same | `gone` — `{ scrolled: 1 }` with a `…Scroll` word, `startsToLeave` when held | when the last frame is shown |
+| `holdOnScreen` | `true` · `{ at, forScreens, offset }` | not held | held in place while the page scrolls on, playing meanwhile — instead of `follows` and `selector` — [Held on screen](#held-on-screen) |
+| `axis` | `vertical` · `horizontal` | the way the page scrolls | which way the scrolling goes, when it is not the page's own way |
+| `smoothing` | ms | none — the playhead keeps up at once | how long the playhead takes to catch up with the scrolling — smoother under momentum scrolling; the player then measures by itself ([Engine](#engine)) |
+| `inTime` · `outTime` | ms | `0` · the last keyframe | the keyframes spread between the two moments — the same window as on a clock | <!-- px names=inTime,outTime -->
+| `iterations` | a number | `1` | how many times it plays between the two moments — finite only: `"infinite"` cannot be spread over a stretch of scrolling |
+| `engine` | `auto` · `native` · `js` | `auto` | who measures the scroll and applies the values — [Engine](#engine) |
+
+A file saved with schema 1.27 or earlier (`"type": "view"`, `source`, `subject`, `range`, `pin`) is converted when
+it is read: `{ "type": "view" }` becomes `{ "type": "scroll" }`, a `range` the two moments, `pin` `holdOnScreen`.
+
+### What it follows
+
+<!-- px-check values PxScrollFollows pkg=core -->
+| `follows` | The playhead follows… | In a file |
 |---|---|---|
-| `type` | `view` · `scroll` | progress = the SVG's journey across the scrollport, or the scroll container's offset ratio |
-| `axis` | `block` (default) · `inline` · `x` · `y` | which axis; `block` = vertical in normal writing mode |
-| `source` | `nearest` (default) · `root` | for `type: scroll` — the nearest scrollable ancestor, or the document |
-| `subject` | `parent` · `scroller` · a CSS selector | for `type: view` — **whose** journey is measured (default: the `<svg>` itself). `parent` is what makes a *pinned* section work |
-| `range.start` / `range.end` | `{ phase, fraction }` | the slice of the journey mapped to 0–100 %; `phase` ∈ `cover` (default) · `contain` · `entry` · `exit` · `entryCrossing` · `exitCrossing`; `fraction` is a position within that phase, `0` = its start, `1` = its end |
-| `iterations` | number | the animation repeats this many times across the range (finite only — `"infinite"` cannot map onto a range) |
-| `smoothing` | ms | catch-up lag — the playhead eases toward the scroll position instead of snapping (smoother under momentum scrolling) |
-| `pin` | `true` · `{ align, offset, distance }` | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `align` ∈ `top`/`center`/`bottom`, `offset` in px from the aligned position, `distance` in viewport heights creates the scroll travel |
-| `engine` | `auto` (default) · `native` · `js` | who computes progress and applies values — see [Engine](#engine): `auto`/`native` use the browser's `ScrollTimeline` where supported, `js` measures itself |
+| `thisElement` (default) | the animation itself, on its way across the screen | `{ "type": "scroll" }` |
+| `parentElement` | the element around it — the nearest one that really moves (sticky and fixed ones are skipped) | `{ "type": "scroll", "follows": "parentElement" }` |
+| `pageElement` | an element of the page, named by `selector`, on its way across the screen | `{ "type": "scroll", "follows": "pageElement", "selector": "#chapter-2" }` |
+| `pageScroll` | how far the page is scrolled | `{ "type": "scroll", "follows": "pageScroll" }` |
+| `containerScroll` | how far the scrolling box around it is scrolled — or the box `selector` names | `{ "type": "scroll", "follows": "containerScroll", "selector": "#panel" }` |
 
-Support: the **web player** (both engines, and therefore React and Vue), and the *SVG + JS
-animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"
-pattern is `subject: "parent"` + `pin: true` inside a tall section.
+The ending of the word says what is measured: an `…Element` word follows where an element is on the screen, a
+`…Scroll` word how far something is scrolled. **The screen** is the visible area of whatever scrolls the followed
+element — the browser window, or a scrolling box around it.
+
+`selector` is a CSS selector **in the page**, not in the file. It stays in the file all the same, so the file says
+everything and a pre-rendered SVG with no page code can do all of it. A selector that is not valid, or matches
+nothing, is reported and the animation itself is followed instead
+([the codes page](../diagnostics.md#scroll-driven-playback)). Page code can also hand over the element itself —
+[From page code](#from-page-code).
+
+### The two moments
+
+`firstFrameWhen` is when the first frame is shown and `lastFrameWhen` when the last one is; the scrolling moves
+the playhead between them. A moment is written one of three ways:
+
+<!-- px-check off the three forms of a moment, prose -->
+| `follows` | A moment is | For example |
+|---|---|---|
+| an `…Element` word | one of seven words — they adapt to the element's size | `"lastFrameWhen": "fullyIn"` |
+| an `…Element` word | or an exact place: a line of the element at a line of the screen | `"firstFrameWhen": { "element": "top", "screen": 0.8 }` |
+| a `…Scroll` word | a share of all there is to scroll | `"firstFrameWhen": { "scrolled": 0.2 }` |
+
+```text
+ scrolling ▶      appears    halfIn    fullyIn       centered      startsToLeave   halfOut     gone
+                     │         │          │              │               │            │          │
+  below the screen   │      coming in     │        fully on screen       │       going out       │   above the screen
+```
+
+**The seven words**, in the order they happen as you scroll on. They adapt to the size: for an element taller
+than the screen, `fullyIn` means it fills the screen and `startsToLeave` means it stops filling it — so one file
+is right on a phone and on a wide screen. When `axis` is horizontal, read left and right for top and bottom.
+
+<!-- px-check values PxScrollMoment pkg=core -->
+| Word | The moment | The element fits the screen | The element is taller than the screen |
+|---|---|---|---|
+| `appears` | its first pixel comes in | its top at the screen's bottom | the same |
+| `halfIn` | half-way in | its center at the screen's bottom | its top at the screen's center |
+| `fullyIn` | all of it is in — or it fills the screen | its bottom at the screen's bottom | its top at the screen's top |
+| `centered` | it is in the middle of the screen | its center at the screen's center | the same |
+| `startsToLeave` | its first pixel goes out — or it stops filling the screen | its top at the screen's top | its bottom at the screen's bottom |
+| `halfOut` | half-way out | its center at the screen's top | its bottom at the screen's center |
+| `gone` | its last pixel goes out | its bottom at the screen's top | the same |
+
+**An exact place** is for a moment no word names — "when its top is 80 % down the screen". It is literal: it does
+not adapt to the size.
+
+<!-- px-check off the exact place and the share scrolled, prose -->
+| Key | Values |
+|---|---|
+| `element` | `top` · `center` · `bottom` (`left` · `right` when `axis` is horizontal), or a share 0–1 down the element — the element `follows` names |
+| `screen` | the same words, or a share 0–1 down the screen |
+| `scrolled` | a share 0–1 of all there is to scroll — with `pageScroll` and `containerScroll` |
+
+The defaults:
+
+<!-- px-check off the default moments, prose -->
+| `follows` | First frame | Last frame | In words |
+|---|---|---|---|
+| an `…Element` word | `appears` | `gone` | from the first pixel in to the last pixel out |
+| a `…Scroll` word | `{ "scrolled": 0 }` | `{ "scrolled": 1 }` | from not scrolled to scrolled to the end |
+| none — `holdOnScreen` | `fullyIn` | `startsToLeave` | the held stretch, from caught to let go — both of the section it is held in |
+
+The player never refuses a moment; `validateDocument` reports what is off, and the player plays on:
+
+- **A moment that does not fit what is followed is ignored** — `{ scrolled }` beside an `…Element` word, a word
+  or an exact place beside a `…Scroll` word: the default is used.
+- **A share is 0–1.** One outside is kept inside. A stretch cannot begin before the element appears: start the
+  animation at a later frame with `inTime` instead.
+- **The stretch is always taken in scroll order.** Two words in the wrong order (`"firstFrameWhen": "gone",
+  "lastFrameWhen": "appears"`) are reported; two exact places that come out reversed on some screen are not an
+  error. Either way scrolling on moves the playhead forward, scrolling back moves it back, and nothing jumps.
+- **`pageElement` needs a `selector`**; a `selector` goes only with `pageElement` and `containerScroll`; and
+  `holdOnScreen` goes with neither `follows` nor `selector`.
+
+### Held on screen
+
+`holdOnScreen` keeps the element in place while the page scrolls on, and the animation plays meanwhile — the
+"scrollytelling" pattern in one key. It follows its own held stretch, so it takes no `follows` and no
+`selector`; its moments default to `fullyIn` → `startsToLeave` **of the section it is held in**. `true` holds it
+at the top, inside the page's own tall section; the object says more:
+
+<!-- px-check schema PxHoldOnScreenSchema -->
+| `holdOnScreen.` | Values | Default | Meaning |
+|---|---|---|---|
+| `at` | `top` · `center` · `bottom` | `top` | where on the screen it stays |
+| `forScreens` | a number | the page's own tall section | how many screens of scrolling it is held for — the player makes that room |
+| `offset` | px | `0` | a distance from `at` |
+
+Moments still narrow it, and then speak of that section: `{ "type": "scroll", "holdOnScreen": true,
+"firstFrameWhen": "centered", "lastFrameWhen": "gone" }` plays over the second half of its stay. A progress bar
+stuck to the screen while the page scrolls is not a held element: the page's CSS sticks it (`position: sticky`),
+and its file says `{ "type": "scroll", "follows": "pageScroll" }`.
+
+### The common cases
+
+```js
+// Across the screen: the first frame as it appears, the last as it is gone (the defaults)
+"timeline": { "type": "scroll" }
+
+// Draws itself while it comes in — done once all of it is in
+"timeline": { "type": "scroll", "lastFrameWhen": "fullyIn" }
+
+// Plays out as it goes
+"timeline": { "type": "scroll", "firstFrameWhen": "startsToLeave" }
+
+// From the middle of the screen until it is half out
+"timeline": { "type": "scroll", "firstFrameWhen": "centered", "lastFrameWhen": "halfOut" }
+
+// A reading-progress bar: how far the page is scrolled, top to bottom
+"timeline": { "type": "scroll", "follows": "pageScroll" }
+
+// …over the middle of the page only: from 20 % to 80 % scrolled
+"timeline": { "type": "scroll", "follows": "pageScroll",
+              "firstFrameWhen": { "scrolled": 0.2 }, "lastFrameWhen": { "scrolled": 0.8 } }
+
+// Held in the centre of the screen for three screens of scrolling, playing meanwhile
+"timeline": { "type": "scroll", "holdOnScreen": { "at": "center", "forScreens": 3 } }
+
+// An element of the page drives it: the chapter, on its way across the screen
+"timeline": { "type": "scroll", "follows": "pageElement", "selector": "#chapter-2" }
+
+// An exact place: the first frame when its top is 80 % down the screen
+"timeline": { "type": "scroll", "firstFrameWhen": { "element": "top", "screen": 0.8 } }
+
+// A horizontal strip, a soft catch-up, a window of the keyframes played twice across the stretch
+"timeline": { "type": "scroll", "axis": "horizontal", "smoothing": 150,
+              "inTime": 1000, "outTime": 3000, "iterations": 2 }
+```
+
+### From page code
+
+A scroll-driven file needs nothing from the page: create the player, and the scrolling drives it. What page code
+sees on a scroll timeline:
+
+<!-- px-check off page code on a scroll timeline, prose -->
+| | |
+|---|---|
+| `playback.getState()` | `scrubbing`, on every engine — before the first moment, between the two and after the last, held or not. `playback.isPlaying()` is false |
+| Playback callbacks | none fire: a scroll timeline never starts and never finishes, so `onPlaybackStart` … `onPlaybackFinish` stay silent |
+| The buttons | `playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`, `playback.setSpeed()`, `playback.setDurationAtSpeed()` — ignored, with a warning ([PX1505](../diagnostics.md#the-props-a-component-was-given)) |
+| The seeks | `playback.setCurrentTime()`, `playback.setCurrentProgress()`, `playback.setTotalTime()`, and the components' `showAtProgress` / `showAtTime` — ignored too (PX1505): the scroll owns the playhead |
+| The reads | answer as usual: `playback.getCurrentProgress()` is where the scroll has put the playhead — at the start before the first moment, at the end after the last |
+
+**To drive a scroll file yourself**, make it a clock timeline — then the seeks work:
+
+```jsx
+// React (Vue has the same props): your own scroll maths gives a progress 0–1
+<SvgAnimationPlayer document={scrollFile} timelineOptions={{ type: 'time' }} showAtProgress={progress} />
+```
+
+**To make a clock file follow the scroll**, name the type in `timelineOptions`; its clock keys are dropped, with
+a warning ([How the merge works](#how-the-merge-works)):
+
+```js
+createSvgAnimationPlayer({ container, document: ballDoc,
+  timelineOptions: { type: 'scroll', holdOnScreen: true } });
+```
+
+**An element instead of a selector.** Page code can give `timelineOptions.follows` the element itself — a DOM
+element to the web player, a ref to the React and Vue components — in place of the word. It is the same as
+`pageElement` with a `selector`, and needs no id; a held element follows its own stretch and does not use it:
+
+```js
+// Web player
+createSvgAnimationPlayer({ container, document: '/chart.json',
+  timelineOptions: { type: 'scroll', follows: document.querySelector('#chapter-2') } });
+```
+
+```jsx
+// React — in Vue, a template ref: :timeline-options="{ type: 'scroll', follows: chapterRef }"
+const chapterRef = useRef(null);
+
+<section ref={chapterRef}>…</section>
+<SvgAnimationPlayer document={chart} timelineOptions={{ type: 'scroll', follows: chapterRef }} />
+```
+
+### What is measured
+
+An `…Element` word follows **where the element is in the page's layout**. Scrolling is the usual reason that
+changes, not the only one:
+
+<!-- px-check off what moves the playhead, prose -->
+| What happens | The playhead |
+|---|---|
+| The page scrolls | follows |
+| The element moves with no scrolling — content above it grows, a new `top` | follows |
+| The element moves by a CSS `transform` — a carousel, a parent's `translate` | follows only when the player measures by itself (`engine: 'js'`, `smoothing`, a browser without scroll timelines): it reads the box as drawn. The browser's own timeline does not count a transform |
+| Nothing can scroll — the page fits the screen | stays on one frame, by where the element sits |
+
+### Where it works
+
+<!-- px-check off support by player, prose -->
+| Player | Follows the scroll |
+|---|---|
+| The web player, every engine | ✅ |
+| React and Vue | ✅ — they play through the web player |
+| The editor's *SVG + JS* export (a pre-rendered SVG) | ✅ |
+| React Native | ❌ — measure your scroll view and pass the progress with `showAtProgress`, on a clock timeline (`timelineOptions={{ type: 'time' }}` for a scroll file) |
+
+### In a tool of your own
+
+Core exports what the players read a scroll timeline with, so a tool or a player of your own reads it the same way.
+`PxScrollTimelineSchema` is the scroll member of `PxTimelineSchema`. A moment is `PxScrollMomentSchema`: one of the
+seven words, a `PxScrollPlaceSchema` (`element` and `screen`, each a `PxScrollLineSchema` — a named line or a share), or
+a `PxScrollScrolledSchema`; `holdOnScreen` as an object is `PxHoldOnScreenSchema`. `PX_SCROLL_MOMENT_ORDER` lists
+the seven words in scroll order — how two words in the wrong order are found. `followsElement(follows)` is true for
+the `…Element` words, false for the `…Scroll` words. `scrollLineShare(line, fallback)` turns a line into a share
+from the start edge: `top` / `left` 0, `center` 0.5, `bottom` / `right` 1, a number as it is.
+
+### What it does not do
+
+<!-- px-check off accepted limits, prose -->
+| Not possible | Instead |
+|---|---|
+| A shift in px on a moment — "100 px after it appears" | an exact place on a share of the screen |
+| An exact place that adapts to the element's size | the seven words adapt; an exact place is literal |
+| Backwards while scrolling on, or there and back in one pass — no `iterationDirection` | scrolling back already plays it backwards |
+| A seek from page code | make it a clock timeline |
+| A held element that follows something else | stick it with the page's CSS and follow `pageScroll` |
+| A stretch that begins before the element appears — a share outside 0–1 | `inTime` starts the animation at a later frame |
+| One part follows the scroll while the rest plays on the clock | — : one timeline per document, so the whole document follows the scroll |
+| An `axis` across the page's writing direction (vertical lines of text) | `horizontal` on an ordinary page |
 
 ## Engine
 
 `timeline.engine` says **how the animated attributes get updated** — the same values on every timeline type:
 
 <!-- px-check values PxTimelineEngineSetting pkg=core -->
-| Value | Time-driven timeline | Scroll / view timeline |
+| Value | Time-driven timeline | Scroll timeline |
 |---|---|---|
-| `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) | the browser's own `ScrollTimeline` / `ViewTimeline` where supported; otherwise the player measures scroll progress itself and drives WAAPI (or the frame loop, if WAAPI declines the document) |
-| `native` | Web Animations API only | the browser's `ScrollTimeline` / `ViewTimeline` driving WAAPI (where unsupported, the player measures progress instead — WAAPI stays) |
-| `js` | a `requestAnimationFrame` loop that writes attributes every frame; honors `frameRate`; universal browser support | the player measures scroll progress *and* applies values through its frame loop — identical everywhere |
+| `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) | the browser's own `ScrollTimeline` / `ViewTimeline` when both moments are words (or both `{ scrolled }`) and `smoothing` is off; otherwise the player measures the scroll itself and drives WAAPI (or the frame loop, if WAAPI declines the document) |
+| `native` | Web Animations API only | the browser's own `ScrollTimeline` / `ViewTimeline` driving WAAPI; with `smoothing`, an exact place, or a browser without scroll timelines, the player measures instead — WAAPI stays |
+| `js` | a `requestAnimationFrame` loop that writes attributes every frame; honors `frameRate`; universal browser support | the player measures the scroll *and* applies values through its frame loop — identical everywhere |
+
+On a scroll timeline every moment word and every `{ scrolled }` has a browser spelling; an exact place
+(`{ element, screen }`) has none the browser can keep in scroll order, so with one the player measures by itself.
+So does `smoothing`. The player says so: PX1301 for `smoothing`, PX1307 for an exact place under `native`
+([the codes page](../diagnostics.md#scroll-driven-playback)).
 
 Leave it on `auto` unless you need a guarantee — for instance `js` for path morphing in
 Safari < 18.5. React Native ignores `engine` (playback is always native-driven).
@@ -812,6 +1056,6 @@ Core exports the helpers the players decide this with, so a player you write you
 same answer: `resolveTimelineEngine` turns the document's setting into
 the engine that will actually run, `isNativeForced` says whether `native` was asked for outright,
 and `mayUseNativeScrollTimeline` whether a scroll timeline may be handed to the browser's own
-`ScrollTimeline`.
+`ScrollTimeline` / `ViewTimeline`.
 
 [← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Variables →](./variables.md)

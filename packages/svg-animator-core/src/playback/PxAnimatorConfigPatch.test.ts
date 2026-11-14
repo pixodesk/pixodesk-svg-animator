@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { assert, describe, expect, it } from 'vitest';
-import { applyAnimatorConfig, mergeAnimatorConfig, applyPlaybackOverride, withControlMode, type PxAnimatorConfigPatch } from './PxAnimatorConfigPatch';
+import { applyAnimatorConfig, mergeAnimatorConfig, applyPlaybackOverride, takeFollowedOut, withControlMode, withoutTriggerDriver, type PxAnimatorConfigPatch } from './PxAnimatorConfigPatch';
 import { PxControlMode } from '../format/PxAnimatorConstants';
 import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxTimeline } from '../format/PxAnimatorTypes';
 import { isRecord } from '../schema/PxSchema';
@@ -27,9 +27,9 @@ const timeBase = untyped<PxAnimatorConfig>({
 
 const scrollBase: PxAnimatorConfig = {
     timeline: {
-        type: 'view', outTime: 4000, axis: 'block', subject: 'parent',
-        range: { start: { phase: 'entry', fraction: 0 }, end: { phase: 'exit', fraction: 1 } },
-        pin: { align: 'center', offset: 24 },
+        type: 'scroll', outTime: 4000, axis: 'vertical',
+        firstFrameWhen: 'fullyIn', lastFrameWhen: { element: 'top', screen: 0.2 },
+        holdOnScreen: { at: 'center', offset: 24 },
     },
 };
 
@@ -45,14 +45,14 @@ function timelineOf(config: PxAnimatorConfig | undefined): PxTimeline {
 /** The merged config's time-driven timeline — throws when it is scroll-driven. */
 function timeTimelineOf(config: PxAnimatorConfig | undefined) {
     const timeline = timelineOf(config);
-    if (timeline.type === 'scroll' || timeline.type === 'view') throw new Error('not a time timeline');
+    if (timeline.type === 'scroll') throw new Error('not a time timeline');
     return timeline;
 }
 
-/** The merged config's scroll-driven (`scroll` / `view`) timeline — throws when it is time-driven. */
+/** The merged config's scroll timeline — throws when it is time-driven. */
 function scrollTimelineOf(config: PxAnimatorConfig | undefined) {
     const timeline = timelineOf(config);
-    if (timeline.type === 'scroll' || timeline.type === 'view') return timeline;
+    if (timeline.type === 'scroll') return timeline;
     throw new Error('not a scroll-driven timeline');
 }
 
@@ -121,15 +121,15 @@ describe('mergeAnimatorConfig — the timeline union', () => {
     });
 
     it('RULE 2: a patch that does not mention `type` never changes it', () => {
-        const { config } = merge(scrollBase, { timeline: { axis: 'inline' } });
-        expect(config?.timeline?.type).toBe('view');
-        expect(scrollTimelineOf(config).subject).toBe('parent');
+        const { config } = merge(scrollBase, { timeline: { axis: 'horizontal' } });
+        expect(config?.timeline?.type).toBe('scroll');
+        expect(scrollTimelineOf(config).firstFrameWhen).toBe('fullyIn');
     });
 
     it('RULE 1: a DIFFERENT type replaces the timeline, carrying only the shared keys', () => {
-        const { config } = merge(timeBase, { timeline: { type: 'view', subject: 'parent' } });
+        const { config } = merge(timeBase, { timeline: { type: 'scroll', follows: 'parentElement' } });
         const tl = timelineOf(config);
-        expect(tl).toEqual({ outTime: 1000, iterations: 2, type: 'view', subject: 'parent' });
+        expect(tl).toEqual({ outTime: 1000, iterations: 2, type: 'scroll', follows: 'parentElement' });
         expect('actionTriggers' in tl).toBe(false);   // the clock keys do not strand on a scroll timeline
         expect('whenIdle' in tl).toBe(false);
         expect('actions' in tl).toBe(false);   // the gate's outOfView is a clock key too
@@ -139,8 +139,8 @@ describe('mergeAnimatorConfig — the timeline union', () => {
         const { config } = merge(scrollBase, { timeline: { type: 'time', actionTriggers: { 'playback.start': 'click' } } });
         const tl = timelineOf(config);
         expect(tl).toEqual({ outTime: 4000, type: 'time', actionTriggers: { 'playback.start': 'click' } });
-        expect('range' in tl).toBe(false);
-        expect('pin' in tl).toBe(false);
+        expect('firstFrameWhen' in tl).toBe(false);
+        expect('holdOnScreen' in tl).toBe(false);
     });
 
     it('RULE 3: time-only keys aimed at a scroll timeline are dropped, with a warning', () => {
@@ -156,23 +156,23 @@ describe('mergeAnimatorConfig — the timeline union', () => {
         expect(warnings.join(' ')).toContain('infinite');
     });
 
-    it('RULE 6: `pin` replaces as a whole value in both directions — it is a union member, not a mergeable object', () => {
-        expect(scrollTimelineOf(merge(scrollBase, { timeline: { pin: true } }).config).pin).toBe(true);
-        const fromBool = merge({ timeline: { type: 'view', pin: true } }, { timeline: { pin: { align: 'top' } } });
-        expect(scrollTimelineOf(fromBool.config).pin).toEqual({ align: 'top' });
+    it('RULE 6: `holdOnScreen` replaces as a whole value in both directions — it is a union member, not a mergeable object', () => {
+        expect(scrollTimelineOf(merge(scrollBase, { timeline: { holdOnScreen: true } }).config).holdOnScreen).toBe(true);
+        const fromBool = merge({ timeline: { type: 'scroll', holdOnScreen: true } }, { timeline: { holdOnScreen: { at: 'top' } } });
+        expect(scrollTimelineOf(fromBool.config).holdOnScreen).toEqual({ at: 'top' });
     });
 
-    it('RULE 6b: `pin: false` survives — it cannot through a flat round-trip', () => {
-        const { config } = merge(scrollBase, { timeline: { pin: false } });
-        expect(scrollTimelineOf(config).pin).toBe(false);
+    it('RULE 6b: `holdOnScreen: false` survives — it cannot through a flat round-trip', () => {
+        const { config } = merge(scrollBase, { timeline: { holdOnScreen: false } });
+        expect(scrollTimelineOf(config).holdOnScreen).toBe(false);
     });
 
     it('per-level merge: `range` merges two levels down', () => {
-        const { config } = merge(scrollBase, { timeline: { range: { start: { fraction: 0.2 } } } });
-        expect(scrollTimelineOf(config).range).toEqual({
-            start: { phase: 'entry', fraction: 0.2 },
-            end: { phase: 'exit', fraction: 1 },
-        });
+        // a moment is one value — a word or an object — so a patch's moment replaces the file's whole, never mixed
+        const { config } = merge(scrollBase, { timeline: { lastFrameWhen: { scrolled: 0.5 } } });
+        expect(scrollTimelineOf(config).lastFrameWhen).toEqual({ scrolled: 0.5 });
+        expect(scrollTimelineOf(merge(scrollBase, { timeline: { firstFrameWhen: { element: 'center', screen: 'center' } } }).config).firstFrameWhen)
+            .toEqual({ element: 'center', screen: 'center' });
     });
 });
 
@@ -392,5 +392,47 @@ describe('applyPlaybackOverride — `actions` and `actionTriggers` REPLACE the f
         const scroll: PxDocument = { type: 'svg', animator: { timeline: { type: 'scroll', outTime: 1000 } } };
         expect(withControlMode(scroll, PxControlMode.manual)).toBe(scroll);
         expect(withControlMode(scroll, PxControlMode.static)).toBe(scroll);
+    });
+
+    it('withoutTriggerDriver spares a scroll timeline too — the components call it directly, and an empty block there is a validation problem', () => {
+        const scroll: PxDocument = { type: 'svg', animator: { timeline: { type: 'scroll', outTime: 1000 } } };
+        expect(withoutTriggerDriver(scroll)).toBe(scroll);
+        const clock: PxDocument = { type: 'svg', animator: { timeline: { outTime: 1000, actionTriggers: { 'playback.start': 'load' } } } };
+        expect(withoutTriggerDriver(clock).animator?.timeline).toEqual({ outTime: 1000, actionTriggers: {} });
+    });
+});
+
+// Page code may hand an element (web) or a ref (React, Vue) to a scroll timeline's `follows` (2026-11-14): it is taken
+// out before the merge, so documents stay JSON. Each surface gives its own test for "what was handed over".
+describe('takeFollowedOut — what page code hands over in `follows` never reaches the document', () => {
+    /** A stand-in for an element or a ref: anything that is not a word. */
+    interface Box { readonly box: true }
+    const isBox = (value: unknown): value is Box => typeof value === 'object' && value !== null && 'box' in value;
+    const box: Box = { box: true };
+
+    it('takes it out — the rest of the options stay, `follows` is left out (the file\'s stays)', () => {
+        const { timelineOptions, followed } = takeFollowedOut<Box>({ type: 'scroll', follows: box, lastFrameWhen: 'fullyIn' }, isBox);
+        expect(followed).toBe(box);
+        expect(timelineOptions).toEqual({ type: 'scroll', lastFrameWhen: 'fullyIn' });
+        // …and the merge then carries no `follows` from the options
+        const { doc } = applyPlaybackOverride({ type: 'svg', animator: { timeline: { type: 'scroll', follows: 'pageScroll' } } }, { timelineOptions });
+        expect(doc.animator?.timeline).toEqual({ type: 'scroll', follows: 'pageScroll', lastFrameWhen: 'fullyIn' });
+    });
+
+    it('a word, no `follows`, nothing and a non-object pass through untouched', () => {
+        const word: PxTimelineOptions = { type: 'scroll', follows: 'pageScroll' };
+        expect(takeFollowedOut<Box>(word, isBox)).toEqual({ timelineOptions: word });
+        const clock: PxTimelineOptions = { iterations: 2 };
+        expect(takeFollowedOut<Box>(clock, isBox).timelineOptions).toBe(clock);
+        expect(takeFollowedOut<Box>(undefined, isBox)).toEqual({ timelineOptions: undefined });
+        const text = untyped<PxTimelineOptions>('{"iterations":3}');   // a JavaScript caller: the merge reports it
+        expect(takeFollowedOut<Box>(text, isBox).timelineOptions).toBe(text);
+    });
+
+    it('the plain options type takes the words only; `PxTimelineOptions<T>` also takes `T` in `follows`', () => {
+        const handed: PxTimelineOptions<Box> = { type: 'scroll', follows: box };
+        // @ts-expect-error — without a type for it, `follows` is a word
+        const plain: PxTimelineOptions = { type: 'scroll', follows: box };
+        expect([handed, plain]).toHaveLength(2);
     });
 });

@@ -21,7 +21,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTimeline, PxActionTriggers, PxActionTriggersInput, PxActions, _PxScrollishTimelineShape, _PxTimeTimeline } from './PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActionTriggers, PxActionTriggersInput, PxActions, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
 // (TYPES only from PxAnimatorTypes: it reads this module's constants while it loads.)
 import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
@@ -220,67 +220,139 @@ export const PxWhenIdle = {
 export type PxWhenIdle = typeof PxWhenIdle[keyof typeof PxWhenIdle];
 
 
-/** `scroll.kind` — which scroll-driven timeline member this is: the subject's journey
- *  through the scrollport (`view`), or the scroll container's own offset (`scroll`). * @public
- */
-export const PxScrollKind = {
-    view:   'view',
-    scroll: 'scroll',
+/** `timeline.follows` (`type: 'scroll'`) — what the playhead follows. The `…Element` words follow where an element
+ *  is on the screen; the `…Scroll` words follow how far something is scrolled. @public */
+export const PxScrollFollows = {
+    /** The animation itself, on its way across the screen (the default). */
+    thisElement:     'thisElement',
+    /** The element around it — the nearest one that really moves (sticky and fixed ancestors are skipped). */
+    parentElement:   'parentElement',
+    /** An element of the page, named by `selector`. */
+    pageElement:     'pageElement',
+    /** How far the page is scrolled. */
+    pageScroll:      'pageScroll',
+    /** How far the scrolling box around it is scrolled — or the box `selector` names. */
+    containerScroll: 'containerScroll',
 } as const;
 
-export type PxScrollKind = typeof PxScrollKind[keyof typeof PxScrollKind];
+export type PxScrollFollows = typeof PxScrollFollows[keyof typeof PxScrollFollows];
 
-/** `timeline.axis` — which axis of the scroll container drives progress. @public */
+/** True for the `…Element` words — the playhead follows where an element is on the screen. @public @advanced */
+export function followsElement(follows: PxScrollFollows | undefined): boolean {
+    return follows !== PxScrollFollows.pageScroll && follows !== PxScrollFollows.containerScroll;
+}
+
+/** The seven moments of an element crossing the screen, in the order they happen while scrolling on — the same
+ *  order for an element that fits the screen and for one taller than it. `fullyIn` is "all of it is in, or it fills
+ *  the screen"; `startsToLeave` is "its first pixel goes out, or it stops filling the screen". @public */
+export const PxScrollMoment = {
+    appears:       'appears',
+    halfIn:        'halfIn',
+    fullyIn:       'fullyIn',
+    centered:      'centered',
+    startsToLeave: 'startsToLeave',
+    halfOut:       'halfOut',
+    gone:          'gone',
+} as const;
+
+export type PxScrollMoment = typeof PxScrollMoment[keyof typeof PxScrollMoment];
+
+/** The seven moments in scroll order. @public @advanced */
+export const PX_SCROLL_MOMENT_ORDER: ReadonlyArray<PxScrollMoment> = [PxScrollMoment.appears, PxScrollMoment.halfIn, PxScrollMoment.fullyIn,
+    PxScrollMoment.centered, PxScrollMoment.startsToLeave, PxScrollMoment.halfOut, PxScrollMoment.gone];
+
+/** `timeline.axis` — which way the scrolling goes. Absent = the way the page scrolls (its writing mode). @public */
 export const PxScrollAxis = {
-    block:  'block',
-    inline: 'inline',
-    x:      'x',
-    y:      'y',
+    vertical:   'vertical',
+    horizontal: 'horizontal',
 } as const;
 
 export type PxScrollAxis = typeof PxScrollAxis[keyof typeof PxScrollAxis];
 
-/** `timeline.source` (`scroll` kind) — which scroll container is measured. @public */
-export const PxScrollSource = {
-    nearest: 'nearest',
-    root:    'root',
+/** A named line across the element or the screen, for an exact place (`{ element, screen }`). `left` / `right` are
+ *  the same lines as `top` / `bottom` when the axis is horizontal. A number 0–1 is a share from the start edge. @public */
+export const PxScrollLine = {
+    top:    'top',
+    center: 'center',
+    bottom: 'bottom',
+    left:   'left',
+    right:  'right',
 } as const;
 
-export type PxScrollSource = typeof PxScrollSource[keyof typeof PxScrollSource];
+export type PxScrollLine = typeof PxScrollLine[keyof typeof PxScrollLine];
 
-/** `timeline.pin.align` — where the pinned canvas is held in the scrollport. @public */
-export const PxPinAlign = {
+/** A line's share from the start edge: `top` / `left` 0, `center` 0.5, `bottom` / `right` 1; a number as it is. @public @advanced */
+export function scrollLineShare(line: PxScrollLine | number | undefined, fallback: number): number {
+    switch (line) {
+        case PxScrollLine.top: case PxScrollLine.left: return 0;
+        case PxScrollLine.center: return 0.5;
+        case PxScrollLine.bottom: case PxScrollLine.right: return 1;
+        default: return typeof line === 'number' && Number.isFinite(line) ? line : fallback;
+    }
+}
+
+/** `timeline.holdOnScreen.at` — where the held element stays on the screen. @public */
+export const PxHoldAt = {
     top:    'top',
     center: 'center',
     bottom: 'bottom',
 } as const;
 
-export type PxPinAlign = typeof PxPinAlign[keyof typeof PxPinAlign];
+export type PxHoldAt = typeof PxHoldAt[keyof typeof PxHoldAt];
 
-/** The subject's journey phases across the scrollport (see scroll-timeline.design.md §4
- *  for the exact `u`-space intervals each phase maps to). * @public
- */
-export const PxScrollPhase = {
-    cover:         'cover',
-    contain:       'contain',
-    entry:         'entry',
-    exit:          'exit',
-    entryCrossing: 'entryCrossing',
-    exitCrossing:  'exitCrossing',
-} as const;
+/** A CSS view-timeline range name — the browser's spelling of a stretch of an element's journey. @internal */
+export type PxCssRangeName = 'cover' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing';
 
-export type PxScrollPhase = typeof PxScrollPhase[keyof typeof PxScrollPhase];
-
-/** The browser's spelling of a phase — a CSS view-timeline range name. @internal */
-export type PxCssScrollPhase = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing';
-
-/** A phase as the browser takes it (`entryCrossing` → `'entry-crossing'`). @internal */
-export function cssScrollPhase(phase: PxScrollPhase): PxCssScrollPhase {
-    switch (phase) {
-        case PxScrollPhase.entryCrossing: return 'entry-crossing';
-        case PxScrollPhase.exitCrossing: return 'exit-crossing';
-        default: return phase;   // the one-word values are spelled the same
+/** A moment as the browser's range takes it: `{ name, fraction }`, or `undefined` when the browser cannot say it
+ *  (an exact place on a line other than the screen's top or bottom — the player then measures by itself). The seven
+ *  words adapt to the size exactly as CSS's names do. @internal */
+export function cssRangeOfMoment(moment: PxScrollMomentSettings | undefined, fallback: PxScrollMoment): { name: PxCssRangeName; fraction: number } | undefined {
+    const word = moment?.moment ?? (moment?.element === undefined && moment?.screen === undefined ? fallback : undefined);
+    switch (word) {
+        case PxScrollMoment.appears: return { name: 'cover', fraction: 0 };
+        case PxScrollMoment.halfIn: return { name: 'entry', fraction: 0.5 };
+        case PxScrollMoment.fullyIn: return { name: 'entry', fraction: 1 };
+        case PxScrollMoment.centered: return { name: 'cover', fraction: 0.5 };
+        case PxScrollMoment.startsToLeave: return { name: 'exit', fraction: 0 };
+        case PxScrollMoment.halfOut: return { name: 'exit', fraction: 0.5 };
+        case PxScrollMoment.gone: return { name: 'cover', fraction: 1 };
     }
+    const screen = scrollLineShare(moment?.screen, 1);
+    const element = clampShare(scrollLineShare(moment?.element, 0));
+    if (screen === 1) return { name: 'entry-crossing', fraction: element };
+    if (screen === 0) return { name: 'exit-crossing', fraction: element };
+    return undefined;
+}
+
+/** A share kept inside 0–1 (the format's shares are 0–1; a value outside is a validation problem). @internal */
+export function clampShare(share: number): number {
+    return share < 0 ? 0 : share > 1 ? 1 : share;
+}
+
+/** One end of a scroll timeline's stretch in the RUNTIME VIEW — the settings form of the wire's word-or-object:
+ *  `{ moment }` for a word, `{ element, screen }` for an exact place, `{ scrolled }` for a share of the scroll.
+ *  @internal */
+export interface PxScrollMomentSettings {
+    moment?: PxScrollMoment;
+    element?: PxScrollLine | number;
+    screen?: PxScrollLine | number;
+    scrolled?: number;
+}
+
+/** A scroll timeline's own settings in the RUNTIME VIEW (`animator.scroll` after `resolveAnimatorTimeline`): the
+ *  wire's keys, with the two moments in their settings form and `holdOnScreen` spread into flat keys. @internal */
+export interface PxScrollSettings {
+    follows?: PxScrollFollows;
+    selector?: string;
+    axis?: PxScrollAxis;
+    smoothing?: number;
+    firstFrameWhen?: PxScrollMomentSettings;
+    lastFrameWhen?: PxScrollMomentSettings;
+    /** Held in place while it plays. */
+    holdOnScreen?: boolean;
+    holdAt?: PxHoldAt;
+    holdForScreens?: number;
+    holdOffset?: number;
 }
 
 /** `alongPathMode` — how a value is sampled along a motion path. @public */
@@ -328,12 +400,12 @@ export type PxValueKind = typeof PxValueKind[keyof typeof PxValueKind];
  *  change the outcome: being a demand, an attribute WAAPI declines simply does not
  *  animate. See `isNativeForced`.) */
 /** Timeline keys that BOTH union members carry, so they survive a change of `type`. */
-export const PX_TIMELINE_SHARED_KEYS = ['inTime', 'outTime', 'iterations', 'engine', 'frameRate'] as const;
+export const PX_TIMELINE_SHARED_KEYS = ['inTime', 'outTime', 'iterations', 'engine'] as const;
 
-/** Timeline keys that exist ONLY on the time-driven member — a scroll/view timeline is
- *  scrubbed by position, so nothing starts it, nothing delays it, and nothing remaps its pace. */
+/** Timeline keys that exist ONLY on the time-driven member — a scroll timeline is moved by the scrolling, so nothing
+ *  starts it, nothing delays it, nothing remaps its pace, and no frame rate applies (a frame is drawn when it moves). */
 export const PX_TIME_ONLY_TIMELINE_KEYS = ['actionTriggers', 'actions', 'delay', 'playbackSpeed', 'iterationDirection', 'whenIdle',
-    'inViewThreshold', 'inViewDebounce'] as const;
+    'inViewThreshold', 'inViewDebounce', 'frameRate'] as const;
 
 /**
  * The flat RUNTIME-VIEW keys — `duration`, `trigger`, `scroll`, … at the animator ROOT.
@@ -810,7 +882,8 @@ export function resolveGate(cfg: Pick<PxAnimatorRuntimeConfig, 'actions' | 'inVi
  *  after a stop; WAAPI's `idle`, `idle` here until 1.23); `playing` · `paused` · `finished` = a playback (`finished` reached
  *  its end — whatever `whenFinished` then shows, 1.26 — until the next start or stop; `paused` also after a seek that was
  *  not made while playing); `returning` = no playback, but the picture still plays back to the rest pose (a stop with
- *  `animateToStart` — SVGator's `rollback`); `destroyed` = after `destroy()`, every call a no-op. Which button an event
+ *  `animateToStart` — SVGator's `rollback`); `scrubbing` = a scroll timeline, always: the scrolling moves the playhead, so
+ *  it never starts, pauses or finishes; `destroyed` = after `destroy()`, every call a no-op. Which button an event
  *  presses in each state: {@link triggerActionFor}. @public @advanced */
 export const PxPlaybackState = {
     off:       'off',
@@ -818,6 +891,7 @@ export const PxPlaybackState = {
     paused:    'paused',
     finished:  'finished',
     returning: 'returning',
+    scrubbing: 'scrubbing',
     destroyed: 'destroyed',
 } as const;
 export type PxPlaybackState = typeof PxPlaybackState[keyof typeof PxPlaybackState];
@@ -1254,32 +1328,16 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
 
     const { timeline: _dropped, ...flat }: PxAnimatorRuntimeConfig = cfg;
 
-    // `engine` and `frameRate` are shared by every timeline type: how the attributes get
-    // updated, and at what rate when that is the player's own frame loop.
+    // `engine` is shared by every timeline type: how the attributes get updated.
     if (timeline.engine !== undefined) flat.engine = timeline.engine;
-    if (timeline.frameRate !== undefined) flat.frameRate = timeline.frameRate;
 
-    if (timeline.type === 'scroll' || timeline.type === 'view') {
+    if (timeline.type === 'scroll') {
         flat.timelineSource = 'scroll';
         foldWindow(timeline, flat);
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
-        const scroll: PxScroll = { ...(flat.scroll || {}) };
-        scroll.kind = timeline.type;
-        if (timeline.axis !== undefined) scroll.axis = timeline.axis;
-        if (timeline.source !== undefined) scroll.source = timeline.source;
-        if (timeline.subject !== undefined) scroll.subject = timeline.subject;
-        if (timeline.smoothing !== undefined) scroll.smoothing = timeline.smoothing;
-        if (timeline.range !== undefined) scroll.range = timeline.range;
-        const pin = timeline.pin;
-        if (typeof pin === 'boolean') scroll.pin = pin;
-        else if (pin && typeof pin === 'object') {
-            scroll.pin = true;
-            if (pin.align !== undefined) scroll.pinAlign = pin.align;
-            if (pin.offset !== undefined) scroll.pinOffset = pin.offset;
-            if (pin.distance !== undefined) scroll.pinDistance = pin.distance;
-        }
-        flat.scroll = scroll;
+        flat.scroll = scrollSettingsOf(timeline);
     } else { // 'time', absent, or unknown — the time-driven timeline is the default
+        if (timeline.frameRate !== undefined) flat.frameRate = timeline.frameRate;
         foldWindow(timeline, flat);
         if (timeline.playbackSpeed !== undefined) flat.playbackSpeed = timeline.playbackSpeed;
         // an EMPTY triggers block means "nothing starts it" — copied as it is
@@ -1299,6 +1357,51 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
     }
 
     return flat;
+}
+
+/** A wire moment (a word, `{ element, screen }` or `{ scrolled }`) in its settings form — `undefined` for anything else. */
+function momentSettingsOf(moment: unknown): PxScrollMomentSettings | undefined {
+    if (typeof moment === 'string') return (PX_SCROLL_MOMENT_ORDER as ReadonlyArray<string>).includes(moment) ? { moment: moment as PxScrollMoment } : undefined;
+    if (!moment || typeof moment !== 'object' || Array.isArray(moment)) return undefined;
+    const raw = moment as { element?: unknown; screen?: unknown; scrolled?: unknown };
+    const line = (value: unknown): PxScrollLine | number | undefined =>
+        typeof value === 'number' || (typeof value === 'string' && value in PxScrollLine) ? value as PxScrollLine | number : undefined;
+    const settings: PxScrollMomentSettings = {};
+    if (typeof raw.scrolled === 'number') settings.scrolled = raw.scrolled;
+    const element = line(raw.element); if (element !== undefined) settings.element = element;
+    const screen = line(raw.screen); if (screen !== undefined) settings.screen = screen;
+    return Object.keys(settings).length ? settings : undefined;
+}
+
+/** The wire's shortest spelling of a moment: the word alone, or the object as it is. */
+function wireMomentOf(settings: PxScrollMomentSettings): PxScrollMomentWire | undefined {
+    if (settings.moment !== undefined) return settings.moment;
+    if (settings.scrolled !== undefined) return { scrolled: settings.scrolled };
+    if (settings.element !== undefined || settings.screen !== undefined) {
+        return { element: settings.element ?? PxScrollLine.top, screen: settings.screen ?? PxScrollLine.bottom };
+    }
+    return undefined;
+}
+
+/** A scroll timeline's own keys in the runtime view's settings form ({@link PxScrollSettings}). */
+function scrollSettingsOf(timeline: _PxScrollTimeline): PxScrollSettings {
+    const scroll: PxScrollSettings = {};
+    if (timeline.follows !== undefined) scroll.follows = timeline.follows;
+    if (timeline.selector !== undefined) scroll.selector = timeline.selector;
+    if (timeline.axis !== undefined) scroll.axis = timeline.axis;
+    if (timeline.smoothing !== undefined) scroll.smoothing = timeline.smoothing;
+    const first = momentSettingsOf(timeline.firstFrameWhen); if (first) scroll.firstFrameWhen = first;
+    const last = momentSettingsOf(timeline.lastFrameWhen); if (last) scroll.lastFrameWhen = last;
+    const hold = timeline.holdOnScreen;
+    if (hold === true || (hold && typeof hold === 'object')) {
+        scroll.holdOnScreen = true;
+        if (typeof hold === 'object') {
+            if (hold.at !== undefined) scroll.holdAt = hold.at;
+            if (hold.forScreens !== undefined) scroll.holdForScreens = hold.forScreens;
+            if (hold.offset !== undefined) scroll.holdOffset = hold.offset;
+        }
+    }
+    return scroll;
 }
 
 /** The engines' CSS-style fill mode from the two settings that say it: the first frame before play
@@ -1337,18 +1440,6 @@ function compactedActions(actions: PxActions): PxActions {
 }
 
 /**
- * Which scroll-driven member an absent `scroll.kind` selects — `'view'`, per `_PxScroll.kind`.
- *
- * The flat view says WHICH FAMILY drives progress (`timelineSource: 'scroll'`) separately from
- * WHICH MEMBER of it (`scroll.kind`), and only the family is named "scroll". Defaulting the
- * member to its family's name reads natural and is wrong: it silently rewrote every document
- * that left the kind at its default — which, being the default, is most of them.
- */
-function scrollKindOrDefault(kind: unknown): 'view' | 'scroll' {
-    return kind === 'scroll' ? 'scroll' : 'view';
-}
-
-/**
  * Converts a FLAT animator config into the written spelling: mode-specific keys fold into
  * one discriminated `timeline` object; the legacy flat keys are removed from the output.
  * Returns a new object (input untouched); a config already carrying `timeline` passes
@@ -1368,28 +1459,25 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     };
 
     if (timelineSource === 'scroll') {
-        const timeline: _PxScrollishTimelineShape & { type: 'scroll' | 'view' } = { type: scrollKindOrDefault(scroll?.kind) };
+        const timeline: _PxScrollTimeline = { type: 'scroll' };
         if (engine !== undefined) timeline.engine = engine;
-        if (frameRate !== undefined) timeline.frameRate = frameRate;
         writeWindow(timeline);
-        // Finite iterations survive scrubbing (D4); 'infinite' cannot map to a range.
+        // Finite iterations only: 'infinite' cannot be spread between two moments.
         if (typeof iterations === 'number') timeline.iterations = iterations;
         if (scroll) {
-            if (scroll.axis !== undefined) timeline.axis = scroll.axis;
-            if (scroll.source !== undefined) timeline.source = scroll.source;
-            if (scroll.subject !== undefined) timeline.subject = scroll.subject;
-            if (scroll.smoothing !== undefined) timeline.smoothing = scroll.smoothing;
-            if (scroll.range !== undefined) timeline.range = scroll.range;
-            const hasPinParams = scroll.pinAlign !== undefined || scroll.pinOffset !== undefined || scroll.pinDistance !== undefined;
-            if (hasPinParams) {
-                timeline.pin = {
-                    ...(scroll.pinAlign !== undefined ? { align: scroll.pinAlign } : {}),
-                    ...(scroll.pinOffset !== undefined ? { offset: scroll.pinOffset } : {}),
-                    ...(scroll.pinDistance !== undefined ? { distance: scroll.pinDistance } : {}),
-                };
-            } else if (scroll.pin !== undefined) {
-                timeline.pin = scroll.pin;
+            if (scroll.follows !== undefined) timeline.follows = scroll.follows;
+            if (scroll.selector !== undefined) timeline.selector = scroll.selector;
+            const first = scroll.firstFrameWhen && wireMomentOf(scroll.firstFrameWhen); if (first !== undefined) timeline.firstFrameWhen = first;
+            const last = scroll.lastFrameWhen && wireMomentOf(scroll.lastFrameWhen); if (last !== undefined) timeline.lastFrameWhen = last;
+            if (scroll.holdOnScreen) {
+                const hold: { at?: PxHoldAt; forScreens?: number; offset?: number } = {};
+                if (scroll.holdAt !== undefined) hold.at = scroll.holdAt;
+                if (scroll.holdForScreens !== undefined) hold.forScreens = scroll.holdForScreens;
+                if (scroll.holdOffset !== undefined) hold.offset = scroll.holdOffset;
+                timeline.holdOnScreen = Object.keys(hold).length ? hold : true;
             }
+            if (scroll.axis !== undefined) timeline.axis = scroll.axis;
+            if (scroll.smoothing !== undefined) timeline.smoothing = scroll.smoothing;
         }
         return { ...shared, timeline };
     }

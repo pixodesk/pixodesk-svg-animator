@@ -88,6 +88,10 @@ Common variations. Each line is the `<SvgAnimationPlayer>` element inside a comp
 // Tie the position to a gesture / slider (no playback, just a frame)
 <SvgAnimationPlayer document={animation} showAtProgress={scrollProgress} />
 
+// Follow your ScrollView with a file saved to follow the scroll: React Native measures nothing itself,
+// so make it a clock timeline and pass the progress (contentOffset.y ÷ the scrollable height)
+<SvgAnimationPlayer document={scrollFile} timelineOptions={{ type: 'time' }} showAtProgress={scrollProgress} />
+
 // Override the document's timing
 <SvgAnimationPlayer document={animation} timelineOptions={{ outTime: 4000, delay: 500 }} />
 
@@ -245,7 +249,7 @@ the document's effects are expanded once, its animated values are worked out in 
 every element, and playback runs on the UI thread. No CSS-flavor component, no
 `className` / `style`, and a `fallback` element instead of a DOM.
 
-<!-- px-check signature pkg=rn -->
+<!-- px-check signature pkg=rn loose=SvgAnimationPlayerProps.timelineOptions -->
 ```typescript
 // The component — a plain function, also the default export.
 function SvgAnimationPlayer(props: SvgAnimationPlayerProps): ReactElement | null;
@@ -500,7 +504,7 @@ not supported.
 | The gate: `actions.outOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility measured against the window every 200 ms — React Native has no `IntersectionObserver` |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
-| Scroll-driven playback (`timeline.type: 'scroll' / 'view'`) | ❌ | |
+| Following the scroll (`timeline.type: 'scroll'`) | ❌ | measure your `ScrollView` and pass the progress with `showAtProgress`, on a clock timeline — `timelineOptions={{ type: 'time' }}` for a file saved to follow the scroll ([Following the scroll](./playback-and-triggers.md#following-the-scroll)) |
 
 ## Monorepo setup
 

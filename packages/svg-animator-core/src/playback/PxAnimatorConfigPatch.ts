@@ -22,7 +22,7 @@
  * scroll branch, `pin:false`, and an empty time block emitting no `timeline` at all). Merging
  * on the nested form is the only place those values mean what they say.
  */
-import { controlModeTakesOverTrigger, getAnimatorConfig, PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxControlMode, PxWhenIdle } from '../format/PxAnimatorConstants';
+import { controlModeTakesOverTrigger, getAnimatorConfig, PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxControlMode, PxScrollFollows, PxWhenIdle } from '../format/PxAnimatorConstants';
 import { isScrollTimeline } from './PxScrollMath';
 import type { PxDocument, PxAnimatorConfig, PxTimeline, PxActionTriggersInput, PxActions } from '../format/PxAnimatorTypes';
 import { legacyAnimatorOf } from '../format/PxDocStage';
@@ -70,7 +70,9 @@ const isPlainObject = (v: unknown): v is JsonRecord =>
 const timelineTypeOf = (t: unknown): string =>
     (isPlainObject(t) && typeof t.type === 'string') ? t.type : 'time';
 
-const isScrollish = (type: string): boolean => type === 'scroll' || type === 'view';
+const isScrollish = (type: string): boolean => type === 'scroll';
+/** Scroll-timeline keys whose value is replaced whole by a patch, never merged key by key. */
+const SCROLL_WHOLE_VALUE_KEYS = ['firstFrameWhen', 'lastFrameWhen', 'holdOnScreen'] as const;
 
 /**
  * RFC 7386 merge with no special cases. Used for every sub-object that has no rule of its own
@@ -97,9 +99,10 @@ function mergePlain(base: unknown, patch: JsonRecord): JsonRecord {
  * RULE 2 — same type, or the patch does not mention one: merge. A patch that spells
  *          `type: 'time'` against a document with an ABSENT type must count as a match, hence
  *          the normalization above.
- * RULE 3 — time-only keys landing on a scroll/view timeline are dropped with a warning, the
+ * RULE 3 — time-only keys landing on a scroll timeline are dropped with a warning, the
  *          same way the wire has no slot for them.
  * RULE 4 — `iterations: 'infinite'` cannot map onto a scroll range.
+ * RULE 6 — on a scroll timeline a moment and `holdOnScreen` are replaced whole (a word or an object, never mixed).
  */
 /** An `actions` block with every string slot expanded to its settings — `'animateToStart'` is exactly
  *  `{ behavior: 'animateToStart' }` (RULE 5), so a merge over it keeps the slot's other settings. */
@@ -151,6 +154,8 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
     if (merged.actions !== undefined) merged.actions = compactActionSlots(merged.actions);   // RULE 5
 
     if (isScrollish(patchType)) {
+        // RULE 6 — a moment and `holdOnScreen` are one value each (a word or an object): the patch's replaces the file's
+        for (const k of SCROLL_WHOLE_VALUE_KEYS) if (patch[k] !== undefined) merged[k] = patch[k];
         for (const k of PX_TIME_ONLY_TIMELINE_KEYS) {                // RULE 3
             if (merged[k] === undefined) continue;
             warn('animator.timeline.' + k + ": no slot on a '" + patchType + "' timeline — dropped");
@@ -168,10 +173,48 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
  *  (the file nests them): `timelineOptions` patches this, `actionTriggers` replaces the triggers, `actions` the actions. @public */
 export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' | 'actions'>;
 
+/** The scroll member of the timing options, every key optional. */
+type PxScrollTimingOptions = Extract<PxRecursivePartial<PxTimelineTiming>, { type?: 'scroll' }>;
+
+/** The scroll member of `timelineOptions` where `follows` may also be `TFollowed` — handed over by page code. */
+type PxScrollTimingOptionsFollowing<TFollowed> = Omit<PxScrollTimingOptions, 'follows'> & { follows?: PxScrollFollows | TFollowed };
+
 /** The `timelineOptions` prop: a deep-partial of the WIRE timing block, typed from the schema, merged over the file's.
  *  No `actionTriggers` / `actions` here — those are their props'. WHY the name (`PxTimelinePatch` until 1.22): the
- *  prop's own word. @public */
-export type PxTimelineOptions = PxRecursivePartial<PxTimelineTiming>;
+ *  prop's own word.
+ *  - `TFollowed` (absent = none): what page code may hand over in a scroll timeline's `follows` instead of a word — an
+ *    element of the page on the web, a ref to one in React and Vue; the same as `follows: 'pageElement'` with a selector.
+ *  - Documents stay JSON: the player takes it out before the merge (`takeFollowedOut`). @public */
+export type PxTimelineOptions<TFollowed = never> = PxRecursivePartial<PxTimelineTiming> | PxScrollTimingOptionsFollowing<TFollowed>;
+
+/** What {@link takeFollowedOut} gives back: the options as JSON, and what page code handed over. @internal */
+export interface PxFollowedTakenOut<TFollowed> {
+    /** The options to merge — without `follows` where something was handed over. */
+    timelineOptions: PxTimelineOptions | undefined;
+    /** What was handed over in `follows`, for the player to resolve to an element and follow as `pageElement`. */
+    followed?: TFollowed;
+}
+
+/** `timelineOptions` with what page code handed over in `follows` (an element, a ref) taken out — documents stay JSON:
+ *  - the options to merge leave `follows` out, so the file's stays and the document stays valid (no `pageElement`
+ *    without a selector)
+ *  - the caller resolves `followed` to the element; the scroll driver follows it as `pageElement` @internal */
+export function takeFollowedOut<TFollowed>(
+    options: PxTimelineOptions | PxScrollTimingOptionsFollowing<TFollowed> | undefined,
+    isFollowed: (value: unknown) => value is TFollowed,
+): PxFollowedTakenOut<TFollowed> {
+    if (options === undefined || followsNothingHandedOver(options, isFollowed)) return { timelineOptions: options };
+    const { follows, ...rest } = options;
+    return { timelineOptions: rest, followed: isFollowed(follows) ? follows : undefined };
+}
+
+/** True when `follows` is a word or absent (or the options are not an object — the merge reports that). */
+function followsNothingHandedOver<TFollowed>(
+    options: PxTimelineOptions | PxScrollTimingOptionsFollowing<TFollowed>,
+    isFollowed: (value: unknown) => value is TFollowed,
+): options is PxTimelineOptions {
+    return !isPlainObject(options) || !('follows' in options) || !isFollowed(options.follows);
+}
 
 /** The `actions` prop: the timeline's `actions` block to use INSTEAD of the file's — a replacement, like
  *  `actionTriggers`: a slot left out reads as its default, never as the file's value (one slot changed against the
@@ -184,10 +227,11 @@ export type PxActionsInput = PxActions;
  * (dev-docs/plans/component-api.md D4, playback-layers.md): `timelineOptions`, a MERGE over the file's timing block
  * ("options": corrections — `iterations`, `delay`, `playbackSpeed`), and `actions`, a REPLACEMENT of its actions
  * block. The triggers are not here: they travel with the other control props, `actionTriggers`
- * ({@link PxCommonControlProps}), also a replacement. ONE definition (review §9).
+ * ({@link PxCommonControlProps}), also a replacement. ONE definition (review §9). `TFollowed`: what each surface's page
+ * code may hand over as `timelineOptions.follows` ({@link PxTimelineOptions}) — none by default.
  * @public
  */
-export interface PxPlaybackOverride {
+export interface PxPlaybackOverride<TFollowed = never> {
     /**
      * Per-instance adjustment of the document's `animator.timeline` — its shape minus `actionTriggers` and
      * `actions` (docs/format/README.md), deep-merged over what the document says, so one file can play twice on a
@@ -202,7 +246,7 @@ export interface PxPlaybackOverride {
      * merge, values replace) — the word "options" says so; `actions` and `actionTriggers` are BLOCKS that replace
      * the file's as a whole — their slots belong together.
      */
-    timelineOptions?: PxTimelineOptions;
+    timelineOptions?: PxTimelineOptions<TFollowed>;
     /**
      * HOW the buttons move the playhead, instead of the document's `timeline.actions` — `{ 'playback.stop':
      * 'animateToStart' }`, or `{ 'playback.stop': 'animateToEndAndBack' }` ("stop after this pass, then play back").
@@ -299,10 +343,12 @@ function withTimelineBlock(doc: PxDocument, edit: (timeline: JsonRecord) => Json
 /**
  * Manual: the document's `actionTriggers` replaced by an EMPTY block — no event starts it — on top of the caller's
  * override, so the document cannot start itself. One spelling for `disableActionTriggers` / `actionTriggers: null`
- * and the components' other control modes (`playback`, `showAtProgress` / `showAtTime`).
+ * and the components' other control modes (`playback`, `showAtProgress` / `showAtTime`). A scroll timeline is returned
+ * as it is: it has no triggers to take over, and an empty block there would only be reported as one it cannot have.
  * @public @advanced
  */
 export function withoutTriggerDriver(doc: PxDocument): PxDocument {
+    if (isScrollTimeline(getAnimatorConfig(doc))) return doc;
     return withActionTriggers(doc, {});
 }
 
