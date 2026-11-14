@@ -101,3 +101,13 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1603"></a>**1603** | The error boundary caught a render failure below this component. | the Error · the React component stack |
 | <a id="px1604"></a>**1604** | `react-native-svg` cannot express part of this document, so it was left out or simplified. | what was left out |
 
+## Variables
+
+<!-- px-check off generated from the PxDiagnosticCode enum -->
+| Code | What it means | Data |
+|---|---|---|
+| <a id="px1701"></a>**1701** | A binding (`variable(name)`, `calc(…)`) or a `variables.set()` call names a variable the document does not declare and the player does not provide — ignored; a binding's place reads as if it were not written. | the name |
+| <a id="px1702"></a>**1702** | A value written as a binding does not parse — its place reads as if it were not written. | the text · why it does not parse |
+| <a id="px1703"></a>**1703** | A value given for a variable (`variables.set()`, the `variables` option or prop) does not fit its type — ignored. | the name · the variable's type · the value |
+| <a id="px1704"></a>**1704** | The `variant` the host asked for is not in the document's `definitions.variableVariants` — the defaults are used. | the variant name |
+

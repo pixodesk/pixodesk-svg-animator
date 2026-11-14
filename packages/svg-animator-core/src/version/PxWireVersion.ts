@@ -30,6 +30,8 @@
 
 import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
 import { isPxDocument, maxKeyframeTimeOf, PX_DEFAULT_DURATION_MS } from '../format/PxAnimatorConstants';
+// The 1.27 step's `down` evaluates bindings with the grammar itself — a module with no imports, so no cycle.
+import { isBindingText, PxVariableBinding } from '../variables/PxFormula';
 
 /** The wire key, under the animator config block. @public @advanced */
 export const PX_WIRE_VERSION_KEY = 'version';
@@ -482,7 +484,62 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upStateAndMoveWords,
         // no `down`: 1.25 cannot say `playback.play`, `animateToEndAndBack`, or a start that always restarts
     },
+    {
+        from: '1.26',
+        to: '1.27',
+        reason: 'Variables (docs/library/variables.md): `definitions.variables` declares named, typed '
+            + 'values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere '
+            + 'may be written `"variable(name)"` or `"calc(…)"` instead of the value. Nothing older has any of it, so '
+            + 'there is nothing to convert up.',
+        kind: PxWireStepKind.additive,
+        // exact for the picture with the defaults: every binding becomes its value, the two blocks go
+        down: downVariables,
+    },
 ];
+
+/** 1.27 → 1.26: every binding replaced by its value with the defaults (an animated default: its first keyframe), the
+ *  `variables` and `variableVariants` blocks removed. A binding that has no value leaves its place absent. */
+function downVariables(doc: Record<string, unknown>): void {
+    const definitions = readObjectProp(getAnimatorBlock(doc) ?? {}, 'definitions');
+    const declared = definitions ? readObjectProp(definitions, 'variables') ?? {} : {};
+    const read = (name: string): number | string | boolean | Array<number> | undefined => {
+        const definition = readObjectProp(declared, name);
+        let value: unknown = definition?.['defaultValue'];
+        const animated = value && typeof value === 'object' && !Array.isArray(value) ? readObjectProp(value, 'keyframes') : undefined;
+        if (animated !== undefined || (value && typeof value === 'object' && !Array.isArray(value))) {
+            const keyframes = (value as { [k: string]: unknown })['keyframes'];
+            const first: unknown = Array.isArray(keyframes) ? keyframes[0] : undefined;
+            value = first && typeof first === 'object' ? (first as { [k: string]: unknown })['value'] : undefined;
+        }
+        return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean' || Array.isArray(value) ? value : undefined;
+    };
+    const skip = new Set(['type', 'id', 'children', 'animate', 'meta', 'animator', 'domType', 'keyframes', 'loop']);
+    const walk = (obj: { [key: string]: unknown } | Array<unknown>): void => {
+        const keys = Array.isArray(obj) ? obj.map((_, i) => i) : Object.keys(obj).filter(k => !skip.has(k));
+        for (const key of keys) {
+            const value: unknown = Array.isArray(obj) ? obj[Number(key)] : obj[String(key)];
+            if (isBindingText(value)) {
+                const resolved = PxVariableBinding.parse(value).binding?.evaluate(read);
+                if (Array.isArray(obj)) obj[Number(key)] = resolved ?? 0;
+                else if (resolved === undefined) delete obj[String(key)];
+                else obj[String(key)] = resolved;
+            } else if (value && typeof value === 'object') {
+                walk(value as { [key: string]: unknown });
+            }
+        }
+    };
+    const walkNode = (node: unknown): void => {
+        if (!node || typeof node !== 'object') return;
+        walk(node as { [key: string]: unknown });
+        const children = (node as { [key: string]: unknown })['children'];
+        if (Array.isArray(children)) children.forEach(walkNode);
+    };
+    walkNode(doc);
+    if (definitions) {
+        delete definitions['variables'];
+        delete definitions['variableVariants'];
+    }
+}
 
 /** 1.25 → 1.26 (see the step's `reason`). Frozen at the words of the two versions — never the live constants. */
 function upStateAndMoveWords(doc: Record<string, unknown>): void {

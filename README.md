@@ -33,7 +33,7 @@ icon animations, loaders.
 ## Documentation
 
 - **[Get started with the player library](./docs/library/get-started.md)** — the shortest path, end to end: make the animation, save it as JSON, put the file in your project, install the player, render it — React, Vue, plain HTML, React Native
-- **[Library documentation](./docs/library/README.md)** — [the API at a glance](./docs/library/README.md#the-api-at-a-glance), then every player: web, React, Vue, React Native; installation, playback settings & triggers
+- **[Library documentation](./docs/library/README.md)** — [the API at a glance](./docs/library/README.md#the-api-at-a-glance), then every player: web, React, Vue, React Native; installation, playback settings & triggers, [variables](./docs/library/variables.md)
 - **[Player JSON format](./docs/format/README.md)** — the JSON document: reference, [the schema at a glance](./docs/format/README.md#schema-at-a-glance), effects, editor meta, [the core library](./docs/format/README.md#core-library--pixodesksvg-animator-core)
 - **API reference** — every export of every package, marked by audience, in signature form: what every player shares in [the API at a glance](./docs/library/README.md#the-api-at-a-glance), each player's own under its guide's *API reference*, document tooling under [the core library](./docs/format/README.md#core-library--pixodesksvg-animator-core). The docs are checked against the packages' types and schemas on every build — [tools/docs-check](./tools/docs-check/README.md)
 - **[Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg)** — the self-contained `.svg` flavors: embedding, static sites & CMS, `data-px-meta`

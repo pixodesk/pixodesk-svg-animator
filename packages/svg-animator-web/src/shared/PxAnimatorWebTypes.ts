@@ -20,6 +20,9 @@ import type { PxCssScrollPhase } from '@pixodesk/svg-animator-core/internal';
 /** @public */
 export type PxAnimationPlayerApi = PxAnimatorAPICore<Element>;
 
+/** A build of the player before `variables` is added — what the engines and the binders return. @internal */
+export type PxPlayerEngineApi = Omit<PxAnimationPlayerApi, 'variables'>;
+
 /** What the web ENGINES construct — the api minus `playback` (the buttons, seeks and reads), composed in `finaliseAnimator`.
  *  @public @advanced */
 export type PxEngineAnimationPlayerApi<TRoot = Element> = PxEngineAnimatorApiCore<TRoot>;

@@ -288,4 +288,31 @@ export enum PxDiagnosticCode {
      * @data what was left out
      */
     rnUnsupported = 1604,
+
+    // ── 1700 · variables ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * A binding (`variable(name)`, `calc(…)`) or a `variables.set()` call names a variable the document does not
+     * declare and the player does not provide — ignored; a binding's place reads as if it were not written.
+     * @data the name
+     */
+    variableUnknown = 1701,
+
+    /**
+     * A value written as a binding does not parse — its place reads as if it were not written.
+     * @data the text · why it does not parse
+     */
+    variableBindingInvalid = 1702,
+
+    /**
+     * A value given for a variable (`variables.set()`, the `variables` option or prop) does not fit its type — ignored.
+     * @data the name · the variable's type · the value
+     */
+    variableTypeMismatch = 1703,
+
+    /**
+     * The `variant` the host asked for is not in the document's `definitions.variableVariants` — the defaults are used.
+     * @data the variant name
+     */
+    variantUnknown = 1704,
 }

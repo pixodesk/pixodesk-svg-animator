@@ -466,7 +466,7 @@ export interface PxResolvedActions {
 }
 
 // ── CONTROL MODE (API review §1 / §7; `autoplay` → `playUsingActionTriggers` → `playerActionTriggers` (1.26) →
-//    no prop at all: the file drives (2026-11-13, kf next-improvements item 0)) ──
+//    no prop at all: the file drives (2026-11-13)) ──
 // Which set of props drives playback. Every component picked its own order, so
 // `autoplay` + `showAtProgress={0.5}` played on React and Vue but seeked on React Native, and
 // React let a REF choose the mode — `<SvgAnimationPlayer autoplay playerRef={api} />` never
@@ -1016,6 +1016,23 @@ export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
 // document carrying an effect key the pipeline does not recognize, would otherwise leave
 // the object behind and the renderer would write `effects="[object Object]"` with no error
 // anywhere. Listing it makes the invariant structural (J4).
+/**
+ * WIRE `definitions.variables.<name>.type` — what kind of value a variable holds (docs/library/variables.md). The value grammars the format already has, under the same spellings:
+ * `number` 40 · `vector` [200, 60] · `color` "#2a7fff" · `string` "Hello" · `boolean` true · `image` a URL or data URL ·
+ * `numberList` [16, 16] · `path` "M0 0L…". @public
+ */
+export const PxVariableType = {
+    number:     'number',
+    vector:     'vector',
+    color:      'color',
+    string:     'string',
+    boolean:    'boolean',
+    image:      'image',
+    numberList: 'numberList',
+    path:       'path',
+} as const;
+export type PxVariableType = typeof PxVariableType[keyof typeof PxVariableType];
+
 /** @internal */
 export const INTERNAL_ATTRS = new Set([
     'type', 'children', 'animator', 'meta', 'animate', 'effects', PX_TEXT_CONTENT_ATTR

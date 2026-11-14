@@ -156,6 +156,13 @@ interface PxAnimationPlayerOptions {
                                            //   looks (+ the gate's outOfView): `{ 'playback.stop': 'animateToStart' }`;
                                            //   a slot left out reads its default. What a finished playback
                                            //   shows, `whenFinished`, is a timeline key (timelineOptions)
+
+    // Variables — `PxVariablesOptions`, the same on every player (Variables guide). Applied before the
+    // first paint; later changes go through `player.variables`
+    variables?: Readonly<Record<string, PxVariableValue>>;   // values by name — they win over the file
+    variant?: string | null;               // a named set of defaults from `definitions.variableVariants`
+    cssVariables?: boolean | Readonly<Record<string, string>>;   // deliver variables as CSS custom properties,
+                                           //   so the page's stylesheet sets them: true, or { '*': 'card-*', bg: 'brand-primary' }
 }
 ```
 
@@ -224,6 +231,8 @@ the player; `playOnce()`, `jumpToStart()` and `jumpToEnd()` until 1.25 — `star
 // What `createSvgAnimationPlayer` returns — core's `PxAnimationPlayerApi<Element>`.
 interface PxAnimationPlayerApi {
     readonly playback: PxPlaybackControls; // everything a page does to the animation — below
+    readonly variables: PxVariablesApi;    // the document's variables: get / set / setVariables / reset,
+                                           //   variants — see Variables
     isReady(): boolean;                    // true once a document from a URL has loaded and rendered
     getRootElement(): Element | null;      // the rendered <svg>; null before ready
     destroy(): void;                       // stop, remove the SVG it rendered, release everything; fires onDestroy
@@ -342,6 +351,28 @@ slider.addEventListener('input', () => {
 // slider.max = String(player.playback.getTotalDuration() ?? player.playback.getDuration());
 // player.playback.setTotalTime(Number(slider.value));
 ```
+
+## Variables
+
+A file can declare variables — a colour, a size, a caption — and your page gives them values while it plays.
+The options set them before the first paint; `player.variables` changes them later, drawn on the next frame
+without touching the animation:
+
+```js
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
+
+const player = createSvgAnimationPlayer({
+  document: '/card.json',
+  container: '#card',
+  variables: { bg: '#111827' },   // wins over the file's default
+  variant: 'fr',                  // a named set of defaults the file carries
+});
+
+player.variables.set('title', 'Hi');
+```
+
+Variants, `cssVariables` and the page's stylesheet, the predefined `player.pointer` and `player.playback.…`, and
+how a change is drawn: [Variables](./variables.md).
 
 ## Callbacks
 
@@ -640,6 +671,7 @@ there and `bindSvgAnimationPlayer` the member `bind`; ESM and CJS consumers impo
 | `PxInternalAnimationPlayerOptions` | ▪ `PxAnimationPlayerOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to |
 | `renderNode(node, defs?, diag?)` → `toDomProps(props)` | ○ **`/engine`** · render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |
 | `validateDocument(doc)` | ● the whole-document check — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
+| `PxVariableType`, `PxPredefinedVariable`, `PxVariableValue`, `PxVariablesApi`, `PxVariablesOptions`, `PxVariableDefinition` | ● [variables](./variables.md) — the types, the predefined names, `player.variables` and the options |
 | `generateNewIds` | ○ document tooling — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
 | `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE`, `PX_PLAYER_BIND` | ▪ the `<script>` builds' global (`'Pixodesk.SvgAnimator'`) and its two members, `'create'` and `'bind'` — the editor's SVG + JS export builds its call from them |
@@ -657,6 +689,7 @@ there and `bindSvgAnimationPlayer` the member `bind`; ESM and CJS consumers impo
 ## Related
 
 - [Playback settings & triggers](./playback-and-triggers.md) — every `animator` field and how to override it
+- [Variables](./variables.md) — values the page changes while it plays
 - [JSON format reference](../format/README.md#json-format-reference)
 - [Troubleshooting](./troubleshooting.md)
 

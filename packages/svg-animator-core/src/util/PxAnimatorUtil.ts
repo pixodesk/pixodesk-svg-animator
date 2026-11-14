@@ -389,7 +389,7 @@ function parseHex(s: string): number[] {
 }
 
 //// FIXME - support normalization of config from different formats
-/** Parse color string (hex or rgb/rgba) to normalized [r, g, b] or [r, g, b, a] array (0-1 range) */
+/** Parse color string (hex or rgb/rgba) to normalized [r, g, b] or [r, g, b, a] array (0-1 range) @internal */
 export function parseColor(s: unknown): number[] | undefined {
     if (!s) return undefined;
     if (Array.isArray(s)) return s;

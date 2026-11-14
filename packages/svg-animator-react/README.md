@@ -71,8 +71,8 @@ const playerRef = useRef<PxAnimationPlayerHandle>(null);
 <button onClick={() => playerRef.current?.playback.start()}>Restart</button>
 ```
 
-<!-- px-check members PxPlaybackControls pkg=react extra=PxAnimationPlayerHandle,PxPlaybackControls,playback,playOnce,jumpToStart,jumpToEnd -->
-`PxAnimationPlayerHandle` is `{ playback }` — the same `PxPlaybackControls` as the web player: the five buttons `playback.start()` (always from the start, in every state), `playback.play()` (start, or carry on — a paused playback resumes, a picture on its way back turns around, nothing while playing), `playback.stop()` (the configured stop, `actions["playback.stop"]` — its animate-to-end presets stop after the current pass), `playback.pause()`, `playback.resume()`; the state `playback.getState()` (off · playing · paused · finished · returning · destroyed), `playback.isActive()`, `playback.isPlaying()`; one iteration — `playback.getDuration()` (one pass, ms — a looping file's slider maximum), `getCurrentTime()` / `setCurrentTime(ms)` (the frame inside the current iteration), `getCurrentProgress()` / `setCurrentProgress(p)` (counted in iterations — `1.2` is 20 % into the second), `getCurrentIteration()`; the whole playback — `getTotalDuration()` (null when infinite), `getTotalTime()` / `setTotalTime(ms)`, `getTotalProgress()`; the speed — `playback.getSpeed()` / `playback.setSpeed(speed)` (1 normal, 2 double, negative = reverse) and the same values at it, `getDurationAtSpeed()` / `setDurationAtSpeed(ms)`, `getTotalDurationAtSpeed()`, `getCurrentTimeAtSpeed()`, `getTotalTimeAtSpeed()`. Plain names are content ms inside the iteration, `total…` the playback (including repeats, GSAP's words), `…AtSpeed` the same at the current speed ([Two clocks](../../docs/library/playback-and-triggers.md#two-clocks)). A seek while playing keeps playing; in any other state the playback becomes paused at that frame ([Moving the playhead](../../docs/library/playback-and-triggers.md#moving-the-playhead)). One spelling per act (until 1.25 the methods sat flat on the handle, and `playOnce()`, `jumpToStart()` and `jumpToEnd()` existed — a one-iteration timeline and `start()`, `stop()` and `setCurrentProgress()` say the same).
+<!-- px-check members PxPlaybackControls pkg=react extra=PxAnimationPlayerHandle,PxPlaybackControls,playback,variables,playOnce,jumpToStart,jumpToEnd -->
+`PxAnimationPlayerHandle` is `{ playback, variables }` — `variables` is the document's variables ([Variables](#variables)); `playback` the same `PxPlaybackControls` as the web player: the five buttons `playback.start()` (always from the start, in every state), `playback.play()` (start, or carry on — a paused playback resumes, a picture on its way back turns around, nothing while playing), `playback.stop()` (the configured stop, `actions["playback.stop"]` — its animate-to-end presets stop after the current pass), `playback.pause()`, `playback.resume()`; the state `playback.getState()` (off · playing · paused · finished · returning · destroyed), `playback.isActive()`, `playback.isPlaying()`; one iteration — `playback.getDuration()` (one pass, ms — a looping file's slider maximum), `getCurrentTime()` / `setCurrentTime(ms)` (the frame inside the current iteration), `getCurrentProgress()` / `setCurrentProgress(p)` (counted in iterations — `1.2` is 20 % into the second), `getCurrentIteration()`; the whole playback — `getTotalDuration()` (null when infinite), `getTotalTime()` / `setTotalTime(ms)`, `getTotalProgress()`; the speed — `playback.getSpeed()` / `playback.setSpeed(speed)` (1 normal, 2 double, negative = reverse) and the same values at it, `getDurationAtSpeed()` / `setDurationAtSpeed(ms)`, `getTotalDurationAtSpeed()`, `getCurrentTimeAtSpeed()`, `getTotalTimeAtSpeed()`. Plain names are content ms inside the iteration, `total…` the playback (including repeats, GSAP's words), `…AtSpeed` the same at the current speed ([Two clocks](../../docs/library/playback-and-triggers.md#two-clocks)). A seek while playing keeps playing; in any other state the playback becomes paused at that frame ([Moving the playhead](../../docs/library/playback-and-triggers.md#moving-the-playhead)). One spelling per act (until 1.25 the methods sat flat on the handle, and `playOnce()`, `jumpToStart()` and `jumpToEnd()` existed — a one-iteration timeline and `start()`, `stop()` and `setCurrentProgress()` say the same).
 
 ### Controlled time
 
@@ -91,6 +91,18 @@ const [time, setTime] = useState(0);
 />
 ```
 
+### Variables
+
+A file can declare variables — a colour, a size, a caption — and your app gives them values. A change is drawn on
+the player's next frame, with no React render of the SVG and no new player:
+
+```tsx
+<SvgAnimationPlayer document={card} variables={{ bg: theme.accent, title: user.name }} variant="dark" />
+
+playerRef.current?.variables.set('size', 60);   // or from code, through the handle
+```
+
+`cssVariables` lets the page's stylesheet set them instead. See [Variables](../../docs/library/variables.md).
 
 ## Props
 
@@ -107,6 +119,9 @@ const [time, setTime] = useState(0);
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `playback.getDuration()`) |
 | `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'playback.stop': 'animateToStart' }`, and `outOfView`; a setting left out reads its default (what shows once finished, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; a name that leaves the prop goes back to the file's value. A change never builds a new player. See [Variables](../../docs/library/variables.md) |
+| `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
+| `cssVariables` | `boolean \| Record<string, string>` | deliver variables as CSS custom properties, so the page's stylesheet sets them: `true`, or a map with a `"*"` pattern — `{ '*': 'card-*', bg: 'brand-primary' }` |
 | `onReady` | `() => void` | The player exists and the SVG is rendered — once, async |
 | `onPlaybackStart` | `() => void` | A playback began — `playback.start()`, `playback.play()` from rest, a `playback.start` / `playback.play` trigger, `playback` to `'on'` / `'paused'` from `'off'`, the visibility gate starting it again |
 | `onPlaybackResume` | `() => void` | The playback carried on after a freeze — `playback.resume()`, `playback.play()`, a `playback.resume` trigger, `playback` back to `'on'`, the visibility gate when it is seen again |

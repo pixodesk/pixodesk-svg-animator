@@ -12,12 +12,17 @@ export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_PLAYBACK_DEFAULTS, PxTimelineEngineSetting, PxCloneOmit, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxPinAlign, PxPlaybackDirection,
-    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind } from './PxAnimatorConstants';
+    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType } from './PxAnimatorConstants';
 import type { PxPlaybackState, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
 // `PxSchemaVersion`, so this edge creates no cycle.
 import { parseWireVersion } from '../version/PxWireVersion';
+// Variables (schema 1.27): the validator checks the document with every binding replaced by its default, plus the
+// bindings themselves. These modules import only TYPES from here, so the edges create no cycle.
+import { isVariableName } from '../variables/PxFormula';
+import type { PxVariablesApi } from '../variables/PxVariablesRuntime';
+import { collectBindingSites, firstKeyframeValue, isAnimatedVariableValue, nodeAtPath, predefinedVariableOf, resolveVariableBindings, variableDefaultFits, viewBoxCenterOf, type PxBindingSite } from '../variables/PxVariableBindings';
 // The diagnostics channel's payload, named by `PxEngineCallbacks` below (review §5).
 // `PxDiagnostics` imports nothing, so this edge creates no cycle either.
 import type { PxDiagnosticKind, PxDiagnosticsConfig } from '../playback/PxDiagnostics';
@@ -747,7 +752,37 @@ export type PxGlyphFont = PxInfer<typeof PxGlyphFontSchema>;
 const _ck_PxGlyphFont: KeysMatch<PxGlyphFont, _PxGlyphFont> = true; // the key sets are identical
 
 /**
- * Reusable definitions library for easings, animations and fonts.
+ * One declared variable (`definitions.variables.<name>`, schema 1.27; docs/library/variables.md):
+ * a named, typed value with a default. A static value anywhere in the document may be written `"variable(name)"`
+ * or `"calc(…)"` instead of the value itself — see `PxBinding`.
+ */
+export interface _PxVariableDefinition {
+    /** What kind of value it holds — {@link PxVariableType}. */
+    type: PxVariableType;
+    /** The value the file gives — required, so a file always draws without any code. Plain, or animated:
+     *  `{ "keyframes": […] }`, the form any value in the format takes. */
+    defaultValue: unknown;
+    /** For whoever reads the file, and the editor's panel. */
+    description?: string;
+    /** A predefined variable this one follows while the host gives it no value (`"player.pointer"`). */
+    defaultSource?: string;
+}
+
+/** @public @advanced */
+export const PxVariableDefinitionSchema = implementsInterface<_PxVariableDefinition>()(px.object({
+    type: px.enum([PxVariableType.number, PxVariableType.vector, PxVariableType.color, PxVariableType.string,
+        PxVariableType.boolean, PxVariableType.image, PxVariableType.numberList, PxVariableType.path] as const),
+    defaultValue: px.defined(),
+    description: px.string().optional(),
+    defaultSource: px.string().optional(),
+}));
+
+/** One declared variable. @public */
+export type PxVariableDefinition = PxInfer<typeof PxVariableDefinitionSchema>;
+const _ck_PxVariableDefinition: KeysMatch<PxVariableDefinition, _PxVariableDefinition> = true; // the key sets are identical
+
+/**
+ * Reusable definitions library for easings, animations, fonts and variables.
  * Defined once here, referenced by name on elements (or, for animations, from bindings).
  * (`styles` — named style presets — was removed on 2026-09-13, review 2.13: nothing wrote it.)
  */
@@ -762,6 +797,13 @@ export interface _PxDefs {
     /** Embedded fonts — per-font glyph outlines, keyed by the text's `font-family`.
      *  Lets glyph-mode `<text>` render without an external font. */
     fonts?: { [fontName: string]: PxGlyphFont; };
+
+    /** Declared variables, by name (schema 1.27). */
+    variables?: { [name: string]: PxVariableDefinition; };
+
+    /** Named sets of default values for the declared variables (schema 1.27): `{ foggyDay: { ballBg: "green" } }`.
+     *  Choosing one swaps those variables' defaults — the player's `variant` option. */
+    variableVariants?: { [variant: string]: { [variable: string]: unknown; }; };
 }
 
 // `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, fonts?:Record<fontName,PxGlyphFont> }`
@@ -770,9 +812,11 @@ export const PxDefinitionsSchema = implementsInterface<_PxDefs>()(px.object({
     easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
     fonts: px.record(PxGlyphFontSchema).optional(),
+    variables: px.record(PxVariableDefinitionSchema).optional(),
+    variableVariants: px.record(px.record(px.defined())).optional(),
 }));
 
-/** Reusable definitions library for easings, animations and fonts. @public */
+/** Reusable definitions library for easings, animations, fonts and variables. @public */
 export type PxDefinitions = PxInfer<typeof PxDefinitionsSchema>;
 const _ck_PxDefs: KeysMatch<PxDefinitions, _PxDefs> = true; // the key sets are identical
 
@@ -2148,15 +2192,106 @@ function collectDocumentProblems(doc: unknown, options?: { strict?: boolean }): 
     // wants: an unknown key usually means a newer writer — worth a warning, never a refusal.
     const strict = options?.strict !== false;
     const ctx = newCollectingContext(strict);
-    PxDocumentSchema.isValid(doc, ctx, [PX_VALIDATION_ROOT_SEGMENT]);
-    if (doc && typeof doc === 'object') {
-        collectNodeEffectProblems(doc as PxNode, ctx, true);
-        const defs = getAnimatorConfig(doc as PxDocument)?.definitions;
-        collectGlyphFontRefProblems(doc as PxNode, defs?.fonts, ctx);
-        collectEasingRefProblems(doc as PxNode, defs?.easings, ctx);
-        collectVersionStampProblems(doc as PxDocument, ctx);
+    // Bindings (`"variable(x)"`, `"calc(…)"`) stand for values: the schema checks the document as it reads with the
+    // defaults written in, and the bindings are checked on their own below.
+    const sites = doc && typeof doc === 'object' ? collectBindingSites(doc as PxNode) : [];
+    const subject = sites.length ? withDefaultsWrittenIn(doc as PxDocument, sites) : doc;
+    PxDocumentSchema.isValid(subject, ctx, [PX_VALIDATION_ROOT_SEGMENT]);
+    if (subject && typeof subject === 'object') {
+        collectNodeEffectProblems(subject as PxNode, ctx, true);
+        const defs = getAnimatorConfig(subject as PxDocument)?.definitions;
+        collectVariableProblems(doc as PxNode, defs, sites, ctx);
+        collectGlyphFontRefProblems(subject as PxNode, defs?.fonts, ctx);
+        collectEasingRefProblems(subject as PxNode, defs?.easings, ctx);
+        collectVersionStampProblems(subject as PxDocument, ctx);
     }
     return { errors: ctx.errors, findings: ctx.findings };
+}
+
+/** The document with every binding replaced by its variable's default (an animated default: its first keyframe; a
+ *  predefined variable: its predefined default) — what the schema checks. */
+function withDefaultsWrittenIn(doc: PxDocument, sites: ReadonlyArray<PxBindingSite>): PxDocument {
+    const declared = getAnimatorConfig(doc)?.definitions?.variables ?? {};
+    const center = viewBoxCenterOf(doc);
+    return resolveVariableBindings(doc, sites, {
+        read: name => {
+            const definition = Object.prototype.hasOwnProperty.call(declared, name) ? declared[name] : undefined;
+            if (definition) {
+                const value = definition.defaultValue;
+                if (isAnimatedVariableValue(value)) return firstKeyframeValue(value);
+                return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean' || Array.isArray(value) ? value : undefined;
+            }
+            return predefinedVariableOf(name)?.defaultValue(center);
+        },
+    });
+}
+
+/**
+ * The variables' own problems (schema 1.27): a declaration's name, default and `defaultSource`; a variant's entries;
+ * every binding — does it parse, does each name it reads exist, does a formula read numbers only, is its place also
+ * animated (an attribute is animated or bound, never both).
+ */
+function collectVariableProblems(root: PxNode, defs: PxDefinitions | undefined, sites: ReadonlyArray<PxBindingSite>, ctx: PxValidationContext): void {
+    const declared = defs?.variables ?? {};
+    const typeOf = (name: string): PxVariableType | undefined =>
+        (Object.prototype.hasOwnProperty.call(declared, name) ? declared[name].type : undefined) ?? predefinedVariableOf(name)?.type;
+    const defsPath = [PX_VALIDATION_ROOT_SEGMENT, 'animator', 'definitions'];
+
+    for (const [name, definition] of Object.entries(declared)) {
+        const path = [...defsPath, 'variables', name];
+        if (!isVariableName(name)) {
+            reportValidationError(ctx, path, PxValidationFindingKind.invalidValue,
+                '"' + name + '" is not a variable name — a letter, then letters, digits, _ or - (a dot is the player\'s)');
+        }
+        if (!variableDefaultFits(definition)) {
+            reportValidationError(ctx, [...path, 'defaultValue'], PxValidationFindingKind.typeMismatch, 'does not fit the type "' + definition.type + '"');
+        }
+        if (definition.defaultSource !== undefined) {
+            const source = predefinedVariableOf(definition.defaultSource);
+            if (!source) {
+                reportValidationError(ctx, [...path, 'defaultSource'], PxValidationFindingKind.missingReference,
+                    '"' + definition.defaultSource + '" is not a variable the player provides');
+            } else if (source.type !== definition.type) {
+                reportValidationError(ctx, [...path, 'defaultSource'], PxValidationFindingKind.typeMismatch,
+                    '"' + definition.defaultSource + '" is a ' + source.type + ', the variable a ' + definition.type);
+            }
+        }
+    }
+
+    for (const [variant, values] of Object.entries(defs?.variableVariants ?? {})) {
+        for (const [name, value] of Object.entries(values)) {
+            const path = [...defsPath, 'variableVariants', variant, name];
+            const definition = Object.prototype.hasOwnProperty.call(declared, name) ? declared[name] : undefined;
+            if (!definition) {
+                reportValidationError(ctx, path, PxValidationFindingKind.missingReference, '"' + name + '" names no entry in animator.definitions.variables');
+            } else if (!variableDefaultFits({ ...definition, defaultValue: value })) {
+                reportValidationError(ctx, path, PxValidationFindingKind.typeMismatch, 'does not fit the type "' + definition.type + '"');
+            }
+        }
+    }
+
+    for (const site of sites) {
+        const path = [PX_VALIDATION_ROOT_SEGMENT, ...site.nodePath.flatMap(i => ['children', '[' + i + ']']),
+            ...site.keyPath.map(k => typeof k === 'number' ? '[' + k + ']' : k)];
+        if (!site.binding) {
+            reportValidationError(ctx, path, PxValidationFindingKind.invalidValue, 'does not parse: ' + site.error);
+            continue;
+        }
+        for (const name of site.binding.names) {
+            const type = typeOf(name);
+            if (type === undefined) {
+                reportValidationError(ctx, path, PxValidationFindingKind.missingReference,
+                    '"' + name + '" names no entry in animator.definitions.variables', { once: true });
+            } else if (site.binding.isFormula && type !== PxVariableType.number) {
+                reportValidationError(ctx, path, PxValidationFindingKind.typeMismatch, '"' + name + '" is a ' + type + ' variable — a formula reads numbers');
+            }
+        }
+        const animate = nodeAtPath(root, site.nodePath)?.animate;
+        if (animate && typeof animate === 'object' && !Array.isArray(animate) && site.keyPath.length >= 1
+            && Object.prototype.hasOwnProperty.call(animate, String(site.keyPath[0]))) {
+            reportValidationError(ctx, path, PxValidationFindingKind.invalidValue, 'is both animated and bound to a variable — the animation wins');
+        }
+    }
 }
 
 
@@ -2611,6 +2746,8 @@ export interface PxPlaybackControls {
 export interface PxAnimationPlayerApi<TRoot = unknown> {
     /** The buttons, the state, the seeks, both clocks and the speed — see {@link PxPlaybackControls}. */
     readonly playback: PxPlaybackControls;
+    /** The document's variables — read them, give them values, pick a variant (schema 1.27). */
+    readonly variables: PxVariablesApi;
     /** Whether the document has loaded and the player is built — calls made earlier are queued. */
     isReady(): boolean;
     /** Returns the root element for the animation (platform-specific type). */

@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
-import { forwardPlaybackControls } from '@pixodesk/svg-animator-core/engine';
+import { forwardPlaybackControls, PxVariablesRuntime } from '@pixodesk/svg-animator-core/engine';
 
 /** The player's callbacks as they travel through the web builders — the public set: the playback events (the
  *  executor's to tell), the teardown, the diagnostics channel. The ENGINES get a slice of it
@@ -43,6 +43,8 @@ export function createInertAnimator(): PxAnimationPlayerApi {
     return {
         // no target ever: every read its "not ready" value, every write dropped
         playback: forwardPlaybackControls(() => undefined, () => {}),
+        // no document: no variables — every read empty, every write ignored
+        variables: new PxVariablesRuntime({ type: 'svg' }, undefined, undefined).api,
         isReady: () => false,
         getRootElement: () => null,
         destroy: () => {},

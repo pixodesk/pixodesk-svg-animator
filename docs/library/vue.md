@@ -224,7 +224,7 @@ file's `actions`, and the handle follows it exactly as the triggers and the `pla
 act (until 1.25 the methods sat flat on the handle, and `playOnce()`, `jumpToStart()` and `jumpToEnd()` existed —
 a one-iteration timeline and `start()`, `stop()` and `setCurrentProgress()` say the same).
 
-<!-- px-check signature pkg=vue loose=PxAnimationPlayerHandle.playback -->
+<!-- px-check signature pkg=vue loose=PxAnimationPlayerHandle.playback,PxAnimationPlayerHandle.variables -->
 ```typescript
 interface PxAnimationPlayerHandle {
     readonly playback: PxPlaybackControls; // start · play · stop · pause · resume — the buttons (each emits
@@ -233,6 +233,8 @@ interface PxAnimationPlayerHandle {
                                            //   seeks; getDuration · getCurrentTime · … ·
                                            //   getTotalProgress — content time; getSpeed / setSpeed and the
                                            //   …AtSpeed reads — the speed
+    readonly variables: PxVariablesApi;    // the document's variables — get · set · setVariables · reset ·
+                                           //   setVariant …, the same as the web player's (Variables below)
 }
 ```
 
@@ -308,6 +310,22 @@ keyframes ([per-property loops](../format/README.md#per-property-loops)).
 Full merge rules — including what happens when the override changes the kind of timeline — are
 in [Playback & triggers → How the merge works](./playback-and-triggers.md#how-the-merge-works).
 
+## Variables
+
+A file can declare variables — a colour, a size, a caption — and your app gives them values. Bind them as a
+prop: a change is drawn on the player's next frame, with no new player, and the animation keeps playing:
+
+```vue
+<template>
+  <SvgAnimationPlayer :document="card" :variables="{ bg: theme.accent, title: user.name }" variant="dark" />
+</template>
+```
+
+A name that leaves `variables` goes back to the file's value; `variant` picks a named set of defaults from the
+file; `:css-variables` lets the page's stylesheet set them. From code, `player.value?.variables.set('size', 60)`
+on the template ref. Everything else — who wins, the stylesheet, the predefined `player.pointer`:
+[Variables](./variables.md).
+
 ## Props
 
 Only `document` is required. The file already carries the timing and the triggers you set in the
@@ -344,6 +362,13 @@ const SvgAnimationPlayer: DefineComponent<{
                                           //   how each looks is the file's `actions`; a mount with 'off' presses nothing
     showAtProgress?: number;              // a frame, counted in iterations — 1.2 = 20 % into the second
     showAtTime?: number;                  // a frame at this ms inside one iteration, 0..getDuration()
+
+    // Variables — `PxVariablesOptions` (Variables above); a change never builds a new player
+    variables?: Readonly<Record<string, PxVariableValue>>;   // values by name — they win over the file; a name that
+                                          //   leaves the prop goes back to the file's value
+    variant?: string | null;              // a named set of defaults from `definitions.variableVariants`
+    cssVariables?: boolean | Readonly<Record<string, string>>;   // deliver as CSS custom properties — the page's
+                                          //   stylesheet sets them; a change builds the player again
 
     // Diagnostics stay PROPS, not events: an event handler always exists, which would silence
     // the console fallback. onWarning = it plays, but something was ignored, degraded or misspelled;
@@ -476,7 +501,8 @@ are the shape every player shares — [the API at a glance](./README.md#the-api-
 
 <!-- px-check exports @pixodesk/svg-animator-vue -->
 The package exports the two components, `SvgAnimationPlayer` and `SvgCssAnimationPlayer`, the
-handle type `PxAnimationPlayerHandle` with its `PxPlaybackControls` (what `playback` is), and the document type `PxDocument` (for casting a JSON
+handle type `PxAnimationPlayerHandle` with its `PxPlaybackControls` (what `playback` is), the [variables](./variables.md) types
+`PxVariableValue`, `PxVariablesApi`, `PxVariablesOptions`, and the document type `PxDocument` (for casting a JSON
 import — [TypeScript](./installation.md#typescript)); nothing else.
 
 ## Example

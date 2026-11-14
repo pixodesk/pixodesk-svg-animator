@@ -75,6 +75,9 @@ export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from '@pixodesk
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
 export type { PxAnimationPlayerCallbacks, PxPlaybackOverride, PxPlaybackOverrideInput, PxTimelineTiming, PxCommonControlProps } from '@pixodesk/svg-animator-core';
+// Variables (schema 1.27) — the options and `player.variables`
+export { PxVariableType, PxPredefinedVariable } from '@pixodesk/svg-animator-core';
+export type { PxVariableValue, PxVariablesApi, PxVariablesOptions, PxVariableDefinition } from '@pixodesk/svg-animator-core';
 
 // The time contract (review §3) and the trigger defaults, so the components map `progress` and
 // thresholds with core's rule instead of re-deriving it.

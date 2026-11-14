@@ -51,6 +51,15 @@ export type { PxDocument, PxDocumentJson, PxAnimationDefinition, PxAnimationPlay
 // and `start?: PxTriggerEvent` from one import.
 export { PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxPlaybackDirection, PxTriggerEvent, PxPlayback } from './format/PxAnimatorConstants';
 
+// Variables (schema 1.27) — declared in `definitions.variables`, read by `"variable(name)"` / `"calc(…)"` bindings
+export { PxVariableType } from './format/PxAnimatorConstants';
+export { PxVariableDefinitionSchema } from './format/PxAnimatorTypes';
+export type { PxVariableDefinition } from './format/PxAnimatorTypes';
+export { isBindingText, isVariableName } from './variables/PxFormula';
+export type { PxVariableValue } from './variables/PxFormula';
+export { PxPredefinedVariable, variableValueFits } from './variables/PxVariableBindings';
+export type { PxVariablesApi, PxVariablesOptions } from './variables/PxVariablesRuntime';
+
 export { getBindings, getChildren, getDefinitions } from './format/PxAnimatorConstants';
 export { getAnimatorConfig, isPxDocument, nestAnimatorTimeline } from './format/PxAnimatorConstants';
 

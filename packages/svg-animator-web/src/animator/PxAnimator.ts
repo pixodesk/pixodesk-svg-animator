@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps } from '@pixodesk/svg-animator-core';
-import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, resolveControlMode, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxPlaybackControls } from '@pixodesk/svg-animator-core';
+import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, resolveControlMode, PxVariablesRuntime, withActionTriggers, triggerEventList, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -14,7 +14,8 @@ import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegi
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
+import { PxWebVariables } from '../variables/PxWebVariables';
 
 // Re-export so the package surface keeps `generateNewIds` at its historical home.
 export { generateNewIds };
@@ -34,8 +35,15 @@ function createAnimatorFromConfig(
     adapter?: PxPlatformAdapter,
     callbacks?: PxPlayerCallbacks,
     rootElement?: Element | null
-): PxAnimationPlayerApi {
+): PxPlayerEngineApi {
     return bindWithEngineChoice(doc, adapter, callbacks, rootElement, mode);
+}
+
+/** One build of the player: the engine api, the document as rendered (materialized, fresh ids) and its root. */
+interface PxBuiltPlayer {
+    readonly api: PxPlayerEngineApi;
+    readonly doc: PxDocument;
+    readonly root: Element | null;
 }
 
 
@@ -52,7 +60,9 @@ function createAnimatorFromConfig(
  * @param containerElement Optional selector or element to render the SVG into.
  * @param providedRoot The root `<svg>` a caller rendered itself — used when there is no container.
  * @param mode The control mode the options picked (core `resolveControlMode`).
- * @returns An PxAnimationPlayerApi instance to programmatically control the animation.
+ * @param renderIntoProvidedRoot A rebuild for a root the caller rendered: the new content replaces the root's
+ *        children (the root element itself, and the attributes its framework set, stay).
+ * @returns The build: the engine api, the document as rendered, its root.
  */
 function createAnimatorImpl(
     doc: PxDocument,
@@ -62,7 +72,8 @@ function createAnimatorImpl(
     containerElement?: string | Element,
     override?: PxPlaybackOverrideInput,
     providedRoot?: Element,
-): PxAnimationPlayerApi {
+    renderIntoProvidedRoot?: boolean,
+): PxBuiltPlayer {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
     // `onWarning` / `onError` if given, the console otherwise — unless `suppressWarnings` / `suppressErrors` switch it off.
@@ -131,8 +142,16 @@ function createAnimatorImpl(
     }
 
     // A caller that rendered the document itself hands over the root it rendered — see
-    // `PxInternalAnimationPlayerOptions.rootElement`. A container render above always wins.
-    if (!rootElement && providedRoot) rootElement = providedRoot;
+    // `PxInternalAnimationPlayerOptions.rootElement`. A container render above always wins. A rebuild (variables)
+    // renders the new content into that root itself: its children are replaced, the element stays.
+    if (!rootElement && providedRoot) {
+        if (renderIntoProvidedRoot) {
+            doc = prepareDocument(doc, { engine, freshIds: true });
+            const fresh = renderNode(doc, undefined, diag);
+            if (fresh) providedRoot.replaceChildren(...Array.from(fresh.childNodes));
+        }
+        rootElement = providedRoot;
+    }
 
     const api = createAnimatorFromConfig(doc, mode, adapter, callbacks, rootElement);
 
@@ -149,7 +168,7 @@ function createAnimatorImpl(
         };
     }
 
-    return api;
+    return { api, doc, root: rootElement };
 }
 
 // Re-exported so this module's public surface is unchanged; declared in
@@ -164,7 +183,7 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
  * `timeline.actionTriggers` start (and gate) playback.
  * @public
  */
-export type PxAnimationPlayerOptions = PxPlaybackOverride & PxCommonControlProps & PxAnimationPlayerCallbacks & {
+export type PxAnimationPlayerOptions = PxPlaybackOverride & PxCommonControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
     /** The animation document: a URL to fetch it from, or the document itself (see docs/format/README.md) — typed as a
      *  JSON import produces it ({@link PxDocumentJson}), so `import animation from './animation.json'` passes with no
      *  cast. A string is always a URL. (`src` / `doc` until 1.25 — two names for one thing.) */
@@ -197,13 +216,78 @@ export type PxInternalAnimationPlayerOptions = PxAnimationPlayerOptions & {
      * the element, so it hands it over rather than have it guessed.
      */
     rootElement?: Element;
+
+    /**
+     * The variables of a component that rendered the document itself (React, Vue): it resolved the document with
+     * them before rendering, so the player takes them over instead of reading `document` again — the same values,
+     * the same marked nodes.
+     */
+    variablesRuntime?: PxVariablesRuntime;
 };
 
 /** The one place `createSvgAnimationPlayer` reads past its public signature — see `PxInternalAnimationPlayerOptions`. */
 function isInternalOptions(options: PxAnimationPlayerOptions): options is PxInternalAnimationPlayerOptions {
-    // EITHER internal key. Testing `adapter` alone meant a caller passing only `rootElement` —
+    // ANY internal key. Testing `adapter` alone meant a caller passing only `rootElement` —
     // what the React and Vue components do — had it silently ignored.
-    return 'adapter' in options || 'rootElement' in options;
+    return 'adapter' in options || 'rootElement' in options || 'variablesRuntime' in options;
+}
+
+/** A playback state carried across a rebuild (§7: a change never seeks, pauses or restarts the animation). */
+interface PxPlaybackSnapshot {
+    readonly state: PxPlaybackState;
+    readonly time: number;
+    readonly speed: number;
+}
+
+function snapshotOf(playback: PxPlaybackControls): PxPlaybackSnapshot {
+    return { state: playback.getState(), time: playback.getTotalTime() ?? 0, speed: playback.getSpeed() };
+}
+
+/** Puts a fresh build where the old one was — the state, the time and the speed. A finished playback comes back
+ *  paused at its last frame (accepted limit: the executor's `finished` cannot be set from outside). */
+function restorePlayback(playback: PxPlaybackControls, s: PxPlaybackSnapshot): void {
+    if (s.speed !== 1) playback.setSpeed(s.speed);
+    switch (s.state) {
+        case PxPlaybackState.playing:
+        case PxPlaybackState.returning:
+            playback.start();
+            if (s.time) playback.setTotalTime(s.time);
+            break;
+        case PxPlaybackState.paused:
+            playback.start();
+            playback.setTotalTime(s.time);
+            playback.pause();
+            break;
+        case PxPlaybackState.finished:
+            playback.setTotalTime(s.time);
+            break;
+        default:
+            break;
+    }
+}
+
+/** The document without `load` in its start and play lists — a rebuild must not start the animation again. */
+function withoutLoadTriggers(doc: PxDocument): PxDocument {
+    const triggers = getAnimatorConfig(doc)?.actionTriggers;
+    if (!triggers) return doc;
+    const start = triggerEventList(triggers['playback.start']).filter(e => e !== 'load');
+    const play = triggerEventList(triggers['playback.play']).filter(e => e !== 'load');
+    return withActionTriggers(doc, { ...triggers, 'playback.start': start, 'playback.play': play });
+}
+
+/** The callbacks, silent while `muted()` — a rebuild's own starts, pauses and destroy are not the caller's events. */
+function mutedWhile(callbacks: PxPlayerCallbacks, muted: () => boolean, onActivity: () => void): PxPlayerCallbacks {
+    const gate = <A extends Array<unknown>>(fn: ((...args: A) => void) | undefined) =>
+        (...args: A): void => { onActivity(); if (!muted()) fn?.(...args); };
+    return {
+        ...callbacks,
+        onPlaybackStart: gate(callbacks.onPlaybackStart),
+        onPlaybackStop: gate(callbacks.onPlaybackStop),
+        onPlaybackPause: gate(callbacks.onPlaybackPause),
+        onPlaybackResume: gate(callbacks.onPlaybackResume),
+        onPlaybackFinish: gate(callbacks.onPlaybackFinish),
+        onDestroy: (...args) => { if (!muted()) callbacks.onDestroy?.(...args); },
+    };
 }
 
 /**
@@ -237,16 +321,23 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         throw new Error('createSvgAnimationPlayer: `document` is required — a URL, or the document itself');
     }
 
-    let animator: PxAnimationPlayerApi | null = null;
+    let animator: PxPlayerEngineApi | null = null;
+    // Variables (docs/library/variables.md): the runtime holds the values, the web side draws them; created with the
+    // document, so calls made before then wait — and land before the first paint
+    const providedRuntime = isInternalOptions(options) ? options.variablesRuntime : undefined;
+    let runtime: PxVariablesRuntime | undefined;
+    let variables: PxWebVariables | undefined;
+    let pendingVariables: Array<(api: PxVariablesApi) => void> = [];
+    let muted = false;
 
     // Control calls made before the player exists are queued and replayed (in order) once it
     // is ready, so e.g. `createSvgAnimationPlayer({ document: url }).playback.start()` works as expected. Getters are not
     // queued — they return their "not ready yet" value until then. With an inline document the player is
     // ready before this returns; the same proxy then simply forwards.
-    let pending: Array<(api: PxAnimationPlayerApi) => void> | null = [];
+    let pending: Array<(api: PxPlayerEngineApi) => void> | null = [];
     let destroyed = false;
 
-    const enqueue = (call: string, run: (api: PxAnimationPlayerApi) => void) => {
+    const enqueue = (call: string, run: (api: PxPlayerEngineApi) => void) => {
         if (destroyed) {
             // a call on a destroyed player is a no-op, said once per call — `playback.getState()` reads `destroyed`
             diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.callAfterDestroy, call);
@@ -260,7 +351,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
     for (const w of control.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.controlPropsConflict, w);
 
-    const ready = (api: PxAnimationPlayerApi): void => {
+    const ready = (api: PxPlayerEngineApi): void => {
         animator = api;
         const queued = pending;
         pending = null;
@@ -276,13 +367,68 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     };
     // Building the player threw: a broken document past validation, or a player bug — never a
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
+    const engineCallbacks = mutedWhile(callbacks, () => muted, () => variables?.onPlaybackActivity());
     const build = (document: PxDocument): void => {
         try {
-            ready(createAnimatorImpl(document, control.mode, adapter, callbacks, container, options, providedRoot));
+            const rt = providedRuntime ?? new PxVariablesRuntime(document, options, diag);
+            runtime = rt;
+            for (const call of pendingVariables) call(rt.api);
+            pendingVariables = [];
+            rt.takeChanges();   // the first build reads them all
+            // a component that rendered the document passes the document it rendered: resolved already
+            const toBuild = providedRuntime || !rt.hasVariables() ? document : rt.resolvedDocument(true);
+            const first = createAnimatorImpl(toBuild, control.mode, adapter, engineCallbacks, container, options, providedRoot);
+            if (rt.hasVariables()) {
+                variables = new PxWebVariables(rt, { playback: () => animator?.playback, rebuild });
+                variables.bind(first.doc, first.root);
+            }
+            ready(first.api);
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
         }
+    };
+
+    // A change direct writes cannot make (an effect's setting, an animated default switching): the player is built
+    // again from the runtime's current document, in the same place, its playback state and time carried over.
+    function rebuild(): void {
+        const previous = animator;
+        const rt = runtime;
+        if (!previous || !rt || destroyed) return;
+        const snapshot = snapshotOf(previous.playback);
+        muted = true;
+        try {
+            const doc = withoutLoadTriggers(rt.resolvedDocument(true));
+            const quiet: PxPlayerCallbacks = { ...engineCallbacks, onWarning: undefined, suppressWarnings: true };
+            const next = createAnimatorImpl(doc, control.mode, adapter, quiet, container, options, providedRoot, !container);
+            previous.destroy();
+            animator = next.api;
+            restorePlayback(next.api.playback, snapshot);
+            variables?.bind(next.doc, next.root);
+        } catch (e) {
+            diag.error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, asThrownError(e));
+        } finally {
+            muted = false;
+        }
+    }
+
+    // `player.variables` — forwards once the runtime exists; writes made earlier wait for it
+    const withVariables = (run: (api: PxVariablesApi) => void): void => {
+        if (destroyed) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.callAfterDestroy, 'variables');
+        else if (runtime) run(runtime.api);
+        else pendingVariables.push(run);
+    };
+    const variablesApi: PxVariablesApi = {
+        get: name => runtime?.api.get(name),
+        set: (name, value) => withVariables(api => api.set(name, value)),
+        setVariables: values => withVariables(api => api.setVariables(values)),
+        getAll: () => runtime?.api.getAll() ?? {},
+        getKeys: () => runtime?.api.getKeys() ?? [],
+        reset: name => withVariables(api => api.reset(name)),
+        getDefinitions: () => runtime?.api.getDefinitions() ?? {},
+        setVariant: name => withVariables(api => api.setVariant(name)),
+        getVariant: () => runtime ? runtime.api.getVariant() : (options.variant ?? null),
+        getVariantKeys: () => runtime?.api.getVariantKeys() ?? [],
     };
 
     // The proxy: forwards once the player exists, queues control calls until then. Built and
@@ -293,13 +439,16 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         // player exists, writes go through the queue
         "playback": forwardPlaybackControls(
             () => animator?.playback,
-            (call, run) => enqueue(call, api => run(api.playback)),
+            (call, run) => enqueue(call, api => { run(api.playback); variables?.onPlaybackActivity(); }),
             () => destroyed ? PxPlaybackState.destroyed : PxPlaybackState.off),
+        "variables": variablesApi,
         "isReady": () => !!animator,
         "getRootElement": () => animator ? animator.getRootElement() : null,
         "destroy": () => {
             destroyed = true;
             pending = null; // drop any queued calls
+            pendingVariables = [];
+            variables?.destroy();
             animator?.destroy();
         }
     };
@@ -328,7 +477,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
  * diagnostics channel, the playback override.
  * @public
  */
-export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxCommonControlProps & PxAnimationPlayerCallbacks;
+export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxCommonControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks;
 
 /**
  * Scan the page for `<div data-px-document="animation.json">` and create one player per

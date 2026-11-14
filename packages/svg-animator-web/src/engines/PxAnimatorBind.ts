@@ -5,14 +5,14 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
-import { applyPlaybackOverride, composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { applyPlaybackOverride, composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import { webRaf } from '../shared/PxWebRaf';
-import type { PxAnimationPlayerApi, PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimationPlayerApi, PxEngineAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '../scroll/PxScrollDriver';
 
@@ -37,7 +37,7 @@ export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
     callbacks: PxPlayerCallbacks | undefined,
     make: (engineCallbacks?: PxEngineCallbacks) => PxEngineAnimationPlayerApi<Element>
-): PxAnimationPlayerApi {
+): PxPlayerEngineApi {
 
     let executor: PxPlayExecutor | undefined;
     const engineCallbacks: PxEngineCallbacks = {
@@ -70,7 +70,7 @@ export function bindWithEngineChoice(
     callbacks?: PxPlayerCallbacks,
     rootElement?: Element | null,
     mode: PxControlMode = PxControlMode.actionTriggers,
-): PxAnimationPlayerApi {
+): PxPlayerEngineApi {
     // One channel for everything this binder and the scroll driver have to say (review §5).
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
     if (mode === PxControlMode.static) return guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false));
@@ -86,7 +86,7 @@ function bindEngine(
     rootElement: Element | null | undefined,
     diag: ReturnType<typeof createDiagnostics>,
     followScroll: boolean,
-): PxAnimationPlayerApi {
+): PxPlayerEngineApi {
     const animatorConfig = getAnimatorConfig(doc) || {};
 
     // Scroll-driven document: the playhead follows scroll position, never the wall
@@ -172,7 +172,7 @@ function bindEngine(
 
 /** On a scroll / view timeline the scroll position owns the playhead: the playback verbs are no-ops that say so
  *  (PX1505 `scrollOwnsPlayhead`); seeks still apply until the next scroll moves the playhead. */
-function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxAnimationPlayerApi): PxAnimationPlayerApi {
+function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxPlayerEngineApi): PxPlayerEngineApi {
     const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
     const playback = api.playback;
     playback.start = ignored(PxPlaybackWrite.start);
@@ -187,7 +187,7 @@ function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, a
 
 /** `showAsStatic`: the picture stays as drawn — every playback write is a no-op that says so (PX1506
  *  `showAsStaticIgnoresCall`); the reads answer from the engine, which never moves. */
-function guardStaticPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxAnimationPlayerApi): PxAnimationPlayerApi {
+function guardStaticPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxPlayerEngineApi): PxPlayerEngineApi {
     const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.showAsStaticIgnoresCall, call);
     const playback = api.playback;
     playback.start = ignored(PxPlaybackWrite.start);
@@ -243,7 +243,7 @@ function requireDoc(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
  * Builds the player; when that throws, reports "this instance will not play" through the
  * diagnostics channel and returns an inert API instead of throwing at the caller.
  */
-function buildOrReport(options: PxPrerenderedAnimationPlayerOptions, build: () => PxAnimationPlayerApi): PxAnimationPlayerApi {
+function buildOrReport(options: PxPrerenderedAnimationPlayerOptions, build: () => PxPlayerEngineApi): PxPlayerEngineApi {
     try {
         return build();
     } catch (e) {
@@ -272,9 +272,12 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerO
  * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
  * the playback events and the finish through the callbacks the player is given.
  */
-function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxPlayerCallbacks) => PxAnimationPlayerApi): PxAnimationPlayerApi {
+function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxPlayerCallbacks) => PxPlayerEngineApi): PxAnimationPlayerApi {
     let apiRef: PxAnimationPlayerApi | undefined;
-    const api = build(withRegistryEvents(toPlayerCallbacks(options), () => apiRef));
+    // A pre-rendered SVG has its values baked in by the editor: `variables` reads the document's declarations, and
+    // a value set here is stored but not drawn (accepted limit — the JSON player draws every change).
+    const variables = new PxVariablesRuntime(toPxDocument(options.document), undefined, createDiagnostics(options, '[PxAnimator]')).api;
+    const api: PxAnimationPlayerApi = { ...build(withRegistryEvents(toPlayerCallbacks(options), () => apiRef)), variables };
     if (api.isReady()) {
         apiRef = api;
         registerAnimator(api);

@@ -16,8 +16,9 @@ share. (Playing a **pre-rendered SVG** needs no library — see
 7. [Nuxt](./nuxt.md) — the Vue component in a Nuxt app
 8. [React Native (`@pixodesk/svg-animator-rn`)](./react-native.md) 🧪 — *in development*; install, props, feature support, limitations
 9. [Playback settings & triggers](./playback-and-triggers.md) — the `animator` configuration, and overriding it from props or the player API
-10. [Minification & property mangling](./minification.md) — safe by default; what to do if your build renames object keys
-11. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behavior
+10. [Variables](./variables.md) — values the page changes while it plays: from code, a named variant, or the stylesheet
+11. [Minification & property mangling](./minification.md) — safe by default; what to do if your build renames object keys
+12. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behavior
 
 Below is what every player has in common — the same props under the same names, the same
 callbacks, the same rule for who controls playback, the same meaning of time — so what you learn
@@ -37,6 +38,7 @@ file needs no package at all.
 | Play a JSON file in a page | `createSvgAnimationPlayer({ document, container })` (web) |
 | Play it in React / Vue | `<SvgAnimationPlayer :document … />` |
 | Play it in React Native | `<SvgAnimationPlayer document={…} />` (rn) |
+| Change a colour, a size or a text from your app while it plays | `variables={{ … }}` · `player.variables.set(name, value)` — [Variables](./variables.md) |
 | Check a generated document before shipping it | `validateDocument(doc)` |
 | Show the same JSON animation twice on one page | nothing extra — every player gives each render fresh ids (`generateNewIds(doc)` is for a renderer of your own) |
 | Feed a renderer of your own | `materializeAllInTree(doc, 'native')` (core) |
@@ -80,6 +82,10 @@ a number when it differs — the note with that number, under the table, says ho
 | `playback` | — | — | — | ✓ | ✓ | ✓ |
 | `showAtProgress` | — | — | — | ✓ | ✓ | ✓ |
 | `showAtTime` | — | — | — | ✓ | ✓ | ✓ |
+| **Variables** | | | | | | |
+| `variables` | ✓ | 12 | — | ✓ | ✓ | ✓ |
+| `variant` | ✓ | 12 | — | ✓ | ✓ | ✓ |
+| `cssVariables` | ✓ | 12 | — | ✓ | ✓ | — |
 | **Imperative control** | | | | | | |
 | `playerRef` | 6 | 7 | 6 | ✓ | 8 | ✓ | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
 | **Callbacks** | | | | | | |
@@ -115,6 +121,9 @@ a number when it differs — the note with that number, under the table, says ho
 10. The tag has no attribute for it: each file plays on its own triggers. The call that reads the tags takes the
     option for every player it creates — `createSvgAnimationPlayersFromPage({ disableActionTriggers: true })`.
 11. Required, and the document itself, never a URL — see `document` below.
+12. The tag has no attribute for it: the call that reads the tags takes the option for every player it creates —
+    `createSvgAnimationPlayersFromPage({ variant: 'dark' })`. With `cssVariables`, a tag's own
+    `style="--bg: #111827"` gives that player its value.
 
 What some of the names mean:
 
@@ -156,8 +165,13 @@ What some of the names mean:
 - **`showAtProgress`** shows the frame at a position counted in iterations — `0.5` half-way through the first,
   `1.2` 20 % into the second ([Moving the playhead](./playback-and-triggers.md#moving-the-playhead));
   **`showAtTime`** shows the frame at that many ms inside the iteration, `0` to `playback.getDuration()`.
+- **`variables`** gives the file's [variables](./variables.md) values by name — `{ bg: '#111827', title: 'Hi' }`;
+  they win over the file, and a name that leaves the prop goes back to the file's value. A change is drawn on the
+  next frame and never restarts the animation. **`variant`** picks a named set of defaults from the file;
+  **`cssVariables`** delivers variables as CSS custom properties, so the page's stylesheet can set them (not on
+  React Native). The pre-rendered `bind` takes none of them: its values were written in at export.
 - **`playerRef`** is the handle for calling `playback.start()`, `playback.play()`, `playback.pause()`, `playback.stop()` and the
-  rest from your code. Having it never changes how the component is controlled.
+  rest from your code, and `variables.set()` for the variables. Having it never changes how the component is controlled.
 - **`onDestroy`** fires when the player is thrown away: `destroy()`, an unmount, or a new `document`.
   **`onPlaybackStop`** fires when the built-in stop is performed — at once, or on arrival for the stops that
   finish the pass first — not on a pause (`onPlaybackPause`), the end (`onPlaybackFinish`) or a removal (`onDestroy`).

@@ -158,7 +158,7 @@ const playerRef = useRef<PxAnimationPlayerHandle>(null);
 <Button title="Restart" onPress={() => playerRef.current?.playback.start()} />
 ```
 
-`PxAnimationPlayerHandle` is `{ playback }` — the same `PxPlaybackControls` as the web player: the five buttons
+`PxAnimationPlayerHandle` is `{ playback, variables }` — `variables` is the document's variables ([Variables](#variables)); `playback` the same `PxPlaybackControls` as the web player: the five buttons
 `playback.start()` (always from the start, in every state), `playback.play()` (start, or carry on — a paused
 playback resumes, a picture on its way back turns around, nothing while playing), `playback.stop()` (the configured
 stop, `actions["playback.stop"]` — `animateToEnd` stops after the current pass), `playback.pause()`,
@@ -186,6 +186,20 @@ const [time, setTime] = useState(0);
 <Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
 ```
 
+### Variables
+
+A file can declare variables — a colour, a size, a caption — and your app gives them values:
+
+```tsx
+<SvgAnimationPlayer document={card} variables={{ bg: theme.accent, title: user.name }} variant="dark" playerRef={playerRef} />
+
+playerRef.current?.variables.set('size', 60);   // or from code, through the handle
+```
+
+A change compiles the document again with the new values on the next frame; the playback keeps running. Not
+here yet: `cssVariables` (there is no stylesheet) and the player's own `player.pointer` / `player.playback.…`
+variables. See [Variables](../../docs/library/variables.md#react-native).
+
 ## Props
 
 <!-- px-check props SvgAnimationPlayerProps pkg=rn -->
@@ -201,6 +215,8 @@ const [time, setTime] = useState(0);
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `playback.getDuration()`) |
 | `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, merged over it — same shape as the file; a key left out keeps the file's value. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'playback.stop': 'animateToStart' }`, and `outOfView`; a setting left out reads its default (what shows once finished, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; a name that leaves the prop goes back to the file's value. A change compiles the document again; the playback keeps running. See [Variables](../../docs/library/variables.md#react-native) |
+| `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
 | `onReady` | `() => void` | The player exists and the tree is rendered — once, async |
 | `onPlaybackStart` | `() => void` | A playback began — `playback.start()`, `playback.play()` from rest, a `playback.start` / `playback.play` trigger, `playback` to `'on'` / `'paused'` from `'off'`, the visibility gate starting it again |
 | `onPlaybackResume` | `() => void` | The playback carried on after a freeze — `playback.resume()`, `playback.play()`, a `playback.resume` trigger, `playback` back to `'on'`, the visibility gate when it is seen again |

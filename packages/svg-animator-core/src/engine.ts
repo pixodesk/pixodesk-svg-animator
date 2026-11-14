@@ -48,3 +48,11 @@ export type { PxEngineAnimationPlayerApi } from './format/PxAnimatorTypes';
 export { toDomProps } from './util/PxNodeProps';
 
 export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue } from './format/PxAnimatorConstants';
+
+// Variables (schema 1.27) — one player's values, and the binding grammar (docs/library/variables.md)
+export { PxVariablesRuntime, applyVariablesProp } from './variables/PxVariablesRuntime';
+export type { PxVariableChanges } from './variables/PxVariablesRuntime';
+export { PxVariableBinding, PxFormulaNode, PxFormulaNumber, PxFormulaVariable, PxFormulaNegate, PxFormulaBinary, PxFormulaOperator, renameInBinding, isVariableReadName } from './variables/PxFormula';
+export type { PxVariableBindingParseResult, PxVariableReader } from './variables/PxFormula';
+export { collectBindingSites, isPredefinedVariableName } from './variables/PxVariableBindings';
+export type { PxBindingSite } from './variables/PxVariableBindings';

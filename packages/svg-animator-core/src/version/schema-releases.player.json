@@ -449,5 +449,19 @@
   "added": [],
   "removed": [],
   "note": "State words and move words (dev-docs/plans/animation-state.feedback.2026-11-12.md): `playback.start` always plays from the start, so `actions[\"playback.start\"]` leaves the file — its default `continue` becomes the new `playback.play` list for the events where the two differ (hover, click; `load` stays a start), and `jumpToStart` / `jumpToEnd` become plain starts. `timeline.atEnd` → `timeline.whenFinished` (the playback stays finished whatever it then shows), `actions.outOfView: jumpToStart` → `stop`, and the stop gains `animateToEndAndBack`."
+ },
+ {
+  "version": "1.27",
+  "date": "2026-11-14",
+  "added": [
+   "animator.definitions.variableVariants",
+   "animator.definitions.variables",
+   "animator.definitions.variables{*}.defaultSource",
+   "animator.definitions.variables{*}.defaultValue",
+   "animator.definitions.variables{*}.description",
+   "animator.definitions.variables{*}.type"
+  ],
+  "removed": [],
+  "note": "Variables (docs/library/variables.md): `definitions.variables` declares named, typed values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere may be written `\"variable(name)\"` or `\"calc(…)\"` instead of the value. Nothing older has any of it, so there is nothing to convert up."
  }
 ]

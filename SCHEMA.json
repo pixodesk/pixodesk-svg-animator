@@ -2823,6 +2823,45 @@
             ],
             "additionalProperties": false
           }
+        },
+        "variables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "enum": [
+                  "number",
+                  "vector",
+                  "color",
+                  "string",
+                  "boolean",
+                  "image",
+                  "numberList",
+                  "path"
+                ]
+              },
+              "defaultValue": {},
+              "description": {
+                "type": "string"
+              },
+              "defaultSource": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "defaultValue"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "variableVariants": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {}
+          }
         }
       },
       "additionalProperties": false

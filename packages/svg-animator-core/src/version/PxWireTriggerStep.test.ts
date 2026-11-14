@@ -187,7 +187,8 @@ describe('wire step 1.8 → 1.9 — WHEN in the trigger, HOW on the timeline (co
 const STEPS_TO_1_11 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.12'));
 const convertTo111 = (doc: unknown) => applyWireSteps(doc, { steps: STEPS_TO_1_11, target: { a: 1, b: 11, c: 0 }, readerReadsEditorPart: false });
 /** Every step from `from` on, by its `to` — what a document stamped `from` goes through to reach the current version. */
-const stepsFrom = (from: string): Array<string> => PX_WIRE_STEPS.slice(PX_WIRE_STEPS.findIndex(s => s.from === from)).map(s => s.to);
+// the steps that convert — an additive step (1.27, variables) has no `up` and is not listed as applied
+const stepsFrom = (from: string): Array<string> => PX_WIRE_STEPS.slice(PX_WIRE_STEPS.findIndex(s => s.from === from)).filter(s => s.up).map(s => s.to);
 
 describe('wire step 1.9 → 1.10 — triggers and actions (playback-layers.md, layers 0–1); read through 1.11', () => {
     const doc19 = (timeline: Record<string, unknown>) =>

@@ -7,11 +7,11 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
-import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxVariablesOptions, type PxVariableValue } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { createDiagnostics, deepEquals, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
-import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
+import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { useDepsVersion } from './Utils';
 
 
@@ -72,6 +72,8 @@ export interface SvgAnimatorImplProps {
     style?: CSSProperties;
     doc: PxDocument;
     compMode: PxControlMode;
+    /** The variables the document was resolved with — the player takes them over and draws their changes. */
+    runtime: PxVariablesRuntime;
 
     /** Imperative API handle populated by the inner component. */
     apiHolderRef: React.RefObject<PxAnimationPlayerApi | null>;
@@ -107,7 +109,7 @@ export type SvgAnimationPlayerCallbacks =
  * React-specific is declared here. `SvgCssAnimationPlayerProps` derives from this type — a change here is checked there.
  * @public
  */
-export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxAnimationPlayerCallbacks & {
+export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
 
     /** Added to the root `<svg>`. */
     className?: string;
@@ -150,7 +152,7 @@ export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxAn
 
 // @px-importance important
 const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
-    className, style, doc, compMode, apiHolderRef, callbacksRef, diagRef
+    className, style, doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef
 }) => {
 
     // Render what the web player renders: materialized, then fresh ids. Rendering the raw
@@ -207,6 +209,8 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             // trigger option (the document's own, already patched, decide) — only `showAsStatic`, whose guard
             // (no scroll, every playback call ignored) lives in the player.
             showAsStatic: compMode === PxControlMode.static,
+            // the variables the document was resolved with: the player draws their changes, React never re-renders
+            variablesRuntime: runtime,
             // Refs are attached during commit, before this effect runs, so the root exists here.
             rootElement: rootRef.current ?? undefined,
             onReady:  cb('onReady'),
@@ -228,7 +232,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             api?.destroy();
             apiHolderRef.current = null;
         };
-    }, [doc, compMode, apiHolderRef, callbacksRef, diagRef]);
+    }, [doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef]);
 
     return root;
 };
@@ -287,14 +291,21 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // Override — the file's timing merged, its actions replaced (D4, playback-layers.md); the triggers travel with `actionTriggers`
     timelineOptions, actions,
 
+    // Variables (docs/library/variables.md): values from the host, a variant, CSS delivery
+    variables, variant, cssVariables,
+
     onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy,
 
     // Diagnostics (API review §5)
     onWarning, onError, suppressWarnings, suppressErrors
 }) => {
-    // ONE type-level narrowing from the JSON-import shape (§5); the runtime validates values.
-    // `let`: the timeline overrides below replace it with the patched copy.
-    let doc = toPxDocument(docInput);
+    // A re-created document with the same content keeps everything (core `deepEquals`, as in Vue and React Native):
+    // the per-render work below is keyed on the INPUTS, so a parent re-rendering — sixty times a second with a new
+    // `variables` value — does no document work at all.
+    const docRef = useRef(docInput);
+    if (docRef.current !== docInput && !deepEquals(docRef.current, docInput)) docRef.current = docInput;
+    const stableDoc = docRef.current;
+    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, actionTriggers ?? null]);
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `playerRef` is deliberately NOT an input: the handle is populated in
@@ -323,27 +334,39 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // The override, applied ONCE through core's one rule (D4: the timing merged, the `actions` and `actionTriggers`
     // blocks replacing the file's), and then the component's own need to take the triggers over in every
     // control mode but `actionTriggers` — the EMPTY block goes on AFTER the caller's override.
-    const overridden = applyPlaybackOverride(doc, { timelineOptions, actions, actionTriggers });
-    if (overridden.warnings.length) {
-        const diag = makeDiag();
-        for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
-    }
-    doc = overridden.doc;
-    if (controlModeTakesOverTrigger(compMode)) doc = withoutTriggerDriver(doc);
+    const patched = useMemo(() => {
+        let doc = toPxDocument(stableDoc);
+        const overridden = applyPlaybackOverride(doc, { timelineOptions, actions, actionTriggers });
+        if (overridden.warnings.length) {
+            const diag = makeDiag();
+            for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
+        }
+        doc = overridden.doc;
+        if (controlModeTakesOverTrigger(compMode)) doc = withoutTriggerDriver(doc);
 
-    // §10: the EFFECTIVE iterations (file + the `iterations` prop, folded into the patched doc
-    // above) decide what `playback` drives — a POSE (one pass) or a PLAYBACK (loop).
-    const animatorView = getAnimatorConfig(doc) || {};
-    const world = resolvePlaybackWorld(animatorView.iterations);
-    const passMs = animatorView.duration ?? PX_DEFAULT_DURATION_MS;
-    const totalMs = animatorView.iterations === 'infinite' ? Infinity
-        : passMs * (typeof animatorView.iterations === 'number' && animatorView.iterations >= 1 ? animatorView.iterations : 1);
-    if (compMode === PxControlMode.playback && world === PxPlaybackWorld.oneShot) {
-        // The pose contract beats the file's rest poses (§10, D5): while `playback` names a pose, the held
-        // poses must be the same on every file — a `whenFinished: jumpToStart` document would revert to its
-        // static attrs after the playback. Pin both sides: the first frame before, the last frame after.
-        doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, whenFinished: PxWhenFinished.hold } }).doc;
-    }
+        // §10: the EFFECTIVE iterations (file + the `iterations` prop, folded into the patched doc
+        // above) decide what `playback` drives — a POSE (one pass) or a PLAYBACK (loop).
+        const world = resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations);
+        if (compMode === PxControlMode.playback && world === PxPlaybackWorld.oneShot) {
+            // The pose contract beats the file's rest poses (§10, D5): while `playback` names a pose, the held
+            // poses must be the same on every file — a `whenFinished: jumpToStart` document would revert to its
+            // static attrs after the playback. Pin both sides: the first frame before, the last frame after.
+            doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, whenFinished: PxWhenFinished.hold } }).doc;
+        }
+        return { doc, world };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `overrideKey` stands for the three override props; `makeDiag` reads the current props
+    }, [stableDoc, overrideKey, compMode]);
+    const world = patched.world;
+
+    // The variables (§4): created with the document, read by the first render; later values go to the runtime and
+    // the player draws them on its next frame — React never re-renders the tree for a variable.
+    const cssKey = JSON.stringify(cssVariables ?? null);
+    const runtime = useMemo(
+        () => new PxVariablesRuntime(patched.doc, { variables, variant, cssVariables }, makeDiag()),
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- the values later travel by `setVariables` below; `cssKey` stands for `cssVariables`
+        [patched, cssKey]);
+    const doc = useMemo(() => runtime.resolvedDocument(true), [runtime]);
+    useVariablesProps(runtime, variables, variant);
 
     // Controlled-time mode: the frame to show — `showAtProgress` counts iterations in play order (the handle's
     // `getCurrentProgress` axis, 1.26), `showAtTime` is ms inside the iteration (`getCurrentTime`). The seek goes through
@@ -379,8 +402,9 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
             playback: forwardPlaybackControls(
                 () => apiHolderRef.current?.playback,
                 (call, run) => { guardWrite(call); const playback = apiHolderRef.current?.playback; if (playback) run(playback); }),
+            variables: runtime.api,
         };
-    }, [compMode]);
+    }, [compMode, runtime]);
 
     // Increment key when the document, mode, or root styling changes to force
     // a full remount (the inner component is memoised and never re-renders).
@@ -421,11 +445,31 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
             style={style}
             compMode={compMode}
             doc={doc}
+            runtime={runtime}
             apiHolderRef={apiHolderRef}
             callbacksRef={callbacksRef}
             diagRef={diagRef}
         />
     );
 };
+
+/**
+ * The `variables` and `variant` props → the runtime, declaratively: a changed value is set, a name that left the prop
+ * goes back to what the file says (`reset`). The compare is per name and cheap, so a parent re-rendering sixty times a
+ * second costs one `setVariables` call per render and nothing else. A new runtime starts from the props it was
+ * created with.
+ */
+function useVariablesProps(runtime: PxVariablesRuntime, variables: Readonly<Record<string, PxVariableValue>> | undefined, variant: string | null | undefined): void {
+    const applied = useRef<{ runtime: PxVariablesRuntime; values: Readonly<Record<string, PxVariableValue>>; variant: string | null } | null>(null);
+    useEffect(() => {
+        const next = variables ?? {};
+        const nextVariant = variant ?? null;
+        const prev = applied.current;
+        applied.current = { runtime, values: next, variant: nextVariant };
+        if (!prev || prev.runtime !== runtime) return;   // created with these props
+        if (prev.variant !== nextVariant) runtime.api.setVariant(nextVariant);
+        applyVariablesProp(runtime.api, prev.values, next);
+    });
+}
 
 export default SvgAnimationPlayer;

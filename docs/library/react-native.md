@@ -189,7 +189,8 @@ export function Imperative() {
 }
 ```
 
-`PxAnimationPlayerHandle` is `{ playback }` — the same `PxPlaybackControls` as the web player
+`PxAnimationPlayerHandle` is `{ playback, variables }` — `variables` is the document's variables, the same API
+as on the web ([Variables](./variables.md#react-native)); `playback` the same `PxPlaybackControls` as the web player
 ([every member](./web-player.md#the-playback-api)): the five buttons `playback.start()` (always from the start, in
 every state), `playback.play()` (start, or carry on — a paused playback resumes, a picture on its way back turns
 around, nothing while playing), `playback.stop()` (the configured stop, `actions["playback.stop"]`),
@@ -277,9 +278,15 @@ interface SvgAnimationPlayerProps {
     showAtProgress?: number;              // a position counted in iterations — 1.2 = 20 % into the second
     showAtTime?: number;                  // ms inside one iteration, 0..playback.getDuration()
 
-    playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // `{ playback }` — the same `PxPlaybackControls` as on the
+    playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // `{ playback, variables }` — the same `PxPlaybackControls` as on the
                                           //   web, the same meanings: iteration time, `total…` for the playback, the
                                           //   `…AtSpeed` reads at the current speed, clamped seeks, speed 0 rejected
+
+    // Variables — `PxVariablesOptions` minus `cssVariables` (no stylesheet here). A change compiles the document
+    // again on the next frame; the playback keeps running
+    variables?: Readonly<Record<string, PxVariableValue>>;   // values by name — they win over the file; a name that
+                                          //   leaves the prop goes back to the file's value
+    variant?: string | null;              // a named set of defaults from `definitions.variableVariants`
 
     // Lifecycle — no arguments; the same meanings as on the web
     onReady?: () => void;                 // once per compiled document, asynchronously
@@ -356,6 +363,7 @@ numbers `inViewThreshold` and `inViewDebounce`; the triggers are the `actionTrig
 | `timeline.engine` | accepted — in the file, or inside `timelineOptions` — but ignored — there is no Web Animations API on React Native; playback is always native-driven |
 | `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60 |
 | `hoverIn` / `hoverOut` | have no touch equivalent, so they never fire. `load` and `click` (a tap) work as they do on the web, from the file or from `actionTriggers` |
+| `variables` / `variant` | accepted; a change compiles the document again with the new values (the web writes only the bound attributes). The predefined `player.…` variables are not fed yet, and there is no `cssVariables` — see [Variables](./variables.md#react-native) |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
 
 ### Failure handling
@@ -473,6 +481,9 @@ not supported.
 | Cubic-bezier and named easings | ✅ | |
 | `definitions.animations` / `easings` / `fonts` | ✅ | |
 | `node.style` (inline record) | ✅ | |
+| Variables: `variables`, `variant`, bindings and formulas, variants | ✅ | a change compiles the document again — [Variables](./variables.md#react-native) |
+| Predefined variables (`player.pointer`, `player.playback.…`, `player.prefers.…`) | ❌ | not fed yet — they read their defaults unless your code sets them |
+| `cssVariables` | ❌ | no stylesheet on React Native |
 
 ### Playback and triggers
 

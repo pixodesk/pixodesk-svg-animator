@@ -94,6 +94,9 @@ player.destroy();             // cleanup
 | `actionTriggers` | `PxActionTriggersInput \| null` | the triggers to use instead of the file's — the whole block (lists left out are not listed); `null` or `{}`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
 | `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'playback.stop': 'animateToStart' }`, and the gate's `outOfView`; a setting left out reads its default (what a finished playback shows, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; applied before the first paint. See [Variables](../../docs/library/variables.md) |
+| `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
+| `cssVariables` | `boolean \| Record<string, string>` | deliver variables as CSS custom properties (`fill: var(--bg, #2a7fff)`), so the page's stylesheet sets them: `true`, or a map with a `"*"` pattern — `{ '*': 'card-*', bg: 'brand-primary' }` |
 
 The document plays the way it was designed with no configuration at all; `timelineOptions` and `actions` are for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a heartbeat that finishes its
@@ -115,6 +118,7 @@ It returns a `PxAnimationPlayerApi` — the player's lifecycle, and `playback`:
 | Member                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `playback`              | Everything a page does to the animation — a `PxPlaybackControls`, below. One object per player, made of closures (`const { start } = player.playback` works) |
+| `variables`             | The document's variables — `get` / `set` / `setVariables` / `reset`, `setVariant` … (a `PxVariablesApi`); a change is drawn on the next frame and never touches the playback. See [Variables](../../docs/library/variables.md) |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) — calls made before are queued |
 | `getRootElement()`      | The rendered SVG DOM element                                      |
 | `destroy()`             | Remove the animation and clean up; every later call is ignored (PX1504) |
@@ -170,6 +174,24 @@ createSvgAnimationPlayer({
   onDestroy: () => { /* destroyed / cleaned up */ },
 });
 ```
+
+### Variables
+
+A file can declare variables — a colour, a size, a caption — that your page changes while it plays:
+
+```js
+const player = createSvgAnimationPlayer({
+  document: '/card.json',
+  container: '#card',
+  variables: { bg: '#111827' },   // wins over the file's default
+  variant: 'fr',                  // a named set of defaults the file carries
+});
+
+player.variables.set('title', 'Hi');   // drawn on the next frame; the animation keeps playing
+```
+
+With `cssVariables: true` the page's stylesheet sets them instead (`.card { --bg: #111827 }`). Variants, the
+stylesheet, the predefined `player.pointer` and how a change is drawn: [Variables](../../docs/library/variables.md).
 
 ### Engines
 

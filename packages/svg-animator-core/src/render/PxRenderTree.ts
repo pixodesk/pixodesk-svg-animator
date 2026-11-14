@@ -81,6 +81,24 @@ const DEFAULT_HTML_TAG = 'div';
 const SVG_TAG = 'svg';
 
 
+/**
+ * ONE attribute as the renderer writes it — the name, the value, and whether it goes to `style` (a CSS-only
+ * property). `undefined` when the renderer would not write it (an internal key, a blocked value). For the player's
+ * direct writes of variable values (docs/library/variables.md), so a written value is exactly what a render writes.
+ * @internal
+ */
+export function domAttributeOf(key: string, value: unknown): { readonly name: string; readonly value: string; readonly isStyle: boolean } | undefined {
+    const props: Record<string, unknown> = {};
+    props[key] = value;
+    const domProps = toDomProps(props);
+    const propName = Object.keys(domProps)[0];
+    if (propName === undefined) return undefined;
+    const sanitized = sanitizeAttributeValue(propName, domProps[propName]);
+    if (sanitized === undefined) return undefined;
+    if (PX_CSS_ONLY_STYLE_PROPS.has(propName)) return { name: camelCaseToKebabWordIfNeeded(propName), value: String(sanitized), isStyle: true };
+    return { name: propName === CLASS_NAME_KEY ? CLASS_ATTR : camelCaseToKebabWordIfNeeded(propName), value: sanitized, isStyle: false };
+}
+
 // @px-importance important
 /**
  * Renders a `PxNode` tree through `factory`. Returns `null` for a missing node or a blocked

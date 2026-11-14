@@ -6,6 +6,8 @@
 import SvgAnimationPlayer from './SvgAnimator';
 export { SvgAnimationPlayer };
 export type { PxAnimationPlayerHandle, PxPlaybackControls } from '@pixodesk/svg-animator-core';
+// Variables — the `variables` / `variant` props and the handle's `variables` speak these types
+export type { PxVariableValue, PxVariablesApi, PxVariablesOptions } from '@pixodesk/svg-animator-core';
 
 import SvgCssAnimationPlayer from './SvgCssAnimator';
 export { SvgCssAnimationPlayer };

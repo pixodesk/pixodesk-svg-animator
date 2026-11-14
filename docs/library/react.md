@@ -97,6 +97,8 @@ interface PxAnimationPlayerHandle {
                                            //   seeks; getDuration · getCurrentTime · … ·
                                            //   getTotalProgress — content time; getSpeed / setSpeed and the
                                            //   …AtSpeed reads — the speed
+    readonly variables: PxVariablesApi;    // the document's variables — get · set · setVariables · reset ·
+                                           //   setVariant …, the same as the web player's (Variables below)
 }
 ```
 
@@ -325,6 +327,20 @@ keyframes ([per-property loops](../format/README.md#per-property-loops)).
 Full merge rules — including what happens when the override changes the kind of timeline — are
 in [Playback & triggers → How the merge works](./playback-and-triggers.md#how-the-merge-works).
 
+## Variables
+
+A file can declare variables — a colour, a size, a caption — and your app gives them values. Pass them as a
+prop: a change is drawn on the player's next frame, with no React render of the SVG and no new player, and the
+animation keeps playing:
+
+```tsx
+<SvgAnimationPlayer document={card} variables={{ bg: theme.accent, title: user.name }} variant="dark" />
+```
+
+A name that leaves `variables` goes back to the file's value; `variant` picks a named set of defaults from the
+file; `cssVariables` lets the page's stylesheet set them. From code, `playerRef.current.variables.set('size', 60)`.
+Everything else — who wins, the stylesheet, the predefined `player.pointer`: [Variables](./variables.md).
+
 ## Props
 
 Only `document` is required; everything else overrides what the document already says. React renders
@@ -366,6 +382,13 @@ interface SvgAnimationPlayerProps {
                                           //   (and the `actions` prop); a mount with 'off' presses nothing, with
                                           //   'paused' starts the playback frozen
 
+    // Variables — `PxVariablesOptions` (Variables above); never a new player, never a React render of the SVG
+    variables?: Readonly<Record<string, PxVariableValue>>;   // values by name — they win over the file; a name that
+                                          //   leaves the prop goes back to the file's value
+    variant?: string | null;              // a named set of defaults from `definitions.variableVariants`
+    cssVariables?: boolean | Readonly<Record<string, string>>;   // deliver as CSS custom properties — the page's
+                                          //   stylesheet sets them; a change builds the player again
+
     // Lifecycle — no arguments
     onReady?: () => void;    // the player exists and the SVG is rendered — fires once, async;
                              //   the push twin of isReady()
@@ -399,7 +422,7 @@ you know what a document has to say and tolerate it, `suppressWarnings` keeps it
 
 Passing a different `document` (or changing `className` / `style` / the control mode) throws the
 old player away and builds a new one; the old instance emits `onDestroy` on its
-way out. Changing `showAtProgress` / `showAtTime` does not recreate anything.
+way out. Changing `showAtProgress` / `showAtTime`, `variables` or `variant` does not recreate anything.
 
 ## CSS-flavor SVGs — `SvgCssAnimationPlayer`
 
@@ -484,7 +507,7 @@ the shape every player shares — [the API at a glance](./README.md#the-api-at-a
 
 <!-- px-check exports @pixodesk/svg-animator-react -->
 Also exported: **●** `SvgAnimationPlayerProps`, `SvgCssAnimationPlayerProps` (derived from it),
-`PxAnimationPlayerHandle` and its `PxPlaybackControls` (what `playback` is), `SvgAnimationPlayerCallbacks` (the `on*` props as a standalone type), and `PxDocument`
+`PxAnimationPlayerHandle` and its `PxPlaybackControls` (what `playback` is), the [variables](./variables.md) types `PxVariableValue`, `PxVariablesApi`, `PxVariablesOptions`, `SvgAnimationPlayerCallbacks` (the `on*` props as a standalone type), and `PxDocument`
 (the document type, for casting a JSON import — [TypeScript](./installation.md#typescript)).
 
 [← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Next.js →](./nextjs.md)

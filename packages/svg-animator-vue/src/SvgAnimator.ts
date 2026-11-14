@@ -7,8 +7,8 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionsInput, PxActionTriggersInput, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback, type PxVariablesApi, type PxVariableValue } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -103,6 +103,11 @@ export const svgAnimationPlayerProps = {
     disableActionTriggers: { type: Boolean, default: undefined },   // manual: no triggers, code presses the buttons
     actionTriggers: { type: Object as PropType<PxActionTriggersInput | null>, default: undefined },   // the whole block instead of the file's; null = none
     playback: { type: String as PropType<PxPlayback>, default: undefined },   // the lever: the playback's position, off · on · paused
+
+    // -- Variables (docs/library/variables.md): values from the host, a variant, CSS delivery. Same names as React / RN.
+    variables: { type: Object as PropType<Readonly<Record<string, PxVariableValue>>> },
+    variant: { type: String as PropType<string | null>, default: undefined },
+    cssVariables: { type: [Boolean, Object] as PropType<boolean | Readonly<Record<string, string>>>, default: undefined },
 
     // -- Controlled time
     showAtProgress: { type: Number },
@@ -206,16 +211,29 @@ const SvgAnimationPlayer = defineComponent({
         const docInput = shallowRef(props.document);
         watch(() => props.document, next => { if (!deepEquals(docInput.value, next)) docInput.value = next; });
 
-        const resolvedDoc = computed(() => {
-            // Overrides FIRST: they can change `timeline.engine` and `duration`, and
-            // materialization reads both (the engine picks the stages, the duration sizes loop
-            // expansion). Then render what the web player renders — materialized, fresh ids.
-            // Rendering the raw document dropped every `effects` bucket, so a document painted
-            // by `effects` alone came out as an empty canvas.
-            const doc = applyDocOverrides(toPxDocument(docInput.value), props, compMode.value, makeDiag());
-            // The checked stage repairs what does not match the schema and says what it repaired.
-            return prepareDocumentForRender(doc, ps => reportDocumentProblems(ps, makeDiag()));
+        // Overrides FIRST: they can change `timeline.engine` and `duration`, and materialization reads both (the engine
+        // picks the stages, the duration sizes loop expansion).
+        const baseDoc = computed(() => applyDocOverrides(toPxDocument(docInput.value), props, compMode.value, makeDiag()));
+
+        // The variables (§4): created with the document — in a watcher, so the values are read once and not tracked:
+        // a later value goes to the runtime and the player draws it on its next frame, the tree is not rendered again.
+        const runtime = shallowRef<PxVariablesRuntime>(new PxVariablesRuntime(baseDoc.value, { variables: props.variables, variant: props.variant, cssVariables: props.cssVariables }, makeDiag()));
+        let appliedVariables: Readonly<Record<string, PxVariableValue>> = props.variables ?? {};
+        watch([baseDoc, () => JSON.stringify(props.cssVariables ?? null)], ([doc]) => {
+            runtime.value = new PxVariablesRuntime(doc, { variables: props.variables, variant: props.variant, cssVariables: props.cssVariables }, makeDiag());
+            appliedVariables = props.variables ?? {};
         });
+        watch(() => props.variables, next => {
+            applyVariablesProp(runtime.value.api, appliedVariables, next);
+            appliedVariables = next ?? {};
+        }, { deep: true });
+        watch(() => props.variant, next => runtime.value.api.setVariant(next ?? null));
+
+        // Render what the web player renders — materialized, fresh ids. Rendering the raw document dropped every
+        // `effects` bucket, so a document painted by `effects` alone came out as an empty canvas.
+        // The checked stage repairs what does not match the schema and says what it repaired.
+        const resolvedDoc = computed(() =>
+            prepareDocumentForRender(runtime.value.resolvedDocument(true), ps => reportDocumentProblems(ps, makeDiag())));
 
         // -- Render the SVG node tree -------------------------------------------
 
@@ -248,6 +266,8 @@ const SvgAnimationPlayer = defineComponent({
                 // trigger option (the document's own, already patched, decide) — only `showAsStatic`, whose guard
                 // (no scroll, every playback call ignored) lives in the player.
                 showAsStatic: compMode.value === PxControlMode.static,
+                // the variables the document was resolved with: the player draws their changes
+                variablesRuntime: runtime.value,
                 // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
                 rootElement: rootElement ?? undefined,
                 onReady:  () => emit('ready'),
@@ -345,10 +365,24 @@ const SvgAnimationPlayer = defineComponent({
             }
         };
         // ONE forwarder for every wrapper (core `forwardPlaybackControls`); a write warns first when a driver prop owns playback
+        // `variables` forwards to the CURRENT runtime — a new document makes a new one
+        const variablesApi: PxVariablesApi = {
+            get: name => runtime.value.api.get(name),
+            set: (name, value) => runtime.value.api.set(name, value),
+            setVariables: values => runtime.value.api.setVariables(values),
+            getAll: () => runtime.value.api.getAll(),
+            getKeys: () => runtime.value.api.getKeys(),
+            reset: name => runtime.value.api.reset(name),
+            getDefinitions: () => runtime.value.api.getDefinitions(),
+            setVariant: name => runtime.value.api.setVariant(name),
+            getVariant: () => runtime.value.api.getVariant(),
+            getVariantKeys: () => runtime.value.api.getVariantKeys(),
+        };
         const publicApi: PxAnimationPlayerHandle = {
             playback: forwardPlaybackControls(
                 () => apiRef.value?.playback,
                 (call, run) => { guardWrite(call); const playback = apiRef.value?.playback; if (playback) run(playback); }),
+            variables: variablesApi,
         };
 
         expose(publicApi);

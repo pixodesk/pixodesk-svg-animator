@@ -26,4 +26,4 @@
  * machinery only.
  * @internal
  */
-export const PX_WIRE_SCHEMA_VERSION = '1.26';
+export const PX_WIRE_SCHEMA_VERSION = '1.27';

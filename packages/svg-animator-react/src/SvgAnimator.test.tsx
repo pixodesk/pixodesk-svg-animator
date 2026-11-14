@@ -1259,3 +1259,66 @@ describe("SvgAnimationPlayer (React) — the file drives by default; disableActi
         expect(onWarning.mock.calls.map(call => call[0].code)).toContain(PxDiagnosticCode.showAsStaticIgnoresCall);
     });
 });
+
+describe("SvgAnimationPlayer (React) — variables (2026-11-14)", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.advanceTimersByTime(32);   // drain a pending rAF before the timers go (see the first describe)
+        cleanup();
+        vi.useRealTimers();
+    });
+
+    /** JSON as a file has it — a binding where the TS type says a number. */
+    const varsDoc = (): PxDocument => JSON.parse(JSON.stringify({
+        type: 'svg', viewBox: '0 0 400 400',
+        animator: { definitions: { variables: { bg: { type: 'color', defaultValue: '#2a7fff' }, r: { type: 'number', defaultValue: 20 } } } },
+        children: [{ type: 'circle', id: 'ball', r: 'variable(r)', fill: 'variable(bg)' }],
+    }));
+
+    it("the first render has the values; a new prop value is written on the next frame — the same element, no remount", () => {
+        const { container, rerender } = render(<SvgAnimationPlayer document={varsDoc()} variables={{ bg: 'red' }} />);
+        const circle = container.querySelector('circle');
+        expect(circle?.getAttribute('fill')).toBe('red');
+        rerender(<SvgAnimationPlayer document={varsDoc()} variables={{ bg: 'green', r: 30 }} />);
+        expect(circle?.getAttribute('fill')).toBe('red');                  // not at once
+        vi.advanceTimersByTime(20);
+        expect(container.querySelector('circle')).toBe(circle);
+        expect(circle?.getAttribute('fill')).toBe('green');
+        expect(circle?.getAttribute('r')).toBe('30');
+    });
+
+    it("a name that leaves the prop goes back to the file's default", () => {
+        const { container, rerender } = render(<SvgAnimationPlayer document={varsDoc()} variables={{ bg: 'red' }} />);
+        rerender(<SvgAnimationPlayer document={varsDoc()} variables={{}} />);
+        vi.advanceTimersByTime(20);
+        expect(container.querySelector('circle')?.getAttribute('fill')).toBe('#2a7fff');
+    });
+
+    it("an effect's setting rebuilds inside React's own <svg> — the root element stays, the copies change", () => {
+        const doc = (): PxDocument => JSON.parse(JSON.stringify({
+            type: 'svg', viewBox: '0 0 400 400',
+            animator: { definitions: { variables: { count: { type: 'number', defaultValue: 2 } } } },
+            children: [{ type: 'rect', id: 'tile', width: 10, height: 10, effects: { repeater: { copies: 'variable(count)', translate: [20, 0] } } }],
+        }));
+        const { container, rerender } = render(<SvgAnimationPlayer document={doc()} variables={{ count: 2 }} />);
+        const svg = container.querySelector('svg');
+        expect(container.querySelectorAll('rect')).toHaveLength(2);
+        rerender(<SvgAnimationPlayer document={doc()} variables={{ count: 5 }} />);
+        vi.advanceTimersByTime(20);
+        expect(container.querySelector('svg')).toBe(svg);
+        expect(container.querySelectorAll('rect')).toHaveLength(5);
+    });
+
+    it("the handle's variables — set from code, read back", () => {
+        const apiRef = createRef<PxAnimationPlayerHandle>();
+        const { container } = render(<SvgAnimationPlayer document={varsDoc()} playerRef={apiRef} />);
+        assert(apiRef.current, "apiRef.current is set after render");
+        apiRef.current.variables.setVariables({ bg: '#000' });
+        vi.advanceTimersByTime(20);
+        expect(container.querySelector('circle')?.getAttribute('fill')).toBe('#000');
+        expect(apiRef.current.variables.getAll()).toEqual({ bg: '#000', r: 20 });
+    });
+});

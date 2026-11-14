@@ -1,6 +1,6 @@
 # Playback settings & triggers
 
-[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Minification →](./minification.md)
+[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Variables →](./variables.md)
 
 Change how an animation plays — its length, loops, direction, what starts and stops it, what the
 end leaves behind — without going back to the editor. Everything about *when* and *how* it plays
@@ -814,4 +814,4 @@ the engine that will actually run, `isNativeForced` says whether `native` was as
 and `mayUseNativeScrollTimeline` whether a scroll timeline may be handed to the browser's own
 `ScrollTimeline`.
 
-[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Minification →](./minification.md)
+[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Variables →](./variables.md)

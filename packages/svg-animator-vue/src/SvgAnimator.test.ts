@@ -964,3 +964,43 @@ describe("SvgAnimationPlayer (Vue) — the file drives by default; disableAction
         expect(onWarning.mock.calls.map(call => call[0].code)).toContain(PxDiagnosticCode.showAsStaticIgnoresCall);
     });
 });
+
+describe("SvgAnimationPlayer (Vue) — variables (2026-11-14)", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.advanceTimersByTime(32);   // drain a pending rAF before the timers go (see the first describe)
+        cleanup();
+        vi.useRealTimers();
+    });
+
+    /** JSON as a file has it — a binding where the TS type says a number. */
+    const varsDoc = (): PxDocument => JSON.parse(JSON.stringify({
+        type: 'svg', viewBox: '0 0 400 400',
+        animator: { definitions: { variables: { bg: { type: 'color', defaultValue: '#2a7fff' }, r: { type: 'number', defaultValue: 20 } } } },
+        children: [{ type: 'circle', id: 'ball', r: 'variable(r)', fill: 'variable(bg)' }],
+    }));
+
+    it("the first render has the values; a new prop value is written on the next frame — the same element", async () => {
+        const { container, rerender } = render(SvgAnimationPlayer, { props: { document: varsDoc(), variables: { bg: 'red' } } });
+        const circle = container.querySelector('circle');
+        expect(circle?.getAttribute('fill')).toBe('red');
+        await rerender({ document: varsDoc(), variables: { bg: 'green', r: 30 } });
+        vi.advanceTimersByTime(20);
+        expect(container.querySelector('circle')).toBe(circle);
+        expect(circle?.getAttribute('fill')).toBe('green');
+        expect(circle?.getAttribute('r')).toBe('30');
+    });
+
+    it("the template ref's variables — set from code, read back", () => {
+        const api = ref<PxAnimationPlayerHandle | null>(null);
+        const { container } = render(defineComponent({ setup: () => () => h(SvgAnimationPlayer, { document: varsDoc(), ref: api }) }));
+        assert(api.value, "the template ref is set after render");
+        api.value.variables.set('bg', '#000');
+        vi.advanceTimersByTime(20);
+        expect(container.querySelector('circle')?.getAttribute('fill')).toBe('#000');
+        expect(api.value.variables.getKeys()).toEqual(['bg', 'r']);
+    });
+});

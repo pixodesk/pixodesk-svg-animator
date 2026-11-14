@@ -156,6 +156,7 @@ write or transform documents in TypeScript rather than by hand:
 | `PxElementAnimation` | one element's `animate` map; `PxKeyframe` is one entry of a property's `keyframes`, and `PxLoop` that property's `loop` |
 | `PxBinding` | one entry of `animator.bindings`, in a bind-by-id document |
 | `PxDefinitions` | `animator.definitions`; `PxAnimationDefinition` is one named animation in it, `PxGlyphFont` one embedded face and `PxGlyph` one letter outline in that face |
+| `PxVariableDefinition` · `PxVariableType` · `PxVariableValue` | one entry of `animator.definitions.variables`, its `type`, and the value a variable holds — [Variables](#variables) |
 | `PxEffects` | a node's `effects` bucket |
 | `PxTransformParts` | a transform written in parts; `PxTransformValue` is one such value and `PxVec2` an `[x, y]` pair |
 | `PxBezierPath` | a path outline as bezier segments |
@@ -300,6 +301,15 @@ interface SVG_JSON extends NODE {
                 unitsPerEm?: number;  // the units of `ascent`, `width` and `pathData`; default 1000
                 glyphs: Record<string, { width: number; pathData: string }>;  // keyed by the character
             }>;
+            // named, typed values (schema 1.27) — a static value anywhere may be written
+            // "variable(name)" or "calc(…)" instead of the value; see Variables below
+            variables?: Record<string, {
+                type: 'number' | 'vector' | 'color' | 'string' | 'boolean' | 'image' | 'numberList' | 'path';
+                defaultValue: unknown;     // required — the file draws without any code. Plain, or { keyframes: [...] }
+                description?: string;      // for whoever reads the file
+                defaultSource?: string;    // a predefined variable it follows: "player.pointer", …
+            }>;
+            variableVariants?: Record<string, Record<string, unknown>>;  // variant → { variable: value }
         };
 
         version?: string;          // "a.b.c" — the schema the file was written for: a = generation,
@@ -327,6 +337,7 @@ interface NODE {
     type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
     id?: string;        // DOM id; required for href="#id" refs or as a binding's target
     [camelCaseDomKey: string]: unknown; // SVG attrs by camelCase DOM name — cx, cy, r, fill, strokeWidth, fontSize, transform, … (kebab-case is accepted too); pass-through
+                        // any static value here, in `style` or in `effects` may be "variable(name)" / "calc(…)" (schema 1.27)
     domType?: string;   // the `type` ATTRIBUTE of the few elements that have one (feTurbulence, …):
                         // `type` is taken by the tag name, so the attribute travels here
     textContent?: string; // text content for <text>/<tspan>
@@ -820,6 +831,195 @@ every element that needs it:
 | `easings` | named easing curves | a keyframe writes the name instead of the curve: `"easing": "smooth"` |
 | `animations` | named animations | a node writes the name instead of the keyframes: `"animate": "fadeIn"` (a bind-by-id document names them in its `bindings`) |
 | `fonts` | embedded fonts: for each FACE, the outline of every letter used, stored under that face's name (`"Roboto-Light"` — the same string the node's `fontFamily` carries). Each entry's own `glyphs` map holds the outlines | a `<text>` node with `effects.text.useGlyphs: true` is drawn from these outlines — its `fontFamily` names the face to use. `fontWeight` / `fontStyle` are styling on top of that face, not a way to select another one. No font file is needed on the viewer's machine |
+| `variables` | named, typed values with a default — [Variables](#variables) | a static value names one instead of holding the value: `"fill": "variable(bg)"` |
+| `variableVariants` | named sets of default values for the declared variables — [Variants](#variants--animatordefinitionsvariablevariants) | a player picks one by name: the `variant` option or prop |
+
+### Variables
+
+A **variable** is a named, typed value, declared once in `animator.definitions.variables`. A static value
+anywhere in the document can name it instead of holding the value — `"fill": "variable(bg)"`. The file draws
+its defaults on its own; a page gives other values at runtime — from code, by picking a named variant, or from
+its stylesheet ([Variables guide](../library/variables.md)). Since schema 1.27.
+
+```json
+{
+  "type": "svg", "viewBox": "0 0 400 200",
+  "animator": {
+    "timeline": { "outTime": 1000, "iterations": "infinite", "iterationDirection": "alternate",
+                  "actionTriggers": { "playback.start": "load" } },
+    "definitions": {
+      "variables": {
+        "bg":    { "type": "color",  "defaultValue": "#2a7fff", "description": "Ball colour" },
+        "size":  { "type": "number", "defaultValue": 40 },
+        "title": { "type": "string", "defaultValue": "Hello" }
+      },
+      "variableVariants": {
+        "dark": { "bg": "#111827" },
+        "fr":   { "title": "Bonjour" }
+      }
+    }
+  },
+  "children": [
+    { "type": "circle", "cx": 100, "cy": 100, "r": "variable(size)", "fill": "variable(bg)",
+      "animate": { "transform": { "keyframes": [
+        { "time": 0, "value": { "translate": [0, 0] } }, { "time": 1000, "value": { "translate": [200, 0] } } ] } } },
+    { "type": "text", "x": 200, "y": 190, "fontSize": 24, "textContent": "variable(title)" },
+    { "type": "rect", "x": 0, "y": 0, "height": 4, "fill": "variable(bg)",
+      "width": "calc(variable(player.playback.iterationProgress) * 400)" }
+  ]
+}
+```
+
+Played as it is, the ball is `#2a7fff` with a radius of `40`, and the text reads "Hello". The `transform` is
+animated and `r` / `fill` are bound — different attributes, so the timeline and the variables never touch the
+same value.
+
+#### Declaring a variable
+
+<!-- px-check schema PxVariableDefinitionSchema -->
+| Field | Meaning |
+|---|---|
+| `type` | what kind of value it holds — see the table below |
+| `defaultValue` | required, so a file always draws without any code. Plain, or animated: `{ "keyframes": [ … ] }`, the form any animated value takes — every attribute bound to it then moves with the timeline |
+| `description` | optional; for whoever reads the file (the editor shows it) |
+| `defaultSource` | optional; a [predefined variable](#predefined-variables--player) this one follows while the page gives it no value — `"player.pointer"`. Its type must match |
+
+**Names** start with a letter, then letters, digits, `_` or `-` (`isVariableName(name)`), so every name is
+also a valid CSS custom property (`--bg`). A dot is not allowed: dotted names belong to the player
+(`player.pointer`).
+
+<!-- px-check values PxVariableType pkg=core -->
+| `type` | Value | Typical use |
+|---|---|---|
+| `number` | `40` | a radius, opacity, stroke width, rotation, a repeater's `copies`, one number of a pair |
+| `vector` | `[200, 60]` | a translate, scale or origin — any `[x, y]` pair |
+| `color` | `"#2a7fff"` | `fill`, `stroke`, a gradient stop's colour |
+| `string` | `"Hello"` | text content, any keyword attribute |
+| `boolean` | `true` | an effect switch (`text.useGlyphs`) |
+| `image` | a URL or a data URL | an `<image>`'s `href` |
+| `numberList` | `[16, 16]` | `strokeDasharray` |
+| `path` | `"M0 0L…"` | a path's `d` |
+
+#### Variants — `animator.definitions.variableVariants`
+
+A variant is a name and values for some of the declared variables. Choosing one swaps those variables'
+defaults — nothing else: the type, the `defaultSource` and the description stay in the declaration.
+
+```json
+"variableVariants": {
+  "dark": { "bg": "#111827" },
+  "fr":   { "bg": "#002395", "title": "Bonjour" }
+}
+```
+
+- A variable a variant does not name keeps its `defaultValue`.
+- A value in a variant takes the same forms as `defaultValue`: plain, or `{ "keyframes": [ … ] }`.
+- One variant at a time — the player's `variant` option or prop picks it
+  ([Variants](../library/variables.md#variants)).
+
+#### Bindings — `variable(name)` and `calc(…)`
+
+A **binding** is a static value written as a reference instead of the value itself:
+
+<!-- px-check off binding grammar, prose -->
+| Written | Means |
+|---|---|
+| `"variable(bg)"` | the variable's value, whatever its type |
+| `"variable(player.pointer)"` | a [predefined variable](#predefined-variables--player) — nothing to declare |
+| `"calc(variable(size) / 2)"` | a number computed from number variables: numbers, `variable(name)`, `+ - * /`, brackets and a leading minus |
+
+- **The whole value** is the binding — nothing before or after it. A pair is written item by item:
+  `"translate": ["calc(variable(x) + 5)", 60]`.
+- **A formula is parsed, never run.** The text is read into a tree of operators once and the tree is
+  evaluated — no code from a file is ever executed. A formula reads numbers only.
+- **No value, no attribute.** A binding that names an unknown variable, a formula over a value that is not a
+  number, a division by zero: the place reads as if it were not written. For an item of a pair or a list, the
+  whole attribute goes.
+
+Where a binding may stand — wherever a static value is written:
+
+<!-- px-check off where bindings may stand, prose -->
+| Place | Example |
+|---|---|
+| a node attribute | `"r": "variable(size)"`, `"textContent": "variable(title)"` |
+| an item of a pair or a list | `"strokeDasharray": ["variable(dash)", 8]` |
+| a part of a `transform` record | `"transform": { "translate": "variable(player.pointer)", "rotate": "variable(angle)" }` |
+| a `style` declaration | `"style": { "fill": "variable(bg)" }` |
+| a player effect's setting | `"effects": { "repeater": { "copies": "variable(count)" } }`, a gradient stop's `color` |
+
+Never inside `animate` (keyframes cannot name a variable — animate the variable's default instead), never in
+`meta`, and never in the keys that name or structure a node: `type`, `id`, `children`, `domType`, `animator`.
+**An attribute is animated or bound, never both** — the animation wins, and validation says so.
+
+Text that must literally read `variable(x)` (or start with `calc(`) cannot be written: it is always read as a
+binding.
+
+#### Predefined variables — `player.…`
+
+The player provides some variables itself. Every name starts with `player.`, so none can collide with a
+declared one (a declared name has no dot):
+
+<!-- px-check values PxPredefinedVariable pkg=core -->
+| Name | Type | Default | Value |
+|---|---|---|---|
+| `player.pointer` | `vector` | the centre of the `viewBox` | the pointer over the drawing, in `viewBox` coordinates; keeps its last value when the pointer leaves |
+| `player.pointer.x` | `number` | the centre | its x |
+| `player.pointer.y` | `number` | the centre | its y |
+| `player.pointer.over` | `boolean` | `false` | the pointer is over the drawing |
+| `player.pointer.down` | `boolean` | `false` | a button is pressed over it |
+| `player.playback.currentTime` | `number` | `0` | ms inside the iteration — what `playback.getCurrentTime()` returns |
+| `player.playback.currentProgress` | `number` | `0` | counted in iterations — what `playback.getCurrentProgress()` returns |
+| `player.playback.iterationProgress` | `number` | `0` | 0–1 inside the current iteration |
+| `player.prefers.reducedMotion` | `boolean` | `false` | the system asks for reduced motion |
+| `player.prefers.colorScheme` | `string` | `"light"` | `"light"` or `"dark"`, the system's colour scheme |
+
+Two ways to use one:
+
+```json
+// 1 — directly: nothing to declare, the predefined default applies
+{ "type": "circle", "r": 20, "transform": { "translate": "variable(player.pointer)" } }
+
+// 2 — through a variable of your own: your name, your default, and a page can give it a value by that name
+"variables": { "spot": { "type": "vector", "defaultValue": [40, 40], "defaultSource": "player.pointer" } }
+{ "type": "circle", "r": 20, "transform": { "translate": "variable(spot)" } }
+```
+
+<!-- px-check off direct use versus defaultSource, prose -->
+| | Directly | Through `defaultSource` |
+|---|---|---|
+| To write | the reference only | one declaration |
+| Before the player has a value (the pointer has not moved yet) | the predefined default | your `defaultValue` |
+| A page replaces it | `variables: { 'player.pointer': [50, 50] }` — for every place that uses it | `variables: { spot: [50, 50] }` — this variable only |
+
+Which players feed them: [Predefined variables](../library/variables.md#predefined-variables) in the guide.
+
+#### Validation
+
+`validateDocument` checks a document with variables in two passes: the schema sees every binding replaced by
+its default (so `"copies": "variable(title)"` in a repeater fails as a string `copies` would), and the variables
+are checked on their own:
+
+<!-- px-check off validation findings, prose -->
+| Problem | Finding `kind` |
+|---|---|
+| a declared name that is not a variable name (`"my.bg"`, `"1st"`) | `invalidValue` |
+| a `defaultValue` (or a keyframe of an animated one) that does not fit its `type` | `typeMismatch` |
+| a `defaultSource` the player does not provide | `missingReference` |
+| a `defaultSource` of another type | `typeMismatch` |
+| a variant entry naming no declared variable | `missingReference` |
+| a variant value that does not fit the variable's type | `typeMismatch` |
+| a binding that does not parse (`"calc(variable(x) +)"`) | `invalidValue` |
+| a binding naming a variable that is neither declared nor predefined | `missingReference` |
+| a formula reading a variable that is not a `number` | `typeMismatch` |
+| an attribute that is bound and animated on the same node | `invalidValue` — the animation wins |
+
+At runtime the player reports the same mistakes once, as [PX1701 – PX1704](../diagnostics.md#variables).
+
+#### Older players
+
+A file with variables needs a player that reads schema 1.27. Converting it down to 1.26
+(`downgradeWireDocument`) writes every binding's default value in its place — an animated default: its first
+keyframe — and drops the `variables` and `variableVariants` blocks, so the picture with the defaults survives.
 
 ### Animating a pre-rendered SVG
 
@@ -897,6 +1097,8 @@ a document.
 - **Unknown attributes on a node** pass through to the DOM — that is how any SVG/CSS
   presentation attribute works. So a misspelled attribute with a plain value (`"fil": "red"`)
   is not an error and is not reported; one whose value is an object is.
+- **Bindings** (`"variable(name)"`, `"calc(…)"`) are checked as the defaults they stand for, and on their
+  own — [Validation](#validation); a binding with no value leaves its place as if it were not written.
 
 To check a generated document before it ships, call `validateDocument(doc)` — see
 [Validating a document](#validating-a-document). Its `errors` are the same problem strings, empty when
@@ -1512,6 +1714,66 @@ folded into top-level `duration`, `actionTriggers`, `actions`, `iterations` and 
 something to write — a file's `animator` is a `PxAnimatorConfig`, and `nestAnimatorTimeline` turns
 the flat shape back into one.
 
+### Variables in a tool of your own
+
+The grammar of [bindings](#bindings--variablename-and-calc) is exported, so a tool reads, checks and rewrites
+them the way the players do. Three checks are on the main entry:
+
+<!-- px-check signature pkg=core -->
+```typescript
+// ● True when a raw value is written as a binding — it starts with `variable(` or `calc(`; it may still fail
+//   to parse. A type guard: true narrows to string.
+function isBindingText(raw: unknown): boolean;
+
+// ● True for a valid name of a declared variable: a letter, then letters, digits, `_` or `-` — no dot.
+function isVariableName(name: string): boolean;
+
+// ● True when a value fits a variable of that type — a `vector` is 2 numbers (3 are kept open for a 3D vector).
+function variableValueFits(type: PxVariableType, value: unknown): boolean;
+```
+
+The rest is on `@pixodesk/svg-animator-core/engine` (○):
+
+```ts
+import { toPxDocument } from '@pixodesk/svg-animator-core';
+import { collectBindingSites, PxVariableBinding, PxVariablesRuntime, renameInBinding } from '@pixodesk/svg-animator-core/engine';
+import card from './card.json';
+
+const doc = toPxDocument(card);
+
+// every place the document reads a variable, in tree order
+for (const site of collectBindingSites(doc)) {
+  console.log(site.nodePath, site.keyPath, site.text, site.binding?.names ?? site.error);
+}
+
+// one binding, parsed once, evaluated against any values — nothing is ever `eval`ed
+const { binding } = PxVariableBinding.parse('calc(variable(size) / 2)');
+binding?.evaluate(name => (name === 'size' ? 80 : undefined));   // 40
+
+// a rename that reaches inside formulas
+renameInBinding('calc(variable(size) / 2)', 'size', 'radius');     // 'calc(variable(radius) / 2)'
+
+// a renderer of your own: the document with every binding's current value written in
+const drawn = new PxVariablesRuntime(doc, { variables: { bg: '#111827' } }, undefined).resolvedDocument(false);
+```
+
+- `collectBindingSites(root)` lists each `PxBindingSite`: `nodePath` (child indexes from the root), `keyPath`
+  (keys from the node to the value — `['fill']`, `['transform', 'translate', 0]`, `['effects', 'repeater',
+  'copies']`), the `text` as written, and the parsed `binding` — or the `error` that says why it does not parse.
+- `PxVariableBinding.parse(text)` answers a `PxVariableBindingParseResult`, `{ binding?, error? }`. A binding
+  knows the `names` it reads and whether it `isFormula`; `print()` writes it back normalised, and
+  `evaluate(read)` computes it through a `PxVariableReader` — `(name) => value | undefined`. Its `root` is a tree
+  of `PxFormulaNode`s: `PxFormulaNumber`, `PxFormulaVariable`, `PxFormulaNegate` (a leading minus) and
+  `PxFormulaBinary` (two operands and a `PxFormulaOperator`: `+` `-` `*` `/`).
+- `renameInBinding(text, from, to)` returns text that is not a binding, or does not name `from`, unchanged.
+- `isVariableReadName(name)` is true for any name a binding may read — a declared one, or a dotted predefined
+  one; `isPredefinedVariableName(name)` only for the player's own (`player.pointer`, …).
+- `PxVariableDefinitionSchema` is the schema of one declaration, a `PxVariableDefinition` — cast one with it like
+  any other part ([Casting a value with its schema](#casting-a-value-with-its-schema)).
+- `PxVariablesRuntime` holds one player's values; `resolvedDocument(false)` is the document with each binding's
+  current value written in, ready for `prepareDocument`. The runtime as a whole is described for player authors
+  in the [Variables guide](../library/variables.md#for-player-authors).
+
 ### Preparing a document
 
 `prepareDocument(doc, options?)` is the one call that lowers a document as far as you need —
@@ -1790,6 +2052,9 @@ adapter. You need it only to build a player; everything else is on the main entr
 |---|---|---|
 | Wire types | `PxDocument`, `PxDocumentJson` (the shape a JSON import has; PxDocumentInput until 1.21), `toPxDocument(doc)` (○), `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxActionTriggers`, `PxTriggerEvents`, `PxActions`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
 | Player API types | `PxAnimationPlayerApi<TRoot>`, `PxPlaybackControls`, `PxEngineAnimationPlayerApi<TRoot>` (○), `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`; `PxPlaybackControls` is `player.playback` — everything a page does to the animation. **`/engine`**: `PxEngineAnimationPlayerApi`, `PxPlatformAdapter`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
+| Variables | `PxVariableType`, `PxVariableDefinition`, `PxVariableValue`, `PxPredefinedVariable`, `PxVariablesApi`, `PxVariablesOptions`, `isBindingText(raw)`, `isVariableName(name)`, `variableValueFits(type, value)` | ● declared variables and their values (schema 1.27) — [Variables](#variables). `PxVariablesApi` is `player.variables` and the handle's `variables`; `PxVariablesOptions` the `variables` · `variant` · `cssVariables` options and props — [Variables guide](../library/variables.md); the three checks — [Variables in a tool of your own](#variables-in-a-tool-of-your-own) |
+| Variable engine | `PxVariablesRuntime`, `PxVariableChanges`, `applyVariablesProp(api, prev, next)`, `PxVariableBinding`, `PxVariableBindingParseResult`, `PxVariableReader`, `PxFormulaNode`, `PxFormulaNumber`, `PxFormulaVariable`, `PxFormulaNegate`, `PxFormulaBinary`, `PxFormulaOperator`, `renameInBinding(text, from, to)`, `isVariableReadName(name)`, `isPredefinedVariableName(name)`, `collectBindingSites(root)`, `PxBindingSite` | ○ **`/engine`** · one player's values and the binding grammar — [Variables in a tool of your own](#variables-in-a-tool-of-your-own), [For player authors](../library/variables.md#for-player-authors) |
+| Variable plumbing | `resolveVariableBindings`, `PxResolveBindingsOptions`, `PX_VARIABLE_NODE_MARK`, `PX_CSS_DELIVERABLE_PROPERTIES`, `PX_PREDEFINED_VARIABLES`, `PX_PREDEFINED_PREFIX`, `PxPredefinedDefinition`, `predefinedVariableOf`, `viewBoxCenterOf`, `nodeKeyOf`, `nodeAtPath`, `isDirectWriteSite`, `cssDeliverableKey`, `cssVarValue`, `firstKeyframeValue`, `isAnimatedVariableValue`, `isVariableValue`, `variableDefaultFits`, `domAttributeOf` | ▪ what the players and the editor share to write a binding's value in, deliver it as CSS, and write it straight to a rendered element |
 | Component contract | `PxAnimationPlayerHandle`, `PxAnimationPlayerCallbacks`, `PxPlaybackListeners` (○), `PxCommonControlProps`, `PxControlProps`, `PxPlayback`, `PxControlMode`, `PxResolvedControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `applyDeclarativeAction(api, action)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle (`playback.start()`, `playback.stop()`, `playback.pause()`, `playback.resume()` …), the callback set (`PxPlaybackListeners` is its playback subset — the buttons' events and the finish, what the executor tells), the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `PxCommonControlProps` is the three control options EVERY player takes — `showAsStatic` · `disableActionTriggers` · `actionTriggers` (none of them: the file's own triggers drive); `PxControlProps` is a union — ONE driver family at a time compiles (`showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActionTriggers` · `actionTriggers`); `resolveControlMode` reads `PxAnyControlProps` — every control prop in any mix — so a JavaScript caller still gets its PX1501 warning, and answers a `PxResolvedControlMode` (the `PxControlMode` — `static` · `fixedTime` · `playback` · `manual` · `actionTriggers` — and the warnings). `PxPlayback` is what the `playback` prop accepts (`off` · `on` · `paused` — the positions a host can ask for; `PxPlaybackState` is what the player reports); `resolveDeclarativePlayback` turns a change of position into the buttons to press (`PxDeclarativeAction`) — `playStateToLevels` / `PxPlayStateRequest` until 1.23. **`/engine`**: `PxControlProps`, `PxControlMode`, `PxResolvedControlMode`, `resolveControlMode`, `controlModeTakesOverTrigger` and the ○ names. `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ **`/engine`** · how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
 | Playback defaults | `PX_PLAYBACK_DEFAULTS`, `resolveTriggers(triggers)`, `PxResolvedTriggers`, `triggerEventList(events)`, `resolveActions(actions, whenFinished)`, `PxResolvedActions`, `actionSettingsOf(slot)` (one slot's settings, the word form read as its object), `resolveGate(view)`, `PxResolvedGate` | ○ what an absent key means (`stopPlaybackBehavior` `jumpToStart` · `whenFinished` `hold` · `outOfViewBehavior` `pause`, `whenIdle` 'static', threshold 0.5, debounce 150 ms — and no `playback.start`: an absent trigger block names no event) — the one table every player reads. `resolveTriggers` normalises the lists to arrays of the events each may name (`triggerEventList` does one), derives `playback.resume` unless the file names it (`derivedResume`), and reads an absent block and an empty one both as nothing; `resolveActions` defaults every action setting and `whenFinished` (`{ stopPlayback, outOfView, whenFinished }`); `resolveGate` defaults the gate (`outOfView` behavior, threshold, debounce). **`/engine`**: `resolveTriggers`, `PxResolvedTriggers`, `triggerEventList`, `resolveActions`, `PxResolvedActions`, `resolveGate`, `PxResolvedGate` |
@@ -1812,13 +2077,13 @@ adapter. You need it only to build a player; everything else is on the main entr
 | Control-mode patches | `withControlMode(doc, mode)`, `withoutTriggerDriver(doc)`, `withStaticPicture(doc)` | ○ **`/engine`** · the document as a control mode plays it, applied after the override so nothing re-arms what the mode switched off: `withControlMode` picks — `static` → `withStaticPicture` (the triggers emptied and `whenIdle: 'static'`, the picture as drawn; a scroll-driven document as it is), the other modes that take the triggers over → `withoutTriggerDriver` (an EMPTY block — nothing starts it; a scroll-driven document is spared), `actionTriggers` → the document as it is. The web player and the pre-rendered builds call `withControlMode`; the components apply their own pose rules beside it |
 | Compiled animation | `PxCompiledAnimation`, `PxCompiledKeyframe`, `PxAnyPropertyAnimation`, `isCompiledAnimation(entry)`, `PxCompiledAnimationSchema`, `PxAnyPropertyAnimationSchema`, `PxRgba`, `PxRgbaSchema`, `PxCubicBezier`, `PxCubicBezierSchema`, `PxPathValue` | ○ the format's low layer — [Compiled animation](#compiled-animation--the-low-layer). `compileAnimation`, `compileAnimationDefinition`, `compileAnimationsInTree`, `PxCompileContext` (▪) lower authored entries to it; `toAuthoredAnimation`, `authorCompiledAnimations` (▪) read it back as the authored form (the editor's read path); `anyPropertyAnimationSchemaOf` (▪) builds the entry union around a widened authored schema (the editor's); `PxNormalizedPathValueSchema` (▪) casts a compiled `d` value (`{paths}`) |
 | Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxValueKind` | ○ **`/engine`** · what `normalizeBindings` hands the engines: compiled animations in window ms — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪); `movesAlongPath` (▪) says whether a compiled `transform` is a motion path the frame loop evaluates |
-| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxActionTriggersSchema`, `PxActionsSchema`, `PxStopPlaybackActionSchema`, `PxOutOfViewActionSchema`, `PxWhenFinishedSchema` (the timeline's when-finished enum), `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
+| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxActionTriggersSchema`, `PxActionsSchema`, `PxStopPlaybackActionSchema`, `PxOutOfViewActionSchema`, `PxWhenFinishedSchema` (the timeline's when-finished enum), `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxVariableDefinitionSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
 | Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead. **`/engine`**: `normalizeBindings`, `calcAnimationValues`. `calcAnimationValues(channels, ms, segments?)` takes an optional motion-path segment table (`createMotionPathSegments`, `MotionPathSegments` ▪) that its owner — an animator, one pass — keeps, so each curve segment is built once; there is no module-level cache |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
 | Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath` | ▪ glyph-text and text-on-path materialization |
 | Node props | `toDomProps` (○), `sanitizeAttributeValue`, `PX_CSS_ONLY_STYLE_PROPS`, `PX_DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules. **`/engine`**: `toDomProps` |
 | Scroll math | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollPhaseInterval`, `scrollResolveAxis`, `scrollTotalDurationMs` | ▪ scroll-driven playback internals |
-| Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `PX_COLOR_ATTR_NAMES`, `PX_STYLE_ATTR_NAMES`, `PX_PCT_BASED_ATTR_NAMES`, `PX_TRANSFORM_FN_NAMES`, `deepClone`, `deepEquals`, `generateUniqueId`, `PX_DEFAULT_DURATION_MS`, `PX_DEFAULT_ITERATIONS`, `PX_DEFAULT_UNITS_PER_EM`, `PX_LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
+| Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `parseColor`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `PX_COLOR_ATTR_NAMES`, `PX_STYLE_ATTR_NAMES`, `PX_PCT_BASED_ATTR_NAMES`, `PX_TRANSFORM_FN_NAMES`, `deepClone`, `deepEquals`, `generateUniqueId`, `PX_DEFAULT_DURATION_MS`, `PX_DEFAULT_ITERATIONS`, `PX_DEFAULT_UNITS_PER_EM`, `PX_LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
 | Schema toolkit types | `PxSchema`, `PxAnySchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `PxValidationFinding`, `PxValidationFindingKind`, `PxRemoveIndex` | ○ the types you build a schema with — see the toolkit above. `PxAnySchema` is "a schema of some value" (lists, constraints, `describeSchema`). `findings` on the context is the structured twin of `errors`: a `kind` (unknown key, type mismatch, invalid value, missing value, union mismatch) and a `path` per line, for code that must branch on what went wrong rather than read it |
 | Companion types | `PxMaterializeAllOptions`, `PxGlyphCharBox`, `PxAnimatable`, `GlyphTextNode`, `GlyphFactory`, `GlyphPathProps`, `GlyphPaint`, `GlyphMotion`, `GlyphVisibility`, `GlyphFontsInput` | ▪ argument and result shapes of the functions above. The glyph materializer reads a `GlyphTextNode` (layout typed, paint carried as the caller's own type) and builds through the caller's `GlyphFactory` |
 | Attribute names | `PX_ANIM_ATTR_NAME`, `PX_DOCUMENT_ATTR_NAME`, `PX_TEXT_CONTENT_ATTR` | ▪ reserved keys — see [Nodes](#nodes) |
@@ -1844,8 +2109,8 @@ A string `"a.b.c"`:
 | `b` | player schema revision. A player at `a.b` reads files of the same `a` and any `b` up to its own |
 | `c` | editor extension — covers `meta.*` only. The player ignores it |
 
-This release reads schema **`1.26`** (`PX_WIRE_VERSION`, parsed; `formatWireVersion` gives the
-string back). The editor stamps every file it saves (`"1.26.1"` today); the player never writes
+This release reads schema **`1.27`** (`PX_WIRE_VERSION`, parsed; `formatWireVersion` gives the
+string back). The editor stamps every file it saves (`"1.27.1"` today); the player never writes
 the stamp.
 
 - **Not a gate.** A version gap on its own never refuses a file or warns. The player does not
