@@ -10,9 +10,9 @@
 //
 // | What is followed | Resolved to |
 // |---|---|
-// | `thisElement` (default) | the animation's root |
-// | `parentElement`, and a held element | the nearest ancestor that really moves (sticky / fixed ones skipped) |
-// | `pageElement` + `selector` | the page's element; an element handed over by page code wins |
+// | `thisDomElement` (default) | the animation's root |
+// | `parentDomElement`, and a held element | the nearest ancestor that really moves (sticky / fixed ones skipped) |
+// | `pageDomElement` + `selector` | the page's element; an element handed over by page code wins |
 // | `pageScroll` | the page's scroller |
 // | `containerScroll` (+ `selector`) | the scrolling box around the animation, or the box the selector names |
 //
@@ -34,13 +34,13 @@ import { clampShare, createDiagnostics, cssRangeOfMoment, isScrollTimeline, scro
 
 // ── What is followed ─────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The settings as followed: an element handed over by page code is `pageElement` (a held element ignores it). */
+/** The settings as followed: an element handed over by page code is `pageDomElement` (a held element ignores it). */
 function settingsFollowing(scroll: PxScrollSettings | undefined, handed: Element | undefined): PxScrollSettings {
     const settings = scroll ?? {};
-    return handed && !settings.holdOnScreen ? { ...settings, follows: PxScrollFollows.pageElement } : settings;
+    return handed && !settings.holdOnScreen ? { ...settings, follows: PxScrollFollows.pageDomElement } : settings;
 }
 
-/** An element's place on the screen is followed — the `…Element` words and a held element — not a scrolled amount. */
+/** An element's place on the screen is followed — the `…DomElement` words and a held element — not a scrolled amount. */
 function followsAnElement(scroll: PxScrollSettings): boolean {
     return !!scroll.holdOnScreen || followsElement(scroll.follows);
 }
@@ -114,18 +114,18 @@ function queryPage(selector: string, root: Element, report: PxDiagnostics): Elem
 }
 
 /**
- * The element whose place on the screen is followed (the `…Element` words, a held element). Never throws, never null:
+ * The element whose place on the screen is followed (the `…DomElement` words, a held element). Never throws, never null:
  * what cannot be resolved falls back to the animation's root.
  * - held → its held section ({@link movingAncestor}); `follows`, `selector` and a handed-over element are not used
  * - an element handed over by page code (`timelineOptions.follows`) → it
- * - `parentElement` → {@link movingAncestor}; `pageElement` → `selector` in the page; otherwise the root
+ * - `parentDomElement` → {@link movingAncestor}; `pageDomElement` → `selector` in the page; otherwise the root
  */
 export function resolveFollowedElement(root: Element, scroll: PxScrollSettings | undefined, diag?: PxDiagnostics, handed?: Element): Element {
     const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
     if (scroll?.holdOnScreen) return movingAncestor(root);
     if (handed) return handed;
-    if (scroll?.follows === PxScrollFollows.parentElement) return movingAncestor(root);
-    if (scroll?.follows === PxScrollFollows.pageElement && scroll.selector) return queryPage(scroll.selector, root, report) ?? root;
+    if (scroll?.follows === PxScrollFollows.parentDomElement) return movingAncestor(root);
+    if (scroll?.follows === PxScrollFollows.pageDomElement && scroll.selector) return queryPage(scroll.selector, root, report) ?? root;
     return root;
 }
 
@@ -208,7 +208,7 @@ function nativeRangeOffset(end: PxNativeEnd): PxNativeRangeOffset | undefined {
  * the caller then falls back to {@link createScrollDriver} (`native` is a preference, never a requirement):
  * - `smoothing` (warns 1301); an exact place (warns 1307 when `native` asked for the browser's); no `ScrollTimeline` /
  *   `ViewTimeline` or no `CSS.percent` in this browser; a constructor that throws (warns 1302)
- * - the `…Element` words and a held element → `ViewTimeline({ subject: followed })`; the `…Scroll` words →
+ * - the `…DomElement` words and a held element → `ViewTimeline({ subject: followed })`; the `…Scroll` words →
  *   `ScrollTimeline({ source })`
  */
 export function createNativeScrollTimeline(

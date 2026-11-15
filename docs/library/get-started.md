@@ -185,7 +185,7 @@ the page, plays from disk.
 
 > **Example:** [`examples/get-started/html-create-animator`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20the%20player%20fetches%20the%20file)
 
-`createSvgAnimationPlayer` returns the player, so you can call `player.playback.start()`, `player.playback.pause()` and
+`createSvgAnimationPlayer` returns the player, so you can call `player.timeline.start()`, `player.timeline.pause()` and
 the rest ([the playback API](./web-player.md#the-playback-api)). Given a URL as `document`, it fetches
 the file itself:
 

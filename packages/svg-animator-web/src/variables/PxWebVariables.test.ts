@@ -17,7 +17,7 @@ function doc(): PxDocument {
     const json: unknown = JSON.parse(JSON.stringify({
         type: 'svg', viewBox: '0 0 400 200',
         animator: {
-            timeline: { engine: 'js', outTime: 1000, iterations: 'infinite', actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' } },
+            timeline: { engine: 'js', outTime: 1000, iterations: 'infinite', actions: { outOfView: 'continue' } }, actionTriggers: { 'timeline.start': 'load' },
             definitions: {
                 variables: {
                     bg: { type: 'color', defaultValue: '#2a7fff' },
@@ -86,12 +86,12 @@ describe('variables on the web player', () => {
         const box = stage();
         const player = createSvgAnimationPlayer({ document: doc(), container: box });
         const before = circle(box);
-        expect(player.playback.isPlaying()).toBe(true);
+        expect(player.timeline.isPlaying()).toBe(true);
         player.variables.set('x', 0);
         nextFrame();
         expect(circle(box)).toBe(before);
         expect(before?.getAttribute('transform')).toContain('translate(5');
-        expect(player.playback.isPlaying()).toBe(true);
+        expect(player.timeline.isPlaying()).toBe(true);
         player.destroy();
     });
 
@@ -100,13 +100,13 @@ describe('variables on the web player', () => {
         const onPlaybackStart = vi.fn();
         const player = createSvgAnimationPlayer({ document: doc(), container: box, onPlaybackStart });
         vi.advanceTimersByTime(300);
-        const time = player.playback.getTotalTime() ?? 0;
+        const time = player.timeline.getTotalTime() ?? 0;
         expect(box.querySelectorAll('rect').length).toBe(3);             // 2 copies + the animated rect
         player.variables.set('count', 4);
         nextFrame();
         expect(box.querySelectorAll('rect').length).toBe(5);
-        expect(player.playback.isPlaying()).toBe(true);
-        expect(player.playback.getTotalTime() ?? 0).toBeGreaterThanOrEqual(time);
+        expect(player.timeline.isPlaying()).toBe(true);
+        expect(player.timeline.getTotalTime() ?? 0).toBeGreaterThanOrEqual(time);
         expect(onPlaybackStart).toHaveBeenCalledTimes(1);                // the rebuild's own start is not the caller's event
         player.destroy();
     });

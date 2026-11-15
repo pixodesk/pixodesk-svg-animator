@@ -188,7 +188,7 @@ export function engineFirstFrame(materialized: PxNode): Map<string, Map<string, 
             written.set(id, attrs);
         },
     });
-    api.playback.setCurrentTime(0);
+    api.timeline.setCurrentTime(0);
     return written;
 }
 

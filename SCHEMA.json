@@ -728,7 +728,7 @@
         "maskedBy": {
           "type": "object",
           "properties": {
-            "source": {
+            "sourceElement": {
               "type": "string"
             },
             "maskType": {
@@ -876,7 +876,7 @@
                 "translate"
               ]
             },
-            "source": {
+            "sourceElement": {
               "type": "string"
             },
             "retime": {
@@ -2290,115 +2290,6 @@
             "playbackSpeed": {
               "type": "number"
             },
-            "actionTriggers": {
-              "type": "object",
-              "properties": {
-                "playback.start": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "load",
-                        "hoverIn",
-                        "click"
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "load",
-                          "hoverIn",
-                          "click"
-                        ]
-                      }
-                    }
-                  ]
-                },
-                "playback.play": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "load",
-                        "hoverIn",
-                        "click"
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "load",
-                          "hoverIn",
-                          "click"
-                        ]
-                      }
-                    }
-                  ]
-                },
-                "playback.stop": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "hoverOut",
-                        "click"
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "hoverOut",
-                          "click"
-                        ]
-                      }
-                    }
-                  ]
-                },
-                "playback.pause": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "hoverIn",
-                        "hoverOut",
-                        "click"
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "hoverIn",
-                          "hoverOut",
-                          "click"
-                        ]
-                      }
-                    }
-                  ]
-                },
-                "playback.resume": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "hoverIn",
-                        "hoverOut",
-                        "click"
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "hoverIn",
-                          "hoverOut",
-                          "click"
-                        ]
-                      }
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
-            },
             "delay": {
               "type": "number"
             },
@@ -2423,7 +2314,7 @@
             "actions": {
               "type": "object",
               "properties": {
-                "playback.stop": {
+                "timeline.stop": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2496,6 +2387,55 @@
             },
             "inViewDebounce": {
               "type": "number"
+            },
+            "segments": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "inTime": {
+                    "type": "number"
+                  },
+                  "outTime": {
+                    "type": "number"
+                  },
+                  "initial": {
+                    "type": "boolean"
+                  },
+                  "iterations": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "const": "infinite"
+                      }
+                    ]
+                  },
+                  "iterationDirection": {
+                    "enum": [
+                      "normal",
+                      "reverse",
+                      "alternate",
+                      "alternateReverse"
+                    ]
+                  },
+                  "playbackSpeed": {
+                    "type": "number"
+                  },
+                  "whenFinished": {
+                    "type": "string"
+                  },
+                  "whenLeaving": {
+                    "enum": [
+                      "jump",
+                      "animateToEnd",
+                      "animateToStart"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false
@@ -2508,9 +2448,9 @@
             },
             "follows": {
               "enum": [
-                "thisElement",
-                "parentElement",
-                "pageElement",
+                "thisDomElement",
+                "parentDomElement",
+                "pageDomElement",
                 "pageScroll",
                 "containerScroll"
               ]
@@ -2534,7 +2474,7 @@
                 {
                   "type": "object",
                   "properties": {
-                    "element": {
+                    "domElement": {
                       "anyOf": [
                         {
                           "enum": [
@@ -2568,7 +2508,7 @@
                     }
                   },
                   "required": [
-                    "element",
+                    "domElement",
                     "screen"
                   ],
                   "additionalProperties": false
@@ -2603,7 +2543,7 @@
                 {
                   "type": "object",
                   "properties": {
-                    "element": {
+                    "domElement": {
                       "anyOf": [
                         {
                           "enum": [
@@ -2637,7 +2577,7 @@
                     }
                   },
                   "required": [
-                    "element",
+                    "domElement",
                     "screen"
                   ],
                   "additionalProperties": false
@@ -2843,6 +2783,1323 @@
         "timeline": {
           "$ref": "#/$defs/Timeline"
         },
+        "actionTriggers": {
+          "type": "object",
+          "properties": {
+            "timeline.start": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "load",
+                            "hoverIn",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "enum": [
+                              "load",
+                              "hoverIn",
+                              "click",
+                              "pointerDown",
+                              "pointerUp",
+                              "keyDown",
+                              "keyUp"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "selector": {
+                            "type": "string"
+                          },
+                          "with": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "ctrlKey": {
+                                "type": "boolean"
+                              },
+                              "shiftKey": {
+                                "type": "boolean"
+                              },
+                              "altKey": {
+                                "type": "boolean"
+                              },
+                              "metaKey": {
+                                "type": "boolean"
+                              },
+                              "metaOrCtrlKey": {
+                                "type": "boolean"
+                              },
+                              "button": {
+                                "type": "number"
+                              },
+                              "pointerType": {
+                                "enum": [
+                                  "mouse",
+                                  "touch",
+                                  "pen"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "timeline.play": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "load",
+                            "hoverIn",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "enum": [
+                              "load",
+                              "hoverIn",
+                              "click",
+                              "pointerDown",
+                              "pointerUp",
+                              "keyDown",
+                              "keyUp"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "selector": {
+                            "type": "string"
+                          },
+                          "with": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "ctrlKey": {
+                                "type": "boolean"
+                              },
+                              "shiftKey": {
+                                "type": "boolean"
+                              },
+                              "altKey": {
+                                "type": "boolean"
+                              },
+                              "metaKey": {
+                                "type": "boolean"
+                              },
+                              "metaOrCtrlKey": {
+                                "type": "boolean"
+                              },
+                              "button": {
+                                "type": "number"
+                              },
+                              "pointerType": {
+                                "enum": [
+                                  "mouse",
+                                  "touch",
+                                  "pen"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "timeline.stop": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "hoverOut",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "hoverOut",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "hoverOut",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "enum": [
+                              "hoverOut",
+                              "click",
+                              "pointerDown",
+                              "pointerUp",
+                              "keyDown",
+                              "keyUp"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "selector": {
+                            "type": "string"
+                          },
+                          "with": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "ctrlKey": {
+                                "type": "boolean"
+                              },
+                              "shiftKey": {
+                                "type": "boolean"
+                              },
+                              "altKey": {
+                                "type": "boolean"
+                              },
+                              "metaKey": {
+                                "type": "boolean"
+                              },
+                              "metaOrCtrlKey": {
+                                "type": "boolean"
+                              },
+                              "button": {
+                                "type": "number"
+                              },
+                              "pointerType": {
+                                "enum": [
+                                  "mouse",
+                                  "touch",
+                                  "pen"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "timeline.pause": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "hoverIn",
+                        "hoverOut",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "hoverIn",
+                            "hoverOut",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "hoverIn",
+                          "hoverOut",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "enum": [
+                              "hoverIn",
+                              "hoverOut",
+                              "click",
+                              "pointerDown",
+                              "pointerUp",
+                              "keyDown",
+                              "keyUp"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "selector": {
+                            "type": "string"
+                          },
+                          "with": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "ctrlKey": {
+                                "type": "boolean"
+                              },
+                              "shiftKey": {
+                                "type": "boolean"
+                              },
+                              "altKey": {
+                                "type": "boolean"
+                              },
+                              "metaKey": {
+                                "type": "boolean"
+                              },
+                              "metaOrCtrlKey": {
+                                "type": "boolean"
+                              },
+                              "button": {
+                                "type": "number"
+                              },
+                              "pointerType": {
+                                "enum": [
+                                  "mouse",
+                                  "touch",
+                                  "pen"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "timeline.resume": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "hoverIn",
+                        "hoverOut",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "hoverIn",
+                            "hoverOut",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "hoverIn",
+                          "hoverOut",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "enum": [
+                              "hoverIn",
+                              "hoverOut",
+                              "click",
+                              "pointerDown",
+                              "pointerUp",
+                              "keyDown",
+                              "keyUp"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "selector": {
+                            "type": "string"
+                          },
+                          "with": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "ctrlKey": {
+                                "type": "boolean"
+                              },
+                              "shiftKey": {
+                                "type": "boolean"
+                              },
+                              "altKey": {
+                                "type": "boolean"
+                              },
+                              "metaKey": {
+                                "type": "boolean"
+                              },
+                              "metaOrCtrlKey": {
+                                "type": "boolean"
+                              },
+                              "button": {
+                                "type": "number"
+                              },
+                              "pointerType": {
+                                "enum": [
+                                  "mouse",
+                                  "touch",
+                                  "pen"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "timeline.segment.next": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "load",
+                            "hoverIn",
+                            "hoverOut",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "enum": [
+                              "load",
+                              "hoverIn",
+                              "hoverOut",
+                              "click",
+                              "pointerDown",
+                              "pointerUp",
+                              "keyDown",
+                              "keyUp"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "selector": {
+                            "type": "string"
+                          },
+                          "with": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "ctrlKey": {
+                                "type": "boolean"
+                              },
+                              "shiftKey": {
+                                "type": "boolean"
+                              },
+                              "altKey": {
+                                "type": "boolean"
+                              },
+                              "metaKey": {
+                                "type": "boolean"
+                              },
+                              "metaOrCtrlKey": {
+                                "type": "boolean"
+                              },
+                              "button": {
+                                "type": "number"
+                              },
+                              "pointerType": {
+                                "enum": [
+                                  "mouse",
+                                  "touch",
+                                  "pen"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "timeline.segment.previous": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "load",
+                            "hoverIn",
+                            "hoverOut",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "event": {
+                            "enum": [
+                              "load",
+                              "hoverIn",
+                              "hoverOut",
+                              "click",
+                              "pointerDown",
+                              "pointerUp",
+                              "keyDown",
+                              "keyUp"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "selector": {
+                            "type": "string"
+                          },
+                          "with": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "ctrlKey": {
+                                "type": "boolean"
+                              },
+                              "shiftKey": {
+                                "type": "boolean"
+                              },
+                              "altKey": {
+                                "type": "boolean"
+                              },
+                              "metaKey": {
+                                "type": "boolean"
+                              },
+                              "metaOrCtrlKey": {
+                                "type": "boolean"
+                              },
+                              "button": {
+                                "type": "number"
+                              },
+                              "pointerType": {
+                                "enum": [
+                                  "mouse",
+                                  "touch",
+                                  "pen"
+                                ]
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "load",
+                      "hoverIn",
+                      "hoverOut",
+                      "click",
+                      "pointerDown",
+                      "pointerUp",
+                      "keyDown",
+                      "keyUp"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "event": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click",
+                          "pointerDown",
+                          "pointerUp",
+                          "keyDown",
+                          "keyUp"
+                        ]
+                      },
+                      "element": {
+                        "type": "string"
+                      },
+                      "selector": {
+                        "type": "string"
+                      },
+                      "with": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "ctrlKey": {
+                            "type": "boolean"
+                          },
+                          "shiftKey": {
+                            "type": "boolean"
+                          },
+                          "altKey": {
+                            "type": "boolean"
+                          },
+                          "metaKey": {
+                            "type": "boolean"
+                          },
+                          "metaOrCtrlKey": {
+                            "type": "boolean"
+                          },
+                          "button": {
+                            "type": "number"
+                          },
+                          "pointerType": {
+                            "enum": [
+                              "mouse",
+                              "touch",
+                              "pen"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "event"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click",
+                        "pointerDown",
+                        "pointerUp",
+                        "keyDown",
+                        "keyUp"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "enum": [
+                            "load",
+                            "hoverIn",
+                            "hoverOut",
+                            "click",
+                            "pointerDown",
+                            "pointerUp",
+                            "keyDown",
+                            "keyUp"
+                          ]
+                        },
+                        "element": {
+                          "type": "string"
+                        },
+                        "selector": {
+                          "type": "string"
+                        },
+                        "with": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "ctrlKey": {
+                              "type": "boolean"
+                            },
+                            "shiftKey": {
+                              "type": "boolean"
+                            },
+                            "altKey": {
+                              "type": "boolean"
+                            },
+                            "metaKey": {
+                              "type": "boolean"
+                            },
+                            "metaOrCtrlKey": {
+                              "type": "boolean"
+                            },
+                            "button": {
+                              "type": "number"
+                            },
+                            "pointerType": {
+                              "enum": [
+                                "mouse",
+                                "touch",
+                                "pen"
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "event"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
         "definitions": {
           "$ref": "#/$defs/Definitions"
         },
@@ -2851,7 +4108,7 @@
           "items": {
             "type": "object",
             "properties": {
-              "target": {
+              "element": {
                 "type": "string"
               },
               "animateWith": {
@@ -2862,7 +4119,7 @@
               }
             },
             "required": [
-              "target",
+              "element",
               "animateWith"
             ],
             "additionalProperties": false

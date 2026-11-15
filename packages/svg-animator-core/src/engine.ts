@@ -39,7 +39,7 @@ export { PxValueKind } from './format/PxAnimatorConstants';
 export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Which trigger, which engine
-export { resolveTriggers, resolveActions, actionSettingsOf, resolveGate, triggerEventList, triggerIssues, derivedResume, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
+export { resolveTriggers, resolveActions, actionSettingsOf, resolveGate, triggerEventList, triggerIssues, derivedResume, isSegmentGoToAction, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, triggerKeys, triggerKeyOf, triggerSpecOf, triggerEventOf, isTriggerEvents, PxSegmentTriggerKind, PX_ALL_TRIGGER_EVENTS, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
 
 // Adapter-driven frame-loop engine (platform-neutral playback) + the node props every renderer shares
 export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
@@ -47,7 +47,10 @@ export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 export type { PxEngineAnimationPlayerApi } from './format/PxAnimatorTypes';
 export { toDomProps } from './util/PxNodeProps';
 
-export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue } from './format/PxAnimatorConstants';
+export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue, PxTriggerEventSpec, PxSegmentTrigger } from './format/PxAnimatorConstants';
+// segments (2026-11-15): the engine's view of a segmented document, the segments in their settings form
+export { withSegmentEngine, resolveSegments, hasSegments, segmentReferenceIssues } from './playback/PxSegments';
+export type { PxSegmentSettings, PxSegmentRuntime, PxSegmentReferenceIssue } from './playback/PxSegments';
 
 // Variables (schema 1.27) — one player's values, and the binding grammar (docs/library/variables.md)
 export { PxVariablesRuntime, applyVariablesProp } from './variables/PxVariablesRuntime';

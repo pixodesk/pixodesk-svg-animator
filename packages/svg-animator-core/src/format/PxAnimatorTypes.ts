@@ -13,7 +13,8 @@ import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS
     followsElement, PX_SCROLL_MOMENT_ORDER,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxHoldAt, PxPlaybackDirection,
-    PxScrollAxis, PxScrollFollows, PxScrollLine, PxScrollMoment, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType } from './PxAnimatorConstants';
+    PxScrollAxis, PxScrollFollows, PxScrollLine, PxScrollMoment, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType,
+    PX_ALL_TRIGGER_EVENTS, PxPointerType, PxSegmentAction, PxWhenLeaving } from './PxAnimatorConstants';
 import type { PxPlaybackState, PxScrollSettings, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
@@ -24,6 +25,7 @@ import { animatorOf } from './PxDocStage';
 // bindings themselves. These modules import only TYPES from here, so the edges create no cycle.
 import { isVariableName } from '../variables/PxFormula';
 import type { PxVariablesApi } from '../variables/PxVariablesRuntime';
+import type { PxSegmentControls, PxSegmentRuntime } from '../playback/PxSegments';
 import { collectBindingSites, firstKeyframeValue, isAnimatedVariableValue, nodeAtPath, predefinedVariableOf, resolveVariableBindings, variableDefaultFits, viewBoxCenterOf, type PxBindingSite } from '../variables/PxVariableBindings';
 // The diagnostics channel's payload, named by `PxEngineCallbacks` below (review §5).
 // `PxDiagnostics` imports nothing, so this edge creates no cycle either.
@@ -598,10 +600,10 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
  * WHY THESE NAMES (outside reviews, 2026-10/11; the playback, 2026-11-10 — dev-docs/plans/animation-state.brainstorm.md):
  * `actionTriggers`, not `triggers` — the word *action* is the link to the `actions` block: a key here is a BUTTON a
  * page event presses, the same key there says how that button moves the playhead. The four keys ARE the handle's
- * methods (`playback.start()` / `playback.stop()` / `playback.pause()` / `playback.resume()`) and the edges of the components' `playback`
- * prop: `playback.start` / `playback.stop` bracket a PLAYBACK (one instance of the animation being in effect), `playback.pause` /
- * `playback.resume` bracket a FREEZE inside it. The two blocks are not symmetrical and do not claim to be: a pause and a
- * resume have one possible behavior, so there is no `actions["playback.pause"]`; `whenFinished` and `outOfView` are the
+ * methods (`timeline.start()` / `timeline.stop()` / `timeline.pause()` / `timeline.resume()`) and the edges of the components' `playback`
+ * prop: `timeline.start` / `timeline.stop` bracket a PLAYBACK (one instance of the animation being in effect), `timeline.pause` /
+ * `timeline.resume` bracket a FREEZE inside it. The two blocks are not symmetrical and do not claim to be: a pause and a
+ * resume have one possible behavior, so there is no `actions["timeline.pause"]`; `whenFinished` and `outOfView` are the
  * clock's and the gate's rules, not page events, so they have no list here. Which list an event is read from in each
  * state: `triggerActionFor`.
  */
@@ -610,44 +612,127 @@ export interface _PxActionTriggers {
      *  nothing starts it (1.17); a file that plays by itself says `'load'`. */
     [PxTriggerList.startPlayback]?: PxTriggerEvents;
     /** Start or carry on (1.26): resumes a paused playback, turns a returning picture around, starts otherwise; nothing
-     *  while playing. What `playback.start` did by default until 1.25. */
+     *  while playing. What `timeline.start` did by default until 1.25. */
     [PxTriggerList.playPlayback]?: PxTriggerEvents;
-    /** Stops the playback (when playing, paused or finished) — per `actions["playback.stop"]`. */
+    /** Stops the playback (when playing, paused or finished) — per `actions["timeline.stop"]`. */
     [PxTriggerList.stopPlayback]?: PxTriggerEvents;
     /** Freezes the playback where it is (when playing). */
     [PxTriggerList.pausePlayback]?: PxTriggerEvents;
-    /** Resumes it (when paused). Absent, it is DERIVED — the counterpart of each `playback.pause` event (hover out resumes
-     *  what hover in paused, a click what a click paused) plus the `playback.start` events that do not stop it. Named, the
+    /** Resumes it (when paused). Absent, it is DERIVED — the counterpart of each `timeline.pause` event (hover out resumes
+     *  what hover in paused, a click what a click paused) plus the `timeline.start` events that do not stop it. Named, the
      *  list is used as written; the players note where it differs from the derivation ({@link triggerIssues}). */
     [PxTriggerList.resumePlayback]?: PxTriggerEvents;
+    /** Goes to the next segment on the ruler — after the last, the first (2026-11-15). Every event may be named. */
+    [PxSegmentAction.next]?: PxTriggerEvents;
+    /** Goes to the previous segment — before the first, the last. */
+    [PxSegmentAction.previous]?: PxTriggerEvents;
+    /** `timeline.segment.goTo(‹name›)` — goes to that segment; one key per segment, made from its name (read through
+     *  `isTriggerEvents`, the open schema types it `unknown`). */
+    [segmentGoToKey: string]: unknown;
 }
 
-const PxTriggerEventSchema = px.enum([PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click] as const, PxTriggerEvent.load);
-/** One event or several — `"hoverIn"` or `["hoverIn", "click"]`. @public @advanced */
-export const PxTriggerEventsSchema = px.union([PxTriggerEventSchema, px.array(PxTriggerEventSchema)]);
+/**
+ * `with` — the event counts only WITH these fields of the browser's own event (2026-11-15): a LISTED set, so an editor
+ * can offer a control for each and a typo is caught; the player is a plain filter. `metaOrCtrlKey` is the one alias:
+ * ⌘ on a Mac, Ctrl elsewhere — whichever is down.
+ * @public
+ */
+export interface _PxTriggerEventFilter {
+    /** The key, the browser's `key` — `"Enter"`, `"ArrowRight"`, `"s"`. */
+    key?: string;
+    /** The physical key, the browser's `code` — `"Space"`, `"KeyS"`. */
+    code?: string;
+    ctrlKey?: boolean;
+    shiftKey?: boolean;
+    altKey?: boolean;
+    metaKey?: boolean;
+    /** ⌘ or Ctrl, whichever is down — one entry for "⌘S on a Mac, Ctrl+S elsewhere". */
+    metaOrCtrlKey?: boolean;
+    /** The pointer button: 0 left, 1 middle, 2 right. */
+    button?: number;
+    /** mouse · touch · pen. */
+    pointerType?: PxPointerType;
+}
 
-/** One event or several, from the events `list` may name — anything else fails the schema, and the document
- *  repair drops that event (never the whole list). */
+/** @public @advanced */
+export const PxTriggerEventFilterSchema = implementsInterface<_PxTriggerEventFilter>()(px.object({
+    key: px.string().optional(),
+    code: px.string().optional(),
+    ctrlKey: px.boolean().optional(),
+    shiftKey: px.boolean().optional(),
+    altKey: px.boolean().optional(),
+    metaKey: px.boolean().optional(),
+    metaOrCtrlKey: px.boolean().optional(),
+    button: px.number().optional(),
+    pointerType: px.enum([PxPointerType.mouse, PxPointerType.touch, PxPointerType.pen] as const).optional(),
+}));
+/** @public */
+export type PxTriggerEventFilter = PxInfer<typeof PxTriggerEventFilterSchema>;
+
+/**
+ * An event with more to say than its word (2026-11-15): WHERE it is heard — `element`, one of this file's elements
+ * (`"#id"`), or `selector`, an element of the page (a CSS selector) — and WITH which of its own fields (`with`).
+ * Neither: the whole picture, as the bare word.
+ * @public
+ */
+export interface _PxTriggerEventObject {
+    event: PxTriggerEvent;
+    /** One of this file's elements, `"#id"` — its fresh id is followed when the player renames ids. */
+    element?: string;
+    /** An element of the page around it, a CSS selector — a site builder's button, a card, a menu item. */
+    selector?: string;
+    /** The event's own fields it must have — see {@link _PxTriggerEventFilter}. */
+    with?: _PxTriggerEventFilter;
+}
+
+/** One entry of a list that may name `events`: a word, or an event object whose `event` is one of them. */
+function triggerEntrySchema(events: ReadonlyArray<PxTriggerEvent>) {
+    return px.union([px.enum(events), triggerObjectSchema(events)]);
+}
+function triggerObjectSchema(events: ReadonlyArray<PxTriggerEvent>) {
+    return px.object({
+        event: px.enum(events),
+        element: px.string().optional(),
+        selector: px.string().optional(),
+        with: PxTriggerEventFilterSchema.optional(),
+    });
+}
+
+/** An event object, over every event. @public @advanced */
+export const PxTriggerEventObjectSchema = implementsInterface<_PxTriggerEventObject>()(triggerObjectSchema(PX_ALL_TRIGGER_EVENTS));
+/** @public */
+export type PxTriggerEventObject = PxInfer<typeof PxTriggerEventObjectSchema>;
+
+/** One entry or several — `"hoverIn"`, `{ "event": "click", "element": "#lens" }` or a list of them. @public @advanced */
+export const PxTriggerEventsSchema = triggerListOf(PX_ALL_TRIGGER_EVENTS);
+
+/** One entry or several, from the events a list may name — anything else fails the schema, and the document repair
+ *  drops that entry. */
+function triggerListOf(events: ReadonlyArray<PxTriggerEvent>) {
+    return px.oneOrMany(triggerEntrySchema(events));
+}
 function triggerListSchema(list: PxTriggerList) {
-    return px.words(allowedTriggerEvents(list));
+    return triggerListOf(allowedTriggerEvents(list));
 }
 
-/** `timeline.actionTriggers`. @public @advanced */
-export const PxActionTriggersSchema = implementsInterface<_PxActionTriggers>()(px.object({
+/** `animator.actionTriggers` — open: a `timeline.segment.goTo(‹name›)` key is one per segment, so it cannot be listed;
+ *  `validateDocument` checks that the name exists. @public @advanced */
+export const PxActionTriggersSchema = px.openObject({
     [PxTriggerList.startPlayback]: triggerListSchema(PxTriggerList.startPlayback).optional(),
     [PxTriggerList.playPlayback]: triggerListSchema(PxTriggerList.playPlayback).optional(),
     [PxTriggerList.stopPlayback]: triggerListSchema(PxTriggerList.stopPlayback).optional(),
     [PxTriggerList.pausePlayback]: triggerListSchema(PxTriggerList.pausePlayback).optional(),
     [PxTriggerList.resumePlayback]: triggerListSchema(PxTriggerList.resumePlayback).optional(),
-}));
+    [PxSegmentAction.next]: PxTriggerEventsSchema.optional(),
+    [PxSegmentAction.previous]: PxTriggerEventsSchema.optional(),
+}, PxTriggerEventsSchema);
 
 /** WHEN each built-in action fires — the `actionTriggers` block; see {@link _PxActionTriggers}. A key names the
  *  action, the same key in `actions` says how that action looks. @public */
 export type PxActionTriggers = PxInfer<typeof PxActionTriggersSchema>;
-const _ck_PxActionTriggers: KeysMatch<PxActionTriggers, _PxActionTriggers> = true; // the key sets are identical
 
 /** The block the `actionTriggers` prop / option takes (every surface, `bind` included) — the same shape the FILE has
- *  ({@link _PxActionTriggers}), `playback.resume` included: left out, it is derived from the other lists; named, it is used
+ *  ({@link _PxActionTriggers}), `timeline.resume` included: left out, it is derived from the other lists; named, it is used
  *  as written. WHY the same power as the file (`resume` was left out until 1.22): an override that cannot say what a
  *  file can is a trap. @public @advanced */
 export type PxActionTriggersInput = PxActionTriggers;
@@ -655,9 +740,9 @@ export type PxActionTriggersInput = PxActionTriggers;
 /**
  * HOW the built-in actions look (playback-layers.md, layer 1) — one slot per button that has a choice: `behavior` names a
  * PRESET (where the move ends and the path there), and a slot that says only `behavior` is written as the word itself —
- * `"playback.stop": 'animateToStart'` is exactly `"playback.stop": { behavior: 'animateToStart' }`. The words are explained
- * once, in the table above `PxStopPlaybackBehavior`. Nothing to configure on `playback.start` (always from the start,
- * 1.26), `playback.play`, `playback.pause` or `playback.resume`. A key here names the button; the same key in
+ * `"timeline.stop": 'animateToStart'` is exactly `"timeline.stop": { behavior: 'animateToStart' }`. The words are explained
+ * once, in the table above `PxStopPlaybackBehavior`. Nothing to configure on `timeline.start` (always from the start,
+ * 1.26), `timeline.play`, `timeline.pause` or `timeline.resume`. A key here names the button; the same key in
  * `actionTriggers` says when a page event presses it.
  *
  * WHY `behavior` (1.14): "stop behavior: animateToStart" says what kind of thing the value is; `do` (1.11) and
@@ -681,7 +766,7 @@ const PxOutOfViewPresetSchema = px.enum([PxOutOfViewBehavior.pause, PxOutOfViewB
 /** `timeline.whenFinished` — a plain word, like `whenIdle`. @public @advanced */
 export const PxWhenFinishedSchema = px.enum([PxWhenFinished.hold, PxWhenFinished.jumpToStart, PxWhenFinished.animateToStart] as const, PX_PLAYBACK_DEFAULTS.whenFinished);
 
-/** `actions["playback.stop"]`, the settings form. @public @advanced */
+/** `actions["timeline.stop"]`, the settings form. @public @advanced */
 export const PxStopPlaybackActionSchema = px.object({ behavior: PxStopPlaybackPresetSchema.optional() });
 /** `actions.outOfView`, the settings form. @public @advanced */
 export const PxOutOfViewActionSchema = px.object({ behavior: PxOutOfViewPresetSchema.optional() });
@@ -833,10 +918,11 @@ export const PxScrollLineSchema = px.union([
     px.number(),
 ]);
 
-/** An exact place: the line `element` of the followed element is at the line `screen` of the screen — literal, it
- *  does not adapt to the size. `{ element: 'top', screen: 0.8 }` = its top is 80 % down the screen. @public @advanced */
+/** An exact place: the line `domElement` of the followed DOM element is at the line `screen` of the screen — literal,
+ *  it does not adapt to the size. `{ domElement: 'top', screen: 0.8 }` = its top is 80 % down the screen. (`element`
+ *  until 2026-11-15: the bare word now means one of this file's own elements.) @public @advanced */
 export const PxScrollPlaceSchema = px.object({
-    element: PxScrollLineSchema,
+    domElement: PxScrollLineSchema,
     screen: PxScrollLineSchema,
 });
 
@@ -889,6 +975,43 @@ export type PxHoldOnScreen = PxInfer<typeof PxHoldOnScreenSchema>;
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const, PxTimelineEngineSetting.auto).optional();
 
 /**
+ * A SEGMENT (2026-11-15) — a named part of the timeline; the timeline is always in one of them, and they play one at
+ * a time. It says what plays (`inTime` – `outTime`), how it repeats, what happens at its end (`whenFinished`) and how it
+ * is left when another is asked for (`whenLeaving`). What it does not say, it takes from the timeline.
+ * @public
+ */
+export interface _PxTimelineSegment {
+    /** CONTENT ms where it begins. Default: the timeline's `inTime`. */
+    inTime?: number;
+    /** CONTENT ms where it ends. Default: the timeline's `outTime`. */
+    outTime?: number;
+    /** The one the timeline is in before anything happened. None says so: the first on the ruler. */
+    initial?: boolean;
+    iterations?: number | 'infinite';
+    iterationDirection?: PxPlaybackDirection;
+    playbackSpeed?: number;
+    /** At its end: `hold` (default) · `jumpToStart` · `animateToStart` — what the picture shows, the playback is then
+     *  finished — or a segment action: `timeline.segment.next`, `timeline.segment.goTo(‹name›)` — it goes on there. */
+    whenFinished?: string;
+    /** How it is left when another segment is asked for: `jump` (default) · `animateToEnd` · `animateToStart`. */
+    whenLeaving?: PxWhenLeaving;
+}
+
+/** @public @advanced */
+export const PxTimelineSegmentSchema = implementsInterface<_PxTimelineSegment>()(px.object({
+    inTime: px.number().optional(),
+    outTime: px.number().optional(),
+    initial: px.boolean().optional(),
+    iterations: px.union([px.number(), px.literal('infinite')]).optional(),
+    iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const).optional(),
+    playbackSpeed: px.number().optional(),
+    whenFinished: px.string().optional(),
+    whenLeaving: px.enum([PxWhenLeaving.jump, PxWhenLeaving.animateToEnd, PxWhenLeaving.animateToStart] as const, PxWhenLeaving.jump).optional(),
+}));
+/** @public */
+export type PxTimelineSegment = PxInfer<typeof PxTimelineSegmentSchema>;
+
+/**
  * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
  * COMPILE error rather than a silent wire-format change — `resolveAnimatorTimeline` reads the
  * timeline through `any`, so without this lock nothing else in the repo would notice.
@@ -910,20 +1033,15 @@ export interface _PxTimeTimeline {
      *  it — the max raw keyframe time across all animations, else the old default length. */
     outTime?: number;
     /** The SPEED one pass plays at: 1 (default) = one content ms per playback ms, 2 = twice as fast, 0.5 = half. The
-     *  handle's `playback.setSpeed()` replaces it at runtime; `playback.setDurationAtSpeed(ms)` is the same knob asked for as a
+     *  handle's `timeline.setSpeed()` replaces it at runtime; `timeline.setDurationAtSpeed(ms)` is the same knob asked for as a
      *  length. WHY a speed, not a duration (`playDuration` until 1.15): every player spells speed as a factor
      *  (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`) and a factor needs no knowledge of the content's
      *  length. WHY `playback…` (`playSpeed` until 1.21): "playback speed" is how media players say it, and the handle's
-     *  family reads the same (`playback.getDurationAtSpeed()`, `playback.getCurrentTimeAtSpeed()`). Must be positive; direction is
+     *  family reads the same (`timeline.getDurationAtSpeed()`, `timeline.getCurrentTimeAtSpeed()`). Must be positive; direction is
      *  `iterationDirection`. */
     playbackSpeed?: number;
-    /** WHEN each button is pressed — the lists of events. Absent and `{}` are the same: nothing starts it (the
-     *  manual document); a file that plays by itself names `"playback.start": 'load'` — the editor always writes it, and 1.17
-     *  wrote it into files that relied on the old "absent = load". WHY: a default nobody wrote is a guess, and an
-     *  absent block and an empty one meaning different things trapped every merge patch and hand edit. */
-    actionTriggers?: _PxActionTriggers;
     /** Wait before the first iteration, ms. Negative skips ahead. Waited whenever a playback starts from the
-     *  beginning — every `playback.start`, a `playback.play` from rest — never on a resume from a pause. */
+     *  beginning — every `timeline.start`, a `timeline.play` from rest — never on a resume from a pause. */
     delay?: number;
     /** Repeat count, or `'infinite'` — WAAPI's word and values. */
     iterations?: number | 'infinite';
@@ -931,7 +1049,7 @@ export interface _PxTimeTimeline {
      *  `direction`, with `iteration` in front because it is per iteration — a scroll timeline has an axis direction of
      *  its own; `alternateReverse` is `alternate-reverse` in the format's camelCase, like every value. */
     iterationDirection?: PxPlaybackDirection;
-    /** HOW the buttons move the playhead — `playback.stop` (+ the gate's `outOfView`), each a preset word or its settings. */
+    /** HOW the buttons move the playhead — `timeline.stop` (+ the gate's `outOfView`), each a preset word or its settings. */
     actions?: _PxActions;
     /** What the picture shows once the playback is `finished` — the natural end, or a stop that went there: `hold` the
      *  last frame (default), `jumpToStart` / `animateToStart` back to the rest pose. The playback stays `finished` either
@@ -947,6 +1065,8 @@ export interface _PxTimeTimeline {
     /** How long that must hold, ms (default 150). WHY `debounce`, not `delay`: a pending open is CANCELLED when
      *  visibility drops below the threshold before the time is up — scrolling straight past starts nothing. */
     inViewDebounce?: number;
+    /** The named parts of the timeline, played one at a time (2026-11-15) — see {@link _PxTimelineSegment}. */
+    segments?: Record<string, _PxTimelineSegment>;
 }
 
 /** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported
@@ -962,7 +1082,6 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     inTime: px.number(0).optional(),
     outTime: px.number().optional(),
     playbackSpeed: px.number(1).optional(),
-    actionTriggers: PxActionTriggersSchema.optional(),
     delay: px.number(0).optional(),
     iterations: px.union([px.number(PX_DEFAULT_ITERATIONS), px.literal('infinite')], PX_DEFAULT_ITERATIONS).optional(),
     iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const, PxPlaybackDirection.normal).optional(),
@@ -971,20 +1090,21 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     whenIdle: px.enum([PxWhenIdle.static, PxWhenIdle.firstFrame] as const, PX_PLAYBACK_DEFAULTS.whenIdle).optional(),
     inViewThreshold: px.number(PX_PLAYBACK_DEFAULTS.inViewThreshold).optional(),
     inViewDebounce: px.number(PX_PLAYBACK_DEFAULTS.inViewDebounce).optional(),
+    segments: px.record(PxTimelineSegmentSchema).optional(),
 }));
 const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
 
 // Scroll-driven — the scrolling moves the playhead; nothing starts, pauses or finishes it, so none of the clock keys
 // exist here. One member for every case: `follows` says what is followed (an element across the screen, or how far
 // something is scrolled), `firstFrameWhen` / `lastFrameWhen` the stretch, `holdOnScreen` a held element.
-// Inside the player the `…Element` words become the browser's ViewTimeline, the `…Scroll` words its ScrollTimeline.
+// Inside the player the `…DomElement` words become the browser's ViewTimeline, the `…Scroll` words its ScrollTimeline.
 
 /** The scroll timeline. Locked by an interface, like the time member. */
 export interface _PxScrollTimeline {
     type: 'scroll';
-    /** What the playhead follows. Default `thisElement`. */
+    /** What the playhead follows. Default `thisDomElement`. */
     follows?: PxScrollFollows;
-    /** A CSS selector in the page: the element for `pageElement`, the scrolling box for `containerScroll`. */
+    /** A CSS selector in the page: the element for `pageDomElement`, the scrolling box for `containerScroll`. */
     selector?: string;
     /** When the first frame is shown. Default `appears` (an element), `{ scrolled: 0 }` (a scroll), `fullyIn` (held). */
     firstFrameWhen?: PxScrollMomentWire;
@@ -1009,8 +1129,8 @@ export interface _PxScrollTimeline {
 /** The scroll member of {@link PxTimelineSchema}. @public @advanced */
 export const PxScrollTimelineSchema = implementsInterface<_PxScrollTimeline>()(px.object({
     type: px.literal('scroll'),
-    follows: px.enum([PxScrollFollows.thisElement, PxScrollFollows.parentElement, PxScrollFollows.pageElement,
-        PxScrollFollows.pageScroll, PxScrollFollows.containerScroll] as const, PxScrollFollows.thisElement).optional(),
+    follows: px.enum([PxScrollFollows.thisDomElement, PxScrollFollows.parentDomElement, PxScrollFollows.pageDomElement,
+        PxScrollFollows.pageScroll, PxScrollFollows.containerScroll] as const, PxScrollFollows.thisDomElement).optional(),
     selector: px.string().optional(),
     firstFrameWhen: PxScrollMomentSchema.optional(),
     lastFrameWhen: PxScrollMomentSchema.optional(),
@@ -1058,7 +1178,7 @@ export interface _PxAnimatorConfig {
     inTime?: number;
 
     /** RUNTIME VIEW ONLY. The file's `timeline.playbackSpeed` — the speed the player starts at; the handle's
-     *  `playback.setSpeed()` replaces it. Absent = 1. */
+     *  `timeline.setSpeed()` replaces it. Absent = 1. */
     playbackSpeed?: number;
 
     /** Delay before animation starts in milliseconds */
@@ -1097,7 +1217,11 @@ export interface _PxAnimatorConfig {
      *  player's frame loop; ignored by WAAPI, React Native and the pre-rendered CSS export. */
     frameRate?: number;
 
-    /** WHEN each button is pressed — copied from the wire's `timeline.actionTriggers` */
+    /** WHEN each button is pressed — the lists of events (wire AND view: the root of `animator`, beside `timeline`,
+     *  since the triggers will name more than one timeline). Absent and `{}` are the same: nothing starts it (the
+     *  manual document); a file that plays by itself names `"timeline.start": 'load'`. WHY: a default nobody wrote is a
+     *  guess, and an absent block and an empty one meaning different things trapped every merge patch and hand edit.
+     *  A scroll timeline reads none: nothing starts it. */
     actionTriggers?: PxActionTriggers;
     /** HOW the built-in actions look — copied from the wire (`fill` / `resetOnFinish` / `direction` above are derived). */
     actions?: PxActions;
@@ -1105,6 +1229,9 @@ export interface _PxAnimatorConfig {
     whenIdle?: PxWhenIdle;
     /** The wire's `whenFinished`, carried through (the executor reads it; the engines read `fill` / `resetOnFinish`). */
     whenFinished?: PxWhenFinished;
+    /** The timeline's segments, carried through as written (2026-11-15) — a writer round-trips them; the player plays
+     *  them (`PxSegments`). */
+    segments?: Record<string, PxTimelineSegment>;
     inViewThreshold?: number;
     inViewDebounce?: number;
 
@@ -1117,7 +1244,7 @@ export interface _PxAnimatorConfig {
      * element plays WHICH named animations — see {@link _PxBinding}. Written by the editor's
      * exporter only; a self-contained document keeps its keyframes on the nodes (`node.animate`).
      *
-     * @example [{ target: "#_px_3cnuvau3", animateWith: ["a0"] }]
+     * @example [{ element: "#_px_3cnuvau3", animateWith: ["a0"] }]
      */
     bindings?: Array<PxBinding>;
 
@@ -1128,7 +1255,7 @@ export interface _PxAnimatorConfig {
      *
      * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll');
      * `resolveAnimatorTimeline` folds it into this field for the engines.
-     * Distinct from `actionTriggers["playback.start"]`, which says what STARTS the animation: one
+     * Distinct from `actionTriggers["timeline.start"]`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      */
     timelineSource?: string;
@@ -1179,16 +1306,17 @@ export interface _PxAnimatorConfig {
  * key that refers to a definition by name spells it the same way.
  */
 export interface _PxBinding {
-    /** The element to animate — its id, written `'#id'`; NOT a CSS selector (no `.class`, no `svg > g`). WHY
-     *  `target`: WAAPI's `KeyframeEffect.target`; `selector` would promise what no player resolves. */
-    target: string;
+    /** The element to animate — one of this file's elements, written `'#id'`; NOT a CSS selector (no `.class`, no
+     *  `svg > g`). WHY `element` (`target` until 2026-11-15): a first reader knows the word; it is the format's one word
+     *  for "one of this file's own elements" — a binding's, an event's — where a page element is a `selector`. */
+    element: string;
     /** Names into `definitions.animations`, applied in order. */
     animateWith: Array<string>;
 }
 
 /** @public @advanced */
 export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
-    target: px.string(),
+    element: px.string(),
     animateWith: px.array(px.string()),
 }));
 
@@ -1206,6 +1334,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     // at this level only on the runtime view, like the rest of the playback dynamics.)
     // THE spelling of "what advances progress" — the clock or the scrolling (review §2.1).
     timeline: PxTimelineSchema.optional(),
+    actionTriggers: PxActionTriggersSchema.optional(),
     definitions: PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
     // Declared HERE because this is a closed object: an undeclared key would be stripped by
@@ -1506,7 +1635,8 @@ const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = tru
  *  bounding box), which is also the editor's default — so they only appear when a
  *  document (typically an imported SVG) carries explicit mask bounds. */
 export interface _PxMaskedByEffect {
-    source?: string;
+    /** The element that becomes the mask — one of this file's elements, `#id`. (`source` until 2026-11-15.) */
+    sourceElement?: string;
     maskType?: string;
     maskUnits?: string;
     maskContentUnits?: string;
@@ -1521,7 +1651,7 @@ export interface _PxMaskedByEffect {
 }
 /** @public @advanced */
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
-    source: px.string().optional(),
+    sourceElement: px.string().optional(),
     // SVG's own initial values — what a <mask> does when the attribute is not there.
     maskType: px.enum([PxMaskType.luminance, PxMaskType.alpha] as const, PxMaskType.luminance).optional(),
     maskUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const, PxUnits.objectBoundingBox).optional(),
@@ -1638,7 +1768,8 @@ const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
  */
 export interface _PxCloneEffect {
     omit?: string;
-    source?: string;
+    /** The element or symbol copied — one of this file's elements, `#id`. (`source` until 2026-11-15.) */
+    sourceElement?: string;
     retime?: _PxRetimeEffect;
 }
 /** @public @advanced */
@@ -1646,7 +1777,7 @@ export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.obje
     // Subtractive on purpose: the `<use>` can only point at one wrapper layer of the
     // source, so the choices form a ladder — 'translate' now, maybe 'transform' later.
     omit: px.enum([PxCloneOmit.translate] as const).optional(),
-    source: px.string().optional(),
+    sourceElement: px.string().optional(),
     retime: PxRetimeEffectSchema.optional(),
 }));
 /** @public */
@@ -2036,7 +2167,7 @@ function collectVersionStampProblems(doc: PxDocument, ctx: PxValidationContext):
 }
 
 /** The scroll timeline's rules the schema cannot say: a moment fits what is followed, shares are 0–1, the two words
- *  come in scroll order, `pageElement` names its element, `holdOnScreen` stands instead of `follows`. The player keeps
+ *  come in scroll order, `pageDomElement` names its element, `holdOnScreen` stands instead of `follows`. The player keeps
  *  playing in each case — it takes the default, clamps, or takes the stretch in scroll order. */
 function collectScrollProblems(doc: PxDocument, ctx: PxValidationContext): void {
     const timeline = (animatorOf(doc) as PxAnimatorConfig | undefined)?.timeline;
@@ -2048,13 +2179,13 @@ function collectScrollProblems(doc: PxDocument, ctx: PxValidationContext): void 
         reportValidationError(ctx, path(timeline.follows !== undefined ? 'follows' : 'selector'), PxValidationFindingKind.invalidValue,
             'holdOnScreen follows its own held stretch — follows and selector are not used with it');
     }
-    if (!held && timeline.follows === PxScrollFollows.pageElement && !timeline.selector) {
+    if (!held && timeline.follows === PxScrollFollows.pageDomElement && !timeline.selector) {
         reportValidationError(ctx, path('selector'), PxValidationFindingKind.missingValue,
-            'follows "pageElement" needs a selector — without one the animation itself is followed');
+            'follows "pageDomElement" needs a selector — without one the animation itself is followed');
     }
-    if (!held && timeline.selector !== undefined && timeline.follows !== PxScrollFollows.pageElement && timeline.follows !== PxScrollFollows.containerScroll) {
+    if (!held && timeline.selector !== undefined && timeline.follows !== PxScrollFollows.pageDomElement && timeline.follows !== PxScrollFollows.containerScroll) {
         reportValidationError(ctx, path('selector'), PxValidationFindingKind.invalidValue,
-            'a selector is used only with follows "pageElement" or "containerScroll"');
+            'a selector is used only with follows "pageDomElement" or "containerScroll"');
     }
     const checkShare = (value: unknown, keys: Array<string>): void => {
         if (typeof value === 'number' && (value < 0 || value > 1)) {
@@ -2074,7 +2205,7 @@ function collectScrollProblems(doc: PxDocument, ctx: PxValidationContext): void 
         }
         if (typeof moment === 'string') words.push(PX_SCROLL_MOMENT_ORDER.indexOf(moment));
         else if ('scrolled' in moment) checkShare(moment.scrolled, [key, 'scrolled']);
-        else { checkShare(moment.element, [key, 'element']); checkShare(moment.screen, [key, 'screen']); }
+        else { checkShare(moment.domElement, [key, 'domElement']); checkShare(moment.screen, [key, 'screen']); }
     }
     if (words.length === 2 && words[0] > words[1]) {
         reportValidationError(ctx, path('lastFrameWhen'), PxValidationFindingKind.invalidValue,
@@ -2438,7 +2569,7 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
     onDestroy?: () => void;
 
     /** The playback events (`onPlaybackStart` …) for the executor the engine's OWN triggers press — handed on to
-     *  `setupAnimationTriggers`, never fired by the engine: a `load` trigger presses `playback.start` inside the engine's
+     *  `setupAnimationTriggers`, never fired by the engine: a `load` trigger presses `timeline.start` inside the engine's
      *  constructor, before the public api is composed, so the listeners must already be attached there. */
     playbackListeners?: PxPlaybackListeners;
 }
@@ -2459,28 +2590,37 @@ export interface PxAnimationPlayerCallbacks extends PxDiagnosticsConfig {
      *  Fires ONCE, always asynchronously (so the create call has returned): with an inline `document`
      *  effectively immediately, with a URL after the fetch. */
     onReady?: () => void;
-    /** A playback began — `playback.start()`, `playback.play()` from rest, a `playback.start` / `playback.play` trigger,
+    /** A playback began — `timeline.start()`, `timeline.play()` from rest, a `timeline.start` / `timeline.play` trigger,
      *  `playback` to `on` / `paused` from `off`, the gate starting it again; a returning picture turned around by a play.
      *  (`onPlay` until 1.23, which also fired for a resume.) */
     onPlaybackStart?: () => void;
-    /** The playback was stopped — `playback.stop()`, a `playback.stop` trigger, `playback="off"`, the gate's `stop` — at
+    /** The playback was stopped — `timeline.stop()`, a `timeline.stop` trigger, `playback="off"`, the gate's `stop` — at
      *  once, or on arrival for the stops that finish the pass first. A pause is `onPlaybackPause`, the natural end
      *  `onPlaybackFinish`, a removal `onDestroy`; a seek reports nothing. WHY no `onReset` (until 1.22): it fired for a
-     *  mix no page could act on; the state is `playback.getState() === 'off'`. */
+     *  mix no page could act on; the state is `timeline.getState() === 'off'`. */
     onPlaybackStop?: () => void;
-    /** The playback was frozen — `playback.pause()`, a `playback.pause` trigger, `playback="paused"`, or the gate's
+    /** The playback was frozen — `timeline.pause()`, a `timeline.pause` trigger, `playback="paused"`, or the gate's
      *  `pause` when it left the screen (1.26: the state reads `paused` then too). */
     onPlaybackPause?: () => void;
-    /** The playback continued after a freeze — `playback.resume()`, `playback.play()`, a `playback.resume` trigger,
+    /** The playback continued after a freeze — `timeline.resume()`, `timeline.play()`, a `timeline.resume` trigger,
      *  `playback` back to `on`, or the gate when it is seen again. */
     onPlaybackResume?: () => void;
     /** The playback reached the end of its last pass by playing — the state is `finished` from here, whatever
      *  `whenFinished` then shows. Not for a stop that goes to the end (that is `onPlaybackStop`), never for a loop without
      *  end. WHY `finish`: one pair with the `finished` state — WAAPI's word. (`onFinish` until 1.25.) */
     onPlaybackFinish?: () => void;
+    /** The timeline went to another segment (2026-11-15): `segment` is the new one, `previous` the one it left. */
+    onSegmentChange?: (segment: string, previous: string) => void;
     /** `destroy()`'s pair (review §11): the player was torn down — an unmount, a document swap, or an explicit
      *  `destroy()` call. */
     onDestroy?: () => void;
+}
+
+/** The components' `segment` prop (React, Vue; 2026-11-15): the segment the page holds — a lever, so the file's segment
+ *  triggers are not read while it is set. At mount a segment that ends is shown at its end without playing, one that
+ *  repeats plays; a change plays the way there (its `whenLeaving` honoured). A name the timeline lacks is ignored. @public */
+export interface PxSegmentProps {
+    segment?: string;
 }
 
 
@@ -2569,7 +2709,7 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  * is one implementation rather than one per engine.
  * @public
  */
-export interface PxPlaybackControls {
+export interface PxTimelineControls {
     // ── the buttons ──
     /** Starts a playback FROM THE START — in every state: from `off` or `finished`, while `playing` (it restarts), while
      *  `paused` (the freeze is dropped) and while `returning`; the delay is waited again. Reports `onPlaybackStart`. To
@@ -2579,7 +2719,7 @@ export interface PxPlaybackControls {
      *  a picture on its way back to the start (`returning`, or a `whenFinished: 'animateToStart'` return) turns around and
      *  plays forward from where it is (`onPlaybackStart`); otherwise it starts from the start (`onPlaybackStart`). */
     play(): void;
-    /** Ends the playback per `actions["playback.stop"]`: `jumpToStart` (default) or `animateToStart` (the `returning`
+    /** Ends the playback per `actions["timeline.stop"]`: `jumpToStart` (default) or `animateToStart` (the `returning`
      *  state) back to the rest pose → `off`; `jumpToEnd` / `animateToEnd` to the end of the current pass → `finished`,
      *  then `whenFinished` applies; `animateToEndAndBack` on to the end of the pass, then backwards to the rest pose →
      *  `off`. Clears a freeze. Reports `onPlaybackStop` — on arrival for the stops that finish the pass first. A no-op
@@ -2652,18 +2792,22 @@ export interface PxPlaybackControls {
     getCurrentTimeAtSpeed(): number | null;
     /** The playhead on the whole playback in ms at the current speed: `getTotalTime() / |speed|`. `null` before ready. */
     getTotalTimeAtSpeed(): number | null;
+    // ── the segments (2026-11-15) ──
+    /** The timeline's named parts — `next()` · `previous()` · `goTo(name)` · `get()` · `getAll()`. With segments, every read
+     *  and seek above is of the CURRENT segment. A timeline with none: `get()` is `null`, the rest does nothing. */
+    readonly segment: PxSegmentControls;
 }
 
 /**
- * The player: its own lifecycle, and `playback` — everything a page does to the animation ({@link PxPlaybackControls}).
+ * The player: its own lifecycle, and `timeline` — everything a page does to the animation ({@link PxTimelineControls}).
  *
  * Generic over the platform's root-element type (`TRoot`) so this package stays platform-neutral: the web player
  * specializes it to the DOM `Element`, a React Native player to its own view handle. Defaults to `unknown`.
  * @public
  */
 export interface PxAnimationPlayerApi<TRoot = unknown> {
-    /** The buttons, the state, the seeks, both clocks and the speed — see {@link PxPlaybackControls}. */
-    readonly playback: PxPlaybackControls;
+    /** The timeline: the buttons, the state, the seeks, both clocks, the speed and the segments — see {@link PxTimelineControls}. */
+    readonly timeline: PxTimelineControls;
     /** The document's variables — read them, give them values, pick a variant (schema 1.27). */
     readonly variables: PxVariablesApi;
     /** Whether the document has loaded and the player is built — calls made earlier are queued. */
@@ -2687,23 +2831,23 @@ export type PxAnimationPlayerHandle = Omit<PxAnimationPlayerApi, 'isReady' | 'ge
 
 
 /** The playback events the executor tells — the public callbacks' playback subset, told when the act is PERFORMED. @public @advanced */
-export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onPlaybackFinish'>;
+export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onPlaybackFinish' | 'onSegmentChange'>;
 
 /**
  * The player's ONE executor of the buttons (dev-docs/plans/playback-layers.md, animation-state.brainstorm.md) — what
  * the triggers' event lists, the `playback` prop and the api's methods all call. It performs the timeline's `actions`
- * (`playback.stop`) and `whenFinished` on the engine, owns the states the engines cannot report — paused (resumable)
+ * (`timeline.stop`) and `whenFinished` on the engine, owns the states the engines cannot report — paused (resumable)
  * versus off, finished, returning — and tells the playback events.
  * @public @advanced
  */
 export interface PxPlayExecutor {
-    /** off · playing · paused · finished · returning — see {@link PxPlaybackControls.getState}. */
+    /** off · playing · paused · finished · returning — see {@link PxTimelineControls.getState}. */
     state(): PxPlaybackState;
     /** A playback from the start, in every state. */
     startPlayback(): void;
     /** Start or carry on: resume a pause, turn a return around, start otherwise; nothing while playing. */
     playPlayback(): void;
-    /** The configured stop (`actions["playback.stop"]`); nothing to stop when off or returning. */
+    /** The configured stop (`actions["timeline.stop"]`); nothing to stop when off or returning. */
     stopPlayback(): void;
     /** Freeze where it is (only while playing). */
     pausePlayback(): void;
@@ -2722,12 +2866,14 @@ export interface PxPlayExecutor {
     /** The engine's clock reached an end (its `onFinish`): the playback's natural end (`finished`, `onPlaybackFinish`, then
      *  `whenFinished`), or the end of a return leg (rest there). The engines' `onFinish` hook calls this. */
     onNaturalFinish(): void;
+    /** A stop is on its way to the end of the pass, or a return leg is running — the segment clock asks before it hops on. */
+    hasPendingMove?(): boolean;
     dispose(): void;
 }
 
 /** What an ENGINE constructs: the primitives — one clock for the whole playback (`getTotalTime` / `setTotalTime`), the
  *  speed, the raw `play` / `pause` (the clock on / off, with the engine's own `onPlay` / `onPause`), `jumpToStart` /
- *  `jumpToEnd`. Flat and internal: the public `player.playback` ({@link PxPlaybackControls}) is composed ONCE on top
+ *  `jumpToEnd`. Flat and internal: the public `player.playback` ({@link PxTimelineControls}) is composed ONCE on top
  *  of any engine (`composeApiExtras`: `finaliseAnimator` on the web, the handle builder on React Native), so no rule
  *  can drift between engines. @public @advanced */
 export interface PxEngineAnimationPlayerApi<TRoot = unknown> {
@@ -2749,6 +2895,8 @@ export interface PxEngineAnimationPlayerApi<TRoot = unknown> {
     destroy(): void;
     /** The player's one executor (D5), attached by the engine so triggers wired inside it and the composed api share one state. */
     playExecutor?: PxPlayExecutor;
+    /** A timeline with segments (2026-11-15): the segment clock that took the primitives over. */
+    segmentRuntime?: PxSegmentRuntime;
 }
 
 

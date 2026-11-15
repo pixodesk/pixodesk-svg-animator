@@ -6,8 +6,10 @@ handle is one object `player.playback.*` and the file names each built-in action
 ([animation-state.playback-namespace.md](./animation-state.playback-namespace.md)); 1.26 made `start` always play from the
 start, added `play` (start or carry on), kept the state apart from the picture (`whenFinished`), let the gate press the real
 buttons and turned `jumpToStart()` / `jumpToEnd()` / `playOnce()` into seeks and a recipe
-([animation-state.feedback.2026-11-12.md](./animation-state.feedback.2026-11-12.md)). 1.24 spelt the noun "run" (§9). More cases, scroll
-included, are in §3.1–3.4; the options for named parts and several animations are in §7. The
+([animation-state.feedback.2026-11-12.md](./animation-state.feedback.2026-11-12.md)). 1.24 spelt the noun "run" (§9). Since then:
+1.27 added **variables** — values beside the playback, which change the picture and never the state (§3.5) — and 1.28 put
+the **scroll timeline** in plain words (§3.4 B, §6). More cases, scroll and variables
+included, are in §3.1–3.5; the options for named parts and several animations are in §7. The
 library survey is in [animation-state.survey.2026-11-09.md](./animation-state.survey.2026-11-09.md). Refines layer 2 of
 [playback-layers.md](./playback-layers.md#layer-2--states-and-rules).
 
@@ -34,6 +36,8 @@ library survey is in [animation-state.survey.2026-11-09.md](./animation-state.su
 | **Return leg** | the picture moving back to the rest pose — after `playback.stop: animateToStart` / `animateToEndAndBack` (state **`returning`**, no playback) or after `whenFinished: animateToStart` (state stays `finished`). `playback.play()` turns it around; `playback.start()` plays from the beginning | executor `reversed` |
 | **Readout** | what the box reports: `playback.getState()` (`off` · `playing` · `paused` · `finished` · `returning` · `destroyed`), `playback.isActive()` (the playback exists), `isPlaying()` (= `playing`); callbacks `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onPlaybackFinish`; registry events | `getState()`, callbacks, `PxAnimatorRegistry` |
 | **Request vs result** | a lever asks (`playback="on"`), a readout answers (`playing` or `finished`); the words are kept apart on purpose | — |
+| **Variable** (1.27) | a named, typed value the file declares (`definitions.variables`) and binds static values to — `"variable(bg)"`, `"calc(variable(size) / 2)"`. The page gives values from code (`variables`, `player.variables.set()`), by a named **variant**, or from its stylesheet (`cssVariables`). Not playback: a change never starts, seeks, pauses or restarts anything (§3.5) | `PxVariablesRuntime`, `PxVariablesApi` |
+| **Predefined variable** | a value the player provides, named `player.…` — the pointer, the playback's clocks, the system's preferences: a sensor or a readout that the *file* can bind to | `player.pointer`, `player.playback.iterationProgress`, `player.prefers.reducedMotion` |
 
 Four kinds of word, one grammar each:
 
@@ -46,6 +50,9 @@ Four kinds of word, one grammar each:
 
 A lever has exactly two buttons (its edges); the file names buttons, never levers (a file cannot hold a position; the
 page can); sensors press buttons by rule, and their rules (`whenFinished`, `actions.outOfView`) are settings, not buttons.
+
+Variables (1.27) add a fifth kind, and it is not about the playback: a **value** — held, like a lever, but it changes
+no state (§3.5).
 
 ## 2. The machinery as boxes
 
@@ -88,6 +95,7 @@ flowchart LR
 | **Sensors** | what the box notices and answers by rule | the visibility gate (`inView` / `outOfView` — the real pause or stop), the clock reaching the end, pointer events (fed to the wiring) |
 | **Inside** | the playback's state machine | `off` · `playing` · `paused` · `finished` · `returning` (· `destroyed`) |
 | **Readouts** | what the box reports | `playback.getState()` `playback.isActive()` `isPlaying()`; `onReady` `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onPlaybackFinish` `onDestroy`; registry events |
+| **Variables** (1.27) | named values beside the machinery — they change what is drawn, never the state; not in the two drawings above | options / props `variables` · `variant` · `cssVariables`; `player.variables.set()` `setVariables()` `reset()` `setVariant()`; the player's own `player.…` values |
 
 ## 3. The model
 
@@ -145,6 +153,7 @@ player.playback.isActive();    // playing · paused · finished
 | File | `actionTriggers: { "playback.start", "playback.play", "playback.stop", "playback.pause", "playback.resume" }` (always quoted); `actions: { "playback.stop": jumpToStart · animateToStart · jumpToEnd · animateToEnd · animateToEndAndBack, outOfView: pause · continue · stop }`; `whenFinished: hold · jumpToStart · animateToStart` |
 | Readouts | `playback.getState()` → `off` · `playing` · `paused` · `finished` · `returning` (the request says `on`, the result says `playing` or `finished`); `playback.isActive()`; callbacks `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onPlaybackFinish` |
 | Editor | Start playback on · Play on · Stop playback on · Pause playback on · Resume playback on; Stop playback · When finished · Out-of-View Action |
+| Variables (1.27) | options and props `variables` · `variant` · `cssVariables`, beside any driver; the handle `player.variables`; in the file `definitions.variables` · `definitions.variableVariants` · `"variable(name)"` · `"calc(…)"` — §3.5 |
 
 Rules, written once:
 
@@ -178,7 +187,7 @@ Precedent for the quartet: `MediaRecorder` — `start()` `pause()` `resume()` `s
 paused`, events `start` `pause` `resume` `stop`. For the two levers: Three.js `AnimationAction.enabled` + `paused`
 (`isRunning()` derived; `clampWhenFinished` = our `hold`). For `play` as start-or-carry-on: every media element.
 
-Marks in §3.1–3.4 and §7: ✅ works today · 🧪 in the player, but marked "in development" · 💡 a sketch, not implemented.
+Marks in §3.1–3.5 and §7: ✅ works today · 🧪 in the player, but marked "in development" · 💡 a sketch, not implemented.
 
 ### 3.1 More cases — the web player
 
@@ -427,6 +436,65 @@ createSvgAnimationPlayer({ container, document: '/chart.json',
 "timeline": { "segments": { "intro": { "outTime": 1000 }, "chart": { "inTime": 1000, "outTime": 3000 } },
               "scroll": { "follows": "parentElement", "enter": [{ "at": 0, "segment": "intro" }, { "at": 0.4, "segment": "chart" }] } }
 ```
+
+### 3.5 Cases — variables
+
+✅ Schema 1.27 (2026-11-14). A file declares **variables** — named, typed values — and binds static values to them; the
+page gives values while it runs. Variables sit **beside** the playback, not in it. The whole of it:
+[docs/library/variables.md](../../docs/library/variables.md); the file side:
+[docs/format/README.md](../../docs/format/README.md#variables).
+
+```json
+// THE FILE — declare, bind, and name sets of defaults (variants)
+"animator": {
+  "timeline": { "outTime": 1000, "iterations": "infinite", "actionTriggers": { "playback.start": "load" } },
+  "definitions": {
+    "variables": {
+      "bg":   { "type": "color",  "defaultValue": "#2a7fff" },
+      "size": { "type": "number", "defaultValue": 40 } },
+    "variableVariants": { "dark": { "bg": "#111827" } } } },
+"children": [
+  { "type": "circle", "cy": 100, "r": "variable(size)", "fill": "variable(bg)", "cx": "calc(variable(size) + 10)" } ]
+```
+
+```js
+// WEB PLAYER — a second handle, beside player.playback
+const player = createSvgAnimationPlayer({
+  container, document: 'card.json',
+  variables: { bg: '#ef4444' },              // applied before the first paint
+  variant: 'dark',                           // a named set of defaults from the file
+});
+player.variables.set('size', 60);            // drawn on the next frame — the playback keeps its state and time
+player.variables.setVariables({ bg: '#10b981', size: 48 });   // several, in one frame
+player.variables.reset('bg');                // back to what the file says
+player.variables.setVariant(null);           // back to the defaults
+```
+
+```jsx
+// REACT / VUE — props, beside whichever driver is used
+<SvgAnimationPlayer document={card} variables={{ bg: accent }} variant="dark" />
+<SvgAnimationPlayer document={card} cssVariables />            // the stylesheet sets them: .card:hover { --bg: red; }
+<SvgAnimationPlayer document={card} showAsStatic variables={{ bg: accent }} />   // nothing plays, the values still apply
+```
+
+```json
+// THE PLAYER'S OWN VALUES — all named player.…; a file binds to them like to its own
+{ "type": "rect", "height": 4, "width": "calc(variable(player.playback.iterationProgress) * 400)" }   // a progress bar
+{ "type": "circle", "r": 20, "transform": { "translate": "variable(player.pointer)" } }               // follows the pointer
+```
+
+Where variables meet the playback model:
+
+| Meeting point | Rule |
+|---|---|
+| The kinds of word (§1) | a variable is a **value**: held like a lever, but it moves no state. `variables` · `variant` · `cssVariables` are not driver props — they go with any of them, `showAsStatic` included |
+| Buttons and wiring | none. A variable presses no button, and no trigger sets one: a file cannot say "on click, set a variable" (§8) |
+| Never the timeline | a change never starts, seeks, pauses or restarts the animation. An attribute is animated or bound, never both |
+| Readouts as values | `player.playback.currentTime` · `.currentProgress` · `.iterationProgress` are the playback's clocks, written on every frame while it plays — a file can draw its own progress with no keyframes |
+| Sensors as values | `player.pointer` (`.x` `.y` `.over` `.down`) and `player.prefers.reducedMotion` · `.colorScheme`. The player listens only for what the file uses |
+| A change that needs a rebuild | a variable bound to an effect's setting builds the player again: the playback's state, time and speed are kept, no playback callback fires, `load` triggers are not fired again. One limit: a rebuild while `finished` comes back `paused` at the last frame |
+| Who wins | the page's stylesheet (with `cssVariables`) → your code → the declaration's `defaultSource` → the chosen variant → `defaultValue` |
+| Not there yet | React Native has no `cssVariables` and does not feed the `player.…` values |
 
 ## 4. Inside the box — the playback's state machine
 
@@ -702,6 +770,8 @@ at once becomes a real request.
 - **The gate as a sensed lever** (`inView`), with its own rule words beside `outOfView`.
 - **Pointer words:** `hoverIn` / `hoverOut` are web words; Rive, dotLottie and React Native say `pointerEnter` /
   `pointerExit`.
+- **Rules that set or read a variable:** variables (1.27) carry values from the page. A trigger that sets one, or a
+  condition that reads one, is not designed.
 
 ## 9. History
 
@@ -726,6 +796,10 @@ at once becomes a real request.
   on every surface; `playerActionTriggers` removed (no alias); `actionTriggers` (a whole block instead of the file's;
   `null` / `{}` = none), `disableActionTriggers` (manual), `showAsStatic` (the picture as drawn, playback calls ignored,
   PX1506); `actions` replaces the file's block (it merged). §2 and §3 updated; the 1.26 entry above keeps its words.
+- 2026-11-14: schema 1.27 — variables: `definitions.variables` and `variableVariants`, `"variable(name)"` and `"calc(…)"`
+  in place of a static value, the handle `player.variables`, the options and props `variables` · `variant` ·
+  `cssVariables`, and the player's own `player.…` values. They change the picture, never the playback.
 - 2026-11-14: schema 1.28 — one scroll timeline in plain words (`follows`, `firstFrameWhen` / `lastFrameWhen`,
   `holdOnScreen`; `type: "view"` gone), the state `scrubbing` on every engine, no playback callbacks, seeks ignored
   like the buttons (PX1505); §3.4 B and §6 rewritten in the new words.
+- 2026-11-15: this text caught up with 1.27 — variables added to §1, §2, §3 and §8, and the new §3.5.

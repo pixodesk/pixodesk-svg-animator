@@ -61,7 +61,7 @@ describe('timeline.whenFinished', () => {
 
     it('WITHOUT the key the animation holds its end state (baseline)', () => {
         const api = createSvgAnimationPlayer({ document: makeDoc(), container: '#svg-container' });
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('1');
         api.destroy();
@@ -69,7 +69,7 @@ describe('timeline.whenFinished', () => {
 
     it("'jumpToStart': the document snaps back to frame 0 on natural finish", () => {
         const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'jumpToStart' }), container: '#svg-container' });
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(DUR / 2);
         expect(parseFloat(renderedOpacity() ?? 'NaN')).toBeGreaterThan(0);   // mid-flight
         vi.advanceTimersByTime(DUR / 2 + 32);
@@ -80,7 +80,7 @@ describe('timeline.whenFinished', () => {
     it('the caller’s own onFinish still fires (before the reset)', () => {
         const onFinish = vi.fn();
         const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'jumpToStart' }), container: '#svg-container', onPlaybackFinish: onFinish });
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(DUR + 32);
         expect(onFinish).toHaveBeenCalledTimes(1);
         expect(renderedOpacity()).toBe('0');
@@ -89,24 +89,24 @@ describe('timeline.whenFinished', () => {
 
     it("'animateToStart': the document plays BACK to its start after a natural finish and rests there", () => {
         const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'animateToStart' }), container: '#svg-container' });
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(DUR + DUR / 2);
-        expect(api.playback.getState()).toBe('finished');                              // on its way back: only the picture moves (1.26)
+        expect(api.timeline.getState()).toBe('finished');                              // on its way back: only the picture moves (1.26)
         const midway = parseFloat(renderedOpacity() ?? 'NaN');
         expect(midway).toBeGreaterThan(0);
         expect(midway).toBeLessThan(1);
         vi.advanceTimersByTime(DUR);
-        expect(api.playback.isPlaying()).toBe(false);                                  // at rest, at the start
+        expect(api.timeline.isPlaying()).toBe(false);                                  // at rest, at the start
         expect(renderedOpacity()).toBe('0');
         api.destroy();
     });
 
     it('reset re-arms the animation — play() after finish runs again from the start', () => {
         const api = createSvgAnimationPlayer({ document: makeDoc({ whenFinished: 'jumpToStart' }), container: '#svg-container' });
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('0');
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(DUR / 2);
         expect(parseFloat(renderedOpacity() ?? 'NaN')).toBeCloseTo(0.5, 1);   // replaying
         api.destroy();

@@ -72,7 +72,7 @@ export function scrollMomentU(moment: PxScrollMomentSettings, subjectSize: numbe
         case PxScrollMoment.halfOut: return Math.max(s, vp) + Math.min(s, vp) / 2;
         case PxScrollMoment.gone: return s + vp;
     }
-    const element = clampShare(scrollLineShare(moment.element, 0));
+    const element = clampShare(scrollLineShare(moment.domElement, 0));
     const screen = clampShare(scrollLineShare(moment.screen, 1));
     return (1 - screen) * vp + element * s;
 }

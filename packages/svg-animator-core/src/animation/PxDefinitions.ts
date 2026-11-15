@@ -852,7 +852,7 @@ export function normalizeBindings(
     const docBindings = getBindings(doc);
     if (docBindings) {
         for (const binding of docBindings) {
-            const id = binding.target.startsWith('#') ? binding.target.slice(1) : binding.target;
+            const id = binding.element.startsWith('#') ? binding.element.slice(1) : binding.element;
             const animDefs = binding.animateWith
                 .map(name => resolveAnimation(name, defs))
                 .filter((d): d is PxAnimationDefinition => !!d);

@@ -196,7 +196,7 @@ describe('createScrollDriver', () => {
             sticky.append(box);
             box.append(svg);
 
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.parentElement })).toBe(wrapper);
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.parentDomElement })).toBe(wrapper);
         });
 
         it("parentElement with nothing held is just the element's own parent", () => {
@@ -205,7 +205,7 @@ describe('createScrollDriver', () => {
             document.body.append(box);
             box.append(svg);
 
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.parentElement })).toBe(box);
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.parentDomElement })).toBe(box);
         });
 
         it('containerScroll resolves to the scroll container around the animation', () => {
@@ -222,7 +222,7 @@ describe('createScrollDriver', () => {
             const svg = document.createElement('svg');
             document.body.append(section, svg);
 
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageElement, selector: '#story' })).toBe(section);
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageDomElement, selector: '#story' })).toBe(section);
         });
 
         it('an unresolvable selector WARNS and falls back to the svg (never a silent freeze)', () => {
@@ -230,8 +230,8 @@ describe('createScrollDriver', () => {
             const svg = document.createElement('svg');
             document.body.append(svg);
 
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageElement, selector: '#nope' })).toBe(svg);
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageElement, selector: '!!not a selector!!' })).toBe(svg);
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageDomElement, selector: '#nope' })).toBe(svg);
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageDomElement, selector: '!!not a selector!!' })).toBe(svg);
             expect(warn).toHaveBeenCalledTimes(2);
             warn.mockRestore();
         });
@@ -249,7 +249,7 @@ describe('createScrollDriver', () => {
             vi.stubGlobal('ViewTimeline', FakeViewTimeline);
             stubCssPercent();
 
-            const native = createNativeScrollTimeline(svg, scrollConfig({ follows: PxScrollFollows.pageElement, selector: '#story' }));
+            const native = createNativeScrollTimeline(svg, scrollConfig({ follows: PxScrollFollows.pageDomElement, selector: '#story' }));
             expect(native).toBeTruthy();
             expect(seenOptions[0].subject).toBe(section);
         });
@@ -267,7 +267,7 @@ describe('createScrollDriver', () => {
             section.getBoundingClientRect = () => rectOf(150, 100);   // u = 400−150 = 250 of [0,500]
 
             const seen: Array<number> = [];
-            createScrollDriver(svg, scrollConfig({ follows: PxScrollFollows.pageElement, selector: '#story' }), p => seen.push(p));
+            createScrollDriver(svg, scrollConfig({ follows: PxScrollFollows.pageDomElement, selector: '#story' }), p => seen.push(p));
             expect(seen[0]).toBeCloseTo(0.5);
         });
 
@@ -278,7 +278,7 @@ describe('createScrollDriver', () => {
             box.append(svg);
 
             expect(resolveFollowedElement(svg, {})).toBe(svg);
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.thisElement })).toBe(svg);
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.thisDomElement })).toBe(svg);
         });
 
         it('pageScroll resolves to the page\'s scroller, even inside a scrolling box', () => {
@@ -310,7 +310,7 @@ describe('createScrollDriver', () => {
             const svg = document.createElement('svg');
             document.body.append(svg);
             const codes: Array<PxDiagnosticCode> = [];
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageElement, selector: '!!' }, recordingDiag(codes))).toBe(svg);
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageDomElement, selector: '!!' }, recordingDiag(codes))).toBe(svg);
             expect(codes).toEqual([PxDiagnosticCode.scrollSubjectInvalid]);
         });
 
@@ -321,8 +321,8 @@ describe('createScrollDriver', () => {
             const svg = document.createElement('svg');
             document.body.append(section, handed, svg);
 
-            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageElement, selector: '#story' }, undefined, handed)).toBe(handed);
-            // …and a file that follows a scroll is made to follow the element (`pageElement`) — its place drives progress
+            expect(resolveFollowedElement(svg, { follows: PxScrollFollows.pageDomElement, selector: '#story' }, undefined, handed)).toBe(handed);
+            // …and a file that follows a scroll is made to follow the element (`pageDomElement`) — its place drives progress
             const box = makeScreenBox();
             box.append(handed);
             handed.getBoundingClientRect = () => rectOf(150, 100);
@@ -340,7 +340,7 @@ describe('createScrollDriver', () => {
             document.body.append(section, box);
             box.append(svg);
 
-            const held: PxScrollSettings = { holdOnScreen: true, follows: PxScrollFollows.pageElement, selector: '#story' };
+            const held: PxScrollSettings = { holdOnScreen: true, follows: PxScrollFollows.pageDomElement, selector: '#story' };
             expect(resolveFollowedElement(svg, held)).toBe(box);
             expect(resolveFollowedElement(svg, held, undefined, section)).toBe(box);
         });
@@ -360,7 +360,7 @@ describe('createScrollDriver', () => {
         stubMetrics(document.documentElement, { clientHeight: 800 });
 
         const seen: Array<number> = [];
-        createScrollDriver(svg, scrollConfig({ follows: PxScrollFollows.pageElement, selector: '#story' }), p => seen.push(p));
+        createScrollDriver(svg, scrollConfig({ follows: PxScrollFollows.pageDomElement, selector: '#story' }), p => seen.push(p));
         // Against the page's screen it would be u = 800 − 1150 < 0 → 0.
         expect(seen[0]).toBeCloseTo(0.5);
     });
@@ -476,7 +476,7 @@ describe('createScrollDriver', () => {
         scroller.appendChild(subject);
         const seen: Array<number> = [];
         const driver = createScrollDriver(subject, scrollConfig({ follows: PxScrollFollows.containerScroll }, {
-            actionTriggers: { 'playback.start': 'click' },   // must have no effect
+            actionTriggers: { 'timeline.start': 'click' },   // must have no effect
         }), p => seen.push(p));
         expect(driver).toBeTruthy();
         expect(seen.length).toBe(1);
@@ -650,7 +650,7 @@ describe('createNativeScrollTimeline — the browser\'s own timeline', () => {
     });
 
     it('an exact place falls back to the player\'s own measuring — even one CSS could spell (entry-crossing)', () => {
-        for (const place of [{ element: 'top' as const, screen: 0.8 }, { element: 0.3, screen: 'bottom' as const }]) {
+        for (const place of [{ domElement: 'top' as const, screen: 0.8 }, { domElement: 0.3, screen: 'bottom' as const }]) {
             expect(createNativeScrollTimeline(svgInPage(), scrollConfig({ firstFrameWhen: place }))).toBeNull();
         }
         expect(viewOptions).toHaveLength(0);
@@ -658,7 +658,7 @@ describe('createNativeScrollTimeline — the browser\'s own timeline', () => {
 
     it('an exact place warns 1307 only when engine "native" asked for the browser\'s timeline', () => {
         const codes: Array<PxDiagnosticCode> = [];
-        const place: PxScrollSettings = { firstFrameWhen: { element: 'top', screen: 0.8 } };
+        const place: PxScrollSettings = { firstFrameWhen: { domElement: 'top', screen: 0.8 } };
         createNativeScrollTimeline(svgInPage(), scrollConfig(place), recordingDiag(codes));
         expect(codes).toEqual([]);
         createNativeScrollTimeline(svgInPage(), scrollConfig(place, { engine: PxTimelineEngineSetting.native }), recordingDiag(codes));

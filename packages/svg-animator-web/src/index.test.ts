@@ -119,8 +119,7 @@ describe('animateBackground', () => {
                         outTime: 128,
                         whenFinished: 'hold',
                         iterationDirection: 'normal',
-                        actionTriggers: { 'playback.start': 'load' },
-                    },
+                    }, actionTriggers: { 'timeline.start': 'load' },
                 },
                 children: [
                     {
@@ -167,8 +166,7 @@ describe('animateBackground', () => {
                         // single play — no looping; animation finishes and holds the last frame
                         iterations: 1,
                         whenFinished: 'hold',
-                        actionTriggers: { 'playback.start': 'load' },
-                    },
+                    }, actionTriggers: { 'timeline.start': 'load' },
                 },
                 children: [
                     {
@@ -198,7 +196,7 @@ describe('animateBackground', () => {
 
         // Pressing play on a finished animation must rewind to the start, not
         // stay stuck on the last frame.
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(64); // halfway through the replay
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,150)');
 
@@ -212,7 +210,7 @@ describe('animateBackground', () => {
             document: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
-                animator: { timeline: { engine: 'js', outTime: 100, whenFinished: 'hold', actionTriggers: { 'playback.start': 'load' } } },
+                animator: { timeline: { engine: 'js', outTime: 100, whenFinished: 'hold' }, actionTriggers: { 'timeline.start': 'load' } },
                 children: [
                     {
                         type: 'path', id: '_px_d_bare', d: 'M0,0L10,0L10,10',
@@ -462,7 +460,7 @@ describe('Loop expansion', () => {
                         loop: true
                     }
                 } } },
-                bindings: [{ target: '#el1', animateWith: ['a0'] }],
+                bindings: [{ element: '#el1', animateWith: ['a0'] }],
                 timeline: {
                     outTime: 100,
                 },
@@ -497,7 +495,7 @@ describe('Loop expansion', () => {
                         loop: { repeatAt: 'start' }
                     }
                 } } },
-                bindings: [{ target: '#el1', animateWith: ['a0'] }],
+                bindings: [{ element: '#el1', animateWith: ['a0'] }],
                 timeline: {
                     outTime: 250,
                 },
@@ -974,14 +972,13 @@ function getTestJson(): PxDocument {
                     ]
                 }
             } } },
-            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
+            bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: 'js',
                 outTime: 128,
                 whenFinished: 'hold',
                 iterationDirection: 'normal',
-                actionTriggers: { 'playback.start': 'load' },
-            },
+            }, actionTriggers: { 'timeline.start': 'load' },
         },
 
         children: [

@@ -20,7 +20,7 @@ function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: DUR, actionTriggers: { 'playback.start': 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: DUR }, actionTriggers: { 'timeline.start': 'load' } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: DUR, value: 1 }] } },
@@ -72,9 +72,9 @@ describe('the page-wide animator registry', () => {
             onPlaybackStart: () => own.push('playbackStart'), onPlaybackPause: () => own.push('playbackPause'), onPlaybackStop: () => own.push('playbackStop'),
         });
         made.push(api);
-        api.playback.start();
-        api.playback.pause();
-        api.playback.stop();
+        api.timeline.start();
+        api.timeline.pause();
+        api.timeline.stop();
         api.destroy();
         off();
         // Listed first, gone last …
@@ -95,7 +95,7 @@ describe('the page-wide animator registry', () => {
         const events: Array<string> = [];
         const off = onSvgAnimationPlayersChange(event => { events.push(event); });
         const api = make();
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(DUR + 64);
         off();
         expect(events).toContain('playbackFinish');
@@ -106,7 +106,7 @@ describe('the page-wide animator registry', () => {
         const offBad = onSvgAnimationPlayersChange(() => { throw new Error('bad listener'); });
         const offGood = onSvgAnimationPlayersChange(event => { heard.push(event); });
         const api = make();
-        expect(() => api.playback.start()).not.toThrow();
+        expect(() => api.timeline.start()).not.toThrow();
         // `add`, then every `playbackStart` (the `load` trigger's at creation and the explicit one).
         expect(heard[0]).toBe('add');
         expect(heard.slice(1).every(e => e === 'playbackStart')).toBe(true);
@@ -120,7 +120,7 @@ describe('the page-wide animator registry', () => {
         const events: Array<string> = [];
         const off = onSvgAnimationPlayersChange(event => { events.push(event); });
         off();
-        make().playback.start();
+        make().timeline.start();
         expect(events).toEqual([]);
     });
 
@@ -134,8 +134,8 @@ describe('the page-wide animator registry', () => {
         const events: Array<string> = [];
         assert(byName, 'the registry is not reachable by name');
         const off = byName.subscribe(event => { events.push(event); });
-        api.playback.start();
-        api.playback.pause();                                  // the alias of pausePlayback()
+        api.timeline.start();
+        api.timeline.pause();                                  // the alias of pausePlayback()
         off();
         expect(events).toEqual(['playbackStart', 'playbackPause']);
     });

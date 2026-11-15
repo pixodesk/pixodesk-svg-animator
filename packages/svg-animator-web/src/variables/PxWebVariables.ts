@@ -20,7 +20,7 @@
  * animated default switching on or off — builds the player again, its state and time kept (the host's `rebuild`).
  */
 
-import type { PxDocument, PxNode, PxPlaybackControls } from '@pixodesk/svg-animator-core';
+import type { PxDocument, PxNode, PxTimelineControls } from '@pixodesk/svg-animator-core';
 import { PxPredefinedVariable, type PxVariableValue } from '@pixodesk/svg-animator-core';
 import type { PxBindingSite, PxVariablesRuntime } from '@pixodesk/svg-animator-core/engine';
 import { cssVarValue, domAttributeOf, isDirectWriteSite, nodeKeyOf, PX_VARIABLE_NODE_MARK, camelCaseToKebabWordIfNeeded } from '@pixodesk/svg-animator-core/internal';
@@ -29,13 +29,13 @@ import { webRaf } from '../shared/PxWebRaf';
 /** What the player gives its variables. @internal */
 export interface PxWebVariablesHost {
     /** The playback of the player as it is now — for the playback variables. */
-    playback(): PxPlaybackControls | undefined;
+    playback(): PxTimelineControls | undefined;
     /** Build the player again from the runtime's current document, its state and time kept. */
     rebuild(): void;
 }
 
 const POINTER_PREFIX = 'player.pointer';
-const PLAYBACK_PREFIX = 'player.playback.';
+const PLAYBACK_PREFIX = 'player.timeline.';
 const PREFERS_PREFIX = 'player.prefers.';
 const STYLE_KEY = 'style';
 const TEXT_KEY = 'textContent';

@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
-import { applyPlaybackOverride, composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { applyPlaybackOverride, composeApiExtras, withSegmentEngine, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -84,6 +84,8 @@ export function bindWithEngineChoice(
 ): PxPlayerEngineApi {
     // One channel for everything this binder and the scroll driver have to say (review §5).
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
+    // a timeline with segments (2026-11-15): the engine plays ONE plain pass of the window — the segment clock seeks it
+    doc = withSegmentEngine(doc);
     if (mode === PxControlMode.static) return guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false));
     return bindEngine(doc, adapter, callbacks, rootElement, diag, true, followed);
 }
@@ -189,7 +191,7 @@ function bindEngine(
  *  - the driver moves the engine's own clock, which no guard touches */
 function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxPlayerEngineApi): PxPlayerEngineApi {
     const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
-    const playback = api.playback;
+    const playback = api.timeline;
     let destroyed = false;
     playback.getState = () => destroyed ? PxPlaybackState.destroyed : PxPlaybackState.scrubbing;
     playback.isActive = () => false;
@@ -213,7 +215,7 @@ function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, a
  *  `showAsStaticIgnoresCall`); the reads answer from the engine, which never moves. */
 function guardStaticPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxPlayerEngineApi): PxPlayerEngineApi {
     const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.showAsStaticIgnoresCall, call);
-    const playback = api.playback;
+    const playback = api.timeline;
     playback.start = ignored(PxPlaybackWrite.start);
     playback.play = ignored(PxPlaybackWrite.play);
     playback.stop = ignored(PxPlaybackWrite.stop);
@@ -231,7 +233,7 @@ function guardStaticPlayback(diag: ReturnType<typeof createDiagnostics>, api: Px
  * Options accepted by the pre-rendered entry points — a subset of `PxAnimationPlayerOptions`: the
  * document, the control options and the callbacks INLINE under the same names every surface uses (review §9). No
  * `adapter`: a pre-rendered SVG is by definition already in the DOM (review §25.14). With no control option the
- * document's own `timeline.actionTriggers` decide — the way the editor saved it.
+ * document's own `actionTriggers` decide — the way the editor saved it.
  * @public
  */
 export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCallbacks, PxCommonControlProps {

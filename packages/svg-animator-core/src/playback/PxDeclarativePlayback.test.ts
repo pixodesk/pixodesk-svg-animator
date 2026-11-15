@@ -5,7 +5,7 @@
 // §10 (dev-docs/reviews/first-use-review.md) + D5 (dev-docs/plans/component-api.md) + the playback model
 // (dev-docs/plans/animation-state.brainstorm.md): `playback` names the lever's POSITION — `off` · `on` · `paused`; a
 // change between two positions presses one or two of the buttons. HOW a stop moves the playhead is the timeline's own
-// (`actions["playback.stop"]`, `whenFinished` — jump / animate to the start or the end) and lives in ONE executor that the
+// (`actions["timeline.stop"]`, `whenFinished` — jump / animate to the start or the end) and lives in ONE executor that the
 // prop, the trigger's event lists, the visibility gate and the imperative api share. 1.26
 // (animation-state.feedback.2026-11-12.md): start always from the start, `play` starts or carries on, the state never
 // follows the picture, a seek that was not made while playing pauses there.
@@ -146,7 +146,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(atEnd.log).toEqual(['jumpToStart']);
         const rewound = new FakeEngine(1000);
         rewound.time = 1000;
-        const y = executorOf(rewound, { actions: { 'playback.stop': { behavior: PxStopPlaybackBehavior.animateToStart } } });
+        const y = executorOf(rewound, { actions: { 'timeline.stop': { behavior: PxStopPlaybackBehavior.animateToStart } } });
         y.onNaturalFinish();
         y.stopPlayback();
         expect(rewound.rate).toBe(-1);                   // travels back from the end pose
@@ -208,7 +208,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('stop behavior animateToStart plays back to the start (the RETURNING state); a loop plays back the iteration it is in, then rests', () => {
         const one = new FakeEngine(1000);
-        const x = executorOf(one, { actions: { 'playback.stop': { behavior: PxStopPlaybackBehavior.animateToStart } } });
+        const x = executorOf(one, { actions: { 'timeline.stop': { behavior: PxStopPlaybackBehavior.animateToStart } } });
         x.startPlayback();
         one.frames(30);
         x.stopPlayback();
@@ -222,7 +222,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(x.state()).toBe('off');
 
         const endless = new FakeEngine(Infinity);
-        const y = executorOf(endless, { actions: { 'playback.stop': { behavior: PxStopPlaybackBehavior.animateToStart } } });
+        const y = executorOf(endless, { actions: { 'timeline.stop': { behavior: PxStopPlaybackBehavior.animateToStart } } });
         y.startPlayback();
         endless.frames(130);
         expect(endless.time).toBe(1300);
@@ -239,7 +239,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('a RETURNING picture turns around on play, plays from the start on start, and ignores stop / pause / resume', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToStart' } });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToStart' } });
         const events: Array<string> = [];
         x.setListeners(listening(events));
         x.startPlayback();
@@ -269,7 +269,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('stop animateToEnd on a loop plays on to the pass end, then whenFinished (jumpToStart rests); a start before it cancels the pending stop', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToEnd' }, whenFinished: 'jumpToStart' });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToEnd' }, whenFinished: 'jumpToStart' });
         x.startPlayback();
         e.frames(30);
         x.stopPlayback();
@@ -292,7 +292,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('stop animateToEnd on a one-shot completes the playback, THEN whenFinished runs — animateToStart included', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToEnd' }, whenFinished: PxWhenFinished.animateToStart });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToEnd' }, whenFinished: PxWhenFinished.animateToStart });
         x.startPlayback();
         e.frames(30);
         x.stopPlayback();
@@ -370,7 +370,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('a finished one-shot is FINISHED, not off: a stop still acts on it (animateToStart from the end), a start is a fresh playback', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToStart' } });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToStart' } });
         const events: Array<string> = [];
         x.setListeners(listening(events));
         x.startPlayback();
@@ -427,7 +427,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 describe('the action model: jump / animate to the start or the end; a stop that goes to the end is FINISHED, then whenFinished', () => {
     it('stop jumpToEnd on a one-shot: held at the end, onPlaybackStop at once, then whenFinished — no engine finish, no onPlaybackFinish', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { 'playback.stop': 'jumpToEnd' }, whenFinished: 'jumpToStart' });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'jumpToEnd' }, whenFinished: 'jumpToStart' });
         const events: Array<string> = [];
         x.setListeners(listening(events));
         x.startPlayback();
@@ -442,7 +442,7 @@ describe('the action model: jump / animate to the start or the end; a stop that 
 
     it('stop jumpToEnd on a loop holds on the end of the CURRENT pass, FINISHED; whenFinished hold is the default', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { actions: { 'playback.stop': 'jumpToEnd' } });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'jumpToEnd' } });
         x.startPlayback();
         e.frames(130);
         x.stopPlayback();
@@ -458,7 +458,7 @@ describe('the action model: jump / animate to the start or the end; a stop that 
 
     it('stop animateToEnd on a loop with whenFinished hold rests on the pass end, FINISHED; while on its way it still reads PLAYING', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToEnd' } });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToEnd' } });
         const events: Array<string> = [];
         x.setListeners(listening(events));
         x.startPlayback();
@@ -475,7 +475,7 @@ describe('the action model: jump / animate to the start or the end; a stop that 
 
     it('stop animateToEnd on a PAUSED playback resumes it and plays there', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToEnd' } });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToEnd' } });
         x.startPlayback();
         e.frames(30);
         x.pausePlayback();
@@ -488,7 +488,7 @@ describe('the action model: jump / animate to the start or the end; a stop that 
 
     it('a one-shot animateToEnd arrives with the engine\'s natural end even when the time read never shows the end', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToEnd' }, whenFinished: 'jumpToStart' });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToEnd' }, whenFinished: 'jumpToStart' });
         const events: Array<string> = [];
         x.setListeners(listening(events));
         x.startPlayback();
@@ -514,7 +514,7 @@ describe('the action model: jump / animate to the start or the end; a stop that 
 
     it('stop animateToEndAndBack finishes the pass, then plays back to the start; told on arrival; OFF at the end (1.26)', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { actions: { 'playback.stop': PxStopPlaybackBehavior.animateToEndAndBack } });
+        const x = executorOf(e, { actions: { 'timeline.stop': PxStopPlaybackBehavior.animateToEndAndBack } });
         const events: Array<string> = [];
         x.setListeners(listening(events));
         x.startPlayback();
@@ -535,7 +535,7 @@ describe('the action model: jump / animate to the start or the end; a stop that 
 
     it('stop animateToEndAndBack on a reversed pass of an alternating loop: the pass end IS the start pose — it rests there', () => {
         const e = new FakeEngine(Infinity);
-        const x = executorOf(e, { direction: 'alternate', actions: { 'playback.stop': PxStopPlaybackBehavior.animateToEndAndBack } });
+        const x = executorOf(e, { direction: 'alternate', actions: { 'timeline.stop': PxStopPlaybackBehavior.animateToEndAndBack } });
         x.startPlayback();
         e.frames(130);                                        // 1300: the second pass, played backwards
         x.stopPlayback();
@@ -569,7 +569,7 @@ describe('the action model: jump / animate to the start or the end; a stop that 
 
     it('the gate presses the real buttons: pause / resume, a hard stop / start — and undoes only what it did (1.26)', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { 'playback.stop': 'animateToStart' } });
+        const x = executorOf(e, { actions: { 'timeline.stop': 'animateToStart' } });
         const events: Array<string> = [];
         x.setListeners(listening(events));
         x.startPlayback();
@@ -604,23 +604,23 @@ describe('composeApiExtras — the public api on top of the same executor', () =
     it('playback: the buttons go through ONE executor, reused by every later composition', () => {
         const e = new FakeEngine(2000);
         const events: Array<string> = [];
-        const api = composeApiExtras(e, { duration: 1000, iterations: 2, actions: { 'playback.stop': { behavior: PxStopPlaybackBehavior.animateToStart } }, playbackListeners: listening(events) }, e.raf);
-        api.playback.start();
+        const api = composeApiExtras(e, { duration: 1000, iterations: 2, actions: { 'timeline.stop': { behavior: PxStopPlaybackBehavior.animateToStart } }, playbackListeners: listening(events) }, e.raf);
+        api.timeline.start();
         e.frames(30);
-        api.playback.pause();
-        expect(api.playback.getState()).toBe('paused');
-        expect(api.playback.isActive()).toBe(true);
+        api.timeline.pause();
+        expect(api.timeline.getState()).toBe('paused');
+        expect(api.timeline.isActive()).toBe(true);
         e.log.length = 0;
-        api.playback.play();
+        api.timeline.play();
         expect(e.log).toEqual(['play']);                   // play on a pause resumes
-        api.playback.stop();
+        api.timeline.stop();
         expect(e.rate).toBe(-1);                           // the configured off
-        expect(api.playback.getState()).toBe('returning');
-        expect(api.playback.isActive()).toBe(false);
+        expect(api.timeline.getState()).toBe('returning');
+        expect(api.timeline.isActive()).toBe(false);
         e.frames(40);
         expect(e.time).toBe(0);                            // a two-pass document: the return leg rests itself at the pass start
-        expect(api.playback.getState()).toBe('off');
-        expect(api.playback.getDuration()).toBe(1000);
+        expect(api.timeline.getState()).toBe('off');
+        expect(api.timeline.getDuration()).toBe(1000);
         expect(events).toEqual(['playbackStart', 'playbackPause', 'playbackResume', 'playbackStop']);
         expect(composeApiExtras(e, { duration: 1000 }, e.raf).playExecutor).toBe(api.playExecutor);
     });
@@ -628,22 +628,22 @@ describe('composeApiExtras — the public api on top of the same executor', () =
     it('progress counts iterations in play order — 1.2 is 20 % into the second; no wrapping (1.26; playOnce() is gone)', () => {
         const e = new FakeEngine(3000);
         const api = composeApiExtras(e, { duration: 1000, iterations: 3, direction: 'alternate' }, e.raf);
-        api.playback.setCurrentProgress(1.2);
+        api.timeline.setCurrentProgress(1.2);
         expect(e.time).toBe(1200);
-        expect(api.playback.getState()).toBe('paused');       // the seek rule
-        expect(api.playback.getCurrentProgress()).toBeCloseTo(1.2);
-        expect(api.playback.getCurrentIteration()).toBe(1);
-        expect(api.playback.getCurrentTime()).toBe(800);       // the second pass runs backwards: the frame at 80 %
-        api.playback.setCurrentProgress(1);
+        expect(api.timeline.getState()).toBe('paused');       // the seek rule
+        expect(api.timeline.getCurrentProgress()).toBeCloseTo(1.2);
+        expect(api.timeline.getCurrentIteration()).toBe(1);
+        expect(api.timeline.getCurrentTime()).toBe(800);       // the second pass runs backwards: the frame at 80 %
+        api.timeline.setCurrentProgress(1);
         expect(e.time).toBe(1000);                             // the last frame of the first pass, not 0
-        api.playback.setCurrentProgress(7);
+        api.timeline.setCurrentProgress(7);
         expect(e.time).toBe(3000);                             // clamped to the iterations
-        api.playback.setCurrentProgress(-1);
+        api.timeline.setCurrentProgress(-1);
         expect(e.time).toBe(0);
-        api.playback.start();
+        api.timeline.start();
         e.frames(10);
-        api.playback.setCurrentProgress(0.5);
-        expect(api.playback.getState()).toBe('playing');       // a seek while playing keeps playing
+        api.timeline.setCurrentProgress(0.5);
+        expect(api.timeline.getState()).toBe('playing');       // a seek while playing keeps playing
         expect(e.time).toBe(500);
     });
 });

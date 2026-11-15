@@ -13,8 +13,8 @@ animation. Since schema 1.27.
 {
   "type": "svg", "viewBox": "0 0 400 200",
   "animator": {
-    "timeline": { "outTime": 1000, "iterations": "infinite", "iterationDirection": "alternate",
-                  "actionTriggers": { "playback.start": "load" } },
+    "timeline": { "outTime": 1000, "iterations": "infinite", "iterationDirection": "alternate" },
+    "actionTriggers": { "timeline.start": "load" },
     "definitions": {
       "variables": {
         "bg":    { "type": "color",  "defaultValue": "#2a7fff", "description": "Ball colour" },
@@ -178,7 +178,7 @@ or `cssVariables` builds a new one.
 - no `cssVariables` — there is no stylesheet;
 - a change compiles the document again with the new values on the next frame — the playback keeps running
   (the web writes only the bound attributes);
-- the player's own variables (`player.pointer`, `player.playback.…`, `player.prefers.…`) are not fed yet: they
+- the player's own variables (`player.pointer`, `player.timeline.…`, `player.prefers.…`) are not fed yet: they
   read their defaults unless your code gives them a value.
 
 ## Who wins
@@ -288,14 +288,14 @@ The player provides some variables itself, all named `player.…` — the table 
 { "type": "circle", "r": 20, "fill": "variable(bg)", "transform": { "translate": "variable(player.pointer)" } }
 
 // a progress bar with no keyframes
-{ "type": "rect", "x": 0, "y": 196, "height": 4, "width": "calc(variable(player.playback.iterationProgress) * 400)" }
+{ "type": "rect", "x": 0, "y": 196, "height": 4, "width": "calc(variable(player.timeline.iterationProgress) * 400)" }
 ```
 
 <!-- px-check off who feeds the predefined variables, prose -->
 | Variables | Web player, React, Vue | React Native |
 |---|---|---|
 | `player.pointer` · `.x` · `.y` · `.over` · `.down` | pointer events on the rendered drawing, in `viewBox` coordinates; the last position is kept when the pointer leaves | not yet — the defaults |
-| `player.playback.currentTime` · `.currentProgress` · `.iterationProgress` | on every frame while it plays | not yet |
+| `player.timeline.currentTime` · `.currentProgress` · `.iterationProgress` | on every frame while it plays | not yet |
 | `player.prefers.reducedMotion` · `.colorScheme` | the system's media queries, followed live | not yet |
 
 - The player listens only for what the document uses: no pointer listener on a file that never reads
@@ -320,11 +320,11 @@ What a change costs on the web:
 |---|---|
 | an attribute, a transform part, an item of a pair, a `style` declaration or the text — on a node without `effects` | writes it straight to the rendered element |
 | a place delivered as CSS | rewrites the fallback in `var(--name, value)` |
-| a `player.playback.…` variable | makes the same writes on every frame while it plays |
+| a `player.timeline.…` variable | makes the same writes on every frame while it plays |
 | a player effect's setting, or anything on a node with `effects` | builds the player again from the new values — the playback state, time and speed kept, no playback callbacks, `load` triggers not fired again |
 | a variable whose default is animated, when your code first gives it a value or resets it | the same rebuild — once, not per frame |
 
-So bind values that change all the time — `player.pointer`, `player.playback.…`, a value your code streams — to
+So bind values that change all the time — `player.pointer`, `player.timeline.…`, a value your code streams — to
 plain attributes, not to effect settings. React Native compiles the document again instead
 ([above](#react-native)).
 

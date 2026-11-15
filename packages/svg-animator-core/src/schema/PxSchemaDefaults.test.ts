@@ -67,7 +67,7 @@ describe('schema.defaults — what an absent field means', () => {
         visitCounting('loop', PxLoopSchema);
         visitCounting('propertyAnimation', PxPropertyAnimationSchema);
         visitCounting('actionTriggers', PxActionTriggersSchema);
-        visitCounting('actions["playback.stop"]', PxStopPlaybackActionSchema);
+        visitCounting('actions["timeline.stop"]', PxStopPlaybackActionSchema);
         visitCounting('actions.outOfView', PxOutOfViewActionSchema);
         // Every member of the timeline union — time, scroll and view have fields of their own.
         const timeline = describeSchema(PxTimelineSchema);
@@ -97,10 +97,10 @@ describe('schema.defaults — what an absent field means', () => {
         // `whenFinished` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
         expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(PxWhenFinished.hold);
-        const flat = resolveAnimatorTimeline({ timeline: { actionTriggers: { 'playback.start': PxTriggerEvent.load } } });
+        const flat = resolveAnimatorTimeline({ timeline: { }, actionTriggers: { 'timeline.start': PxTriggerEvent.load } });
         expect(flat.resetOnFinish).toBeFalsy();
         expect(resolveAnimatorTimeline({ timeline: { whenFinished: PxWhenFinished.jumpToStart } }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timeline: { actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
+        expect(resolveAnimatorTimeline({ timeline: { }, actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -124,7 +124,7 @@ describe('schema.defaults — what an absent field means', () => {
     it('the reported document: an omitted resume is the start list — hovering in resumes what hovering out paused', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timeline: { outTime: 1000, iterations: 1, actionTriggers: { 'playback.start': 'hoverIn', 'playback.pause': 'hoverOut' } } },
+            animator: { timeline: { outTime: 1000, iterations: 1 }, actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.pause': 'hoverOut' } },
             children: [],
         };
         expect(resolveTriggers(getAnimatorConfig(doc)?.actionTriggers).resumePlayback).toEqual(['hoverIn']);

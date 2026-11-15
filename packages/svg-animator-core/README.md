@@ -60,7 +60,7 @@ runtime crash on a non-browser platform.
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `toDomProps` (`/engine`), `sanitizeAttributeValue`, `generateNewIds` |
 | **Playback engine** (`/engine`) | `createAdapterSvgAnimationPlayer` + the `PxPlatformAdapter` interface, the time contract, the component control rules |
-| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerEvent`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollFollows`, `PxScrollMoment`, `PxScrollAxis`, `PxScrollLine`, `PxHoldAt`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneOmit`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerEvent.click` and `"playback.start"?: PxTriggerEvents` come from one import |
+| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerEvent`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollFollows`, `PxScrollMoment`, `PxScrollAxis`, `PxScrollLine`, `PxHoldAt`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneOmit`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerEvent.click` and `"timeline.start"?: PxTriggerEvents` come from one import |
 
 ### Validating a document
 
@@ -182,7 +182,7 @@ const adapter: PxPlatformAdapter = {
 const api = createAdapterSvgAnimationPlayer(flatDoc, adapter, {
     onFinish: () => console.log('done'),
 });
-api.playback.start();
+api.timeline.start();
 ```
 
 Frame scheduling resolves `requestAnimationFrame` from `globalThis` at call time

@@ -43,9 +43,9 @@ comments are explanatory; JSON does not allow comments, so the real file has non
     "timeline": {
       "outTime": 1000,
       "iterations": "infinite",
-      "iterationDirection": "alternate",
-      "actionTriggers": { "playback.start": "load" }
-    }
+      "iterationDirection": "alternate"
+    },
+    "actionTriggers": { "timeline.start": "load" }
   },
   "children": [
     {
@@ -103,7 +103,7 @@ const player = createSvgAnimationPlayer({
 // or from a document object you already have — imported, fetched, or built in code
 const player2 = createSvgAnimationPlayer({ document: animationDoc, container: document.getElementById('hero') });
 
-player.playback.start();
+player.timeline.start();
 ```
 
 #### Options
@@ -113,7 +113,7 @@ player.playback.start();
 // Create a player. `document` is required — a URL (a string is always a URL) or the
 // document itself; leaving it out throws. With a URL, control calls made before the fetch
 // resolves are queued and replayed in order, so
-// `createSvgAnimationPlayer({ document: url }).playback.start()` works as written. A failed fetch or an
+// `createSvgAnimationPlayer({ document: url }).timeline.start()` works as written. A failed fetch or an
 // invalid document reaches `onError` — and `console.error` when no handler is given;
 // `isReady()` stays false either way.
 function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxAnimationPlayerApi;
@@ -132,18 +132,19 @@ interface PxAnimationPlayerOptions {
     onPlaybackStart?: () => void;  onPlaybackStop?: () => void;     // the playback's two buttons, when performed
     onPlaybackPause?: () => void;  onPlaybackResume?: () => void;   // the freeze inside it (the gate's too)
     onPlaybackFinish?: () => void;  onDestroy?: () => void;
+    onSegmentChange?: (segment: string, previous: string) => void;   // the timeline went to another segment
     onWarning?: (d: PxDiagnostic) => void;
     onError?: (d: PxDiagnostic) => void;
     suppressWarnings?: boolean;  suppressErrors?: boolean;
 
     // Control — `PxCommonControlProps`, one at a time (a mix warns, PX1501). None of them: the
-    // document's own `timeline.actionTriggers` start, pause and stop it, behind the visibility gate —
+    // document's own `animator.actionTriggers` start, pause and stop it, behind the visibility gate —
     // the way the editor saved it — and the returned api drives it too.
     showAsStatic?: boolean;                // the picture as drawn: nothing plays, whatever the file says — no
                                            //   triggers, no scroll; every playback call is ignored (PX1506).
                                            //   Beats every other option
     disableActionTriggers?: boolean;       // manual: the file's triggers off — nothing starts by itself, the
-                                           //   returned api (`playback.start()`, `playback.setCurrentTime()`) drives it
+                                           //   returned api (`timeline.start()`, `timeline.setCurrentTime()`) drives it
     actionTriggers?: PxActionTriggersInput | null; // the triggers INSTEAD of the file's, as a whole (lists
                                            //   left out are not listed, never the file's); null or {}: none
 
@@ -154,7 +155,7 @@ interface PxAnimationPlayerOptions {
                                            //   out keeps the file's value. On a scroll timeline `follows`
                                            //   also takes an element: { type: 'scroll', follows: chapterEl }
     actions?: PxActionsInput;              // the `timeline.actions` block INSTEAD of the file's — how a stop
-                                           //   looks (+ the gate's outOfView): `{ 'playback.stop': 'animateToStart' }`;
+                                           //   looks (+ the gate's outOfView): `{ 'timeline.stop': 'animateToStart' }`;
                                            //   a slot left out reads its default. What a finished playback
                                            //   shows, `whenFinished`, is a timeline key (timelineOptions)
 
@@ -170,8 +171,8 @@ interface PxAnimationPlayerOptions {
 By default there is nothing to configure: the player takes the window, iterations, iteration
 direction, what starts and stops the animation, how a stop looks and the engine from the
 `animator` block inside the JSON — the settings you chose in the editor. So a file plays the way
-it was saved: one saved with `"playback.start": "load"` plays at once, one without triggers stays still until
-your code calls `playback.start()`.
+it was saved: one saved with `"timeline.start": "load"` plays at once, one without triggers stays still until
+your code calls `timeline.start()`.
 
 The control options change who drives it — one at a time
 ([Control modes](./playback-and-triggers.md#control-modes--who-drives-it)):
@@ -193,11 +194,11 @@ const player = createSvgAnimationPlayer({
   document: '/bouncing-ball.json',
   container: '#box',
   timelineOptions: { iterations: 'infinite' },
-  actions: { 'playback.stop': 'animateToEnd' },
+  actions: { 'timeline.stop': 'animateToEnd' },
   disableActionTriggers: true,
 });
-player.playback.start();
-player.playback.stop();   // plays on to the end of the current pass, then rests
+player.timeline.start();
+player.timeline.stop();   // plays on to the end of the current pass, then rests
 ```
 
 Merge or replace — the one rule for the three:
@@ -210,7 +211,7 @@ Merge or replace — the one rule for the three:
 
 So the timing you do not mention stays as the file has it; to use other triggers than the file's, give
 `actionTriggers` the triggers themselves —
-`actionTriggers: { 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }`. Full rules — what happens when
+`actionTriggers: { 'timeline.play': 'hoverIn', 'timeline.pause': 'hoverOut' }`. Full rules — what happens when
 the override changes the kind of timeline — are in
 [Playback settings & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 Every field and its meaning is in [Playback settings & triggers](./playback-and-triggers.md).
@@ -235,12 +236,12 @@ The keys, the seven moments and what page code can still do:
 ## The playback API
 
 `createSvgAnimationPlayer` returns a `PxAnimationPlayerApi`: the player's own lifecycle, and `playback` — a
-`PxPlaybackControls`, everything a page does to the animation. One interface on every player (web, React,
+`PxTimelineControls`, everything a page does to the animation. One interface on every player (web, React,
 Vue, React Native and `bind`), one time contract over two clocks: **plain names are content ms inside
 the iteration, `total…` names span the whole playback, `…AtSpeed` names the same values at the current speed —
 content time ÷ the speed**; a seek clamps; a speed of `0` is rejected ([Two clocks](./playback-and-triggers.md#two-clocks)).
-Every act has one spelling: `player.playback.start()` presses the button a file's `"playback.start"` list
-presses, `player.playback.play()` the one a `"playback.play"` list presses (until 1.25 the methods sat flat on
+Every act has one spelling: `player.timeline.start()` presses the button a file's `"timeline.start"` list
+presses, `player.timeline.play()` the one a `"timeline.play"` list presses (until 1.25 the methods sat flat on
 the player; `playOnce()`, `jumpToStart()` and `jumpToEnd()` until 1.25 — `start()` on a one-iteration timeline,
 `stop()` and `setCurrentProgress()` say the same).
 
@@ -248,7 +249,7 @@ the player; `playOnce()`, `jumpToStart()` and `jumpToEnd()` until 1.25 — `star
 ```typescript
 // What `createSvgAnimationPlayer` returns — core's `PxAnimationPlayerApi<Element>`.
 interface PxAnimationPlayerApi {
-    readonly playback: PxPlaybackControls; // everything a page does to the animation — below
+    readonly timeline: PxTimelineControls; // everything a page does to the animation — below
     readonly variables: PxVariablesApi;    // the document's variables: get / set / setVariables / reset,
                                            //   variants — see Variables
     isReady(): boolean;                    // true once a document from a URL has loaded and rendered
@@ -256,9 +257,9 @@ interface PxAnimationPlayerApi {
     destroy(): void;                       // stop, remove the SVG it rendered, release everything; fires onDestroy
 }
 
-// `player.playback` — ONE object per player, made of closures: `const { start } = player.playback` works.
+// `player.timeline` — ONE object per player, made of closures: `const { start } = player.timeline` works.
 // Calls made before a document from a URL has loaded are queued; after destroy() every call is a no-op.
-interface PxPlaybackControls {
+interface PxTimelineControls {
     start(): void;                         // a playback FROM THE START, in every state — off, finished, while
                                            //   playing (it restarts), paused (the freeze is dropped) or
                                            //   returning; the delay is waited again. Reports onPlaybackStart
@@ -266,9 +267,9 @@ interface PxPlaybackControls {
                                            //   playing; paused resumes (onPlaybackResume); a picture on its
                                            //   way back to the start turns around and plays forward from where
                                            //   it is (onPlaybackStart); otherwise starts from the start
-    stop(): void;                          // the built-in stop, per `actions["playback.stop"].behavior`
+    stop(): void;                          // the built-in stop, per `actions["timeline.stop"].behavior`
                                            //   (jumpToStart · animateToStart · jumpToEnd · animateToEnd ·
-                                           //   animateToEndAndBack) — what a `playback.stop` trigger does;
+                                           //   animateToEndAndBack) — what a `timeline.stop` trigger does;
                                            //   reports onPlaybackStop (on arrival for the stops that finish the pass)
     pause(): void;                         // freeze the current frame (only while playing); onPlaybackPause
     resume(): void;                        // carry on from the frozen frame (only while paused); onPlaybackResume
@@ -319,31 +320,43 @@ interface PxPlaybackControls {
     getCurrentTimeAtSpeed(): number | null;   // the playhead in the pass at the current speed: getCurrentTime() / |speed|
                                            //   — derived from the position, never a stopwatch
     getTotalTimeAtSpeed(): number | null;  // the playhead on the whole playback at the current speed: getTotalTime() / |speed|
+
+    // A timeline with `segments` (2026-11-15): every call above acts on the CURRENT segment — its pass, its iterations
+    readonly segment: PxSegmentControls;
+}
+
+interface PxSegmentControls {              // no segments: get() is null, getAll() [], the moves do nothing
+    next(): void;                          // the next segment on the timeline; after the last, the first
+    previous(): void;                      // the previous one; before the first, the last
+    goTo(name: string): void;              // that one (a name the timeline lacks is ignored); the segment being left
+                                           //   leaves per its `whenLeaving`; while it leaves, the newest request wins
+    get(): string | null;                  // the current segment
+    getAll(): Array<string>;               // every segment, in timeline order
 }
 ```
 
-**Two clocks.** Plain time names are content ms **inside the iteration**: `playback.getCurrentTime()` is the frame on
+**Two clocks.** Plain time names are content ms **inside the iteration**: `timeline.getCurrentTime()` is the frame on
 screen, `0..getDuration()`, so a time slider for a looping file spans one pass and wraps — the way
 lottie-web's `currentFrame` and GSAP's `time()` read. **Progress counts iterations, in the order they play**:
-`playback.getCurrentProgress()` reads `1.2` 20 % into the second iteration, and `setCurrentProgress(1.2)` goes
+`timeline.getCurrentProgress()` reads `1.2` 20 % into the second iteration, and `setCurrentProgress(1.2)` goes
 there (an `alternate` second pass runs backwards, so that is the frame at 80 %); nothing wraps, so `1` is the
 last frame of the first iteration. A 0–1 bar for every pass is `getCurrentTime() / getDuration()`. A seek
 while `playing` keeps playing; in every other state the playback becomes `paused` at that frame and
-`playback.resume()` plays on from it — a seek reports no callback
+`timeline.resume()` plays on from it — a seek reports no callback
 ([Moving the playhead](./playback-and-triggers.md#moving-the-playhead)). The `total…` names span the **whole playback** —
 "total" means including repeats, GSAP's words exactly (`time` / `totalTime`, `duration` /
-`totalDuration`, `progress` / `totalProgress`): `playback.getTotalDuration()` is the slider maximum for a finite
+`totalDuration`, `progress` / `totalProgress`): `timeline.getTotalDuration()` is the slider maximum for a finite
 playback and `null` when `iterations` is `'infinite'` (the honest answer, no division to guard);
-`playback.getTotalTime()` / `playback.getTotalProgress()` are the playhead on it, `playback.getCurrentIteration()`
+`timeline.getTotalTime()` / `timeline.getTotalProgress()` are the playhead on it, `timeline.getCurrentIteration()`
 says which pass. The `…AtSpeed` names are the same values **at the current speed** — content time ÷ the speed:
-`playback.getDurationAtSpeed()` is how long one pass takes, `playback.getTotalDurationAtSpeed()` the whole playback
-("finishes in 3 s"), `playback.getCurrentTimeAtSpeed()` / `playback.getTotalTimeAtSpeed()` where the playhead is.
-The file's `timeline.playbackSpeed` is the initial speed and `playback.setSpeed()` replaces it. On a scroll
-timeline the scroll owns the playhead: `playback.getState()` reads `'scrubbing'`, no playback callback fires,
+`timeline.getDurationAtSpeed()` is how long one pass takes, `timeline.getTotalDurationAtSpeed()` the whole playback
+("finishes in 3 s"), `timeline.getCurrentTimeAtSpeed()` / `timeline.getTotalTimeAtSpeed()` where the playhead is.
+The file's `timeline.playbackSpeed` is the initial speed and `timeline.setSpeed()` replaces it. On a scroll
+timeline the scroll owns the playhead: `timeline.getState()` reads `'scrubbing'`, no playback callback fires,
 and the buttons and the seeks are ignored with a `usage` warning
 ([PX1505](../diagnostics.md#the-props-a-component-was-given)) — the reads still answer
 ([Following the scroll](./playback-and-triggers.md#from-page-code)). After `destroy()` every
-call is ignored with a `usage` warning ([PX1504](../diagnostics.md)) and `playback.getState()` says
+call is ignored with a `usage` warning ([PX1504](../diagnostics.md)) and `timeline.getState()` says
 `'destroyed'`.
 
 ```html
@@ -359,18 +372,18 @@ const player = createSvgAnimationPlayer({
   document: '/bouncing-ball.json',
   container: '#hero',
   // §14: no polling isReady(), no hard-coded maximum — the document knows its own length
-  onReady: () => { slider.max = String(player.playback.getDuration()); },
+  onReady: () => { slider.max = String(player.timeline.getDuration()); },
 });
 
 slider.addEventListener('input', () => {
-  player.playback.pause();                                // a playing animation would carry on from the new frame
-  player.playback.setCurrentTime(Number(slider.value));   // from 0 to playback.getDuration(), in ms — one iteration;
+  player.timeline.pause();                                // a playing animation would carry on from the new frame
+  player.timeline.setCurrentTime(Number(slider.value));   // from 0 to timeline.getDuration(), in ms — one iteration;
                                                           //   the playback is `paused` there, resume() plays on
 });
 
 // A slider over the WHOLE playback of a finite file: the `total…` pair
-// slider.max = String(player.playback.getTotalDuration() ?? player.playback.getDuration());
-// player.playback.setTotalTime(Number(slider.value));
+// slider.max = String(player.timeline.getTotalDuration() ?? player.timeline.getDuration());
+// player.timeline.setTotalTime(Number(slider.value));
 ```
 
 ## Variables
@@ -392,7 +405,7 @@ const player = createSvgAnimationPlayer({
 player.variables.set('title', 'Hi');
 ```
 
-Variants, `cssVariables` and the page's stylesheet, the predefined `player.pointer` and `player.playback.…`, and
+Variants, `cssVariables` and the page's stylesheet, the predefined `player.pointer` and `player.timeline.…`, and
 how a change is drawn: [Variables](./variables.md).
 
 ## Callbacks
@@ -428,12 +441,12 @@ import doc from './bouncing-ball.json';
 createSvgAnimationPlayer({
   document: doc,
   container: '#box',
-  onPlaybackStart:  () => {},   // a playback began — playback.start(), playback.play() from rest, a playback.start /
-                                //   playback.play trigger, the gate starting it again; a return turned around by a play
-  onPlaybackResume: () => {},   // the playback carried on after a freeze — playback.resume(), playback.play(), a
-                                //   playback.resume trigger, the gate when it is seen again
-  onPlaybackPause:  () => {},   // the playback was frozen — playback.pause(), a playback.pause trigger, the gate's pause
-  onPlaybackStop:   () => {},   // the playback was stopped — a playback.stop trigger, playback.stop() or the gate's stop;
+  onPlaybackStart:  () => {},   // a playback began — timeline.start(), timeline.play() from rest, a timeline.start /
+                                //   timeline.play trigger, the gate starting it again; a return turned around by a play
+  onPlaybackResume: () => {},   // the playback carried on after a freeze — timeline.resume(), timeline.play(), a
+                                //   timeline.resume trigger, the gate when it is seen again
+  onPlaybackPause:  () => {},   // the playback was frozen — timeline.pause(), a timeline.pause trigger, the gate's pause
+  onPlaybackStop:   () => {},   // the playback was stopped — a timeline.stop trigger, timeline.stop() or the gate's stop;
                                 //   on arrival for the stops that finish the pass first
   onPlaybackFinish: () => {},   // the last pass ended by playing — never for a stop that goes to the end,
                                 //   never for a loop without end
@@ -451,23 +464,23 @@ createSvgAnimationPlayer({
 > **Example:** [`web/triggers`](../../examples/docs-examples/src/cases/web/triggers/) — `pnpm example:docs`, then open `#web/triggers`.
 
 By default the player listens on the rendered SVG for every event the document's
-`timeline.actionTriggers` lists (or the `actionTriggers` option's block, given instead) — `hoverIn` / `hoverOut` (`mouseenter` / `mouseleave`), `click` — and
+`animator.actionTriggers` lists (or the `actionTriggers` option's block, given instead) — `hoverIn` / `hoverOut` (`mouseenter` / `mouseleave`), `click` — and
 presses the built-in buttons by the state rule: the state picks the lists an event is read from, and the
-first list that names it wins — while playing `playback.pause` · `playback.stop` · `playback.start`; while paused
-the resume (derived unless the file names it: the counterpart of each `playback.pause` event, plus the
-`playback.start` events that do not also stop it) · `playback.play` · `playback.stop` · `playback.start`; while off
-or returning `playback.start` · `playback.play`; while finished `playback.stop` first when the last frame is held,
-otherwise `playback.start` · `playback.play` · `playback.stop`. A `playback.start` event always plays from the
-start; a `playback.play` event starts or carries on (`'playback.start': 'click', 'playback.stop': 'click'` is the
+first list that names it wins — while playing `timeline.pause` · `timeline.stop` · `timeline.start`; while paused
+the resume (derived unless the file names it: the counterpart of each `timeline.pause` event, plus the
+`timeline.start` events that do not also stop it) · `timeline.play` · `timeline.stop` · `timeline.start`; while off
+or returning `timeline.start` · `timeline.play`; while finished `timeline.stop` first when the last frame is held,
+otherwise `timeline.start` · `timeline.play` · `timeline.stop`. A `timeline.start` event always plays from the
+start; a `timeline.play` event starts or carries on (`'timeline.start': 'click', 'timeline.stop': 'click'` is the
 start / stop click toggle). Each list names only the events
-it can use; the player warns about any other event, a `playback.resume` list that differs from the
+it can use; the player warns about any other event, a `timeline.resume` list that differs from the
 derivation and two lists colliding on one event (PX1109 – PX1111 on
 [the codes page](../diagnostics.md#what-the-document-says)). HOW a stop looks is the
 timeline's `actions` block. A `load` listing starts it as soon as enough of it is on screen
 (`inViewThreshold`), and with the default out-of-view behavior `pause` it pauses while scrolled out
-of view — a real pause: `playback.getState()` reads `paused` and `onPlaybackPause` / `onPlaybackResume` report it.
+of view — a real pause: `timeline.getState()` reads `paused` and `onPlaybackPause` / `onPlaybackResume` report it.
 An absent block and an empty one (`{}`) both list nothing: nothing happens until you
-call `playback.start()` — a file that plays by itself says `'playback.start': 'load'`. `disableActionTriggers` and
+call `timeline.start()` — a file that plays by itself says `'timeline.start': 'load'`. `disableActionTriggers` and
 `showAsStatic` empty the lists: no event starts it. The lists, the events and the rule are on
 [Playback settings & triggers → Triggers](./playback-and-triggers.md#triggers--when-it-plays).
 
@@ -571,17 +584,17 @@ import { getAllSvgAnimationPlayers, onSvgAnimationPlayersChange } from '@pixodes
 let paused = [];
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        paused = getAllSvgAnimationPlayers().filter(a => a.playback.isPlaying());
-        paused.forEach(a => a.playback.pause());
+        paused = getAllSvgAnimationPlayers().filter(a => a.timeline.isPlaying());
+        paused.forEach(a => a.timeline.pause());
     } else {
-        paused.forEach(a => a.playback.resume());
+        paused.forEach(a => a.timeline.resume());
         paused = [];
     }
 });
 
 // A dev panel: how many are playing right now?
 onSvgAnimationPlayersChange(() => {
-    console.log(getAllSvgAnimationPlayers().filter(a => a.playback.isPlaying()).length, 'playing');
+    console.log(getAllSvgAnimationPlayers().filter(a => a.timeline.isPlaying()).length, 'playing');
 });
 ```
 
@@ -637,16 +650,19 @@ function setupAnimationTriggers(api: PxEngineAnimationPlayerApi, config: PxAnima
 interface PxActionTriggers {                     // also a wire type — the JSON format page. WHEN only;
                                            //   each list is one event or an array of the events
                                            //   it may name; any other event is ignored (PX1110)
-    'playback.start'?: PxTriggerEvents;            // `playback.start` — from the start, in every state it is read in;
+    'timeline.start'?: PxTriggerEvents;            // `timeline.start` — from the start, in every state it is read in;
                                            //   load · hoverIn · click; an absent block, like {}, lists
                                            //   nothing (a file that plays by itself says 'load')
-    'playback.play'?: PxTriggerEvents;             // `playback.play` — start or carry on: resumes a pause, turns a
+    'timeline.play'?: PxTriggerEvents;             // `timeline.play` — start or carry on: resumes a pause, turns a
                                            //   returning picture around, starts otherwise; load · hoverIn · click
-    'playback.stop'?: PxTriggerEvents;             // acts while playing, paused or finished — `playback.stop`; hoverOut · click
-    'playback.pause'?: PxTriggerEvents;            // acts while playing — freeze; hoverIn · hoverOut · click
-    'playback.resume'?: PxTriggerEvents;           // acts while paused — carry on; DERIVED unless the file names it
-                                           //   (each pause event's counterpart + the playback.start events that do
+    'timeline.stop'?: PxTriggerEvents;             // acts while playing, paused or finished — `timeline.stop`; hoverOut · click
+    'timeline.pause'?: PxTriggerEvents;            // acts while playing — freeze; hoverIn · hoverOut · click
+    'timeline.resume'?: PxTriggerEvents;           // acts while paused — carry on; DERIVED unless the file names it
+                                           //   (each pause event's counterpart + the timeline.start events that do
                                            //   not stop); a named list is honoured, differences noted (PX1111)
+    'timeline.segment.next'?: PxTriggerEvents;     // the segment actions (2026-11-15) — any event, read first:
+    'timeline.segment.previous'?: PxTriggerEvents; //   the next / previous segment, or a named one under the
+    [goToSegment: string]: unknown;               // PxTriggerEvents under segmentGoToAction(name) = 'timeline.segment.goTo(‹name›)'
 }
 ```
 
@@ -699,9 +715,9 @@ there and `bindSvgAnimationPlayer` the member `bind`; ESM and CJS consumers impo
 | `createVisibilityGate(root, gate, host)`, `PxVisibilityGate`, `PxGateHost` | ▪ the gate `setupAnimationTriggers` wires for every document — it opens at `inViewThreshold`, closes only at zero visibility, waits out `inViewDebounce` and treats a hidden tab as off screen; `gate` is core's `resolveGate(view)`, the host's verbs `leaveView` / `returnToView` (the executor presses the real buttons, and undoes only what it did). Exported so the CSS-only React and Vue wrappers gate on the same rules rather than each growing their own observer |
 | `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxActionTriggersSchema`, `PxActionsSchema`, `PxScrollTimelineSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics every player shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |
-| `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerEvent`, `PxTriggerEvents`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle` | ● named wire values — one const per wire enum, with the string type derived from it under the same name (`PxTriggerEvent.click` and `"playback.start"?: PxTriggerEvents` come from one import). `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxFillMode` is the engines' CSS-style fill mode derived from `whenIdle` + `whenFinished`, not a wire key |
+| `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerEvent`, `PxTriggerEvents`, `PxStopPlaybackBehavior`, `PxWhenFinished`, `PxOutOfViewBehavior`, `PxWhenIdle` | ● named wire values — one const per wire enum, with the string type derived from it under the same name (`PxTriggerEvent.click` and `"timeline.start"?: PxTriggerEvents` come from one import). `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxFillMode` is the engines' CSS-style fill mode derived from `whenIdle` + `whenFinished`, not a wire key |
 | `PxDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxActionTriggers`, `PxActions`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [the JSON format](../format/README.md#schema-at-a-glance) |
-| `PxAnimationPlayerOptions`, `PxPageAnimationPlayerOptions`, `PxAnimationPlayerApi`, `PxPlaybackControls`, `PxAnimationPlayerCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxCommonControlProps`, `PxTimelineOptions`, `PxTimelineTiming`, `PxActionsInput`, `PxPlatformAdapter` (`/engine`) | ● companion types of the calls above. `PxCommonControlProps` is the three control options (`showAsStatic`, `disableActionTriggers`, `actionTriggers`); `PxTimelineTiming` is the timeline minus its `actionTriggers` and `actions`; `PxTimelineOptions` (the `timelineOptions` option) is its recursive partial, `PxActionsInput` (the `actions` option) the whole `actions` block |
+| `PxAnimationPlayerOptions`, `PxPageAnimationPlayerOptions`, `PxAnimationPlayerApi`, `PxTimelineControls`, `PxAnimationPlayerCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxCommonControlProps`, `PxTimelineOptions`, `PxTimelineTiming`, `PxActionsInput`, `PxPlatformAdapter` (`/engine`) | ● companion types of the calls above. `PxCommonControlProps` is the three control options (`showAsStatic`, `disableActionTriggers`, `actionTriggers`); `PxTimelineTiming` is the timeline minus its `actionTriggers` and `actions`; `PxTimelineOptions` (the `timelineOptions` option) is its recursive partial, `PxActionsInput` (the `actions` option) the whole `actions` block |
 | `PxPlaybackOverrideInput`, `PxPlayExecutor` | ○ the override as `applyPlaybackOverride` reads it (`timelineOptions`, `actions` + `actionTriggers`), and the player's one executor of the built-in actions — [Playback settings & triggers → For player authors](./playback-and-triggers.md#for-player-authors--the-same-rules-exported) |
 
 **Core only**: `prepareDocument` / `nestAnimatorTimeline`, the engine rules

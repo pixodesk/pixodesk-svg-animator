@@ -504,9 +504,18 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
             + 'becomes `firstFrameWhen` / `lastFrameWhen` — one of seven words (`appears` … `gone`, the old range names at '
             + '0, 50 and 100 %), an exact place `{ element, screen }`, or `{ scrolled }`; `pin` becomes `holdOnScreen` '
             + '(`at`, `forScreens`, `offset`), which follows its own held stretch; `axis` says `vertical` / `horizontal`; '
-            + '`frameRate` leaves the scroll timeline.',
+            + '`frameRate` leaves the scroll timeline. Amended before release (2026-11-15, the segments design): the '
+            + 'page\'s elements are DOM elements — `thisDomElement`, `parentDomElement`, `pageDomElement`, an exact place '
+            + '`{ domElement, screen }` — so that `element` can mean one of the file\'s own: a binding\'s `target` becomes '
+            + '`element`, an effect\'s `source` (`maskedBy`, `clone`) becomes `sourceElement`. The timeline is the thing '
+            + 'that plays: `playback.start` … `playback.resume` become `timeline.start` … `timeline.resume` (the trigger '
+            + 'lists and the action slots), and `actionTriggers` moves out of `timeline` to the root of `animator`. '
+            + 'New in the same step: `timeline.segments` (named parts of the timeline, played one at a time; '
+            + '`timeline.segment.next` / `.previous` / `.goTo(‹name›)` in `actionTriggers` and a segment\'s '
+            + '`whenFinished`), and an event can be an object `{ event, element | selector, with }` — `pointerDown`, '
+            + '`pointerUp`, `keyDown`, `keyUp` among the events.',
         kind: PxWireStepKind.converted,
-        up: upScrollTimeline,
+        up: (doc) => { upScrollTimeline(doc); upTimelineAndElementWords(doc); },
         // no `down`: 1.27 cannot say an exact place on a line other than the screen's top or bottom
     },
 ];
@@ -543,8 +552,8 @@ function upScrollTimeline(doc: Record<string, unknown>): void {
             if (last !== 'startsToLeave') out['lastFrameWhen'] = last;
         } else {
             const subject = timeline['subject'];
-            if (subject === 'parent') out['follows'] = 'parentElement';
-            else if (typeof subject === 'string' && subject && subject !== 'scroller') { out['follows'] = 'pageElement'; out['selector'] = subject; }
+            if (subject === 'parent') out['follows'] = 'parentDomElement';
+            else if (typeof subject === 'string' && subject && subject !== 'scroller') { out['follows'] = 'pageDomElement'; out['selector'] = subject; }
             const first = viewMomentOf(start, 0, horizontal), last = viewMomentOf(end, 1, horizontal);
             if (first !== 'appears') out['firstFrameWhen'] = first;
             if (last !== 'gone') out['lastFrameWhen'] = last;
@@ -561,6 +570,63 @@ function upScrollTimeline(doc: Record<string, unknown>): void {
         if (last !== 1) out['lastFrameWhen'] = { scrolled: last };
     }
     animator['timeline'] = out;
+}
+
+/** The 1.28 amendment (2026-11-15, see the step's `reason`) — frozen at the words of the two spellings:
+ *  - `timeline.actionTriggers` → `animator.actionTriggers`, its `playback.*` keys → `timeline.*`; the same keys in
+ *    `timeline.actions`; a scroll timeline's triggers dropped (nothing starts it)
+ *  - `bindings[].target` → `element`; `effects.maskedBy.source` / `effects.clone.source` → `sourceElement`
+ *  Exported (internal) so a writer can bring its own documents stamped 1.28 in the first spelling over once. @internal */
+export function upTimelineAndElementWords(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    if (animator) {
+        const renameKeys = (block: Record<string, unknown>): Record<string, unknown> => {
+            const out: Record<string, unknown> = {};
+            for (const [key, value] of Object.entries(block)) {
+                out[key.startsWith('playback.') ? 'timeline.' + key.slice('playback.'.length) : key] = value;
+            }
+            return out;
+        };
+        const timeline = readObjectProp(animator, 'timeline');
+        if (timeline) {
+            const triggers = readObjectProp(timeline, 'actionTriggers');
+            if (triggers) {
+                delete timeline['actionTriggers'];
+                if (timeline['type'] !== 'scroll' && timeline['type'] !== 'view') animator['actionTriggers'] = renameKeys(triggers);
+            }
+            const actions = readObjectProp(timeline, 'actions');
+            if (actions) timeline['actions'] = renameKeys(actions);
+        }
+        const rootTriggers = readObjectProp(animator, 'actionTriggers');
+        if (rootTriggers) animator['actionTriggers'] = renameKeys(rootTriggers);
+        const bindings = animator['bindings'];
+        if (Array.isArray(bindings)) {
+            for (const binding of bindings) {
+                if (binding && typeof binding === 'object' && !Array.isArray(binding) && 'target' in binding) {
+                    const b = binding as Record<string, unknown>;
+                    if (b['element'] === undefined) b['element'] = b['target'];
+                    delete b['target'];
+                }
+            }
+        }
+    }
+    const visit = (node: unknown): void => {
+        if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+        const n = node as Record<string, unknown>;
+        const effects = readObjectProp(n, 'effects');
+        if (effects) {
+            for (const bucket of ['maskedBy', 'clone']) {
+                const fx = readObjectProp(effects, bucket);
+                if (fx && fx['source'] !== undefined) {
+                    if (fx['sourceElement'] === undefined) fx['sourceElement'] = fx['source'];
+                    delete fx['source'];
+                }
+            }
+        }
+        const children = n['children'];
+        if (Array.isArray(children)) children.forEach(visit);
+    };
+    visit(doc);
 }
 
 /** The 1.28 word a 1.27 view-range point is for every size, or `undefined`. A switch, not a table: the phase names are
@@ -595,10 +661,10 @@ function viewMomentOf(point: Record<string, unknown> | undefined, fallback: numb
         return rounded;
     };
     switch (phase) {
-        case 'entry': case 'entryCrossing': return { element: line(f), screen: line(1) };
-        case 'exit': case 'exitCrossing': return { element: line(f), screen: line(0) };
-        case 'contain': return { element: line(1 - f), screen: line(1 - f) };
-        default: return { element: line(f), screen: line(1 - f) };   // cover
+        case 'entry': case 'entryCrossing': return { domElement: line(f), screen: line(1) };
+        case 'exit': case 'exitCrossing': return { domElement: line(f), screen: line(0) };
+        case 'contain': return { domElement: line(1 - f), screen: line(1 - f) };
+        default: return { domElement: line(f), screen: line(1 - f) };   // cover
     }
 }
 

@@ -115,7 +115,7 @@ Other types you may want by name:
   package exports this one name).
 - `PxPlaybackOverride` — the playback override every player accepts.
 - `PxPlayback` — what the components' `playback` prop accepts: `'off' | 'on' | 'paused'`, the positions a
-  host can ask for; `PxPlaybackState` is what the player reports back through `playback.getState()` (`finished`,
+  host can ask for; `PxPlaybackState` is what the player reports back through `timeline.getState()` (`finished`,
   `returning`, `scrubbing` and `destroyed` are reached by the player alone).
 
 Hearing back from it: `PxAnimationPlayerCallbacks` is the single callback shape — the playback lifecycle

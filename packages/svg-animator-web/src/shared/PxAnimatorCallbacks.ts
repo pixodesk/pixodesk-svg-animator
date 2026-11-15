@@ -22,8 +22,8 @@ import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
  * Nothing is wrapped: a callback the caller left out stays absent.
  */
 export function toPlayerCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
-    const { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
-    return { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
+    const { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onSegmentChange, onDestroy, onWarning, onError, suppressWarnings, suppressErrors } = inline ?? {};
+    return { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onSegmentChange, onDestroy, onWarning, onError, suppressWarnings, suppressErrors };
 }
 
 /** The slice an ENGINE takes: the teardown and the diagnostics channel. The playback events are the executor's
@@ -42,7 +42,7 @@ export function toEngineCallbacks(callbacks: PxPlayerCallbacks | undefined): PxE
 export function createInertAnimator(): PxAnimationPlayerApi {
     return {
         // no target ever: every read its "not ready" value, every write dropped
-        playback: forwardPlaybackControls(() => undefined, () => {}),
+        timeline: forwardPlaybackControls(() => undefined, () => {}),
         // no document: no variables — every read empty, every write ignored
         variables: new PxVariablesRuntime({ type: 'svg' }, undefined, undefined).api,
         isReady: () => false,

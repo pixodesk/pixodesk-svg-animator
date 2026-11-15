@@ -43,7 +43,7 @@ export function applyRefHref(
 ): void {
     if (!clone) return;
     // Canonical ref spelling is `#id` (SCHEMA-DESIGN §4 E-5); bare `id` is legacy.
-    const sourceId = stripHash(clone.source);
+    const sourceId = stripHash(clone.sourceElement);
     if (!sourceId) {
         if (clone.omit === PxCloneOmit.translate) ctx.errors.push('clone: content ref missing `source`');
         return; // direct link → href already correct, nothing to rewrite

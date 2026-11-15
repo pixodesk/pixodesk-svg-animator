@@ -31,7 +31,7 @@ export const PX_RATE_REJECTED = 'setPlaybackSpeed: speed must be finite and non-
  * A playback rate is usable when it is finite and non-zero.
  *
  * 0 is rejected rather than accepted: it freezes the animation in a state indistinguishable
- * from a stuck player, and `playback.pause()` already says that properly. Two of the three engines
+ * from a stuck player, and `timeline.pause()` already says that properly. Two of the three engines
  * rejected it already — this makes the third agree.
  * @public @advanced
  */

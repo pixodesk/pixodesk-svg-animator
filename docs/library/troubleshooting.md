@@ -12,9 +12,9 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The triggers do not list `load`.** Check `animator.timeline.actionTriggers["playback.start"]` (or `"playback.play"`)
+**The triggers do not list `load`.** Check `animator.actionTriggers["timeline.start"]` (or `"timeline.play"`)
 in the file (or *Play on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an absent or empty block (`{}`)
-waits for you to call `playback.start()` — since schema 1.17 a file that plays by itself says `'playback.start': 'load'`,
+waits for you to call `timeline.start()` — since schema 1.17 a file that plays by itself says `'timeline.start': 'load'`,
 an absent block no longer means load (stamped files were migrated; a hand-written file without a
 version stamp has to say it). Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
@@ -35,7 +35,7 @@ creates players for elements that do not have a player yet.
 `PX1003` when the request failed — a network or CORS error is the usual cause — or `PX1002` when the
 file loaded but is not an animation document: the JSON must have `"type": "svg"` at the root (both on
 [the codes page](../diagnostics.md#building-a-player)). Calls made before the load finishes are
-queued, so `playback.start()` is not lost.
+queued, so `timeline.start()` is not lost.
 
 **Scroll trigger never fires.** The element may already be fully in view at load (then it
 starts immediately), or `inViewThreshold` may be higher than the element can ever
@@ -71,50 +71,50 @@ and a mount that relied on "no prop = nothing plays" adds `disableActionTriggers
 `showAsStatic` (a still). The `actions` prop now REPLACES the file's `actions` block instead of merging over it
 (the type `PxActionsOptions` is `PxActionsInput`) — pass every setting you want; `onFinish` is `onPlaybackFinish` (the Vue event `playbackFinish`, the registry event
 `playbackFinish`); `timeline.atEnd` is `timeline.whenFinished` and `PxAtEndBehavior` is `PxWhenFinished`. The three
-calls are gone: back to the rest pose is `playback.stop()`, a frame is `playback.setCurrentProgress(p)` /
-`playback.setCurrentTime(ms)`, one pass is `timelineOptions: { iterations: 1 }` and `playback.start()`.
-`actions["playback.start"]` is gone with `PxStartPlaybackBehavior`: `playback.start()` always plays from the start,
-and `playback.play()` — or the `"playback.play"` trigger list — starts or carries on. `actions.outOfView: 'jumpToStart'`
+calls are gone: back to the rest pose is `timeline.stop()`, a frame is `timeline.setCurrentProgress(p)` /
+`timeline.setCurrentTime(ms)`, one pass is `timelineOptions: { iterations: 1 }` and `timeline.start()`.
+`actions["timeline.start"]` is gone with `PxStartPlaybackBehavior`: `timeline.start()` always plays from the start,
+and `timeline.play()` — or the `"timeline.play"` trigger list — starts or carries on. `actions.outOfView: 'jumpToStart'`
 is `'stop'`. Stamped 1.25 files are converted on read; a start that used the default `continue` gets its hover and
-click events moved to `"playback.play"`.
+click events moved to `"timeline.play"`.
 
 **`type: 'view'`, `source`, `subject`, `range` or `pin` is not a timeline key; `PxScroll`, `PxScrollKind`,
 `PxScrollPhase`, `PxScrollSource` or `PxPinAlign` is not exported.** Changed in 1.28: one scroll timeline in plain
-words — `{ type: 'scroll' }` with `follows` (`thisElement` · `parentElement` · `pageElement` + `selector` ·
+words — `{ type: 'scroll' }` with `follows` (`thisDomElement` · `parentDomElement` · `pageDomElement` + `selector` ·
 `pageScroll` · `containerScroll`) for `type` + `source` + `subject`; `firstFrameWhen` / `lastFrameWhen` (a moment
-word such as `fullyIn`, an exact place `{ element, screen }`, or `{ scrolled }`) for `range`; `holdOnScreen`
+word such as `fullyIn`, an exact place `{ domElement, screen }`, or `{ scrolled }`) for `range`; `holdOnScreen`
 (`at`, `forScreens`, `offset`) for `pin`; `axis: 'vertical' | 'horizontal'` for `block` · `inline` · `x` · `y`;
 no `frameRate`. The types are `PxScrollFollows`, `PxScrollMoment`, `PxScrollLine`, `PxScrollAxis`, `PxHoldAt`,
 `PxScrollMomentWire` and `PxHoldOnScreen`. Stamped 1.27 files are converted on read — see
 [Following the scroll](./playback-and-triggers.md#following-the-scroll).
 
 **`player.startPlayback()` / `player.play()` / `player.getCurrentTime()` is not a function.** Since 1.25 everything a page
-does to the animation sits on ONE object, `player.playback` (`PxPlaybackControls`) — on the web player and on every
-component's `playerRef`: `startPlayback()` → `playback.start()`, `stopPlayback()` → `playback.stop()`, `pausePlayback()`
-→ `playback.pause()`, `resumePlayback()` → `playback.resume()`, `getPlaybackState()` → `playback.getState()`,
-`isPlaybackActive()` → `playback.isActive()`, `isPlaying()` → `playback.isPlaying()` (`playOnce()`, `jumpToStart()`
+does to the animation sits on ONE object, `player.timeline` (`PxTimelineControls`) — on the web player and on every
+component's `playerRef`: `startPlayback()` → `timeline.start()`, `stopPlayback()` → `timeline.stop()`, `pausePlayback()`
+→ `timeline.pause()`, `resumePlayback()` → `timeline.resume()`, `getPlaybackState()` → `timeline.getState()`,
+`isPlaybackActive()` → `timeline.isActive()`, `isPlaying()` → `timeline.isPlaying()` (`playOnce()`, `jumpToStart()`
 and `jumpToEnd()` are gone since 1.26 — above); the
-content-time reads and seeks keep their names under `playback.` (`playback.getDuration()`, `playback.getCurrentTime()`,
-`playback.setTotalTime(ms)` …); the speed is `playback.getSpeed()` / `playback.setSpeed(s)`, and the speed-adjusted
-reads say so: `getPlaybackDuration()` → `playback.getDurationAtSpeed()`, `setPlaybackDuration(ms)` →
-`playback.setDurationAtSpeed(ms)`, `getTotalPlaybackDuration()` → `playback.getTotalDurationAtSpeed()`,
-`getCurrentPlaybackTime()` → `playback.getCurrentTimeAtSpeed()`, `getTotalPlaybackTime()` → `playback.getTotalTimeAtSpeed()`.
-`player.play()` / `player.pause()` are gone — `playback.play()` starts or carries on (it resumes a pause), and
-`playback.pause()` freezes. The player keeps only `isReady()`, `getRootElement()` and `destroy()`.
+content-time reads and seeks keep their names under `playback.` (`timeline.getDuration()`, `timeline.getCurrentTime()`,
+`timeline.setTotalTime(ms)` …); the speed is `timeline.getSpeed()` / `timeline.setSpeed(s)`, and the speed-adjusted
+reads say so: `getPlaybackDuration()` → `timeline.getDurationAtSpeed()`, `setPlaybackDuration(ms)` →
+`timeline.setDurationAtSpeed(ms)`, `getTotalPlaybackDuration()` → `timeline.getTotalDurationAtSpeed()`,
+`getCurrentPlaybackTime()` → `timeline.getCurrentTimeAtSpeed()`, `getTotalPlaybackTime()` → `timeline.getTotalTimeAtSpeed()`.
+`player.play()` / `player.pause()` are gone — `timeline.play()` starts or carries on (it resumes a pause), and
+`timeline.pause()` freezes. The player keeps only `isReady()`, `getRootElement()` and `destroy()`.
 
 **`'startPlayback'` / `'startRun'` / `'start'` is not a key of `actionTriggers`.** Since 1.25 the built-in action names
-are dotted — `"playback.start"`, `"playback.stop"`, `"playback.pause"`, `"playback.resume"` — in `actionTriggers` and in
-`actions` (`"actionTriggers": { "playback.start": "load" }`, `actions={{ 'playback.stop': 'animateToStart' }}`); a dot
+are dotted — `"timeline.start"`, `"timeline.stop"`, `"timeline.pause"`, `"timeline.resume"` — in `actionTriggers` and in
+`actions` (`"actionTriggers": { "timeline.start": "load" }`, `actions={{ 'timeline.stop': 'animateToStart' }}`); a dot
 marks a built-in action, so from JavaScript the keys need quotes. Stamped files are migrated on read (`start` until
 1.23, `startRun` in 1.24).
 
 **`play` / `pause` / `playState` is not a prop; `stop()` / `getPlayState()` is not a function; `onPlay` / `onStop`
 never fires; `actions.finish` is dropped; `playRun` / `onRunStart` are gone.** Renamed in 1.24 (the run model) and 1.25
 (playback is the noun — `playRun` is `playback`, `onRunStart` is `onPlaybackStart`; `runOnce()` is gone — one pass
-is `timelineOptions: { iterations: 1 }` and `playback.start()`): the three props are ONE lever, `playback="off" | "on" | "paused"` (a change of position presses
-one button); the buttons are `playback.start()` · `playback.stop()` · `playback.pause()` · `playback.resume()`; the
-state read is `playback.getState()` — `off` · `playing` · `paused` · `finished` · `returning` · `destroyed` (`idle` is
-`off`) — plus `playback.isActive()`; the callbacks are `onPlaybackStart` / `onPlaybackResume` (both were `onPlay`),
+is `timelineOptions: { iterations: 1 }` and `timeline.start()`): the three props are ONE lever, `playback="off" | "on" | "paused"` (a change of position presses
+one button); the buttons are `timeline.start()` · `timeline.stop()` · `timeline.pause()` · `timeline.resume()`; the
+state read is `timeline.getState()` — `off` · `playing` · `paused` · `finished` · `returning` · `destroyed` (`idle` is
+`off`) — plus `timeline.isActive()`; the callbacks are `onPlaybackStart` / `onPlaybackResume` (both were `onPlay`),
 `onPlaybackPause` (the out-of-view gate's pause reports it too since 1.26), `onPlaybackStop`; the Vue events `playbackStart` ·
 `playbackResume` · `playbackPause` · `playbackStop`; the registry events likewise. `actions.finish` is the timeline key
 `whenFinished` (`"timeline": { "whenFinished": "hold" }`; `atEnd` until 1.25). Types: `PxPlayState` → `PxPlaybackState`,
@@ -123,21 +123,21 @@ state read is `playback.getState()` — `off` · `playing` · `paused` · `finis
 `PxPlayRun`). Stamped files are migrated on read.
 
 **`setPlaySpeed` / `reset` / `onReset` is not there; `playWhile` is not a prop.** Renamed in 1.22 / 1.23:
-`playback.setSpeed(s)` (with `playback.getSpeed()`), `playback.getDurationAtSpeed()` / `playback.setDurationAtSpeed()`, `playback.getTotalDurationAtSpeed()`,
-`playback.getCurrentTimeAtSpeed()`; `reset()` is gone — `playback.stop()` goes back to the rest pose (`onReset` is gone; the
-state is `playback.getState() === 'off'`); `onWarn` is `onWarning`; the component props `playWhile` /
+`timeline.setSpeed(s)` (with `timeline.getSpeed()`), `timeline.getDurationAtSpeed()` / `timeline.setDurationAtSpeed()`, `timeline.getTotalDurationAtSpeed()`,
+`timeline.getCurrentTimeAtSpeed()`; `reset()` is gone — `timeline.stop()` goes back to the rest pose (`onReset` is gone; the
+state is `timeline.getState() === 'off'`); `onWarn` is `onWarning`; the component props `playWhile` /
 `pauseWhile` went back to `play` / `pause` (or one `playState`) — one lever since 1.24 (`playRun`; `playback` since 1.25); `timelineOptions.playSpeed` is
 `playbackSpeed`; the action words `reset` / `rewind` are `jumpToStart` / `animateToStart` (`restart` needs no word:
-`playback.start` always plays from the start), and `stop.completeIteration: true` is `'playback.stop': 'animateToEnd'`
+`timeline.start` always plays from the start), and `stop.completeIteration: true` is `'timeline.stop': 'animateToEnd'`
 (`'animateToEndAndBack'` with `rewind`); the types `PxPatch` /
 `PxTimelinePatch` / `PxActionsPatch` are `PxRecursivePartial` / `PxTimelineOptions` / `PxActionsOptions` (`PxActionsInput` since 1.26),
 and `null` no longer deletes a key — set the value you want. Stamped files are migrated on read.
 
 **`setPlaybackRate` / `jumpToFinished` is not a function.** Renamed in 1.21: `setPlaybackRate` became
-the speed (now `playback.setSpeed(s)`), `jumpToFinished()` is gone (`playback.setCurrentProgress(p)` shows a frame);
-the type `PxDocumentInput` is `PxDocumentJson`. `playback.getCurrentTime()` / `playback.setCurrentTime()` mean the
-position INSIDE the current iteration — the playback is `playback.getTotalTime()` / `playback.getTotalDuration()`;
-`playback.getCurrentProgress()` counts iterations since 1.26 (`1.2` = 20 % into the second).
+the speed (now `timeline.setSpeed(s)`), `jumpToFinished()` is gone (`timeline.setCurrentProgress(p)` shows a frame);
+the type `PxDocumentInput` is `PxDocumentJson`. `timeline.getCurrentTime()` / `timeline.setCurrentTime()` mean the
+position INSIDE the current iteration — the playback is `timeline.getTotalTime()` / `timeline.getTotalDuration()`;
+`timeline.getCurrentProgress()` counts iterations since 1.26 (`1.2` = 20 % into the second).
 
 **Two control props do not compile together.** Expected: `PxControlProps` takes ONE driver family at a
 time — `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActionTriggers` · `actionTriggers`.
@@ -179,63 +179,63 @@ file whose static attributes differ from its first keyframe can show the first f
 (see [Once finished](./playback-and-triggers.md#once-finished--whenfinished)).
 For one mount only, pass the same thing as an override: `timelineOptions={{ whenFinished: 'jumpToStart' }}`.
 
-**How do I stop after the current pass, not mid-beat?** `actions: { 'playback.stop': 'animateToEnd' }` — a stop
+**How do I stop after the current pass, not mid-beat?** `actions: { 'timeline.stop': 'animateToEnd' }` — a stop
 plays on to the end of the pass; there the playback is `finished` and `whenFinished` applies (`hold` rests there).
-To play back to the start after that pass, `'playback.stop': 'animateToEndAndBack'`.
+To play back to the start after that pass, `'timeline.stop': 'animateToEndAndBack'`.
 
-**A hover or a click restarts the animation.** Since 1.26 `playback.start` always plays from the start — also
+**A hover or a click restarts the animation.** Since 1.26 `timeline.start` always plays from the start — also
 while the animation is playing, paused or on its way back. To carry on instead (resume a pause, turn a return
-around, do nothing while playing), list the event under `"playback.play"` — or call `playback.play()` — rather
-than `playback.start`.
+around, do nothing while playing), list the event under `"timeline.play"` — or call `timeline.play()` — rather
+than `timeline.start`.
 
-**How do I play backwards?** `player.playback.setSpeed(-1); player.playback.start();` (on a `reverse` pass the two
-multiply, so it plays forwards) — or let a stop play back by itself: `actions: { 'playback.stop': 'animateToStart' }`
-in the timeline, with the event that stops it listed in the triggers (`'playback.stop': 'hoverOut'`); `playback.stop()` and
+**How do I play backwards?** `player.timeline.setSpeed(-1); player.timeline.start();` (on a `reverse` pass the two
+multiply, so it plays forwards) — or let a stop play back by itself: `actions: { 'timeline.stop': 'animateToStart' }`
+in the timeline, with the event that stops it listed in the triggers (`'timeline.stop': 'hoverOut'`); `timeline.stop()` and
 `playback="off"` play back the same way (the state reads `returning` on the way).
 
 **How do I play faster or slower?** `timeline.playbackSpeed` in the file (`2` = twice as fast), the same
-key in `timelineOptions`, or `playback.setSpeed(2)` on the handle — `playback.setDurationAtSpeed(ms)` asks for the same
-thing as a length. A speed of `0` is rejected: `playback.pause()` is how you stop. On a scroll timeline
+key in `timelineOptions`, or `timeline.setSpeed(2)` on the handle — `timeline.setDurationAtSpeed(ms)` asks for the same
+thing as a length. A speed of `0` is rejected: `timeline.pause()` is how you stop. On a scroll timeline
 the scroll owns the playhead, so the playback calls do nothing there (PX1505).
 
-**A scroll-driven file ignores `playback.start()`, `playback.setCurrentProgress()` or `showAtProgress`.** Expected:
+**A scroll-driven file ignores `timeline.start()`, `timeline.setCurrentProgress()` or `showAtProgress`.** Expected:
 on a scroll timeline only the scrolling moves the playhead — the buttons and the seeks are ignored with a warning
-(PX1505), `playback.getState()` reads `scrubbing` and no playback callback fires. To drive the file from your own
+(PX1505), `timeline.getState()` reads `scrubbing` and no playback callback fires. To drive the file from your own
 code, make it a clock timeline: `timelineOptions={{ type: 'time' }}` beside `showAtProgress` — see
 [Following the scroll → From page code](./playback-and-triggers.md#from-page-code).
 
 **A scroll-driven animation starts too early or too late.** Its two moments decide where on the screen the
 first and the last frame are shown — `firstFrameWhen` / `lastFrameWhen`, from `appears` to `gone` by default.
 `"lastFrameWhen": "fullyIn"` finishes once all of it is in; an exact place such as
-`"firstFrameWhen": { "element": "top", "screen": 0.8 }` starts when its top is 80 % down the screen — see
+`"firstFrameWhen": { "domElement": "top", "screen": 0.8 }` starts when its top is 80 % down the screen — see
 [The two moments](./playback-and-triggers.md#the-two-moments).
 
 **A trigger event does nothing, or the console warns about the triggers.** Each list names only
-the events that make sense for it — `playback.start` and `playback.play` never `hoverOut`, `playback.stop` never `load` or `hoverIn`,
-`playback.pause` and `playback.resume` never `load` — and any other event is ignored (PX1110). What resumes a
-pause is derived unless the file names it (the counterpart of the `playback.pause` event, plus the `playback.start`
-events that do not stop it); a named `playback.resume` list is honoured as written, and the player notes
-where it differs from that derivation (PX1111); `playback.stop` on the
-same event as `playback.pause`, or on its counterpart, collides, and so does `playback.start` on the same event as
-`playback.play` (PX1109) — all three on
+the events that make sense for it — `timeline.start` and `timeline.play` never `hoverOut`, `timeline.stop` never `load` or `hoverIn`,
+`timeline.pause` and `timeline.resume` never `load` — and any other event is ignored (PX1110). What resumes a
+pause is derived unless the file names it (the counterpart of the `timeline.pause` event, plus the `timeline.start`
+events that do not stop it); a named `timeline.resume` list is honoured as written, and the player notes
+where it differs from that derivation (PX1111); `timeline.stop` on the
+same event as `timeline.pause`, or on its counterpart, collides, and so does `timeline.start` on the same event as
+`timeline.play` (PX1109) — all three on
 [the codes page](../diagnostics.md#what-the-document-says). See
 [Which events each list may name](./playback-and-triggers.md#which-events-each-list-may-name).
 
-**Jumping to a time while playing.** `playback.setCurrentTime(ms)` works while playing (the animation
+**Jumping to a time while playing.** `timeline.setCurrentTime(ms)` works while playing (the animation
 continues from the new point); in every other state — off, paused, finished — the playback becomes `paused`
-at that frame, and `playback.resume()` (or `playback.play()`) carries on from it. A seek reports no callback. It
-seeks inside the current iteration, `0..getDuration()`; `playback.setTotalTime(ms)` seeks on the whole playback,
-`playback.setCurrentProgress(p)` by iterations (`1.2` = 20 % into the second) — see
+at that frame, and `timeline.resume()` (or `timeline.play()`) carries on from it. A seek reports no callback. It
+seeks inside the current iteration, `0..getDuration()`; `timeline.setTotalTime(ms)` seeks on the whole playback,
+`timeline.setCurrentProgress(p)` by iterations (`1.2` = 20 % into the second) — see
 [Moving the playhead](./playback-and-triggers.md#moving-the-playhead).
 
-**My slider wraps on every iteration.** `playback.getCurrentTime()` is the frame inside the current iteration
+**My slider wraps on every iteration.** `timeline.getCurrentTime()` is the frame inside the current iteration
 (since 1.21, on every player) — the slider every animation player shows for a loop; a 0–1 bar for every pass is
-`getCurrentTime() / getDuration()`. `playback.getCurrentProgress()` does not wrap: since 1.26 it counts iterations.
-For a slider across a finite playback use `playback.getTotalTime()` with `playback.getTotalDuration()` as the maximum
+`getCurrentTime() / getDuration()`. `timeline.getCurrentProgress()` does not wrap: since 1.26 it counts iterations.
+For a slider across a finite playback use `timeline.getTotalTime()` with `timeline.getTotalDuration()` as the maximum
 (`null` when `iterations` is `'infinite'`).
 
 **`onPlaybackFinish` never fires.** It fires when the last pass ends by playing — never on a loop without end,
-never for a stop that goes to the end (`'playback.stop': 'animateToEnd'` reports `onPlaybackStop`, though the
+never for a stop that goes to the end (`'timeline.stop': 'animateToEnd'` reports `onPlaybackStop`, though the
 state then reads `finished` too), and never on a scroll timeline, which never starts or finishes.
 
 **`onPlaybackPause` fires, but nobody paused it.** The out-of-view gate pauses for real since 1.26: scrolled out

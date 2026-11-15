@@ -390,7 +390,7 @@ export function createWebApiAnimator(
         "getPlaybackSpeed": (): number => animations[0]?.playbackRate ?? 1,
         "setPlaybackSpeed": (rate: number) => {
             // WAAPI itself accepts 0 and silently freezes; the other two engines reject it.
-            // One answer everywhere (review §3) — `playback.pause()` is how you stop.
+            // One answer everywhere (review §3) — `timeline.pause()` is how you stop.
             if (!isValidPlaybackRate(rate)) {
                 diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);
                 return;

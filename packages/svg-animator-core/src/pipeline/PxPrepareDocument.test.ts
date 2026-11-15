@@ -99,9 +99,9 @@ describe('prepareDocument', () => {
 
     it('freshIds rewrites ids INSIDE the animator config too — the attached view follows (no stale bindings)', () => {
         const doc = makeDoc();
-        (doc.animator as { bindings?: unknown }).bindings = [{ target: '#r1', animateWith: [] }];
+        (doc.animator as { bindings?: unknown }).bindings = [{ element: '#r1', animateWith: [] }];
         const out = prep(doc, { freshIds: true });
-        const target = (getAnimatorConfig(out)?.bindings ?? [])[0]?.target;
+        const target = (getAnimatorConfig(out)?.bindings ?? [])[0]?.element;
         expect(target).not.toBe('#r1');                                  // the view is not the pre-rename one
         expect(JSON.stringify(out)).toContain('"id":"' + String(target).slice(1) + '"');   // it names a real node
     });
@@ -134,13 +134,13 @@ describe('prepareDocument — the checked stage', () => {
 
     it('repairs what does not match the schema, reports it, and plays the rest', () => {
         const doc = makeDoc();
-        (doc.animator as { timeline: Record<string, unknown> }).timeline.actionTriggers = { 'playback.start': 'onLoad' };
+        (doc.animator as Record<string, unknown>).actionTriggers = { 'timeline.start': 'onLoad' };
         const seen: Array<string> = [];
         const out = prep(doc, { stage: PxDocStage.checked, onProblems: ps => ps.forEach(p => seen.push(p.message)) });
         expect(seen.length).toBe(1);
-        expect(seen[0]).toContain('actionTriggers.playback.start');
-        expect((out.animator as { timeline: { actionTriggers: Record<string, unknown> } }).timeline.actionTriggers).toEqual({});   // the bad value is gone
-        expect((doc.animator as { timeline: { actionTriggers: { 'playback.start': string } } }).timeline.actionTriggers['playback.start']).toBe('onLoad');   // input untouched
+        expect(seen[0]).toContain('actionTriggers.timeline.start');
+        expect((out.animator as { actionTriggers: Record<string, unknown> }).actionTriggers).toEqual({});   // the bad value is gone
+        expect((doc.animator as { actionTriggers: { 'timeline.start': string } }).actionTriggers['timeline.start']).toBe('onLoad');   // input untouched
     });
 
     it('a valid document reports nothing and comes out type-stamped', () => {

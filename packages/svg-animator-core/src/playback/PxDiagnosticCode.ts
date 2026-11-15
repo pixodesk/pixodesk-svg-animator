@@ -120,23 +120,23 @@ export enum PxDiagnosticCode {
     documentRepaired = 1108,
 
     /**
-     * Two trigger lists react to one event in the same state: `playback.stop` and `playback.pause` (playing — the pause wins), or
-     * `playback.stop` and the counterpart of a `playback.pause` event (paused — the resume wins). The file should name one.
+     * Two trigger lists react to one event in the same state: `timeline.stop` and `timeline.pause` (playing — the pause wins), or
+     * `timeline.stop` and the counterpart of a `timeline.pause` event (paused — the resume wins). The file should name one.
      * @data the event and the two lists
      */
     triggerEventConflict = 1109,
 
     /**
-     * A trigger list names an event it cannot use — `playback.start` on `hoverOut`, `playback.stop` on `load` or `hoverIn`,
-     * `playback.pause` or `playback.resume` on `load`. The event is ignored.
+     * A trigger list names an event it cannot use — `timeline.start` on `hoverOut`, `timeline.stop` on `load` or `hoverIn`,
+     * `timeline.pause` or `timeline.resume` on `load`. The event is ignored.
      * @data the list and the event
      */
     triggerEventNotAllowed = 1110,
 
     /**
-     * The file's `playback.resume` list differs from what the player would derive — the counterpart of each `playback.pause`
-     * event plus the `playback.start` events that do not stop it: it names an event the derivation would not, or leaves out
-     * one it would (that pause then waits for `playback.start` or `playback.stop`). The list is honoured as written.
+     * The file's `timeline.resume` list differs from what the player would derive — the counterpart of each `timeline.pause`
+     * event plus the `timeline.start` events that do not stop it: it names an event the derivation would not, or leaves out
+     * one it would (that pause then waits for `timeline.start` or `timeline.stop`). The list is honoured as written.
      * @data the list and the event
      */
     triggerResumeDiffers = 1111,
@@ -152,6 +152,20 @@ export enum PxDiagnosticCode {
      * @data the problems (path: finding), the first twelve, then the mangling hint
      */
     documentSchemaMismatch = 1112,
+
+    /**
+     * An event names an `element` (2026-11-15) that the picture does not have — a typo, or an element the file lost. The
+     * event is never heard.
+     * @data the element reference
+     */
+    triggerElementNotFound = 1113,
+
+    /**
+     * A segment action names a segment the timeline does not have (2026-11-15) — `timeline.segment.goTo(‹name›)` as a
+     * trigger, or as a segment's `whenFinished`. It is ignored.
+     * @data the action and the names the timeline has
+     */
+    segmentNotFound = 1114,
 
     /**
      * A binding names no element, or names animations that `definitions.animations` does not have.
@@ -222,7 +236,7 @@ export enum PxDiagnosticCode {
 
     // ── 1400 · playback control ──────────────────────────────────────────────────────────────
 
-    /** A playback rate of `0`, or a non-finite one, is rejected everywhere — use `playback.pause()`. */
+    /** A playback rate of `0`, or a non-finite one, is rejected everywhere — use `timeline.pause()`. */
     rateRejected = 1401,
 
     // ── 1500 · the props a component was given ───────────────────────────────────────────────
@@ -242,7 +256,7 @@ export enum PxDiagnosticCode {
     playModifierIgnored = 1502,
 
     /**
-     * An imperative write call (`playback.start()`, `playback.pause()`, `playback.play()`, …) landed while a declarative
+     * An imperative write call (`timeline.start()`, `timeline.pause()`, `timeline.play()`, …) landed while a declarative
      * driver (the `playback` or the `showAtProgress` / `showAtTime` props) owns playback. The call is applied, and
      * the next prop change reasserts the props.
      * @data the call
@@ -250,15 +264,15 @@ export enum PxDiagnosticCode {
     imperativeOverDeclarative = 1503,
 
     /**
-     * A call on a destroyed player — ignored; `playback.getState()` says `destroyed`.
+     * A call on a destroyed player — ignored; `timeline.getState()` says `destroyed`.
      * @data the call
      */
     callAfterDestroy = 1504,
 
     /**
-     * A playback call on a scroll timeline — a button (`playback.start()`, `playback.play()`, `playback.stop()`,
-     * `playback.pause()`, `playback.resume()`), the speed (`playback.setSpeed()`, `playback.setDurationAtSpeed()`) or a
-     * seek (`playback.setCurrentTime()`, `playback.setCurrentProgress()`, `playback.setTotalTime()`, and the components'
+     * A playback call on a scroll timeline — a button (`timeline.start()`, `timeline.play()`, `timeline.stop()`,
+     * `timeline.pause()`, `timeline.resume()`), the speed (`timeline.setSpeed()`, `timeline.setDurationAtSpeed()`) or a
+     * seek (`timeline.setCurrentTime()`, `timeline.setCurrentProgress()`, `timeline.setTotalTime()`, and the components'
      * `showAtProgress` / `showAtTime`, which seek through them) — ignored: the scrolling owns the playhead. The reads still
      * answer. To drive it from code, make it a clock timeline: `timelineOptions: { type: 'time' }`.
      * @data the call
@@ -266,8 +280,8 @@ export enum PxDiagnosticCode {
     scrollOwnsPlayhead = 1505,
 
     /**
-     * A playback call (`playback.start()`, `playback.play()`, `playback.stop()`, `playback.pause()`, `playback.resume()`,
-     * a seek, `playback.setSpeed()`, `playback.setDurationAtSpeed()`) on a player shown with `showAsStatic` — ignored:
+     * A playback call (`timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()`,
+     * a seek, `timeline.setSpeed()`, `timeline.setDurationAtSpeed()`) on a player shown with `showAsStatic` — ignored:
      * the picture stays as drawn. The reads still answer.
      * @data the call
      */

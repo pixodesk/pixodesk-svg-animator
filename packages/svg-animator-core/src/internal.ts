@@ -67,3 +67,11 @@ export { diffFieldUniverse, planSchemaRelease, releaseLogProblems } from './vers
 export { resolveVariableBindings, PX_VARIABLE_NODE_MARK, PX_CSS_DELIVERABLE_PROPERTIES, PX_PREDEFINED_VARIABLES, PX_PREDEFINED_PREFIX, nodeKeyOf, nodeAtPath, isDirectWriteSite, cssDeliverableKey, cssVarValue, firstKeyframeValue, isAnimatedVariableValue, isVariableValue, variableDefaultFits, predefinedVariableOf, viewBoxCenterOf } from './variables/PxVariableBindings';
 export type { PxResolveBindingsOptions, PxPredefinedDefinition } from './variables/PxVariableBindings';
 export { domAttributeOf } from './render/PxRenderTree';
+
+/** The 1.28 amendment (2026-11-15): brings a document stamped 1.28 in the first spelling over to the second — for a
+ *  writer converting its own files once. @internal */
+export { upTimelineAndElementWords } from './version/PxWireVersion';
+
+// The components' `segment` prop (2026-11-15): the lever between a component and the player it builds.
+export { createSegmentLever } from './playback/PxSegments';
+export type { PxSegmentLever } from './playback/PxSegments';

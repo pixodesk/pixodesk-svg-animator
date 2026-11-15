@@ -17,14 +17,14 @@ const doc = (): PxDocument => ({
     children: [{ type: 'rect', id: 'ball' }],
     animator: {
         definitions: { animations: { fadeIn: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } } },
-        bindings: [{ target: '#ball', animateWith: ['fadeIn'] }],
+        bindings: [{ element: '#ball', animateWith: ['fadeIn'] }],
     },
 });
 
 describe('bindings — #id-spelled targets (review §3.2, 2.12)', () => {
 
     it('getBindings returns the list as written — the target keeps its hash', () => {
-        expect(getBindings(doc())).toEqual([{ target: '#ball', animateWith: ['fadeIn'] }]);
+        expect(getBindings(doc())).toEqual([{ element: '#ball', animateWith: ['fadeIn'] }]);
     });
 
     it('normalizeBindings resolves the names and strips the hash — engines get bare DOM ids', () => {
@@ -37,7 +37,7 @@ describe('bindings — #id-spelled targets (review §3.2, 2.12)', () => {
         const out = generateNewIds(doc());
         const bindings = out.animator?.bindings ?? [];
         expect(bindings).toHaveLength(1);
-        const target: string = bindings[0].target;
+        const target: string = bindings[0].element;
         expect(target.startsWith('#')).toBe(true);
         expect(target.slice(1)).toBe(out.children?.[0].id); // still points at the (renamed) element
         expect(bindings[0].animateWith).toEqual(['fadeIn']);

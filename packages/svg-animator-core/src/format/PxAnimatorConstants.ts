@@ -21,7 +21,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActionTriggers, PxActionTriggersInput, PxActions, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActionTriggers, PxActionTriggersInput, PxActions, PxTriggerEventObject, PxTriggerEventFilter, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
 // (TYPES only from PxAnimatorTypes: it reads this module's constants while it loads.)
 import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
@@ -86,46 +86,104 @@ export const PxTriggerEvent = {
     hoverIn:  'hoverIn',
     hoverOut: 'hoverOut',
     click:    'click',
+    /** A button or a finger goes down on it (2026-11-15) — pressed states. */
+    pointerDown: 'pointerDown',
+    /** …and is released. */
+    pointerUp:   'pointerUp',
+    /** A key goes down — on the page, while the picture is in view and no text field has the focus; which key is said
+     *  in the event's `with` (`{ "event": "keyDown", "with": { "key": "Enter" } }`). */
+    keyDown:     'keyDown',
+    /** …and comes up. */
+    keyUp:       'keyUp',
 } as const;
 
 export type PxTriggerEvent = typeof PxTriggerEvent[keyof typeof PxTriggerEvent];
 
-/** One event, or several — the house style of `animate`'s references. @public */
-export type PxTriggerEvents = PxTriggerEvent | Array<PxTriggerEvent>;
+/** One entry of a trigger list: an event word (the whole picture), or an event object — the word plus where it is
+ *  heard (`element` of the picture, `selector` of the page) and the event's own fields it must have (`with`). @public */
+export type PxTriggerEventEntry = PxTriggerEvent | PxTriggerEventObject;
 
-/** THE BUILT-IN ACTION NAMES — the one place they are spelled. Each is a key of `timeline.actionTriggers` (its trigger
- *  list) and, for the one with settings, of `timeline.actions` (playback-layers.md, layers 0–1): `"playback.start"` /
- *  `"playback.stop"` bracket a PLAYBACK, `"playback.pause"` / `"playback.resume"` a FREEZE inside it, and
- *  `"playback.play"` is start-or-carry-on (resumes a pause, turns a return around, starts otherwise);
- *  `player.playback.start()` … press them from code. A dot marks a built-in action, `<state variable>.<verb>`
+/** One entry, or several — the house style of `animate`'s references. @public */
+export type PxTriggerEvents = PxTriggerEventEntry | Array<PxTriggerEventEntry>;
+
+/** How a pointer event was made — the browser's `pointerType` (2026-11-15). @public */
+export const PxPointerType = {
+    mouse: 'mouse',
+    touch: 'touch',
+    pen:   'pen',
+} as const;
+export type PxPointerType = typeof PxPointerType[keyof typeof PxPointerType];
+
+/** The segment actions (2026-11-15): go to the next segment on the ruler (after the last, the first), the previous one
+ *  (before the first, the last), or a named one — {@link segmentGoToAction}. Each is a key of `actionTriggers` and a
+ *  value a segment's `whenFinished` may hold; the same name is the page's call (`player.timeline.segment.next()`). @public */
+export const PxSegmentAction = {
+    next:     'timeline.segment.next',
+    previous: 'timeline.segment.previous',
+} as const;
+export type PxSegmentAction = typeof PxSegmentAction[keyof typeof PxSegmentAction];
+
+/** The action "go to the segment `name`" — `timeline.segment.goTo(name)`. A whole key, made from the segments' names
+ *  and looked up as it is: nothing ever takes it apart. @public */
+export function segmentGoToAction(name: string): string {
+    return SEGMENT_GOTO_PREFIX + name + ')';
+}
+const SEGMENT_GOTO_PREFIX = 'timeline.segment.goTo(';
+
+/** True for a key of the `timeline.segment.goTo(…)` family — recognised by its spelling, never taken apart (a name
+ *  the timeline lacks is reported, see `segmentReferenceIssues`). @public @advanced */
+export function isSegmentGoToAction(key: string): boolean {
+    return key.startsWith(SEGMENT_GOTO_PREFIX) && key.endsWith(')');
+}
+
+/** How a segment is LEFT when another is asked for (2026-11-15): `jump` (default) — a cut; `animateToEnd` — this pass
+ *  plays to its end first; `animateToStart` — it plays back to its start first. @public */
+export const PxWhenLeaving = {
+    jump:           'jump',
+    animateToEnd:   'animateToEnd',
+    animateToStart: 'animateToStart',
+} as const;
+export type PxWhenLeaving = typeof PxWhenLeaving[keyof typeof PxWhenLeaving];
+
+/** THE BUILT-IN ACTION NAMES — the one place they are spelled. Each is a key of `animator.actionTriggers` (its trigger
+ *  list) and, for the one with settings, of `timeline.actions` (playback-layers.md, layers 0–1): `"timeline.start"` /
+ *  `"timeline.stop"` bracket a PLAYBACK, `"timeline.pause"` / `"timeline.resume"` a FREEZE inside it, and
+ *  `"timeline.play"` is start-or-carry-on (resumes a pause, turns a return around, starts otherwise);
+ *  `player.timeline.start()` … press them from code. A dot marks a built-in action, `<state variable>.<verb>`
  *  (dev-docs/plans/animation-state.playback-namespace.md §3): a custom action name (layer 2) has none, so the two can
- *  never collide. `startRun` … in 1.24; `playback.play` since 1.26. Read and write the keys through these constants —
+ *  never collide. `startRun` … in 1.24; `timeline.play` since 1.26. Read and write the keys through these constants —
  *  `triggers[PxTriggerList.startPlayback]` — never a spelled-out string. @public @advanced */
 export const PxTriggerList = {
-    startPlayback:   'playback.start',
-    playPlayback:    'playback.play',
-    stopPlayback:    'playback.stop',
-    pausePlayback:   'playback.pause',
-    resumePlayback:  'playback.resume',
+    startPlayback:   'timeline.start',
+    playPlayback:    'timeline.play',
+    stopPlayback:    'timeline.stop',
+    pausePlayback:   'timeline.pause',
+    resumePlayback:  'timeline.resume',
 } as const;
 
 export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
 
 // @px-area control
 /** The events a list may name — the schema is built from it, and an event outside it is dropped and warned:
- *   - `playback.start` / `playback.play`: load · hoverIn · click (starting when the pointer LEAVES makes no sense)
- *   - `playback.stop`: hoverOut · click (stopping on load or when the pointer ARRIVES makes no sense)
- *   - `playback.pause` / `playback.resume`: hoverIn · hoverOut · click (a marquee pauses on hover in, a hover animation on hover out)
+ *   - `timeline.start` / `timeline.play`: load · hoverIn · click (starting when the pointer LEAVES makes no sense)
+ *   - `timeline.stop`: hoverOut · click (stopping on load or when the pointer ARRIVES makes no sense)
+ *   - `timeline.pause` / `timeline.resume`: hoverIn · hoverOut · click (a marquee pauses on hover in, a hover animation on hover out)
  *  @public @advanced */
 export function allowedTriggerEvents(list: PxTriggerList): ReadonlyArray<PxTriggerEvent> {
+    // the pointer and key events (2026-11-15) are aimed at something the reader acts on: every list may name them
+    const pressed = [PxTriggerEvent.pointerDown, PxTriggerEvent.pointerUp, PxTriggerEvent.keyDown, PxTriggerEvent.keyUp];
     switch (list) {
         case PxTriggerList.startPlayback:
-        case PxTriggerList.playPlayback: return [PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.click];
-        case PxTriggerList.stopPlayback: return [PxTriggerEvent.hoverOut, PxTriggerEvent.click];
+        case PxTriggerList.playPlayback: return [PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.click, ...pressed];
+        case PxTriggerList.stopPlayback: return [PxTriggerEvent.hoverOut, PxTriggerEvent.click, ...pressed];
         case PxTriggerList.pausePlayback:
-        case PxTriggerList.resumePlayback: return [PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click];
+        case PxTriggerList.resumePlayback: return [PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click, ...pressed];
     }
 }
+
+/** Every event — what a segment action may name (2026-11-15). @public @advanced */
+export const PX_ALL_TRIGGER_EVENTS: ReadonlyArray<PxTriggerEvent> = [PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut,
+    PxTriggerEvent.click, PxTriggerEvent.pointerDown, PxTriggerEvent.pointerUp, PxTriggerEvent.keyDown, PxTriggerEvent.keyUp];
 
 // @px-area control
 /** The event that undoes another — what resumes a pause: hoverIn ↔ hoverOut, click → click; `load` has none.
@@ -135,6 +193,10 @@ export function counterpartTriggerEvent(event: PxTriggerEvent): PxTriggerEvent |
         case PxTriggerEvent.hoverIn: return PxTriggerEvent.hoverOut;
         case PxTriggerEvent.hoverOut: return PxTriggerEvent.hoverIn;
         case PxTriggerEvent.click: return PxTriggerEvent.click;
+        case PxTriggerEvent.pointerDown: return PxTriggerEvent.pointerUp;
+        case PxTriggerEvent.pointerUp: return PxTriggerEvent.pointerDown;
+        case PxTriggerEvent.keyDown: return PxTriggerEvent.keyUp;
+        case PxTriggerEvent.keyUp: return PxTriggerEvent.keyDown;
         case PxTriggerEvent.load: return undefined;
     }
 }
@@ -157,12 +219,12 @@ export function counterpartTriggerEvent(event: PxTriggerEvent): PxTriggerEvent |
  * word say what a reader had to look up — "reset to where?", "rewind how?", "complete what?".
  *
  * THE PLAYBACK (schema 1.25; dev-docs/plans/animation-state.playback-noun.md): one instance of the animation being in
- * effect — it begins with `playback.start` (always from the start) or `playback.play`, lasts while `playing` · `paused`
- * · `finished`, and is retired by `playback.stop`. `off` = no playback. Reaching the end makes it `finished` whatever
+ * effect — it begins with `timeline.start` (always from the start) or `timeline.play`, lasts while `playing` · `paused`
+ * · `finished`, and is retired by `timeline.stop`. `off` = no playback. Reaching the end makes it `finished` whatever
  * `whenFinished` then shows (1.26): the state and the picture are two different things.
  */
 
-/** `actions["playback.stop"]` (`behavior`) — where the playback's stop takes the picture and how: back to the rest pose at
+/** `actions["timeline.stop"]` (`behavior`) — where the playback's stop takes the picture and how: back to the rest pose at
  *  once (`jumpToStart`, the default) or playing backwards (`animateToStart`, the `returning` state); on to the end of the
  *  pass at once (`jumpToEnd`) or playing there (`animateToEnd` — "stop after this pass"), both rest `finished` and then
  *  `whenFinished` applies; or playing on to the end of the pass and then backwards to the rest pose
@@ -220,15 +282,15 @@ export const PxWhenIdle = {
 export type PxWhenIdle = typeof PxWhenIdle[keyof typeof PxWhenIdle];
 
 
-/** `timeline.follows` (`type: 'scroll'`) — what the playhead follows. The `…Element` words follow where an element
+/** `timeline.follows` (`type: 'scroll'`) — what the playhead follows. The `…DomElement` words follow where an element
  *  is on the screen; the `…Scroll` words follow how far something is scrolled. @public */
 export const PxScrollFollows = {
     /** The animation itself, on its way across the screen (the default). */
-    thisElement:     'thisElement',
+    thisDomElement:  'thisDomElement',
     /** The element around it — the nearest one that really moves (sticky and fixed ancestors are skipped). */
-    parentElement:   'parentElement',
+    parentDomElement: 'parentDomElement',
     /** An element of the page, named by `selector`. */
-    pageElement:     'pageElement',
+    pageDomElement:  'pageDomElement',
     /** How far the page is scrolled. */
     pageScroll:      'pageScroll',
     /** How far the scrolling box around it is scrolled — or the box `selector` names. */
@@ -237,7 +299,7 @@ export const PxScrollFollows = {
 
 export type PxScrollFollows = typeof PxScrollFollows[keyof typeof PxScrollFollows];
 
-/** True for the `…Element` words — the playhead follows where an element is on the screen. @public @advanced */
+/** True for the `…DomElement` words — the playhead follows where an element is on the screen. @public @advanced */
 export function followsElement(follows: PxScrollFollows | undefined): boolean {
     return follows !== PxScrollFollows.pageScroll && follows !== PxScrollFollows.containerScroll;
 }
@@ -307,7 +369,7 @@ export type PxCssRangeName = 'cover' | 'entry' | 'exit' | 'entry-crossing' | 'ex
  *  (an exact place on a line other than the screen's top or bottom — the player then measures by itself). The seven
  *  words adapt to the size exactly as CSS's names do. @internal */
 export function cssRangeOfMoment(moment: PxScrollMomentSettings | undefined, fallback: PxScrollMoment): { name: PxCssRangeName; fraction: number } | undefined {
-    const word = moment?.moment ?? (moment?.element === undefined && moment?.screen === undefined ? fallback : undefined);
+    const word = moment?.moment ?? (moment?.domElement === undefined && moment?.screen === undefined ? fallback : undefined);
     switch (word) {
         case PxScrollMoment.appears: return { name: 'cover', fraction: 0 };
         case PxScrollMoment.halfIn: return { name: 'entry', fraction: 0.5 };
@@ -318,7 +380,7 @@ export function cssRangeOfMoment(moment: PxScrollMomentSettings | undefined, fal
         case PxScrollMoment.gone: return { name: 'cover', fraction: 1 };
     }
     const screen = scrollLineShare(moment?.screen, 1);
-    const element = clampShare(scrollLineShare(moment?.element, 0));
+    const element = clampShare(scrollLineShare(moment?.domElement, 0));
     if (screen === 1) return { name: 'entry-crossing', fraction: element };
     if (screen === 0) return { name: 'exit-crossing', fraction: element };
     return undefined;
@@ -330,11 +392,11 @@ export function clampShare(share: number): number {
 }
 
 /** One end of a scroll timeline's stretch in the RUNTIME VIEW — the settings form of the wire's word-or-object:
- *  `{ moment }` for a word, `{ element, screen }` for an exact place, `{ scrolled }` for a share of the scroll.
+ *  `{ moment }` for a word, `{ domElement, screen }` for an exact place, `{ scrolled }` for a share of the scroll.
  *  @internal */
 export interface PxScrollMomentSettings {
     moment?: PxScrollMoment;
-    element?: PxScrollLine | number;
+    domElement?: PxScrollLine | number;
     screen?: PxScrollLine | number;
     scrolled?: number;
 }
@@ -404,7 +466,7 @@ export const PX_TIMELINE_SHARED_KEYS = ['inTime', 'outTime', 'iterations', 'engi
 
 /** Timeline keys that exist ONLY on the time-driven member — a scroll timeline is moved by the scrolling, so nothing
  *  starts it, nothing delays it, nothing remaps its pace, and no frame rate applies (a frame is drawn when it moves). */
-export const PX_TIME_ONLY_TIMELINE_KEYS = ['actionTriggers', 'actions', 'delay', 'playbackSpeed', 'iterationDirection', 'whenIdle',
+export const PX_TIME_ONLY_TIMELINE_KEYS = ['actions', 'segments', 'delay', 'playbackSpeed', 'iterationDirection', 'whenIdle',
     'inViewThreshold', 'inViewDebounce', 'frameRate'] as const;
 
 /**
@@ -491,7 +553,7 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
  * @public @advanced
  */
 export const PX_PLAYBACK_DEFAULTS = {
-    // no `playback.start`: an absent `actionTriggers` block, like an empty one, names NO event — nothing plays until something
+    // no `timeline.start`: an absent `actionTriggers` block, like an empty one, names NO event — nothing plays until something
     // drives it; a file that plays by itself says `startPlayback: 'load'` (schema 1.17, dev-docs/reviews/schema-and-props--manual-review.md B2)
     stopPlaybackBehavior: 'jumpToStart',
     whenFinished: 'hold',
@@ -502,7 +564,7 @@ export const PX_PLAYBACK_DEFAULTS = {
 } as const;
 
 /** A file's `timeline.playbackSpeed` is usable when it is a positive finite number — 0 would stall the playback and a
- *  negative one reverse it (that is `iterationDirection`). The handle's `playback.setSpeed()` accepts a negative value
+ *  negative one reverse it (that is `iterationDirection`). The handle's `timeline.setSpeed()` accepts a negative value
  *  (play backwards); see `isValidPlaybackRate`. @public @advanced */
 export function isWirePlaybackSpeed(speed: number): boolean {
     return Number.isFinite(speed) && speed > 0;
@@ -517,15 +579,50 @@ export const PX_DEFAULT_ITERATIONS = 1;
 /** What an absent `unitsPerEm` of a glyph font means — see `PX_DEFAULT_DURATION_MS`. @internal */
 export const PX_DEFAULT_UNITS_PER_EM = 1000;
 
-/** The triggers with their lists normalised: every list an array of ALLOWED events, `playback.resume` DERIVED unless the
+/** The triggers with their lists normalised: every list an array of ALLOWED events, `timeline.resume` DERIVED unless the
  *  file names it ({@link derivedResume}); an absent block and an empty one are the same thing — nothing starts it
  *  (the manual document); a file that plays by itself names `startPlayback: 'load'`. @public @advanced */
 export interface PxResolvedTriggers {
-    readonly startPlayback: ReadonlyArray<PxTriggerEvent>;
-    readonly playPlayback: ReadonlyArray<PxTriggerEvent>;
-    readonly stopPlayback: ReadonlyArray<PxTriggerEvent>;
-    readonly pausePlayback: ReadonlyArray<PxTriggerEvent>;
-    readonly resumePlayback: ReadonlyArray<PxTriggerEvent>;
+    // each list holds the entries' KEYS ({@link triggerKeyOf}): a bare word is its own key, so a list of words reads
+    // as it always did; an event object's key names it among the lists, and `specs` says what it is
+    readonly startPlayback: ReadonlyArray<string>;
+    readonly playPlayback: ReadonlyArray<string>;
+    readonly stopPlayback: ReadonlyArray<string>;
+    readonly pausePlayback: ReadonlyArray<string>;
+    readonly resumePlayback: ReadonlyArray<string>;
+    /** The segment actions' entries — `next`, `previous` and one `goTo` per named segment (2026-11-15). */
+    readonly segments: ReadonlyArray<PxSegmentTrigger>;
+    /** Every key in the lists above → the entry in its settings form — what the wiring listens for. */
+    readonly specs: ReadonlyMap<string, PxTriggerEventSpec>;
+}
+
+/** One entry of a trigger list in its settings form (2026-11-15) — what the wiring attaches a listener for. @public @advanced */
+export interface PxTriggerEventSpec {
+    /** Names the entry among the lists: the word alone for a bare word, else a stable spelling of all its fields. */
+    readonly key: string;
+    readonly event: PxTriggerEvent;
+    /** One of this file's elements, `#id`. */
+    readonly element?: string;
+    /** An element of the page, a CSS selector. */
+    readonly selector?: string;
+    /** The event's own fields it must have. */
+    readonly filter?: PxTriggerEventFilter;
+}
+
+/** What a segment trigger does (2026-11-15). @public @advanced */
+export const PxSegmentTriggerKind = {
+    next:     'next',
+    previous: 'previous',
+    goTo:     'goTo',
+} as const;
+export type PxSegmentTriggerKind = typeof PxSegmentTriggerKind[keyof typeof PxSegmentTriggerKind];
+
+/** One segment action and the entries that press it. @public @advanced */
+export interface PxSegmentTrigger {
+    readonly kind: PxSegmentTriggerKind;
+    /** The segment `goTo` goes to. */
+    readonly segment?: string;
+    readonly keys: ReadonlyArray<string>;
 }
 
 /** The built-in actions' settings with every default applied — see {@link resolveActions}; `whenFinished` is the
@@ -573,12 +670,12 @@ export type PxControlMode = typeof PxControlMode[keyof typeof PxControlMode];
 export interface PxCommonControlProps {
     /**
      * The picture as drawn — nothing plays, whatever the file says: no triggers, no scroll, and every playback call
-     * (`playback.start()`, a seek, `playback.setSpeed()`, …) is ignored with a warning (PX1506). The reads still answer.
+     * (`timeline.start()`, a seek, `timeline.setSpeed()`, …) is ignored with a warning (PX1506). The reads still answer.
      * Beats every other control prop.
      */
     showAsStatic?: boolean;
     /** Manual: the file's `actionTriggers` are switched off, so nothing starts it by itself — your code presses the
-     *  buttons (`playback.start()`, …). `actionTriggers: null` (or `{}`) says the same. */
+     *  buttons (`timeline.start()`, …). `actionTriggers: null` (or `{}`) says the same. */
     disableActionTriggers?: boolean;
     /**
      * The triggers to use INSTEAD of the file's `actionTriggers` — a REPLACEMENT of the whole block, as in the file:
@@ -607,15 +704,15 @@ export interface PxAnyControlProps extends PxCommonControlProps {
      *  every time on this API (WAAPI's unit), so not `showAtMs`; `show…` because a driver is named by its verb — it
      *  shows a frame, it never plays. */
     showAtTime?: number;
-    /** THE LEVER — the playback's position, held: `off` (no playback — a change to it presses `playback.stop()`, a mount with it
-     *  presses nothing), `on` (a playback: from `off` or `finished` `playback.start()` — a one-shot plays to its end and rests
-     *  there, the pose without motion is `showAtProgress={1}`; from `paused` `playback.resume()`), `paused` (the playback frozen
-     *  where it is: from `on` `playback.pause()`; from `off` `playback.start()` + `playback.pause()` — the first frame, held). The two
+    /** THE LEVER — the playback's position, held: `off` (no playback — a change to it presses `timeline.stop()`, a mount with it
+     *  presses nothing), `on` (a playback: from `off` or `finished` `timeline.start()` — a one-shot plays to its end and rests
+     *  there, the pose without motion is `showAtProgress={1}`; from `paused` `timeline.resume()`), `paused` (the playback frozen
+     *  where it is: from `on` `timeline.pause()`; from `off` `timeline.start()` + `timeline.pause()` — the first frame, held). The two
      *  levers of the box (the playback on / off, the freeze on / off) folded into ONE word with no invalid pair: `paused`
      *  without a playback cannot be written. `play` because a driver prop starts with its verb (`play…` plays, `show…`
      *  shows a frame) — here the noun alone, since the noun is the media word (`playRun` in 1.24; `play` / `pause` /
      *  `playState` until 1.23). The readout is
-     *  `playback.getState()`: the request says `on`, the result says `playing` or `finished`. */
+     *  `timeline.getState()`: the request says `on`, the result says `playing` or `finished`. */
     playback?: PxPlayback;
     // TODO (dev-docs/plans/component-api.md D4): `playUsingScrollTimeline?: PxScrollTimeline` — the scroll driver, a
     // full scroll-driven timeline config, when scroll-driven playback lands. A driver is named by its verb: `play…`
@@ -725,65 +822,143 @@ export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
 }
 
 // @px-area control
-/** One event or several, as an array. @public @advanced */
-export function triggerEventList(events: PxTriggerEvents | undefined): ReadonlyArray<PxTriggerEvent> {
+/** One entry or several, as an array. @public @advanced */
+export function triggerEventList(events: PxTriggerEvents | undefined): ReadonlyArray<PxTriggerEventEntry> {
     return events === undefined ? [] : Array.isArray(events) ? events : [events];
 }
 
-// @px-area control
-/** A list's events that the list may name ({@link allowedTriggerEvents}) — the others are dropped. */
-function allowedEventsOf(list: PxTriggerList, events: PxTriggerEvents | undefined): ReadonlyArray<PxTriggerEvent> {
-    const allowed = allowedTriggerEvents(list);
-    return triggerEventList(events).filter(e => allowed.includes(e));
+/** The word of an entry. @public @advanced */
+export function triggerEventOf(entry: PxTriggerEventEntry): PxTriggerEvent {
+    return typeof entry === 'string' ? entry : entry.event;
 }
 
-/** `list` plus the events of `more` it does not name yet. */
-function unionEvents(list: ReadonlyArray<PxTriggerEvent>, more: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> {
+/** The filter's fields in a fixed order, as one spelling — part of an entry's key. Each field read by its name. */
+function filterKeyOf(filter: PxTriggerEventFilter | undefined): string {
+    if (!filter) return '';
+    const parts: Array<string> = [];
+    const add = (name: string, value: string | number | boolean | undefined): void => { if (value !== undefined) parts.push(name + '=' + String(value)); };
+    add('key', filter.key); add('code', filter.code); add('ctrlKey', filter.ctrlKey); add('shiftKey', filter.shiftKey);
+    add('altKey', filter.altKey); add('metaKey', filter.metaKey); add('metaOrCtrlKey', filter.metaOrCtrlKey);
+    add('button', filter.button); add('pointerType', filter.pointerType);
+    return parts.join(';');
+}
+
+/** An entry's key — see {@link PxTriggerEventSpec.key}. @public @advanced */
+export function triggerKeyOf(entry: PxTriggerEventEntry): string {
+    return triggerSpecOf(entry).key;
+}
+
+/** An entry in its settings form. @public @advanced */
+export function triggerSpecOf(entry: PxTriggerEventEntry): PxTriggerEventSpec {
+    if (typeof entry === 'string') return { key: entry, event: entry };
+    const filter = filterKeyOf(entry.with);
+    const plain = entry.element === undefined && entry.selector === undefined && filter === '';
+    const key = plain ? entry.event : [entry.event, entry.element ?? '', entry.selector ?? '', filter].join('|');
+    const spec: { -readonly [K in keyof PxTriggerEventSpec]: PxTriggerEventSpec[K] } = { key, event: entry.event };
+    if (entry.element !== undefined) spec.element = entry.element;
+    if (entry.selector !== undefined) spec.selector = entry.selector;
+    if (entry.with !== undefined && filter !== '') spec.filter = entry.with;
+    return spec;
+}
+
+/** The spec with its word swapped for its counterpart (hoverIn ↔ hoverOut, pointerDown ↔ pointerUp, …), or undefined. */
+function counterpartSpecOf(spec: PxTriggerEventSpec): PxTriggerEventSpec | undefined {
+    const event = counterpartTriggerEvent(spec.event);
+    if (event === undefined) return undefined;
+    return triggerSpecOf({ event, element: spec.element, selector: spec.selector, with: spec.filter });
+}
+
+/** A list's entries that the list may name ({@link allowedTriggerEvents}) — the others are dropped — as keys, each
+ *  entry's spec recorded in `specs`. */
+function allowedKeysOf(allowed: ReadonlyArray<PxTriggerEvent>, events: PxTriggerEvents | undefined,
+    specs: Map<string, PxTriggerEventSpec>): ReadonlyArray<string> {
+    const keys: Array<string> = [];
+    for (const entry of triggerEventList(events)) {
+        if (!allowed.includes(triggerEventOf(entry))) continue;
+        const spec = triggerSpecOf(entry);
+        specs.set(spec.key, spec);
+        if (!keys.includes(spec.key)) keys.push(spec.key);
+    }
+    return keys;
+}
+
+/** `list` plus the keys of `more` it does not name yet. */
+function unionKeys(list: ReadonlyArray<string>, more: ReadonlyArray<string>): ReadonlyArray<string> {
     return more.length === 0 ? list : [...list, ...more.filter(e => !list.includes(e))];
 }
 
 // @px-area control
-/** What resumes a paused playback (`playback.resume`) — derived, never configured for the built-in events: the counterpart of
- *  each `playback.pause` event (hoverIn ↔ hoverOut, click → click), plus the `playback.start` events that do not also STOP it
- *  (so a click listed under both `playback.start` and `playback.stop` stops a paused one, as it says). @public @advanced */
-export function derivedResume(startPlayback: ReadonlyArray<PxTriggerEvent>, stopPlayback: ReadonlyArray<PxTriggerEvent>,
-    pausePlayback: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> {
-    const counterparts: Array<PxTriggerEvent> = [];
-    for (const event of pausePlayback) {
-        const counterpart = counterpartTriggerEvent(event);
-        if (counterpart !== undefined && !counterparts.includes(counterpart)) counterparts.push(counterpart);
+/** What resumes a paused playback (`timeline.resume`) — derived, never configured for the built-in events: the counterpart of
+ *  each `timeline.pause` entry (hoverIn ↔ hoverOut, click → click, pointerDown ↔ pointerUp, keyDown ↔ keyUp — at the same
+ *  place, with the same fields), plus the `timeline.start` entries that do not also STOP it. Keys in, keys out; `specs`
+ *  (absent: bare words only) says what an entry is and receives the counterparts. @public @advanced */
+export function derivedResume(startPlayback: ReadonlyArray<string>, stopPlayback: ReadonlyArray<string>,
+    pausePlayback: ReadonlyArray<string>, specs?: Map<string, PxTriggerEventSpec>): ReadonlyArray<string> {
+    const counterparts: Array<string> = [];
+    for (const key of pausePlayback) {
+        const spec = specs?.get(key) ?? (isTriggerEvent(key) ? triggerSpecOf(key) : undefined);
+        const counterpart = spec ? counterpartSpecOf(spec) : undefined;
+        if (counterpart === undefined) continue;
+        specs?.set(counterpart.key, counterpart);
+        if (!counterparts.includes(counterpart.key)) counterparts.push(counterpart.key);
     }
-    return unionEvents(counterparts, startPlayback.filter(e => !stopPlayback.includes(e)));
+    return unionKeys(counterparts, startPlayback.filter(e => !stopPlayback.includes(e)));
+}
+
+/** One entry or several, checked — what an open key of `actionTriggers` (a segment's `goTo`) holds. @public @advanced */
+export function isTriggerEvents(value: unknown): value is PxTriggerEvents {
+    const entry = (v: unknown): boolean => typeof v === 'string' ? isTriggerEvent(v)
+        : typeof v === 'object' && v !== null && !Array.isArray(v) && 'event' in v && typeof v.event === 'string' && isTriggerEvent(v.event);
+    return Array.isArray(value) ? value.every(entry) : entry(value);
+}
+
+/** A bare event word. */
+function isTriggerEvent(value: string): value is PxTriggerEvent {
+    return (PX_ALL_TRIGGER_EVENTS as ReadonlyArray<string>).includes(value);
 }
 
 // @px-area control
-/** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. Events a list may not
- *  name are dropped ({@link triggerIssues} says which). `playback.resume` is {@link derivedResume} unless the file names
- *  the list — then the file's list is used as written ({@link triggerIssues} notes where it differs). @public @advanced */
-export function resolveTriggers(triggers: PxActionTriggers | undefined): PxResolvedTriggers {
-    if (triggers === undefined) return { startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] };
-    const startPlayback = allowedEventsOf(PxTriggerList.startPlayback, triggers[PxTriggerList.startPlayback]);
-    const playPlayback = allowedEventsOf(PxTriggerList.playPlayback, triggers[PxTriggerList.playPlayback]);
-    const stopPlayback = allowedEventsOf(PxTriggerList.stopPlayback, triggers[PxTriggerList.stopPlayback]);
-    const pausePlayback = allowedEventsOf(PxTriggerList.pausePlayback, triggers[PxTriggerList.pausePlayback]);
-    const resumeList = triggers[PxTriggerList.resumePlayback];
-    const resumePlayback = resumeList !== undefined ? allowedEventsOf(PxTriggerList.resumePlayback, resumeList) : derivedResume(startPlayback, stopPlayback, pausePlayback);
-    return { startPlayback, playPlayback, stopPlayback, pausePlayback, resumePlayback };
+/** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. Entries a list may not name are
+ *  dropped ({@link triggerIssues} says which). `timeline.resume` is {@link derivedResume} unless the file names the list —
+ *  then the file's list is used as written. `segmentNames`: the timeline's segments, in ruler order — their `goTo` keys are
+ *  looked up by name (a key naming no segment is not read; `validateDocument` warns). @public @advanced */
+export function resolveTriggers(triggers: PxActionTriggers | undefined, segmentNames: ReadonlyArray<string> = []): PxResolvedTriggers {
+    const specs = new Map<string, PxTriggerEventSpec>();
+    if (triggers === undefined) return { startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [], segments: [], specs };
+    const listOf = (list: PxTriggerList): ReadonlyArray<string> => allowedKeysOf(allowedTriggerEvents(list), triggers[list], specs);
+    const startPlayback = listOf(PxTriggerList.startPlayback);
+    const playPlayback = listOf(PxTriggerList.playPlayback);
+    const stopPlayback = listOf(PxTriggerList.stopPlayback);
+    const pausePlayback = listOf(PxTriggerList.pausePlayback);
+    const resumePlayback = triggers[PxTriggerList.resumePlayback] !== undefined ? listOf(PxTriggerList.resumePlayback)
+        : derivedResume(startPlayback, stopPlayback, pausePlayback, specs);
+    const segments: Array<PxSegmentTrigger> = [];
+    const segmentList = (kind: PxSegmentTriggerKind, action: string, segment?: string): void => {
+        const value: unknown = triggers[action];
+        const keys = allowedKeysOf(PX_ALL_TRIGGER_EVENTS, isTriggerEvents(value) ? value : undefined, specs);
+        if (keys.length) segments.push(segment === undefined ? { kind, keys } : { kind, segment, keys });
+    };
+    if (segmentNames.length) {
+        segmentList(PxSegmentTriggerKind.next, PxSegmentAction.next);
+        segmentList(PxSegmentTriggerKind.previous, PxSegmentAction.previous);
+        for (const name of segmentNames) segmentList(PxSegmentTriggerKind.goTo, segmentGoToAction(name), name);
+    }
+    return { startPlayback, playPlayback, stopPlayback, pausePlayback, resumePlayback, segments, specs };
 }
 
 /** What {@link triggerIssues} reports. @public @advanced */
 export const PxTriggerIssueKind = {
     /** The list may not name the event ({@link allowedTriggerEvents}) — it is dropped. */
     eventNotAllowed: 'eventNotAllowed',
-    /** Two lists react to the event in the same state: `playback.stop` with `playback.pause` (playing — the pause wins),
-     *  `playback.stop` with a pause's counterpart (paused — the resume wins), or `playback.start` with `playback.play`
+    /** Two lists react to the event in the same state: `timeline.stop` with `timeline.pause` (playing — the pause wins),
+     *  `timeline.stop` with a pause's counterpart (paused — the resume wins), or `timeline.start` with `timeline.play`
      *  (off — the start wins). The file should name one. */
     collision:       'collision',
-    /** The file's `playback.resume` list names an event the derivation would not (no `playback.pause` event's counterpart, no
-     *  `playback.start` event that does not stop) — honoured as written, noted so a surprising resume is no mystery. */
+    /** The file's `timeline.resume` list names an event the derivation would not (no `timeline.pause` event's counterpart, no
+     *  `timeline.start` event that does not stop) — honoured as written, noted so a surprising resume is no mystery. */
     resumeExtra:     'resumeExtra',
-    /** The file's `playback.resume` list leaves out an event the derivation would name — a `playback.pause` event whose
-     *  counterpart no longer resumes it (that pause then waits for `playback.start` or `playback.stop`). Honoured as written. */
+    /** The file's `timeline.resume` list leaves out an event the derivation would name — a `timeline.pause` event whose
+     *  counterpart no longer resumes it (that pause then waits for `timeline.start` or `timeline.stop`). Honoured as written. */
     resumeMissing:   'resumeMissing',
 } as const;
 
@@ -792,10 +967,11 @@ export type PxTriggerIssueKind = typeof PxTriggerIssueKind[keyof typeof PxTrigge
 /** One problem with a triggers block — structured, so a caller decides on `kind`, never on text. @public @advanced */
 export interface PxTriggerIssue {
     readonly kind: PxTriggerIssueKind;
-    /** The list that names the event (`playback.stop` for a collision). */
+    /** The list that names the event (`timeline.stop` for a collision). */
     readonly list: PxTriggerList;
-    readonly event: PxTriggerEvent;
-    /** A collision's other list — `playback.pause`, `playback.resume` or `playback.play`. */
+    /** The entry's key ({@link triggerKeyOf}) — the bare word for a word. */
+    readonly event: string;
+    /** A collision's other list — `timeline.pause`, `timeline.resume` or `timeline.play`. */
     readonly otherList?: PxTriggerList;
 }
 
@@ -812,14 +988,17 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
     ];
     for (const [list, events] of lists) {
         const allowed = allowedTriggerEvents(list);
-        for (const event of triggerEventList(events)) {
-            if (!allowed.includes(event)) issues.push({ kind: PxTriggerIssueKind.eventNotAllowed, list, event });
+        for (const entry of triggerEventList(events)) {
+            if (!allowed.includes(triggerEventOf(entry))) issues.push({ kind: PxTriggerIssueKind.eventNotAllowed, list, event: triggerKeyOf(entry) });
         }
     }
     const resolved = resolveTriggers(triggers);
     if (triggers[PxTriggerList.resumePlayback] !== undefined) {
         // only the events a resume list may name count — `load` is derived (a start that does not stop) but never listable
-        const derived = derivedResume(resolved.startPlayback, resolved.stopPlayback, resolved.pausePlayback).filter(e => allowedTriggerEvents(PxTriggerList.resumePlayback).includes(e));
+        const resumable = allowedTriggerEvents(PxTriggerList.resumePlayback);
+        const specs = new Map(resolved.specs);
+        const derived = derivedResume(resolved.startPlayback, resolved.stopPlayback, resolved.pausePlayback, specs)
+            .filter(e => { const spec = specs.get(e); return spec !== undefined && resumable.includes(spec.event); });
         for (const event of resolved.resumePlayback) {
             if (!derived.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeExtra, list: PxTriggerList.resumePlayback, event });
         }
@@ -827,7 +1006,7 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
             if (!resolved.resumePlayback.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeMissing, list: PxTriggerList.resumePlayback, event });
         }
     }
-    const counterparts = derivedResume([], [], resolved.pausePlayback);
+    const counterparts = derivedResume([], [], resolved.pausePlayback, new Map(resolved.specs));
     for (const event of resolved.stopPlayback) {
         if (resolved.pausePlayback.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stopPlayback, event, otherList: PxTriggerList.pausePlayback });
         if (counterparts.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stopPlayback, event, otherList: PxTriggerList.resumePlayback });
@@ -878,7 +1057,7 @@ export function resolveGate(cfg: Pick<PxAnimatorRuntimeConfig, 'actions' | 'inVi
     };
 }
 
-/** The playback's state — the one readout (`playback.getState()`): `off` = no playback (before the first, back at the rest pose
+/** The playback's state — the one readout (`timeline.getState()`): `off` = no playback (before the first, back at the rest pose
  *  after a stop; WAAPI's `idle`, `idle` here until 1.23); `playing` · `paused` · `finished` = a playback (`finished` reached
  *  its end — whatever `whenFinished` then shows, 1.26 — until the next start or stop; `paused` also after a seek that was
  *  not made while playing); `returning` = no playback, but the picture still plays back to the rest pose (a stop with
@@ -908,14 +1087,25 @@ export type PxTriggerAction = typeof PxTriggerAction[keyof typeof PxTriggerActio
 
 // @px-area control
 /** Whether any of the five lists names the event — the wiring listens only for those. @public @advanced */
-export function triggerListsEvent(triggers: PxResolvedTriggers, event: PxTriggerEvent): boolean {
+export function triggerListsEvent(triggers: PxResolvedTriggers, event: string): boolean {
     return triggers.startPlayback.includes(event) || triggers.playPlayback.includes(event) || triggers.stopPlayback.includes(event)
-        || triggers.pausePlayback.includes(event) || triggers.resumePlayback.includes(event);
+        || triggers.pausePlayback.includes(event) || triggers.resumePlayback.includes(event)
+        || triggers.segments.some(s => s.keys.includes(event));
+}
+
+// @px-area control
+/** Every key the lists and the segment actions name — what the wiring listens for, each once. @public @advanced */
+export function triggerKeys(triggers: PxResolvedTriggers): ReadonlyArray<string> {
+    const keys: Array<string> = [];
+    const add = (list: ReadonlyArray<string>): void => { for (const k of list) if (!keys.includes(k)) keys.push(k); };
+    add(triggers.startPlayback); add(triggers.playPlayback); add(triggers.stopPlayback); add(triggers.pausePlayback); add(triggers.resumePlayback);
+    for (const s of triggers.segments) add(s.keys);
+    return keys;
 }
 
 // @px-area control
 /** One resolved list, by the button it presses. */
-function triggerListOf(triggers: PxResolvedTriggers, action: PxTriggerAction): ReadonlyArray<PxTriggerEvent> {
+function triggerListOf(triggers: PxResolvedTriggers, action: PxTriggerAction): ReadonlyArray<string> {
     switch (action) {
         case PxTriggerAction.startPlayback: return triggers.startPlayback;
         case PxTriggerAction.playPlayback: return triggers.playPlayback;
@@ -937,10 +1127,10 @@ function triggerListOf(triggers: PxResolvedTriggers, action: PxTriggerAction): R
  *  | `returning` | start (from the start) · play (turns around)                              |
  *  | `finished`  | last frame held: stop · start · play; otherwise start · play · stop       |
  *
- *  `playback.start` restarts in every state it is read in. A finished playback that still shows its last frame is undone
+ *  `timeline.start` restarts in every state it is read in. A finished playback that still shows its last frame is undone
  *  by an event in both `start` and `stop` (a click toggle); one whose picture went back (`whenFinished`) plays again.
  *  The collisions a file can make are reported by {@link triggerIssues}. @public @advanced */
-export function triggerActionFor(triggers: PxResolvedTriggers, state: PxPlaybackState, event: PxTriggerEvent, whenFinished: PxWhenFinished): PxTriggerAction | undefined {
+export function triggerActionFor(triggers: PxResolvedTriggers, state: PxPlaybackState, event: string, whenFinished: PxWhenFinished): PxTriggerAction | undefined {
     const first = (...actions: Array<PxTriggerAction>): PxTriggerAction | undefined => actions.find(a => triggerListOf(triggers, a).includes(event));
     const { startPlayback: start, playPlayback: play, stopPlayback: stop, pausePlayback: pause, resumePlayback: resume } = PxTriggerAction;
     switch (state) {
@@ -1327,6 +1517,9 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
     if (timeline === undefined || timeline === null || typeof timeline !== 'object') return cfg;
 
     const { timeline: _dropped, ...flat }: PxAnimatorRuntimeConfig = cfg;
+    // the triggers sit at the animator's root (they will name more than one timeline); an EMPTY block means "nothing
+    // starts it" — copied as it is
+    if (cfg.actionTriggers !== undefined) flat.actionTriggers = { ...cfg.actionTriggers };
 
     // `engine` is shared by every timeline type: how the attributes get updated.
     if (timeline.engine !== undefined) flat.engine = timeline.engine;
@@ -1340,8 +1533,6 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         if (timeline.frameRate !== undefined) flat.frameRate = timeline.frameRate;
         foldWindow(timeline, flat);
         if (timeline.playbackSpeed !== undefined) flat.playbackSpeed = timeline.playbackSpeed;
-        // an EMPTY triggers block means "nothing starts it" — copied as it is
-        if (timeline.actionTriggers !== undefined) flat.actionTriggers = { ...timeline.actionTriggers };
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         if (timeline.iterationDirection !== undefined) flat.direction = timeline.iterationDirection;
@@ -1354,21 +1545,22 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         if (timeline.whenIdle !== undefined || timeline.whenFinished !== undefined) flat.fill = fillModeOf(timeline.whenIdle, timeline.whenFinished);
         if (timeline.inViewThreshold !== undefined) flat.inViewThreshold = timeline.inViewThreshold;
         if (timeline.inViewDebounce !== undefined) flat.inViewDebounce = timeline.inViewDebounce;
+        if (timeline.segments !== undefined) flat.segments = { ...timeline.segments };
     }
 
     return flat;
 }
 
-/** A wire moment (a word, `{ element, screen }` or `{ scrolled }`) in its settings form — `undefined` for anything else. */
+/** A wire moment (a word, `{ domElement, screen }` or `{ scrolled }`) in its settings form — `undefined` for anything else. */
 function momentSettingsOf(moment: unknown): PxScrollMomentSettings | undefined {
     if (typeof moment === 'string') return (PX_SCROLL_MOMENT_ORDER as ReadonlyArray<string>).includes(moment) ? { moment: moment as PxScrollMoment } : undefined;
     if (!moment || typeof moment !== 'object' || Array.isArray(moment)) return undefined;
-    const raw = moment as { element?: unknown; screen?: unknown; scrolled?: unknown };
+    const raw = moment as { domElement?: unknown; screen?: unknown; scrolled?: unknown };
     const line = (value: unknown): PxScrollLine | number | undefined =>
         typeof value === 'number' || (typeof value === 'string' && value in PxScrollLine) ? value as PxScrollLine | number : undefined;
     const settings: PxScrollMomentSettings = {};
     if (typeof raw.scrolled === 'number') settings.scrolled = raw.scrolled;
-    const element = line(raw.element); if (element !== undefined) settings.element = element;
+    const element = line(raw.domElement); if (element !== undefined) settings.domElement = element;
     const screen = line(raw.screen); if (screen !== undefined) settings.screen = screen;
     return Object.keys(settings).length ? settings : undefined;
 }
@@ -1377,8 +1569,8 @@ function momentSettingsOf(moment: unknown): PxScrollMomentSettings | undefined {
 function wireMomentOf(settings: PxScrollMomentSettings): PxScrollMomentWire | undefined {
     if (settings.moment !== undefined) return settings.moment;
     if (settings.scrolled !== undefined) return { scrolled: settings.scrolled };
-    if (settings.element !== undefined || settings.screen !== undefined) {
-        return { element: settings.element ?? PxScrollLine.top, screen: settings.screen ?? PxScrollLine.bottom };
+    if (settings.domElement !== undefined || settings.screen !== undefined) {
+        return { domElement: settings.domElement ?? PxScrollLine.top, screen: settings.screen ?? PxScrollLine.bottom };
     }
     return undefined;
 }
@@ -1450,7 +1642,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (!cfg || cfg.timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, actionTriggers, actions, delay, iterations, direction, fill, resetOnFinish,
-            whenFinished, whenIdle, inViewThreshold, inViewDebounce,
+            whenFinished, whenIdle, inViewThreshold, inViewDebounce, segments,
             duration, inTime, playbackSpeed, engine, frameRate, ...shared } = cfg;
     // flat `duration` is the WINDOW LENGTH; on the wire the window is written as its two points
     const writeWindow = (timeline: { inTime?: number; outTime?: number }) => {
@@ -1479,7 +1671,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
             if (scroll.axis !== undefined) timeline.axis = scroll.axis;
             if (scroll.smoothing !== undefined) timeline.smoothing = scroll.smoothing;
         }
-        return { ...shared, timeline };
+        return { ...shared, timeline };   // a scroll timeline has no triggers: nothing starts it
     }
 
     // Time-driven: `type` is optional on the wire and 'time' is the default, so the
@@ -1489,22 +1681,24 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (frameRate !== undefined) timeline.frameRate = frameRate;
     writeWindow(timeline);
     if (playbackSpeed !== undefined) timeline.playbackSpeed = playbackSpeed;
-    if (actionTriggers !== undefined) timeline.actionTriggers = { ...actionTriggers };
     if (delay !== undefined) timeline.delay = delay;
     if (iterations !== undefined) timeline.iterations = iterations;
     if (direction !== undefined) timeline.iterationDirection = direction;
     // the actions block; the rest-pose view back to its two settings: `fill` / `resetOnFinish` → `whenFinished` and the rest pose
-    const nested: PxActions = actions !== undefined ? compactedActions(actions) : {};
-    if (Object.keys(nested).length > 0) timeline.actions = nested;
+    const compacted: PxActions = actions !== undefined ? compactedActions(actions) : {};
+    if (Object.keys(compacted).length > 0) timeline.actions = compacted;
     if (whenFinished !== undefined) timeline.whenFinished = whenFinished;
     else if (resetOnFinish || fill === PxFillMode.none || fill === PxFillMode.backwards) timeline.whenFinished = PxWhenFinished.jumpToStart;
     if (whenIdle !== undefined) timeline.whenIdle = whenIdle;
     else if (fill === PxFillMode.backwards || fill === PxFillMode.both) timeline.whenIdle = PxWhenIdle.firstFrame;
     if (inViewThreshold !== undefined) timeline.inViewThreshold = inViewThreshold;
     if (inViewDebounce !== undefined) timeline.inViewDebounce = inViewDebounce;
+    if (segments !== undefined && Object.keys(segments).length > 0) timeline.segments = { ...segments };
 
-    // An empty time timeline says nothing — omit the block entirely.
-    return Object.keys(timeline).length > 0 ? { ...shared, timeline } : shared;
+    // An empty time timeline says nothing — omit the block entirely. The triggers sit beside it, at the root.
+    const nested: PxAnimatorConfig = Object.keys(timeline).length > 0 ? { ...shared, timeline } : { ...shared };
+    if (actionTriggers !== undefined) nested.actionTriggers = { ...actionTriggers };
+    return nested;
 }
 
 

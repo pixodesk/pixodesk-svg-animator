@@ -247,9 +247,9 @@ export const PxPredefinedVariable = {
     pointerY:                 'player.pointer.y',
     pointerOver:              'player.pointer.over',
     pointerDown:              'player.pointer.down',
-    playbackCurrentTime:      'player.playback.currentTime',
-    playbackCurrentProgress:  'player.playback.currentProgress',
-    playbackIterationProgress: 'player.playback.iterationProgress',
+    playbackCurrentTime:      'player.timeline.currentTime',
+    playbackCurrentProgress:  'player.timeline.currentProgress',
+    playbackIterationProgress: 'player.timeline.iterationProgress',
     prefersReducedMotion:     'player.prefers.reducedMotion',
     prefersColorScheme:       'player.prefers.colorScheme',
 } as const;

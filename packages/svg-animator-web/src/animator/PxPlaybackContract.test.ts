@@ -26,13 +26,13 @@ describe('the playback contract — web engines', () => {
 
     it('a negative speed plays a `reverse` pass forwards — the two multiply', () => {
         const api = createSvgAnimationPlayer({ document: doc({ iterationDirection: 'reverse' }), container: '#box' });
-        api.playback.start();
+        api.timeline.start();
         vi.advanceTimersByTime(400);
-        const before = api.playback.getCurrentTime() ?? 0;
+        const before = api.timeline.getCurrentTime() ?? 0;
         expect(before).toBeLessThan(700);                    // a reverse pass counts down from the end
-        api.playback.setSpeed(-1);
+        api.timeline.setSpeed(-1);
         vi.advanceTimersByTime(200);
-        expect(api.playback.getCurrentTime() ?? 0).toBeGreaterThan(before);   // reverse × −1: the frames run forwards
+        expect(api.timeline.getCurrentTime() ?? 0).toBeGreaterThan(before);   // reverse × −1: the frames run forwards
         api.destroy();
     });
 
@@ -42,12 +42,12 @@ describe('the playback contract — web engines', () => {
             document: doc({ type: 'scroll' }), container: '#box',
             onWarning: d => said.push(d),
         });
-        api.playback.start();
-        api.playback.setSpeed(2);
+        api.timeline.start();
+        api.timeline.setSpeed(2);
         vi.advanceTimersByTime(200);
-        expect(api.playback.isPlaying()).toBe(false);
-        expect(api.playback.getSpeed()).toBe(1);
-        expect(said.filter(d => d.code === PxDiagnosticCode.scrollOwnsPlayhead).map(d => d.data?.[0])).toEqual(['playback.start()', 'playback.setSpeed()']);
+        expect(api.timeline.isPlaying()).toBe(false);
+        expect(api.timeline.getSpeed()).toBe(1);
+        expect(said.filter(d => d.code === PxDiagnosticCode.scrollOwnsPlayhead).map(d => d.data?.[0])).toEqual(['timeline.start()', 'timeline.setSpeed()']);
         api.destroy();
     });
 });
@@ -122,14 +122,14 @@ describe('the playback contract — a scroll timeline', () => {
         it(`getState() reads 'scrubbing' — ${name}; 'destroyed' after destroy()`, () => {
             if (native) stubViewTimeline();
             const api = createSvgAnimationPlayer({ document: doc({ type: 'scroll', engine }), container: '#box', suppressWarnings: true });
-            expect(api.playback.getState()).toBe('scrubbing');
-            api.playback.start();
-            expect(api.playback.getState()).toBe('scrubbing');
-            expect(api.playback.isActive()).toBe(false);
-            expect(api.playback.isPlaying()).toBe(false);
+            expect(api.timeline.getState()).toBe('scrubbing');
+            api.timeline.start();
+            expect(api.timeline.getState()).toBe('scrubbing');
+            expect(api.timeline.isActive()).toBe(false);
+            expect(api.timeline.isPlaying()).toBe(false);
             if (native) expect(viewSubjects).toHaveLength(1);   // really the browser's timeline
             api.destroy();
-            expect(api.playback.getState()).toBe('destroyed');
+            expect(api.timeline.getState()).toBe('destroyed');
         });
 
         it(`no playback callback fires — ${name}`, () => {
@@ -141,7 +141,7 @@ describe('the playback contract — a scroll timeline', () => {
                 onPlaybackPause: () => told.push('pause'), onPlaybackResume: () => told.push('resume'),
                 onPlaybackFinish: () => told.push('finish'),
             });
-            api.playback.start(); api.playback.pause(); api.playback.resume(); api.playback.stop(); api.playback.play();
+            api.timeline.start(); api.timeline.pause(); api.timeline.resume(); api.timeline.stop(); api.timeline.play();
             // scrolled to the end: the last frame — never a finish
             document.documentElement.scrollTop = 1000;
             window.dispatchEvent(new Event('scroll'));
@@ -156,16 +156,16 @@ describe('the playback contract — a scroll timeline', () => {
     it('the buttons, the speed AND the seeks are ignored with PX1505 (D16); the reads still answer', () => {
         const said: Array<PxDiagnostic> = [];
         const api = createSvgAnimationPlayer({ document: doc({ type: 'scroll', follows: 'pageScroll' }), container: '#box', onWarning: d => said.push(d) });
-        const before = api.playback.getCurrentProgress();
-        api.playback.setCurrentTime(500);
-        api.playback.setCurrentProgress(0.5);
-        api.playback.setTotalTime(500);
-        api.playback.setDurationAtSpeed(100);
+        const before = api.timeline.getCurrentProgress();
+        api.timeline.setCurrentTime(500);
+        api.timeline.setCurrentProgress(0.5);
+        api.timeline.setTotalTime(500);
+        api.timeline.setDurationAtSpeed(100);
         expect(said.filter(d => d.code === PxDiagnosticCode.scrollOwnsPlayhead).map(d => d.data?.[0]))
-            .toEqual(['playback.setCurrentTime()', 'playback.setCurrentProgress()', 'playback.setTotalTime()', 'playback.setDurationAtSpeed()']);
+            .toEqual(['timeline.setCurrentTime()', 'timeline.setCurrentProgress()', 'timeline.setTotalTime()', 'timeline.setDurationAtSpeed()']);
         expect(before).toBe(0);
-        expect(api.playback.getCurrentProgress()).toBe(0);   // not moved
-        expect(api.playback.getDuration()).toBe(1000);       // the reads answer
+        expect(api.timeline.getCurrentProgress()).toBe(0);   // not moved
+        expect(api.timeline.getDuration()).toBe(1000);       // the reads answer
         api.destroy();
     });
 
@@ -174,7 +174,7 @@ describe('the playback contract — a scroll timeline', () => {
         document.documentElement.scrollTop = 250;
         window.dispatchEvent(new Event('scroll'));
         flushRaf();
-        expect(api.playback.getCurrentProgress()).toBeCloseTo(0.25);
+        expect(api.timeline.getCurrentProgress()).toBeCloseTo(0.25);
         api.destroy();
     });
 
@@ -190,7 +190,7 @@ describe('the playback contract — a scroll timeline', () => {
             timelineOptions: { type: 'scroll', follows: section },
         });
         expect(viewSubjects).toEqual([section]);
-        expect(nativeApi.playback.getState()).toBe('scrubbing');
+        expect(nativeApi.timeline.getState()).toBe('scrubbing');
         nativeApi.destroy();
 
         // our own measuring: the element's place drives the progress, not the animation's
@@ -199,7 +199,7 @@ describe('the playback contract — a scroll timeline', () => {
             document: doc({ engine: 'js' }), container: '#box', onWarning: d => said.push(d),
             timelineOptions: { type: 'scroll', follows: section },
         });
-        expect(ownApi.playback.getCurrentProgress()).toBeCloseTo(0.5);   // u = 400 − 150 = 250 of [0, 500]
+        expect(ownApi.timeline.getCurrentProgress()).toBeCloseTo(0.5);   // u = 400 − 150 = 250 of [0, 500]
         ownApi.destroy();
         // the element never reached the document: no repair, no ignored override
         expect(said.map(d => d.code)).toEqual([]);
@@ -212,11 +212,11 @@ describe('the playback contract — a scroll timeline', () => {
         // a JavaScript caller: a clock key beside the scroll type (TypeScript would not let a literal say it)
         const timelineOptions = { type: 'scroll' as const, follows: section, playbackSpeed: 3 };
         const api = createSvgAnimationPlayer({
-            document: doc({ playbackSpeed: 2, actionTriggers: { 'playback.start': 'load' } }), container: '#box',
+            document: doc({ playbackSpeed: 2, actionTriggers: { 'timeline.start': 'load' } }), container: '#box',
             onWarning: d => said.push(d),
             timelineOptions,
         });
-        expect(api.playback.getState()).toBe('scrubbing');
+        expect(api.timeline.getState()).toBe('scrubbing');
         expect(said.filter(d => d.code === PxDiagnosticCode.timelineOverrideIgnored).map(d => String(d.data?.[0])))
             .toEqual([expect.stringContaining('playbackSpeed')]);
         api.destroy();

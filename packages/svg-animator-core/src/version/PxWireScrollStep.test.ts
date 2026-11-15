@@ -31,8 +31,8 @@ function converted(timeline: Record<string, unknown>): unknown {
 describe('1.27 → 1.28: what is followed', () => {
     it.each([
         [{ type: 'view' }, { type: 'scroll' }],
-        [{ type: 'view', subject: 'parent' }, { type: 'scroll', follows: 'parentElement' }],
-        [{ type: 'view', subject: '#chapter-2' }, { type: 'scroll', follows: 'pageElement', selector: '#chapter-2' }],
+        [{ type: 'view', subject: 'parent' }, { type: 'scroll', follows: 'parentDomElement' }],
+        [{ type: 'view', subject: '#chapter-2' }, { type: 'scroll', follows: 'pageDomElement', selector: '#chapter-2' }],
         [{ type: 'view', subject: 'scroller' }, { type: 'scroll' }],   // it never moved
         [{ type: 'scroll', source: 'root' }, { type: 'scroll', follows: 'pageScroll' }],
         [{ type: 'scroll' }, { type: 'scroll', follows: 'containerScroll' }],
@@ -58,8 +58,8 @@ describe('1.27 → 1.28: the range becomes two moments', () => {
         ['Early exit', range({ fraction: 0.5 }, { phase: 'exit', fraction: 0.5 }), { type: 'scroll', firstFrameWhen: 'centered', lastFrameWhen: 'halfOut' }],
         ['Full journey', range(undefined, undefined), { type: 'scroll' }],
         // a point no word names: the exact place it is for an element that fits the screen
-        ['Middle half', range({ fraction: 0.25 }, { fraction: 0.75 }), { type: 'scroll', firstFrameWhen: { element: 0.25, screen: 0.75 }, lastFrameWhen: { element: 0.75, screen: 0.25 } }],
-        ['a crossing', range({ phase: 'entryCrossing', fraction: 0.3 }, { phase: 'exitCrossing', fraction: 0.3 }), { type: 'scroll', firstFrameWhen: { element: 0.3, screen: 'bottom' }, lastFrameWhen: { element: 0.3, screen: 'top' } }],
+        ['Middle half', range({ fraction: 0.25 }, { fraction: 0.75 }), { type: 'scroll', firstFrameWhen: { domElement: 0.25, screen: 0.75 }, lastFrameWhen: { domElement: 0.75, screen: 0.25 } }],
+        ['a crossing', range({ phase: 'entryCrossing', fraction: 0.3 }, { phase: 'exitCrossing', fraction: 0.3 }), { type: 'scroll', firstFrameWhen: { domElement: 0.3, screen: 'bottom' }, lastFrameWhen: { domElement: 0.3, screen: 'top' } }],
     ])('%s', (_name, old, expected) => {
         expect(converted(old)).toEqual(expected);
     });
@@ -68,8 +68,8 @@ describe('1.27 → 1.28: the range becomes two moments', () => {
         // contain 30 % of a 100-tall element on a 400 screen: u = 100 + 0.3 × 300 = 190
         const timeline = converted(range({ phase: 'contain', fraction: 0.3 }, undefined));
         const first = isRecord(timeline) ? timeline.firstFrameWhen : undefined;
-        expect(first).toEqual({ element: 0.7, screen: 0.7 });
-        expect(scrollMomentU({ element: 0.7, screen: 0.7 }, 100, 400)).toBeCloseTo(190);
+        expect(first).toEqual({ domElement: 0.7, screen: 0.7 });
+        expect(scrollMomentU({ domElement: 0.7, screen: 0.7 }, 100, 400)).toBeCloseTo(190);
     });
 
     it('a scroll of the page or a box: the fractions become shares scrolled', () => {
@@ -79,7 +79,7 @@ describe('1.27 → 1.28: the range becomes two moments', () => {
 
     it('a horizontal timeline names its edge lines left and right', () => {
         expect(converted({ type: 'view', axis: 'x', range: { start: { phase: 'entryCrossing', fraction: 0.3 } } }))
-            .toEqual({ type: 'scroll', axis: 'horizontal', firstFrameWhen: { element: 0.3, screen: 'right' } });
+            .toEqual({ type: 'scroll', axis: 'horizontal', firstFrameWhen: { domElement: 0.3, screen: 'right' } });
     });
 });
 
@@ -115,11 +115,15 @@ describe('1.27 → 1.28: holding, the axis, the rest', () => {
     });
 
     it('a time timeline is not touched, and the converted document validates and plays', () => {
-        expect(converted({ outTime: 1000, actionTriggers: { 'playback.start': 'load' } }))
-            .toEqual({ outTime: 1000, actionTriggers: { 'playback.start': 'load' } });
+        // the time timeline keeps its keys; since the 2026-11-15 amendment its triggers move to the root, renamed
+        expect(converted({ outTime: 1000, actionTriggers: { 'playback.start': 'load' } })).toEqual({ outTime: 1000 });
+        const moved = convertWireDocument(doc127({ outTime: 1000, actionTriggers: { 'playback.start': 'load' }, actions: { 'playback.stop': 'animateToStart' } })).doc;
+        const animator = isRecord(moved) ? moved.animator : undefined;
+        expect(isRecord(animator) ? animator.actionTriggers : undefined).toEqual({ 'timeline.start': 'load' });
+        expect(isRecord(animator) && isRecord(animator.timeline) ? animator.timeline.actions : undefined).toEqual({ 'timeline.stop': 'animateToStart' });
         const doc = convertWireDocument(doc127({ type: 'view', subject: '#a', range: { start: { phase: 'entry', fraction: 0.5 } } })).doc;
         expect(validateDocument(doc).errors).toEqual([]);
-        expect(getAnimatorConfig(untyped<PxDocument>(doc))?.scroll).toEqual({ follows: 'pageElement', selector: '#a', firstFrameWhen: { moment: 'halfIn' } });
+        expect(getAnimatorConfig(untyped<PxDocument>(doc))?.scroll).toEqual({ follows: 'pageDomElement', selector: '#a', firstFrameWhen: { moment: 'halfIn' } });
     });
 });
 
@@ -128,7 +132,7 @@ describe('the scroll timeline rules validateDocument checks', () => {
         validateDocument(untyped<PxDocument>({ type: 'svg', animator: { timeline } })).errors;
 
     it('a well-formed timeline has none', () => {
-        expect(problems({ type: 'scroll', firstFrameWhen: 'halfIn', lastFrameWhen: { element: 'top', screen: 0.2 } })).toEqual([]);
+        expect(problems({ type: 'scroll', firstFrameWhen: 'halfIn', lastFrameWhen: { domElement: 'top', screen: 0.2 } })).toEqual([]);
         expect(problems({ type: 'scroll', follows: 'pageScroll', firstFrameWhen: { scrolled: 0.2 } })).toEqual([]);
         expect(problems({ type: 'scroll', holdOnScreen: { at: 'center' }, firstFrameWhen: 'centered' })).toEqual([]);
     });
@@ -136,11 +140,11 @@ describe('the scroll timeline rules validateDocument checks', () => {
     it.each([
         ['a moment that does not fit what is followed', { type: 'scroll', follows: 'pageScroll', firstFrameWhen: 'fullyIn' }, 'fits only an element'],
         ['{ scrolled } on an element', { type: 'scroll', lastFrameWhen: { scrolled: 0.5 } }, 'fits only follows'],
-        ['a share outside 0–1', { type: 'scroll', firstFrameWhen: { element: 'top', screen: 1.5 } }, 'a share is 0–1'],
+        ['a share outside 0–1', { type: 'scroll', firstFrameWhen: { domElement: 'top', screen: 1.5 } }, 'a share is 0–1'],
         ['two words in the wrong order', { type: 'scroll', firstFrameWhen: 'gone', lastFrameWhen: 'appears' }, 'taken in scroll order'],
-        ['pageElement with no selector', { type: 'scroll', follows: 'pageElement' }, 'needs a selector'],
+        ['pageDomElement with no selector', { type: 'scroll', follows: 'pageDomElement' }, 'needs a selector'],
         ['holdOnScreen beside follows', { type: 'scroll', holdOnScreen: true, follows: 'pageScroll' }, 'holdOnScreen follows its own held stretch'],
-        ['a selector that nothing uses', { type: 'scroll', follows: 'parentElement', selector: '#a' }, 'a selector is used only'],
+        ['a selector that nothing uses', { type: 'scroll', follows: 'parentDomElement', selector: '#a' }, 'a selector is used only'],
         ['the old view type', { type: 'view' }, ''],
     ])('%s', (_name, timeline, phrase) => {
         const errors = problems(timeline);

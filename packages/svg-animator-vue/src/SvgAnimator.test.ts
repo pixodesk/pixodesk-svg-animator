@@ -174,31 +174,31 @@ describe("SvgAnimationPlayer (Vue)", () => {
             assert(handle, "template ref is set after render");
 
             // Not playing until told to
-            expect(handle.playback.isPlaying()).toBe(false);
+            expect(handle.timeline.isPlaying()).toBe(false);
 
-            handle.playback.start();
-            expect(handle.playback.isPlaying()).toBe(true);
+            handle.timeline.start();
+            expect(handle.timeline.isPlaying()).toBe(true);
 
             vi.advanceTimersByTime(32);
-            handle.playback.pause();
-            expect(handle.playback.isPlaying()).toBe(false);
-            expect(handle.playback.getCurrentTime()).toBe(32);
+            handle.timeline.pause();
+            expect(handle.timeline.isPlaying()).toBe(false);
+            expect(handle.timeline.getCurrentTime()).toBe(32);
 
             // setCurrentTime / getCurrentTime round-trip
-            handle.playback.setCurrentTime(64);
-            expect(handle.playback.getCurrentTime()).toBe(64);
+            handle.timeline.setCurrentTime(64);
+            expect(handle.timeline.getCurrentTime()).toBe(64);
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
 
             // setPlaybackSpeed exists and is callable
-            expect(typeof handle.playback.setSpeed).toBe("function");
-            expect(() => handle.playback.setSpeed(2)).not.toThrow();
+            expect(typeof handle.timeline.setSpeed).toBe("function");
+            expect(() => handle.timeline.setSpeed(2)).not.toThrow();
 
             // play (start or carry on) is exposed; jumpToStart / jumpToEnd are gone (1.26)
-            expect(typeof handle.playback.play).toBe("function");
-            expect(typeof handle.playback.getTotalProgress).toBe("function");
-            expect(typeof handle.playback.getTotalTimeAtSpeed).toBe("function");
-            expect(Object.keys(handle.playback)).not.toContain("jumpToEnd");
+            expect(typeof handle.timeline.play).toBe("function");
+            expect(typeof handle.timeline.getTotalProgress).toBe("function");
+            expect(typeof handle.timeline.getTotalTimeAtSpeed).toBe("function");
+            expect(Object.keys(handle.timeline)).not.toContain("jumpToEnd");
         });
     });
 
@@ -218,7 +218,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
-            handle.playback.start();
+            handle.timeline.start();
             expect(spies.onPlaybackStart).toHaveBeenCalledTimes(1);
             expect(spies.onPlaybackStop).not.toHaveBeenCalled();
         });
@@ -227,8 +227,8 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
-            handle.playback.start();
-            handle.playback.pause();
+            handle.timeline.start();
+            handle.timeline.pause();
             expect(spies.onPlaybackPause).toHaveBeenCalledTimes(1);
             expect(spies.onPlaybackStop).not.toHaveBeenCalled();
         });
@@ -237,11 +237,11 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
-            handle.playback.start();
-            handle.playback.pause();
+            handle.timeline.start();
+            handle.timeline.pause();
             spies.onPlaybackPause.mockClear();
-            handle.playback.setCurrentProgress(0);
-            expect(handle.playback.getState()).toBe('paused');
+            handle.timeline.setCurrentProgress(0);
+            expect(handle.timeline.getState()).toBe('paused');
             expect(spies.onPlaybackStop).not.toHaveBeenCalled();
             expect(spies.onPlaybackPause).not.toHaveBeenCalled();
         });
@@ -250,7 +250,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
-            handle.playback.start();
+            handle.timeline.start();
             vi.advanceTimersByTime(10_000);                       // plays to its end
             expect(spies.onPlaybackFinish).toHaveBeenCalledTimes(1);
             expect(spies.onPlaybackStop).not.toHaveBeenCalled();
@@ -260,8 +260,8 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
-            handle.playback.start();
-            handle.playback.stop();
+            handle.timeline.start();
+            handle.timeline.stop();
             expect(spies.onPlaybackStop).toHaveBeenCalledTimes(1);
         });
 
@@ -343,15 +343,15 @@ describe("SvgAnimationPlayer (Vue)", () => {
             // Drive the swapped animator imperatively to prove the swap happened:
             const swappedApi = api.value;
             assert(swappedApi, "template ref is set after the doc swap");
-            swappedApi.playback.start();
+            swappedApi.timeline.start();
             vi.advanceTimersByTime(128);
             expect(rect?.getAttribute("transform")).toMatch("translate(100,0)");
 
             // The exposed API is backed by the new animator instance state
             // (finished, not the old animator's idle state).
-            expect(swappedApi.playback.getCurrentTime()).toBe(128);
+            expect(swappedApi.timeline.getCurrentTime()).toBe(128);
             assert(firstApi, "template ref was set before the doc swap");
-            expect(firstApi.playback.isPlaying()).toBe(false);
+            expect(firstApi.timeline.isPlaying()).toBe(false);
         });
 
         it("keeps the animator when a re-created doc has the same content", async () => {
@@ -573,14 +573,13 @@ function getTestJson(): PxDocument {
                     ]
                 }
             } } },
-            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
+            bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-                actionTriggers: { "playback.start": "load" },
-            },
+            }, actionTriggers: { "timeline.start": "load" },
         },
 
         children: [
@@ -614,14 +613,13 @@ function getTestJson1000(): PxDocument {
                     ]
                 }
             } } },
-            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
+            bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 outTime: 1000,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-                actionTriggers: { "playback.start": "load" },
-            },
+            }, actionTriggers: { "timeline.start": "load" },
         },
 
         children: [
@@ -681,14 +679,13 @@ function getTreeJson(): PxDocument {
                     ]
                 }
             } } },
-            bindings: [{ target: '#_px_tree_ell', animateWith: ['a0'] }],
+            bindings: [{ element: '#_px_tree_ell', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-                actionTriggers: { "playback.start": "load" },
-            },
+            }, actionTriggers: { "timeline.start": "load" },
         },
 
         children: [
@@ -737,14 +734,13 @@ function getRectJson(): PxDocument {
                     ]
                 }
             } } },
-            bindings: [{ target: '#_px_rect_b', animateWith: ['a0'] }],
+            bindings: [{ element: '#_px_rect_b', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-                actionTriggers: { "playback.start": "load" },
-            },
+            }, actionTriggers: { "timeline.start": "load" },
         },
 
         children: [
@@ -767,7 +763,7 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: 1000, actionTriggers: { "playback.start": 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: 1000 }, actionTriggers: { "timeline.start": 'load' } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -790,7 +786,7 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
 
     it('an `actionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarning = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actionTriggers: { "playback.start": 'click' }, onWarning } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actionTriggers: { "timeline.start": 'click' }, onWarning } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
@@ -814,9 +810,9 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                actionTriggers: { "playback.start": "hoverIn", "playback.pause": "hoverOut" }, actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            },
+            }, actionTriggers: { "timeline.start": "hoverIn", "timeline.pause": "hoverOut" },
             version: "1.9.1",
         },
         children: [
@@ -858,7 +854,7 @@ function getEffectsOnlyJson(): PxDocument {
                         stops: [{ offset: 0, color: "#00f76c" }, { offset: 1, color: "#ff00ff" }],
                         gradientUnits: "userSpaceOnUse",
                     },
-                    maskedBy: { source: "#_px_3dcddatp", maskType: "alpha" },
+                    maskedBy: { sourceElement: "#_px_3dcddatp", maskType: "alpha" },
                 },
             },
         ],
@@ -878,9 +874,9 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                actionTriggers: { "playback.start": "load" }, actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            },
+            }, actionTriggers: { "timeline.start": "load" },
             version: "1.9.1",
         },
         children: [
@@ -948,8 +944,8 @@ describe("SvgAnimationPlayer (Vue) — the file drives by default; disableAction
         vi.advanceTimersByTime(300);
         expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
         assert(api.value, "the template ref is set after render");
-        api.value.playback.start();
-        expect(api.value.playback.isPlaying()).toBe(true);
+        api.value.timeline.start();
+        expect(api.value.timeline.isPlaying()).toBe(true);
     });
 
     it("showAsStatic: the picture as drawn — the handle's calls are ignored with PX1506", () => {
@@ -957,10 +953,10 @@ describe("SvgAnimationPlayer (Vue) — the file drives by default; disableAction
         const api = renderWithProps({ showAsStatic: true, onWarning });
         const ellipse = document.querySelector("ellipse");
         assert(api.value, "the template ref is set after render");
-        api.value.playback.start();
+        api.value.timeline.start();
         vi.advanceTimersByTime(300);
         expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
-        expect(api.value.playback.isPlaying()).toBe(false);
+        expect(api.value.timeline.isPlaying()).toBe(false);
         expect(onWarning.mock.calls.map(call => call[0].code)).toContain(PxDiagnosticCode.showAsStaticIgnoresCall);
     });
 });
@@ -1046,9 +1042,9 @@ describe("SvgAnimationPlayer (Vue) — a scroll timeline (2026-11-14)", () => {
             },
         }));
         assert(api.value, "the template ref is set after render");
-        expect(api.value.playback.getState()).toBe('scrubbing');
+        expect(api.value.timeline.getState()).toBe('scrubbing');
         // the svg itself (rect 0 at the top of a 400 px screen) would read 1 — the section reads 0.5
-        expect(api.value.playback.getCurrentProgress()).toBeCloseTo(0.5);
+        expect(api.value.timeline.getCurrentProgress()).toBeCloseTo(0.5);
         expect(onWarning).not.toHaveBeenCalled();
     });
 
@@ -1058,7 +1054,7 @@ describe("SvgAnimationPlayer (Vue) — a scroll timeline (2026-11-14)", () => {
         const api = ref<PxAnimationPlayerHandle | null>(null);
         const onWarning = vi.fn();
         render(defineComponent({ setup: () => () => h(SvgAnimationPlayer, { document: clockDoc(), timelineOptions: { type: 'scroll', follows: section }, ref: api, onWarning }) }));
-        expect(api.value?.playback.getCurrentProgress()).toBeCloseTo(0.5);
+        expect(api.value?.timeline.getCurrentProgress()).toBeCloseTo(0.5);
         expect(onWarning).not.toHaveBeenCalled();   // the element never reached the document
         section.remove();
     });
@@ -1070,10 +1066,10 @@ describe("SvgAnimationPlayer (Vue) — a scroll timeline (2026-11-14)", () => {
             suppressWarnings: true,
         });
         assert(api.value, "the template ref is set after render");
-        api.value.playback.start();
-        api.value.playback.stop();
+        api.value.timeline.start();
+        api.value.timeline.stop();
         vi.advanceTimersByTime(100);
-        expect(api.value.playback.getState()).toBe('scrubbing');
+        expect(api.value.timeline.getState()).toBe('scrubbing');
         expect(told).not.toHaveBeenCalled();
     });
 
@@ -1082,7 +1078,7 @@ describe("SvgAnimationPlayer (Vue) — a scroll timeline (2026-11-14)", () => {
         const onWarning = vi.fn();
         render(defineComponent({ setup: () => () => h(SvgAnimationPlayer, { document: clockDoc({ type: 'scroll', follows: 'pageScroll' }), showAtProgress: 0.5, ref: api, onWarning }) }));
         const ignored = onWarning.mock.calls.filter(c => c[0].code === PxDiagnosticCode.scrollOwnsPlayhead).map(c => c[0].data?.[0]);
-        expect(ignored).toEqual(['playback.setCurrentProgress()']);
-        expect(api.value?.playback.getCurrentProgress()).toBe(1);   // where the scroll put it: nothing to scroll → the end
+        expect(ignored).toEqual(['timeline.setCurrentProgress()']);
+        expect(api.value?.timeline.getCurrentProgress()).toBe(1);   // where the scroll put it: nothing to scroll → the end
     });
 });

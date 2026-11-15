@@ -168,7 +168,7 @@ describe('materializeNodeEffects — materialization etalons', () => {
                 {
                     type: 'use',
                     transform: 'translate(40,200)',
-                    effects: { clone: { source: 'src', omit: 'translate' } },
+                    effects: { clone: { sourceElement: 'src', omit: 'translate' } },
                 },
             ],
         };
@@ -209,7 +209,7 @@ describe('materializeNodeEffects — materialization etalons', () => {
                 // Element being masked
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { maskedBy: { source: 'm-src' } },
+                    effects: { maskedBy: { sourceElement: 'm-src' } },
                 },
                 // Mask source (referenced)
                 { type: 'ellipse', id: 'm-src', rx: 30, ry: 20 },

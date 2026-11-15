@@ -33,7 +33,7 @@ function doc(actionTriggers?: PxActionTriggers): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'native', outTime: 1000, ...(actionTriggers ? { actionTriggers } : {}) } },
+        animator: { timeline: { engine: 'native', outTime: 1000 }, ...(actionTriggers ? { actionTriggers } : {}) },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -56,15 +56,15 @@ describe('WAAPI engine — trigger wiring', () => {
 
     it('a document with no trigger block waits for play() — absent ≡ {} ≡ manual (1.17); `startPlayback: load` plays', () => {
         const manual = createSvgAnimationPlayer({ document: doc(), container: '#stage' });
-        expect(manual.playback.isPlaying()).toBe(false);
-        const api = createSvgAnimationPlayer({ document: doc({ 'playback.start': 'load' }), container: '#stage' });
-        expect(api.playback.isPlaying()).toBe(true);
+        expect(manual.timeline.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ document: doc({ 'timeline.start': 'load' }), container: '#stage' });
+        expect(api.timeline.isPlaying()).toBe(true);
     });
 
     it('the EMPTY trigger (nothing starts it) still waits for play()', () => {
         const api = createSvgAnimationPlayer({ document: doc({}), container: '#stage' });
-        expect(api.playback.isPlaying()).toBe(false);
-        api.playback.start();
-        expect(api.playback.isPlaying()).toBe(true);
+        expect(api.timeline.isPlaying()).toBe(false);
+        api.timeline.start();
+        expect(api.timeline.isPlaying()).toBe(true);
     });
 });

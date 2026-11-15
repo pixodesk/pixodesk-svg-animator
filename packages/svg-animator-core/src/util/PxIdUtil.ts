@@ -70,12 +70,9 @@ export function generateNewIds(doc: PxDocument): PxDocument {
         'filter', 'flood-color', 'lighting-color'
     ]);
 
-    // Attributes that contain direct ID references (no # or url()). `source` is one
-    // only inside an effect bucket (`maskedBy.source`, `clone.source`) — the scroll
-    // timeline also has a `source` key ('nearest' | 'root'), which is not an id.
-    const directIdRefAttrs = new Set(['targetId', 'boundElementId']);
-    const isEffectSourceRef = (key: string, parentKey: string | undefined) =>
-        key === 'source' && (parentKey === 'maskedBy' || parentKey === 'clone');
+    // Keys that hold a reference to one of the file's own elements, `#id`-spelled (no url()): `element` — a binding's
+    // element, an event's element — and an effect's `sourceElement` (`maskedBy`, `clone`); plus the two editor ids.
+    const directIdRefAttrs = new Set(['targetId', 'boundElementId', 'element', 'sourceElement']);
 
     // Any non-null object, read by string key — arrays included: the walk descends into keyframe lists by index.
     const isJsonObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
@@ -129,10 +126,9 @@ export function generateNewIds(doc: PxDocument): PxDocument {
                 else if (urlRefAttrs.has(key)) {
                     node[key] = replaceUrlRefs(value, idMap);
                 }
-                // Check for direct ID references: source="#_px_xxx" (canonical `#id`,
-                // SCHEMA-DESIGN §4 E-5) or bare source="_px_xxx" (legacy) —
-                // rewrite preserving the incoming spelling.
-                else if (directIdRefAttrs.has(key) || isEffectSourceRef(key, parentKey)) {
+                // Direct ID references: sourceElement="#_px_xxx" (canonical `#id`, SCHEMA-DESIGN §4 E-5) or a bare
+                // id (legacy) — rewritten keeping the incoming spelling.
+                else if (directIdRefAttrs.has(key)) {
                     const hasHash = value.startsWith('#');
                     const newId = idMap.get(hasHash ? value.slice(1) : value);
                     if (newId) {
@@ -164,18 +160,8 @@ export function generateNewIds(doc: PxDocument): PxDocument {
     collectIds(cloned);
     updateRefs(cloned);
 
-    // Re-point the bindings of a bind-by-id document. `target` is `#id`-spelled (review
-    // §3.2) — strip for the lookup, keep the spelling on the way out.
-    const docBindings = cloned.animator?.bindings;
-    if (Array.isArray(docBindings)) {
-        const updatedBindings = docBindings.map(binding => {
-            const hashed = binding.target.startsWith('#');
-            const id = hashed ? binding.target.slice(1) : binding.target;
-            const newId = idMap.get(id) ?? id;
-            return { ...binding, target: hashed ? '#' + newId : newId };
-        });
-        cloned.animator = { ...cloned.animator, bindings: updatedBindings };
-    }
+    // The bindings of a bind-by-id document (`element`, `#id`-spelled) and the events' elements are re-pointed by the
+    // walk above: `element` is a direct reference wherever it stands.
 
     return cloned;
 }

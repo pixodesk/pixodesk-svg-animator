@@ -972,29 +972,37 @@ class Arr<T> extends Base<Array<T>> {
 
 /** `"a"` or `["a", "b"]` over a closed vocabulary — described as the union of the two forms, but repaired word
  *  by word: an unknown word is dropped (a lone unknown word drops the optional field), never swapped for a default. */
-class Words<T extends string> extends Union<T | Array<T>, false> {
-    constructor(private readonly vocabulary: readonly T[]) {
-        const word = new Enum<T, false>(vocabulary, undefined, false);
-        super([word, new Arr(word)], undefined, false);
+/** One entry or several of `item` — repair DROPS an entry `item` rejects; a lone rejected entry drops the optional field. */
+class OneOrMany<T> extends Union<T | Array<T>, false> {
+    constructor(private readonly item: PxSchema<T>) {
+        super([item, new Arr(item)], undefined, false);
     }
-    private keep(raw: unknown): raw is T { return this.vocabulary.includes(raw as T); }
+    private keep(raw: unknown): raw is T { return this.item.isValid(raw); }
     override sanitize(raw: unknown): T | Array<T> {
-        if (Array.isArray(raw)) return raw.filter((w): w is T => this.keep(w));
-        return this.keep(raw) ? raw : [];
+        if (Array.isArray(raw)) return raw.filter((w): w is T => this.keep(w)).map(w => this.item.sanitize(w));
+        return this.keep(raw) ? this.item.sanitize(raw) : [];
     }
     override _fix(raw: unknown, run: PxFixRun): T | Array<T> {
         if (isStampedFor(raw, this)) return raw as Array<T>;   // already checked — reuse, never rebuild
         if (!Array.isArray(raw)) {
-            if (this.keep(raw)) return raw;
+            if (this.keep(raw)) return this.item._fix(raw, run);
             run.repairs++;
             return this._seal([], false);
         }
-        const out = raw.filter((w): w is T => this.keep(w));
+        const before = run.repairs;
+        const out = raw.filter((w): w is T => this.keep(w)).map(w => this.item._fix(w, run));
         if (out.length !== raw.length) run.repairs++;
-        return this._seal(out, out.length === raw.length);
+        return this._seal(out, run.repairs === before);
     }
-    /** A lone unknown word cannot be kept — an optional field holding it is dropped. */
+    /** A lone rejected entry cannot be kept — an optional field holding it is dropped. */
     override _canSanitize(raw: unknown): boolean { return Array.isArray(raw) || this.keep(raw); }
+}
+
+/** One word or several from a closed vocabulary — {@link OneOrMany} over the words. */
+class Words<T extends string> extends OneOrMany<T> {
+    constructor(vocabulary: readonly T[]) {
+        super(new Enum<T, false>(vocabulary, undefined, false));
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1366,6 +1374,11 @@ export const px = {
      *  unknown word drops the optional field — where a plain union would put its default in place of the whole value. */
     words: <T extends string>(values: readonly T[]): PxSchema<T | Array<T>, false, false> =>
         new Words(values),
+
+    /** One entry or several of `item` (`x` / `[x, y]`) — repair DROPS an entry `item` rejects, as {@link px.words} does
+     *  for words; a lone rejected entry drops the optional field. */
+    oneOrMany: <T>(item: PxSchema<T>): PxSchema<T | Array<T>, false, false> =>
+        new OneOrMany(item),
 
     /** String-keyed record whose unrecoverable values are dropped. Default: {}. */
     record: <T>(value: PxSchema<T>): PxSchema<Record<string, T>> =>

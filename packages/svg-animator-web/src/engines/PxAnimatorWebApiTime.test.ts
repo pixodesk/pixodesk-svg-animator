@@ -69,8 +69,8 @@ describe('WAAPI engine — the shared time contract', () => {
     it('clamps a seek past the end (WAAPI itself would accept it)', () => {
         const api = createSvgAnimationPlayer({ document: doc(), container: '#stage' });
 
-        api.playback.setCurrentTime(99_999);
-        expect(api.playback.getCurrentTime()).toBe(DUR);
+        api.timeline.setCurrentTime(99_999);
+        expect(api.timeline.getCurrentTime()).toBe(DUR);
         // ...and it reached the real Animation objects, not just the wrapper.
         expect(created.every(a => a.currentTime === DUR)).toBe(true);
     });
@@ -78,36 +78,36 @@ describe('WAAPI engine — the shared time contract', () => {
     it('floors a negative seek at 0', () => {
         const api = createSvgAnimationPlayer({ document: doc(), container: '#stage' });
 
-        api.playback.setCurrentTime(-500);
-        expect(api.playback.getCurrentTime()).toBe(0);
+        api.timeline.setCurrentTime(-500);
+        expect(api.timeline.getCurrentTime()).toBe(0);
     });
 
     it('the playback axis clamps to duration × iterations; the plain axis stays inside the pass', () => {
         const api = createSvgAnimationPlayer({ document: doc({ iterations: 3 }), container: '#stage' });
 
-        api.playback.setTotalTime(99_999);
-        expect(api.playback.getTotalTime()).toBe(DUR * 3);
-        expect(api.playback.getTotalDuration()).toBe(DUR * 3);
-        expect(api.playback.getCurrentIteration()).toBe(2);
-        expect(api.playback.getCurrentTime()).toBe(DUR);          // the last pass's end
-        api.playback.setCurrentTime(99_999);                      // a plain seek stays in the current pass
-        expect(api.playback.getTotalTime()).toBe(DUR * 3);
+        api.timeline.setTotalTime(99_999);
+        expect(api.timeline.getTotalTime()).toBe(DUR * 3);
+        expect(api.timeline.getTotalDuration()).toBe(DUR * 3);
+        expect(api.timeline.getCurrentIteration()).toBe(2);
+        expect(api.timeline.getCurrentTime()).toBe(DUR);          // the last pass's end
+        api.timeline.setCurrentTime(99_999);                      // a plain seek stays in the current pass
+        expect(api.timeline.getTotalTime()).toBe(DUR * 3);
     });
 
     it('leaves an endless playback unbounded — there is no end to clamp to; its total duration is null', () => {
         const api = createSvgAnimationPlayer({ document: doc({ iterations: 'infinite' }), container: '#stage' });
 
-        api.playback.setTotalTime(DUR * 10);
-        expect(api.playback.getTotalTime()).toBe(DUR * 10);
-        expect(api.playback.getTotalDuration()).toBeNull();
-        expect(api.playback.getTotalDurationAtSpeed()).toBeNull();
+        api.timeline.setTotalTime(DUR * 10);
+        expect(api.timeline.getTotalTime()).toBe(DUR * 10);
+        expect(api.timeline.getTotalDuration()).toBeNull();
+        expect(api.timeline.getTotalDurationAtSpeed()).toBeNull();
     });
 
     it('rejects a rate of 0 with a warning and leaves the rate alone', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
         const api = createSvgAnimationPlayer({ document: doc(), container: '#stage' });
 
-        api.playback.setSpeed(0);
+        api.timeline.setSpeed(0);
 
         expect(warn).toHaveBeenCalled();
         expect(created.every(a => a.playbackRate === 1)).toBe(true);
@@ -117,38 +117,38 @@ describe('WAAPI engine — the shared time contract', () => {
     it('still accepts ordinary rates, forwards and backwards', () => {
         const api = createSvgAnimationPlayer({ document: doc(), container: '#stage' });
 
-        api.playback.setSpeed(2);
+        api.timeline.setSpeed(2);
         expect(created.every(a => a.playbackRate === 2)).toBe(true);
 
-        api.playback.setSpeed(-1);
+        api.timeline.setSpeed(-1);
         expect(created.every(a => a.playbackRate === -1)).toBe(true);
     });
 
     it('reports progress counted in iterations, in play order (1.26); the plain time axis is the iteration', () => {
         const api = createSvgAnimationPlayer({ document: doc({ iterations: 2 }), container: '#stage' });
 
-        api.playback.setTotalTime(DUR);              // end of iteration 1 = half the playback
-        expect(api.playback.getCurrentProgress()).toBe(1);
-        expect(api.playback.getCurrentIteration()).toBe(0);
-        api.playback.setTotalTime(DUR + DUR / 2);    // halfway through the second pass
-        expect(api.playback.getCurrentIteration()).toBe(1);
-        expect(api.playback.getCurrentProgress()).toBeCloseTo(1.5, 5);
-        expect(api.playback.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
+        api.timeline.setTotalTime(DUR);              // end of iteration 1 = half the playback
+        expect(api.timeline.getCurrentProgress()).toBe(1);
+        expect(api.timeline.getCurrentIteration()).toBe(0);
+        api.timeline.setTotalTime(DUR + DUR / 2);    // halfway through the second pass
+        expect(api.timeline.getCurrentIteration()).toBe(1);
+        expect(api.timeline.getCurrentProgress()).toBeCloseTo(1.5, 5);
+        expect(api.timeline.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
 
-        api.playback.setCurrentProgress(2);          // the end of the second pass
-        expect(api.playback.getTotalTime()).toBe(DUR * 2);
-        expect(api.playback.getCurrentTime()).toBe(DUR);
+        api.timeline.setCurrentProgress(2);          // the end of the second pass
+        expect(api.timeline.getTotalTime()).toBe(DUR * 2);
+        expect(api.timeline.getCurrentTime()).toBe(DUR);
     });
 
     it('the play family is the position and the lengths divided by the speed', () => {
         const api = createSvgAnimationPlayer({ document: doc({ iterations: 2 }), container: '#stage' });
-        api.playback.setTotalTime(DUR / 2);
-        api.playback.setSpeed(2);
-        expect(api.playback.getSpeed()).toBe(2);
-        expect(api.playback.getDurationAtSpeed()).toBe(DUR / 2);
-        expect(api.playback.getTotalDurationAtSpeed()).toBe(DUR);
-        expect(api.playback.getCurrentTimeAtSpeed()).toBeCloseTo(DUR / 4, 5);
-        api.playback.setDurationAtSpeed(DUR * 4);        // one pass over four times its length = a quarter speed
-        expect(api.playback.getSpeed()).toBe(0.25);
+        api.timeline.setTotalTime(DUR / 2);
+        api.timeline.setSpeed(2);
+        expect(api.timeline.getSpeed()).toBe(2);
+        expect(api.timeline.getDurationAtSpeed()).toBe(DUR / 2);
+        expect(api.timeline.getTotalDurationAtSpeed()).toBe(DUR);
+        expect(api.timeline.getCurrentTimeAtSpeed()).toBeCloseTo(DUR / 4, 5);
+        api.timeline.setDurationAtSpeed(DUR * 4);        // one pass over four times its length = a quarter speed
+        expect(api.timeline.getSpeed()).toBe(0.25);
     });
 });

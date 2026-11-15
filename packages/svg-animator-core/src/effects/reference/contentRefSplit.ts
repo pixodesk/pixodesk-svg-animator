@@ -54,7 +54,7 @@ import { stripHash } from '../shared/util';
 /** Walks the tree and collects every id referenced by a `<use>` with `clone:{omit:'translate'}`. */
 export function identifyContentRefTargets(node: PxNode, ctx: ApplyContext, allocator: (key: string) => string): void {
     if (node.type === 'use' && node.effects?.clone?.omit === 'translate') {
-        const sourceId = stripHash(node.effects.clone.source);  // `#id` canonical, bare legacy (E-5)
+        const sourceId = stripHash(node.effects.clone.sourceElement);  // `#id` canonical, bare legacy (E-5)
         if (typeof sourceId === 'string' && sourceId && !ctx.contentRefInnerIds.has(sourceId)) {
             ctx.contentRefInnerIds.set(sourceId, allocator(sourceId));
         }

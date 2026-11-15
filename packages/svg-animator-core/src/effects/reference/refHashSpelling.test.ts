@@ -25,7 +25,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
             const out = materialize({
                 type: 'svg', children: [
                     { type: 'rect', id: 'src', width: 10, height: 10 },
-                    { type: 'use', href: '#whatever', effects: { clone: { omit: 'translate', source: form.ref('src') } } },
+                    { type: 'use', href: '#whatever', effects: { clone: { omit: 'translate', sourceElement: form.ref('src') } } },
                 ],
             });
             const use = collectByType(out, 'use')[0];
@@ -38,7 +38,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
             const out = materialize({
                 type: 'svg', children: [
                     { type: 'circle', id: 'msrc', r: 5 },
-                    { type: 'rect', width: 10, height: 10, effects: { maskedBy: { source: form.ref('msrc') } } },
+                    { type: 'rect', width: 10, height: 10, effects: { maskedBy: { sourceElement: form.ref('msrc') } } },
                 ],
             });
             const mask = collectByType(out, 'mask')[0];
@@ -51,25 +51,25 @@ describe('ref spelling — #id canonical, bare legacy', () => {
         const doc: PxDocument = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
-                { type: 'use', href: '#src', effects: { clone: { source: '#src' } } },
+                { type: 'use', href: '#src', effects: { clone: { sourceElement: '#src' } } },
             ],
         };
         const regenerated = generateNewIds(doc);
         const use = regenerated.children?.[1];
         const newSrcId = regenerated.children?.[0].id;
         expect(newSrcId).not.toBe('src');
-        expect(use?.effects?.clone?.source).toBe('#' + newSrcId);
+        expect(use?.effects?.clone?.sourceElement).toBe('#' + newSrcId);
     });
 
     it('generateNewIds keeps rewriting a legacy bare source (spelling preserved)', () => {
         const doc: PxDocument = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
-                { type: 'use', href: '#src', effects: { clone: { source: 'src' } } },
+                { type: 'use', href: '#src', effects: { clone: { sourceElement: 'src' } } },
             ],
         };
         const regenerated = generateNewIds(doc);
         const newSrcId = regenerated.children?.[0].id;
-        expect(regenerated.children?.[1].effects?.clone?.source).toBe(newSrcId);
+        expect(regenerated.children?.[1].effects?.clone?.sourceElement).toBe(newSrcId);
     });
 });

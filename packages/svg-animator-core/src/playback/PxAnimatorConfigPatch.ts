@@ -42,7 +42,7 @@ export type PxRecursivePartial<T> =
 /** `Omit` applied to each member of a union, so a discriminated union keeps its members. */
 type PxDistributiveOmit<T, K extends PropertyKey> = T extends object ? Omit<T, K> : never;
 
-/** A deep-partial of the WIRE animator config (`timeline` — its `actionTriggers` and `actions` included at this level —,
+/** A deep-partial of the WIRE animator config (`timeline` — its `actions` included at this level —, `actionTriggers`,
  *  `definitions`, `bindings`, `version`), typed from the schema. @public */
 export type PxAnimatorConfigPatch = PxRecursivePartial<PxAnimatorConfig>;
 
@@ -56,7 +56,7 @@ export interface PxAnimatorConfigMergeResult {
 
 /** Keys that live only on the flat RUNTIME view and have no slot on the wire. */
 const FLAT_ONLY_KEYS = [
-    'timelineSource', 'scroll', 'actionTriggers', 'actions', 'whenIdle', 'delay', 'iterations',
+    'timelineSource', 'scroll', 'actions', 'whenIdle', 'delay', 'iterations',
     'direction', 'fill', 'resetOnFinish', 'duration', 'mode', 'frameRate',
 ];
 
@@ -183,7 +183,7 @@ type PxScrollTimingOptionsFollowing<TFollowed> = Omit<PxScrollTimingOptions, 'fo
  *  No `actionTriggers` / `actions` here — those are their props'. WHY the name (`PxTimelinePatch` until 1.22): the
  *  prop's own word.
  *  - `TFollowed` (absent = none): what page code may hand over in a scroll timeline's `follows` instead of a word — an
- *    element of the page on the web, a ref to one in React and Vue; the same as `follows: 'pageElement'` with a selector.
+ *    element of the page on the web, a ref to one in React and Vue; the same as `follows: 'pageDomElement'` with a selector.
  *  - Documents stay JSON: the player takes it out before the merge (`takeFollowedOut`). @public */
 export type PxTimelineOptions<TFollowed = never> = PxRecursivePartial<PxTimelineTiming> | PxScrollTimingOptionsFollowing<TFollowed>;
 
@@ -191,14 +191,14 @@ export type PxTimelineOptions<TFollowed = never> = PxRecursivePartial<PxTimeline
 export interface PxFollowedTakenOut<TFollowed> {
     /** The options to merge — without `follows` where something was handed over. */
     timelineOptions: PxTimelineOptions | undefined;
-    /** What was handed over in `follows`, for the player to resolve to an element and follow as `pageElement`. */
+    /** What was handed over in `follows`, for the player to resolve to an element and follow as `pageDomElement`. */
     followed?: TFollowed;
 }
 
 /** `timelineOptions` with what page code handed over in `follows` (an element, a ref) taken out — documents stay JSON:
- *  - the options to merge leave `follows` out, so the file's stays and the document stays valid (no `pageElement`
+ *  - the options to merge leave `follows` out, so the file's stays and the document stays valid (no `pageDomElement`
  *    without a selector)
- *  - the caller resolves `followed` to the element; the scroll driver follows it as `pageElement` @internal */
+ *  - the caller resolves `followed` to the element; the scroll driver follows it as `pageDomElement` @internal */
 export function takeFollowedOut<TFollowed>(
     options: PxTimelineOptions | PxScrollTimingOptionsFollowing<TFollowed> | undefined,
     isFollowed: (value: unknown) => value is TFollowed,
@@ -218,7 +218,7 @@ function followsNothingHandedOver<TFollowed>(
 
 /** The `actions` prop: the timeline's `actions` block to use INSTEAD of the file's — a replacement, like
  *  `actionTriggers`: a slot left out reads as its default, never as the file's value (one slot changed against the
- *  file's others could make no sense). A slot may be the preset word (`'playback.stop': 'animateToStart'`): it is exactly
+ *  file's others could make no sense). A slot may be the preset word (`'timeline.stop': 'animateToStart'`): it is exactly
  *  `{ behavior: 'animateToStart' }`. (`PxActionsOptions` until 2026-11-13, a deep-partial merged over the file's.) @public */
 export type PxActionsInput = PxActions;
 
@@ -248,8 +248,8 @@ export interface PxPlaybackOverride<TFollowed = never> {
      */
     timelineOptions?: PxTimelineOptions<TFollowed>;
     /**
-     * HOW the buttons move the playhead, instead of the document's `timeline.actions` — `{ 'playback.stop':
-     * 'animateToStart' }`, or `{ 'playback.stop': 'animateToEndAndBack' }` ("stop after this pass, then play back").
+     * HOW the buttons move the playhead, instead of the document's `timeline.actions` — `{ 'timeline.stop':
+     * 'animateToStart' }`, or `{ 'timeline.stop': 'animateToEndAndBack' }` ("stop after this pass, then play back").
      * The WHOLE block: a slot left out (`outOfView`, say) reads as its default, not as the file's value.
      */
     actions?: PxActionsInput;
@@ -307,13 +307,13 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
 const uncheckedPatch = (p: JsonRecord): PxAnimatorConfigPatch => p as PxAnimatorConfigPatch;
 
 /**
- * The document with its `timeline.actionTriggers` SET to `actionTriggers` — not merged: an empty block (`{}`,
+ * The document with its `animator.actionTriggers` SET to `actionTriggers` — not merged: an empty block (`{}`,
  * "nothing starts it") and a replacement that drops keys both need a set, which a merge patch cannot say. Returns
  * a new document sharing every untouched subtree; the animator lives at either of its two addresses.
  * @public @advanced
  */
 export function withActionTriggers(doc: PxDocument, actionTriggers: PxActionTriggersInput): PxDocument {
-    return withTimelineBlock(doc, timeline => ({ ...timeline, actionTriggers: { ...actionTriggers } }));
+    return withAnimatorBlock(doc, animator => ({ ...animator, actionTriggers: { ...actionTriggers } }));
 }
 
 /**
@@ -327,12 +327,16 @@ export function withActions(doc: PxDocument, actions: PxActionsInput): PxDocumen
 
 /** A new document whose wire `timeline` is `edit(timeline)` — the animator at either of its two addresses. */
 function withTimelineBlock(doc: PxDocument, edit: (timeline: JsonRecord) => JsonRecord): PxDocument {
+    return withAnimatorBlock(doc, base => ({ ...base, timeline: edit(isPlainObject(base.timeline) ? base.timeline : {}) }));
+}
+
+/** A new document whose wire `animator` block is `edit(animator)` — at either of its two addresses. */
+function withAnimatorBlock(doc: PxDocument, edit: (animator: JsonRecord) => JsonRecord): PxDocument {
     const legacy = legacyAnimatorOf(doc);
     const atRoot = isPlainObject(doc.animator);
     const current: unknown = atRoot ? doc.animator : legacy;
     const base: JsonRecord = isPlainObject(current) ? current : {};
-    const timeline: JsonRecord = isPlainObject(base.timeline) ? base.timeline : {};
-    const animator: JsonRecord = { ...base, timeline: edit(timeline) };
+    const animator: JsonRecord = edit(base);
     if (!atRoot && legacy !== undefined) {
         const meta = isPlainObject(doc.meta) ? doc.meta : {};
         return { ...doc, meta: { ...meta, animator } };

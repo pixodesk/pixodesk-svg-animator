@@ -33,7 +33,7 @@ const target = (out: PxNode): PxNode | undefined => collectByType(out, 'rect').f
 describe('maskedByEffect — <mask> def + mask attr', () => {
 
     it('case 1 — static source → one <mask> in defs holding <use href=#src>, target gets mask=url()', () => {
-        const out = materialize(scene({ source: 'src' }));
+        const out = materialize(scene({ sourceElement: 'src' }));
         expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -88,7 +88,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
 
     it('case 2 — maskType / maskUnits / maskContentUnits pass through onto the <mask>', () => {
         const out = materialize(scene({
-            source: 'src', maskType: 'alpha', maskUnits: 'userSpaceOnUse', maskContentUnits: 'objectBoundingBox',
+            sourceElement: 'src', maskType: 'alpha', maskUnits: 'userSpaceOnUse', maskContentUnits: 'objectBoundingBox',
         }));
         expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
@@ -142,7 +142,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
     it('case 3 — masked element with own transformBy → mask source gets the INVERSE translate', () => {
         // target also translated +[60,0]; the mask must cancel it (inverse -[60,0])
         // so the source paints where it really is.
-        const out = materialize(scene({ source: 'src' }, { transformBy: { translate: [60, 0] } }));
+        const out = materialize(scene({ sourceElement: 'src' }, { transformBy: { translate: [60, 0] } }));
         expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -236,7 +236,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
                         { time: -250, value: { translate: [10, 10], scale: [2, 2] } },
                         { time: 500, value: { translate: [60, 10], scale: [4, 4] } },
                     ] } },
-                    effects: { maskedBy: { source: '#src' } },
+                    effects: { maskedBy: { sourceElement: '#src' } },
                 },
             ],
         };
@@ -256,7 +256,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
     });
 
     it('case 3c — a STATIC transformBy.scale is a factor in the mask inverse too (the editor writes [1.5, 1.5] for 150 %)', () => {
-        const out = materialize(scene({ source: 'src' }, { transformBy: { scale: [1.5, 1.5] } }));
+        const out = materialize(scene({ sourceElement: 'src' }, { transformBy: { scale: [1.5, 1.5] } }));
         const scalesIn = (root: PxNode): Array<PxVec2> => collectByType(root, 'g')
             .map(g => staticTransformParts(g.transform)?.scale)
             .filter((s): s is PxVec2 => s !== undefined);
@@ -270,7 +270,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
 
     it('case 4 — missing source is rejected with an error (no mask generated)', () => {
         const { root, errors } = materializeRaw(scene({ maskType: 'alpha' }));
-        expect(errors.some(e => e.includes('maskedBy.source missing'))).toBe(true);
+        expect(errors.some(e => e.includes('maskedBy.sourceElement missing'))).toBe(true);
         expect(collectByType(root, 'mask')).toHaveLength(0);
     });
 });

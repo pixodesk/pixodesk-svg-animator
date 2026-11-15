@@ -21,6 +21,6 @@ describe('the browser spelling of format values', () => {
             expect(['cover', 'entry', 'exit']).toContain(range?.name);
             expect([0, 0.5, 1]).toContain(range?.fraction);
         }
-        expect(cssRangeOfMoment({ element: 0.2, screen: 'bottom' }, 'appears')?.name).toBe(camelCaseToKebabWordIfNeeded('entryCrossing'));
+        expect(cssRangeOfMoment({ domElement: 0.2, screen: 'bottom' }, 'appears')?.name).toBe(camelCaseToKebabWordIfNeeded('entryCrossing'));
     });
 });

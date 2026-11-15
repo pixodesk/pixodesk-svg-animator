@@ -9,7 +9,7 @@ import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-we
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback, type PxVariablesApi, type PxVariableValue } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
-import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { createDiagnostics, createSegmentLever, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, isRef, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -100,7 +100,7 @@ function applyDocOverrides(
  * `showAtProgress` counts iterations in play order (`getCurrentProgress`, 1.26). Through the player API, so scrubbing
  * does NOT recreate the player; the seek rule holds the frame (paused there).
  */
-function showFixedFrame(playback: PxAnimationPlayerHandle['playback'], props: DocOverrideProps): void {
+function showFixedFrame(playback: PxAnimationPlayerHandle['timeline'], props: DocOverrideProps): void {
     if (props.showAtTime !== undefined) playback.setCurrentTime(props.showAtTime);
     else if (props.showAtProgress !== undefined) playback.setCurrentProgress(props.showAtProgress);
 }
@@ -132,6 +132,9 @@ export const svgAnimationPlayerProps = {
     variant: { type: String as PropType<string | null>, default: undefined },
     cssVariables: { type: [Boolean, Object] as PropType<boolean | Readonly<Record<string, string>>>, default: undefined },
 
+    // -- Segments (2026-11-15): the segment the page holds — the file's segment triggers rest while it is set
+    segment: { type: String, default: undefined },
+
     // -- Controlled time
     showAtProgress: { type: Number },
     showAtTime: { type: Number },
@@ -157,7 +160,7 @@ export const svgAnimationPlayerProps = {
  * 1. **As the file says** (no control prop) – the document's own triggers, or `actionTriggers` to use instead.
  *    ```vue
  *    <SvgAnimationPlayer :document="animation" />
- *    <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'playback.start': 'click' }" />
+ *    <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'timeline.start': 'click' }" />
  *    ```
  *
  * 2. **Declarative `playback`** – the playback's position, held by the host: `"off"` · `"on"` · `"paused"`.
@@ -168,7 +171,7 @@ export const svgAnimationPlayerProps = {
  * 3. **Manual** – no triggers; a ref-based API for full programmatic control.
  *    ```vue
  *    <SvgAnimationPlayer :document="animation" disableActionTriggers ref="player" />
- *    <button @click="$refs.player.playback.start()">Start</button>
+ *    <button @click="$refs.player.timeline.start()">Start</button>
  *    ```
  *
  * 4. **Controlled time** – renders a single frame at a given time.
@@ -191,7 +194,7 @@ const SvgAnimationPlayer = defineComponent({
 
     props: svgAnimationPlayerProps,
 
-    emits: ['ready', 'playbackStart', 'playbackStop', 'playbackPause', 'playbackResume', 'playbackFinish', 'destroy'],
+    emits: ['ready', 'playbackStart', 'playbackStop', 'playbackPause', 'playbackResume', 'playbackFinish', 'segmentChange', 'destroy'],
 
     setup(props, { expose, emit }) {
         // The `<svg>` this component rendered — handed to the player, which attaches its
@@ -273,6 +276,10 @@ const SvgAnimationPlayer = defineComponent({
 
         // -- Animator lifecycle -------------------------------------------------
 
+        // The `segment` prop: one lever for the component's life — every player it builds holds it from its first frame
+        const segmentLever = createSegmentLever(props.segment);
+        watch(() => props.segment, next => segmentLever.set(next));
+
         function createApi() {
             destroyApi();
             const doc = resolvedDoc.value;
@@ -295,12 +302,14 @@ const SvgAnimationPlayer = defineComponent({
                 // `timelineOptions.follows` holds its element.
                 rootElement: rootElement ?? undefined,
                 followedElement: elementOf(takeFollowedOut(props.timelineOptions, isVueFollowed).followed),
+                segmentLever,
                 onReady:  () => emit('ready'),
                 onPlaybackStart:  () => emit('playbackStart'),
                 onPlaybackStop:   () => emit('playbackStop'),
                 onPlaybackPause:  () => emit('playbackPause'),
                 onPlaybackResume: () => emit('playbackResume'),
                 onPlaybackFinish: () => emit('playbackFinish'),
+                onSegmentChange: (segment, previous) => emit('segmentChange', segment, previous),
                 onDestroy: () => emit('destroy'),
                 // The player's own diagnostics reach the same handlers as the component's.
                 onWarning:   props.onWarning,
@@ -350,13 +359,13 @@ const SvgAnimationPlayer = defineComponent({
                 next: position,
             });
             prevPlayback = position;
-            if (api) for (const action of actions) applyDeclarativeAction(api.playback, action);
+            if (api) for (const action of actions) applyDeclarativeAction(api.timeline, action);
         }
 
         /** Controlled-time mode: seek through the animator API (no recreate). */
         function applySeek() {
             if (compMode.value !== PxControlMode.fixedTime) return;
-            const playback = apiRef.value?.playback;
+            const playback = apiRef.value?.timeline;
             if (playback) showFixedFrame(playback, props);
         }
 
@@ -404,9 +413,9 @@ const SvgAnimationPlayer = defineComponent({
             getVariantKeys: () => runtime.value.api.getVariantKeys(),
         };
         const publicApi: PxAnimationPlayerHandle = {
-            playback: forwardPlaybackControls(
-                () => apiRef.value?.playback,
-                (call, run) => { guardWrite(call); const playback = apiRef.value?.playback; if (playback) run(playback); }),
+            timeline: forwardPlaybackControls(
+                () => apiRef.value?.timeline,
+                (call, run) => { guardWrite(call); const playback = apiRef.value?.timeline; if (playback) run(playback); }),
             variables: variablesApi,
         };
 

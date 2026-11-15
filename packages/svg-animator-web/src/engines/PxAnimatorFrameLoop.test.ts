@@ -235,7 +235,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
         const onFinish = vi.fn();
         const { api, opacity } = setup({}, { onFinish });
 
-        api.playback.setCurrentTime(DUR);
+        api.timeline.setCurrentTime(DUR);
         api.setPlaybackSpeed(-1);
         api.play();
 
@@ -301,9 +301,9 @@ describe('createAdapterSvgAnimationPlayer', () => {
         vi.advanceTimersByTime(DUR);
         expect(onFinish).toHaveBeenCalledTimes(1);
 
-        api.playback.setCurrentTime(0);
+        api.timeline.setCurrentTime(0);
         expect(opacity()).toBe(0); // seek renders immediately
-        expect(api.playback.getCurrentTime()).toBe(0);
+        expect(api.timeline.getCurrentTime()).toBe(0);
 
         api.play();
         vi.advanceTimersByTime(DUR);
@@ -419,10 +419,10 @@ describe('createAdapterSvgAnimationPlayer', () => {
         it('clamps a seek past the end instead of parking beyond it — on both axes', () => {
             const { api } = setup();
 
-            api.playback.setCurrentTime(99_999);
-            expect(api.playback.getCurrentTime()).toBe(DUR);
-            api.playback.setCurrentTime(-500);
-            expect(api.playback.getCurrentTime()).toBe(0);
+            api.timeline.setCurrentTime(99_999);
+            expect(api.timeline.getCurrentTime()).toBe(DUR);
+            api.timeline.setCurrentTime(-500);
+            expect(api.timeline.getCurrentTime()).toBe(0);
             api.setTotalTime(99_999);
             expect(api.getTotalTime()).toBe(DUR);
             api.setTotalTime(-500);
@@ -432,19 +432,19 @@ describe('createAdapterSvgAnimationPlayer', () => {
         it('getCurrentProgress reads 0–1 of the iteration', () => {
             const { api } = setup();
 
-            expect(api.playback.getCurrentProgress()).toBe(0);
-            api.playback.setCurrentTime(DUR / 2);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(0.5, 5);
-            api.playback.setCurrentTime(DUR);
-            expect(api.playback.getCurrentProgress()).toBe(1);
+            expect(api.timeline.getCurrentProgress()).toBe(0);
+            api.timeline.setCurrentTime(DUR / 2);
+            expect(api.timeline.getCurrentProgress()).toBeCloseTo(0.5, 5);
+            api.timeline.setCurrentTime(DUR);
+            expect(api.timeline.getCurrentProgress()).toBe(1);
         });
 
         it('setCurrentProgress is the inverse of getCurrentProgress', () => {
             const { api } = setup();
 
-            api.playback.setCurrentProgress(0.5);
-            expect(api.playback.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(0.5, 5);
+            api.timeline.setCurrentProgress(0.5);
+            expect(api.timeline.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
+            expect(api.timeline.getCurrentProgress()).toBeCloseTo(0.5, 5);
         });
 
         it('the plain time axis is the iteration, progress counts iterations, the total axis is the playback (A5; 1.26)', () => {
@@ -452,28 +452,28 @@ describe('createAdapterSvgAnimationPlayer', () => {
             const { api } = setup({ iterations: 2 });
 
             api.setTotalTime(DUR + DUR / 2);          // halfway through the second pass
-            expect(api.playback.getCurrentIteration()).toBe(1);
-            expect(api.playback.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(1.5, 5);   // counted in iterations, in play order
-            expect(api.playback.getTotalDuration()).toBe(DUR * 2);
+            expect(api.timeline.getCurrentIteration()).toBe(1);
+            expect(api.timeline.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
+            expect(api.timeline.getCurrentProgress()).toBeCloseTo(1.5, 5);   // counted in iterations, in play order
+            expect(api.timeline.getTotalDuration()).toBe(DUR * 2);
 
-            api.playback.setCurrentProgress(2);               // the end of the SECOND pass
+            api.timeline.setCurrentProgress(2);               // the end of the SECOND pass
             expect(api.getTotalTime()).toBeCloseTo(DUR * 2, 5);
-            api.playback.setCurrentTime(DUR / 4);             // a quarter into the CURRENT pass
+            api.timeline.setCurrentTime(DUR / 4);             // a quarter into the CURRENT pass
             expect(api.getTotalTime()).toBeCloseTo(DUR + DUR / 4, 5);
-            expect(api.playback.getCurrentIteration()).toBe(1);
-            api.playback.setCurrentTime(0);                   // the pass's start is the previous pass's end — the boundary belongs to the pass it ends
+            expect(api.timeline.getCurrentIteration()).toBe(1);
+            api.timeline.setCurrentTime(0);                   // the pass's start is the previous pass's end — the boundary belongs to the pass it ends
             expect(api.getTotalTime()).toBeCloseTo(DUR, 5);
-            expect(api.playback.getCurrentIteration()).toBe(0);
+            expect(api.timeline.getCurrentIteration()).toBe(0);
         });
 
         it('a reversed pass of alternate counts the plain axis DOWN — the frame on screen', () => {
             const { api } = setup({ iterations: 2, iterationDirection: 'alternate' });
 
             api.setTotalTime(DUR + DUR / 4);         // a quarter into the second, reversed pass
-            expect(api.playback.getCurrentTime()).toBeCloseTo(DUR * 3 / 4, 5);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(1.25, 5);   // progress is play order: a quarter into the second pass
-            api.playback.setCurrentTime(DUR / 4);              // ask for the frame at a quarter: three quarters into the pass
+            expect(api.timeline.getCurrentTime()).toBeCloseTo(DUR * 3 / 4, 5);
+            expect(api.timeline.getCurrentProgress()).toBeCloseTo(1.25, 5);   // progress is play order: a quarter into the second pass
+            api.timeline.setCurrentTime(DUR / 4);              // ask for the frame at a quarter: three quarters into the pass
             expect(api.getTotalTime()).toBeCloseTo(DUR + DUR * 3 / 4, 5);
         });
 
@@ -481,9 +481,9 @@ describe('createAdapterSvgAnimationPlayer', () => {
             const { api } = setup({ iterations: 'infinite' });
 
             api.setTotalTime(DUR * 2 + DUR / 2);     // two passes done, halfway through the third
-            expect(api.playback.getCurrentIteration()).toBe(2);
-            expect(api.playback.getCurrentProgress()).toBeCloseTo(2.5, 5);
-            expect(api.playback.getTotalDuration()).toBeNull();
+            expect(api.timeline.getCurrentIteration()).toBe(2);
+            expect(api.timeline.getCurrentProgress()).toBeCloseTo(2.5, 5);
+            expect(api.timeline.getTotalDuration()).toBeNull();
 
             api.setTotalTime(DUR * 10);              // unbounded: there is no end to clamp to
             expect(api.getTotalTime()).toBe(DUR * 10);

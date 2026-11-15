@@ -57,14 +57,13 @@ function getTestJson(): PxDocument {
                     ]
                 }
             } } },
-            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
+            bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-                actionTriggers: { "playback.start": "load" },
-            },
+            }, actionTriggers: { "timeline.start": "load" },
         },
 
         children: [

@@ -7,13 +7,13 @@
 // timers, like index.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../index';
-import type { PxDocument } from '@pixodesk/svg-animator-core';
+import type { PxActionTriggers, PxDocument } from '@pixodesk/svg-animator-core';
 
 /** Opacity 0 → 1 over content 500…1500 ms; keyframes also exist OUTSIDE the window below. */
-function windowDoc(extra: Record<string, unknown> = {}): PxDocument {
+function windowDoc(extra: Record<string, unknown> = {}, actionTriggers?: PxActionTriggers): PxDocument {
     return {
         type: 'svg', viewBox: '0 0 10 10',
-        animator: { timeline: { engine: 'js', inTime: 500, outTime: 1500, ...extra } },
+        animator: { timeline: { engine: 'js', inTime: 500, outTime: 1500, ...extra }, ...(actionTriggers ? { actionTriggers } : {}) },
         children: [{
             type: 'rect', id: 'r', width: 10, height: 10,
             animate: { opacity: { keyframes: [
@@ -37,25 +37,25 @@ describe('the content window (§4)', () => {
     it('inTime/outTime: the window is the playing slice — the first frame is the content AT inTime', () => {
         const api = createSvgAnimationPlayer({ document: windowDoc(), container: '#box' });
         expect(opacity()).toBe(0);                      // content 500, not content 0
-        api.playback.pause();
-        api.playback.setCurrentTime(500);                        // window midpoint = content 1000
+        api.timeline.pause();
+        api.timeline.setCurrentTime(500);                        // window midpoint = content 1000
         vi.advanceTimersByTime(32);
         expect(opacity()).toBeCloseTo(0.5, 2);
-        api.playback.setCurrentTime(1000);                       // window end = content 1500
+        api.timeline.setCurrentTime(1000);                       // window end = content 1500
         vi.advanceTimersByTime(32);
         expect(opacity()).toBe(1);
     });
 
     it('playbackSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
         // window 1000 ms at speed 0.5: after 500 real ms, content time 250
-        const api = createSvgAnimationPlayer({ document: windowDoc({ playbackSpeed: 0.5, actionTriggers: { 'playback.start': 'load' } }), container: '#box' });
+        const api = createSvgAnimationPlayer({ document: windowDoc({ playbackSpeed: 0.5 }, { 'timeline.start': 'load' }), container: '#box' });
         vi.advanceTimersByTime(500);
-        expect(api.playback.getSpeed()).toBe(0.5);
-        expect(api.playback.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real
-        expect(api.playback.getDurationAtSpeed()).toBeCloseTo(2000, 5);  // one pass in real ms at this speed
-        api.playback.setSpeed(2);                                  // replaces the file's 0.5
+        expect(api.timeline.getSpeed()).toBe(0.5);
+        expect(api.timeline.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real
+        expect(api.timeline.getDurationAtSpeed()).toBeCloseTo(2000, 5);  // one pass in real ms at this speed
+        api.timeline.setSpeed(2);                                  // replaces the file's 0.5
         vi.advanceTimersByTime(500);                          // 500 real ms at speed 2 = 1000 content ms → clamped at the end
-        expect(api.playback.getSpeed()).toBe(2);
-        expect(api.playback.getCurrentTime()).toBeCloseTo(1000, -1);
+        expect(api.timeline.getSpeed()).toBe(2);
+        expect(api.timeline.getCurrentTime()).toBeCloseTo(1000, -1);
     });
 });

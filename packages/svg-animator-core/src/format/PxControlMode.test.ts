@@ -98,7 +98,7 @@ describe('PxControlProps — one driver family at a time, checked by TypeScript 
     it('each family alone compiles; two at once do not; the JavaScript reader still warns on any mix', () => {
         const ok: Array<PxControlProps> = [
             {}, { playback: 'on' }, { playback: 'paused' }, { playback: 'off' }, { showAtProgress: 0.5 }, { showAtTime: 100 },
-            { playerActionTriggers: true }, { playerActionTriggers: { 'playback.start': 'hoverIn', 'playback.resume': 'hoverIn' } },
+            { playerActionTriggers: true }, { playerActionTriggers: { 'timeline.start': 'hoverIn', 'timeline.resume': 'hoverIn' } },
         ];
         // @ts-expect-error — the lever and the triggers are two drivers
         const two: PxControlProps = { playback: 'on', playerActionTriggers: true };
@@ -135,12 +135,12 @@ describe('resolveControlMode — the file drives by default; showAsStatic, disab
     });
 
     it('an actionTriggers block — the empty one included — is the triggers tier', () => {
-        expect(resolveControlMode({ actionTriggers: { 'playback.start': 'click' } })).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
+        expect(resolveControlMode({ actionTriggers: { 'timeline.start': 'click' } })).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
         expect(resolveControlMode({ actionTriggers: {} }).mode).toBe(PxControlMode.actionTriggers);
     });
 
     it('disableActionTriggers beats a block; the lever beats both', () => {
-        expect(resolveControlMode({ disableActionTriggers: true, actionTriggers: { 'playback.start': 'click' } })).toEqual({
+        expect(resolveControlMode({ disableActionTriggers: true, actionTriggers: { 'timeline.start': 'click' } })).toEqual({
             mode: PxControlMode.manual,
             warnings: ['disableActionTriggers and actionTriggers were both set — disableActionTriggers wins, actionTriggers is ignored.'],
         });
@@ -163,12 +163,12 @@ describe('resolveControlMode — the file drives by default; showAsStatic, disab
 
     it('the types: each new family alone compiles; mixed with another does not', () => {
         const ok: Array<PxControlProps> = [
-            {}, { showAsStatic: true }, { disableActionTriggers: true }, { actionTriggers: null }, { actionTriggers: { 'playback.start': 'click' } },
+            {}, { showAsStatic: true }, { disableActionTriggers: true }, { actionTriggers: null }, { actionTriggers: { 'timeline.start': 'click' } },
         ];
         // @ts-expect-error — the still and the lever are two drivers
         const still: PxControlProps = { showAsStatic: true, playback: 'on' };
         // @ts-expect-error — manual and a triggers block are two drivers
-        const manual: PxControlProps = { disableActionTriggers: true, actionTriggers: { 'playback.start': 'click' } };
+        const manual: PxControlProps = { disableActionTriggers: true, actionTriggers: { 'timeline.start': 'click' } };
         expect([ok, still, manual]).toHaveLength(3);
     });
 });

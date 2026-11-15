@@ -38,8 +38,8 @@ function createMockApi(overrides: Partial<PxEngineAnimationPlayerApi> = {}) {
 const setup = (api: PxEngineAnimationPlayerApi, config: PxAnimatorRuntimeConfig = {}, diag?: PxDiagnostics) =>
     setupAnimationTriggers(api, { duration: 1000, ...config }, diag);
 
-const CLICK_TOGGLE: PxAnimatorRuntimeConfig = { actionTriggers: { 'playback.start': 'click', 'playback.pause': 'click' } };
-const HOVER_PAUSES: PxAnimatorRuntimeConfig = { actionTriggers: { 'playback.start': 'hoverIn', 'playback.pause': 'hoverOut' } };
+const CLICK_TOGGLE: PxAnimatorRuntimeConfig = { actionTriggers: { 'timeline.start': 'click', 'timeline.pause': 'click' } };
+const HOVER_PAUSES: PxAnimatorRuntimeConfig = { actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.pause': 'hoverOut' } };
 
 // the entry fields the gate reads; the heights only matter for a target taller than the viewport
 type IOEntry = { isIntersecting: boolean; intersectionRatio: number; boundingClientRect?: { height: number }; intersectionRect?: { height: number }; rootBounds?: { height: number } };
@@ -83,7 +83,7 @@ describe('setupAnimationTriggers', () => {
         expect(document.readyState).toBe('complete'); // jsdom precondition
         const { api } = createMockApi();
 
-        setup(api, { actionTriggers: { 'playback.start': 'load' } });
+        setup(api, { actionTriggers: { 'timeline.start': 'load' } });
 
         expect(api.play).toHaveBeenCalledTimes(1);
     });
@@ -94,7 +94,7 @@ describe('setupAnimationTriggers', () => {
         expect(api.play).not.toHaveBeenCalled();
 
         const explicit = createMockApi();
-        setup(explicit.api, { actionTriggers: { 'playback.start': 'load' } });
+        setup(explicit.api, { actionTriggers: { 'timeline.start': 'load' } });
         expect(explicit.api.play).toHaveBeenCalledTimes(1);
     });
 
@@ -111,7 +111,7 @@ describe('setupAnimationTriggers', () => {
 
     it("start 'hoverIn': mouseenter plays", () => {
         const { api, root } = createMockApi();
-        setup(api, { actionTriggers: { 'playback.start': 'hoverIn' } });
+        setup(api, { actionTriggers: { 'timeline.start': 'hoverIn' } });
 
         expect(api.play).not.toHaveBeenCalled();
         root.dispatchEvent(new Event('mouseenter'));
@@ -120,9 +120,9 @@ describe('setupAnimationTriggers', () => {
 
     it.each([
         { name: 'pause hoverOut (pause)', config: HOVER_PAUSES, expected: { pause: 1, jumpToStart: 0, setPlaybackSpeed: 0, play: 1 } },
-        { name: 'stop hoverOut (jumpToStart)', config: { actionTriggers: { 'playback.start': 'hoverIn', 'playback.stop': 'hoverOut' } }, expected: { pause: 0, jumpToStart: 1, setPlaybackSpeed: 0, play: 1 } },
-        { name: 'stop hoverOut + an animateToStart stop', config: { actionTriggers: { 'playback.start': 'hoverIn', 'playback.stop': 'hoverOut' }, actions: { 'playback.stop': { behavior: 'animateToStart' } } }, expected: { pause: 0, jumpToStart: 0, setPlaybackSpeed: 1, play: 2 } },
-        { name: 'hoverOut not listed (continue)', config: { actionTriggers: { 'playback.start': 'hoverIn' } }, expected: { pause: 0, jumpToStart: 0, setPlaybackSpeed: 0, play: 1 } },
+        { name: 'stop hoverOut (jumpToStart)', config: { actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut' } }, expected: { pause: 0, jumpToStart: 1, setPlaybackSpeed: 0, play: 1 } },
+        { name: 'stop hoverOut + an animateToStart stop', config: { actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut' }, actions: { 'timeline.stop': { behavior: 'animateToStart' } } }, expected: { pause: 0, jumpToStart: 0, setPlaybackSpeed: 1, play: 2 } },
+        { name: 'hoverOut not listed (continue)', config: { actionTriggers: { 'timeline.start': 'hoverIn' } }, expected: { pause: 0, jumpToStart: 0, setPlaybackSpeed: 0, play: 1 } },
     ] satisfies Array<{ name: string; config: PxAnimatorRuntimeConfig; expected: Record<string, number> }>)("hoverIn plays; mouseleave with $name", ({ config, expected }) => {
         const { api, root } = createMockApi();
         setup(api, config);
@@ -134,7 +134,7 @@ describe('setupAnimationTriggers', () => {
         expect(api.jumpToStart).toHaveBeenCalledTimes(expected.jumpToStart);
         expect(api.setPlaybackSpeed).toHaveBeenCalledTimes(expected.setPlaybackSpeed);
         expect(api.play).toHaveBeenCalledTimes(expected.play);
-        if (actionSettingsOf(config.actions?.['playback.stop'])?.behavior === 'animateToStart') {
+        if (actionSettingsOf(config.actions?.['timeline.stop'])?.behavior === 'animateToStart') {
             expect(api.setPlaybackSpeed).toHaveBeenCalledWith(-1);
         }
     });
@@ -187,7 +187,7 @@ describe('setupAnimationTriggers', () => {
     it('a list holds one event or several: a click and a hover both play; hover out pauses, either resumes', () => {
         const { api, root } = createMockApi();
         // the play list — start or carry on (1.26): a start list would restart on the hover while playing
-        setup(api, { actionTriggers: { 'playback.play': ['click', 'hoverIn'], 'playback.pause': 'hoverOut' } });
+        setup(api, { actionTriggers: { 'timeline.play': ['click', 'hoverIn'], 'timeline.pause': 'hoverOut' } });
 
         root.dispatchEvent(new Event('click'));
         expect(api.play).toHaveBeenCalledTimes(1);
@@ -201,7 +201,7 @@ describe('setupAnimationTriggers', () => {
 
     it('the state rule: stop acts while PAUSED too; a hover out while STOPPED does nothing', () => {
         const { api, root } = createMockApi();
-        setup(api, { actionTriggers: { 'playback.start': 'click', 'playback.pause': 'click', 'playback.stop': 'hoverOut' } });
+        setup(api, { actionTriggers: { 'timeline.start': 'click', 'timeline.pause': 'click', 'timeline.stop': 'hoverOut' } });
 
         root.dispatchEvent(new Event('mouseenter'));
         root.dispatchEvent(new Event('mouseleave'));        // stopped: not in start → nothing
@@ -217,7 +217,7 @@ describe('setupAnimationTriggers', () => {
         const warn = vi.fn();
         const diag: PxDiagnostics = { warn, error: vi.fn() };
         const { api, root } = createMockApi();
-        setup(api, { actionTriggers: { 'playback.start': 'hoverIn', 'playback.stop': 'hoverOut', 'playback.pause': 'hoverOut' } }, diag);
+        setup(api, { actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut', 'timeline.pause': 'hoverOut' } }, diag);
 
         expect(warn).toHaveBeenCalledTimes(1);
         expect(warn.mock.calls[0]).toContain(PxDiagnosticCode.triggerEventConflict);
@@ -233,7 +233,7 @@ describe('setupAnimationTriggers', () => {
         const { api, root } = createMockApi();
         // a raw config (no document repair in between): `start` cannot use `hoverOut`; the named `resume` (hoverIn) is
         // honoured, and differs from the derivation (click) twice over — an extra event and a missing one
-        setup(api, { actionTriggers: { 'playback.start': 'hoverOut', 'playback.pause': 'click', 'playback.resume': 'hoverIn' } }, diag);
+        setup(api, { actionTriggers: { 'timeline.start': 'hoverOut', 'timeline.pause': 'click', 'timeline.resume': 'hoverIn' } }, diag);
 
         expect(warn.mock.calls.map(c => c[1])).toEqual([PxDiagnosticCode.triggerEventNotAllowed, PxDiagnosticCode.triggerResumeDiffers, PxDiagnosticCode.triggerResumeDiffers]);
         root.dispatchEvent(new Event('mouseenter'));
@@ -249,7 +249,7 @@ describe('setupAnimationTriggers', () => {
             play: vi.fn(() => { playing = true; order.push('play'); }),
             jumpToStart: vi.fn(() => { playing = false; order.push('jumpToStart'); }),
         });
-        setup(api, { actionTriggers: { 'playback.start': 'click' } });
+        setup(api, { actionTriggers: { 'timeline.start': 'click' } });
 
         root.dispatchEvent(new Event('click'));             // from rest: no jump needed
         root.dispatchEvent(new Event('click'));             // while playing: from the start again
@@ -272,7 +272,7 @@ describe('setupAnimationTriggers', () => {
         it('observes the root; the DEFAULT threshold is 0.5 — a barely-visible element waits', () => {
             const io = stubIntersectionObserver();
             const { api, root } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             expect(io.observed).toBe(root);
@@ -295,7 +295,7 @@ describe('setupAnimationTriggers', () => {
         it('leaving the viewport runs the outOfView action', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: { behavior: 'pause' } }, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, actions: { outOfView: { behavior: 'pause' } }, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -308,7 +308,7 @@ describe('setupAnimationTriggers', () => {
         it('honors inViewThreshold: intersecting below the threshold does not play', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewThreshold: 0.8, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewThreshold: 0.8, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // See the note above: the registration is a granular list; the 0.8 gate is applied to
@@ -325,7 +325,7 @@ describe('setupAnimationTriggers', () => {
         it('inViewThreshold 0 means ANY visible pixel — zero visibility still keeps it shut', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewThreshold: 0, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewThreshold: 0, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // Not intersecting at all: a threshold of 0 is "any pixel", not "no pixels".
@@ -340,7 +340,7 @@ describe('setupAnimationTriggers', () => {
         it('HYSTERESIS: once open it stays open until zero, so a graphic on the boundary cannot flap', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewThreshold: 0.5, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewThreshold: 0.5, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 0.6 }]);   // opens
@@ -357,7 +357,7 @@ describe('setupAnimationTriggers', () => {
         it("outOfView 'stop' stops at once and replays from the start on the next entry (`jumpToStart` until 1.25)", () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: { behavior: 'stop' } }, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, actions: { outOfView: { behavior: 'stop' } }, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -373,7 +373,7 @@ describe('setupAnimationTriggers', () => {
         it("outOfView 'continue' observes nothing at all and starts unseen", () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: { behavior: 'continue' } } });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, actions: { outOfView: { behavior: 'continue' } } });
 
             // "Run wherever it is" also means "do not wait to be seen before starting".
             expect(io.observed).toBeNull();
@@ -383,7 +383,7 @@ describe('setupAnimationTriggers', () => {
         it('a target TALLER than the viewport is normalized, so a 0.5 threshold is reachable', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewThreshold: 0.5, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewThreshold: 0.5, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // 2000px graphic, 800px viewport: the raw ratio can never exceed 0.4, so an
@@ -403,7 +403,7 @@ describe('setupAnimationTriggers', () => {
         it('a hidden TAB counts as off screen', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -423,7 +423,7 @@ describe('setupAnimationTriggers', () => {
             vi.stubGlobal('IntersectionObserver', undefined);
             const { api } = createMockApi();
 
-            setup(api, { actionTriggers: { 'playback.start': 'load' } });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' } });
 
             // Never "silently never plays": a page that cannot measure animates.
             expect(api.play).toHaveBeenCalledTimes(1);
@@ -453,7 +453,7 @@ describe('setupAnimationTriggers', () => {
         it('a graphic scrolled straight past never plays a frame', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' } });   // default 150ms
+            setup(api, { actionTriggers: { 'timeline.start': 'load' } });   // default 150ms
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -468,7 +468,7 @@ describe('setupAnimationTriggers', () => {
         it('one that stays plays when the dwell has elapsed, and not before', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' } });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' } });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -482,7 +482,7 @@ describe('setupAnimationTriggers', () => {
         it('falling back BELOW the threshold abandons a pending start', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewThreshold: 0.5 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewThreshold: 0.5 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 0.9 }]);
@@ -495,7 +495,7 @@ describe('setupAnimationTriggers', () => {
         it('0 plays the moment the threshold is met', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setup(api, { actionTriggers: { 'playback.start': 'load' }, inViewDebounce: 0 });
+            setup(api, { actionTriggers: { 'timeline.start': 'load' }, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -544,7 +544,7 @@ describe('setupAnimationTriggers', () => {
             jumpToStart: vi.fn(() => { playing = false; order.push('jumpToStart'); }),
             setPlaybackSpeed: vi.fn((rate: number) => order.push('rate:' + rate)),
         });
-        setup(api, { actionTriggers: { 'playback.play': 'hoverIn', 'playback.stop': 'hoverOut' }, actions: { 'playback.stop': { behavior: 'animateToStart' } } });
+        setup(api, { actionTriggers: { 'timeline.play': 'hoverIn', 'timeline.stop': 'hoverOut' }, actions: { 'timeline.stop': { behavior: 'animateToStart' } } });
 
         root.dispatchEvent(new Event('mouseenter'));   // start (forward, no rate call)
         root.dispatchEvent(new Event('mouseleave'));   // rewind: rate -1, play
@@ -568,7 +568,7 @@ describe('setupAnimationTriggers', () => {
     it("outOfView 'pause' then returning resumes from where it paused", () => {
         const io = stubIntersectionObserver();
         const { api } = createMockApi();
-        setup(api, { actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: { behavior: 'pause' } }, inViewDebounce: 0 });
+        setup(api, { actionTriggers: { 'timeline.start': 'load' }, actions: { outOfView: { behavior: 'pause' } }, inViewDebounce: 0 });
         assert(io.callback, 'the gate created no IntersectionObserver');
 
         io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -583,7 +583,7 @@ describe('setupAnimationTriggers', () => {
     it("start 'load' before the document finishes loading: plays on the window 'load' event", () => {
         const readyStateSpy = vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
         const { api } = createMockApi();
-        setup(api, { actionTriggers: { 'playback.start': 'load' } });
+        setup(api, { actionTriggers: { 'timeline.start': 'load' } });
 
         expect(api.play).not.toHaveBeenCalled();
         window.dispatchEvent(new Event('load'));
@@ -597,7 +597,7 @@ describe('setupAnimationTriggers', () => {
 
         // Used to return the api "for chaining" (review §14). A disposer is what a caller can
         // actually use — and with nothing attached, it must simply be safe to call.
-        const dispose = setup(api, { actionTriggers: { 'playback.start': 'load' } });
+        const dispose = setup(api, { actionTriggers: { 'timeline.start': 'load' } });
 
         expect(typeof dispose).toBe('function');
         expect(() => dispose()).not.toThrow();
@@ -608,7 +608,7 @@ describe('setupAnimationTriggers', () => {
 
     it('the disposer detaches every listener it attached (review §14)', () => {
         const { api, root } = createMockApi();
-        const dispose = setup(api, { actionTriggers: { 'playback.start': 'hoverIn' } });
+        const dispose = setup(api, { actionTriggers: { 'timeline.start': 'hoverIn' } });
 
         root.dispatchEvent(new Event('mouseenter'));
         expect(api.play).toHaveBeenCalledTimes(1);
@@ -621,9 +621,91 @@ describe('setupAnimationTriggers', () => {
     it('the disposer also disconnects the visibility observer', () => {
         const io = stubIntersectionObserver();
         const { api } = createMockApi();
-        const dispose = setup(api, { actionTriggers: { 'playback.start': 'load' } });
+        const dispose = setup(api, { actionTriggers: { 'timeline.start': 'load' } });
 
         dispose();
         expect(io.disconnected).toBe(1);
+    });
+
+    // ── an event object (2026-11-15): one element of the picture, an element of the page, pressed events, `with` ──
+    describe('event objects — element, selector, pointerDown / Up, with', () => {
+        /** The mock root with two parts: `#lens` (holding `#glass`) and `#frame`. */
+        function withParts() {
+            const made = createMockApi();
+            made.root.innerHTML = '<g id="lens"><circle id="glass"></circle></g><rect id="frame"></rect>';
+            const part = (id: string): Element => {
+                const el = made.root.querySelector('#' + id);
+                assert(el, id);
+                return el;
+            };
+            return { ...made, part };
+        }
+        const pointer = (type: string, init: MouseEventInit = {}): MouseEvent => new MouseEvent(type, { bubbles: true, ...init });
+
+        it('hoverIn / hoverOut on one element: heard on it alone, and moving inside it is no hover', () => {
+            const { api, root, part } = withParts();
+            setup(api, { actionTriggers: {
+                'timeline.start': { event: 'hoverIn', element: '#lens' },
+                'timeline.pause': { event: 'hoverOut', element: '#lens' },
+            } });
+            part('frame').dispatchEvent(pointer('pointerover', { relatedTarget: root }));
+            expect(api.play).not.toHaveBeenCalled();                 // another part
+            part('lens').dispatchEvent(pointer('pointerover', { relatedTarget: root }));
+            expect(api.play).toHaveBeenCalledTimes(1);
+            part('glass').dispatchEvent(pointer('pointerover', { relatedTarget: part('lens') }));
+            part('lens').dispatchEvent(pointer('pointerout', { relatedTarget: part('glass') }));
+            expect(api.play).toHaveBeenCalledTimes(1);               // inside it: nothing
+            expect(api.pause).not.toHaveBeenCalled();
+            part('glass').dispatchEvent(pointer('pointerout', { relatedTarget: root }));
+            expect(api.pause).toHaveBeenCalledTimes(1);              // out of it
+        });
+
+        it('pointerDown narrowed by `with: { button }` — the other buttons do nothing', () => {
+            const { api, root } = withParts();
+            setup(api, { actionTriggers: { 'timeline.start': { event: 'pointerDown', with: { button: 2 } } } });
+            root.dispatchEvent(pointer('pointerdown', { button: 0 }));
+            expect(api.play).not.toHaveBeenCalled();
+            root.dispatchEvent(pointer('pointerdown', { button: 2 }));
+            expect(api.play).toHaveBeenCalledTimes(1);
+        });
+
+        it('pointerDown starts, pointerUp pauses — press and hold', () => {
+            const { api, root } = withParts();
+            setup(api, { actionTriggers: { 'timeline.play': 'pointerDown', 'timeline.pause': 'pointerUp' } });
+            root.dispatchEvent(pointer('pointerdown'));
+            expect(api.play).toHaveBeenCalledTimes(1);
+            root.dispatchEvent(pointer('pointerup'));
+            expect(api.pause).toHaveBeenCalledTimes(1);
+        });
+
+        it('a page element by `selector` — heard outside the picture, not on it', () => {
+            const { api, root } = withParts();
+            document.body.insertAdjacentHTML('beforeend', '<button class="play"><span>Play</span></button>');
+            setup(api, { actionTriggers: { 'timeline.start': { event: 'click', selector: 'button.play' } } });
+            root.dispatchEvent(pointer('click'));
+            expect(api.play).not.toHaveBeenCalled();
+            document.querySelector('button.play span')?.dispatchEvent(pointer('click'));
+            expect(api.play).toHaveBeenCalledTimes(1);
+        });
+
+        it('an `element` the picture does not have is reported (1113)', () => {
+            const { api } = withParts();
+            const warn = vi.fn();
+            setup(api, { actionTriggers: { 'timeline.start': { event: 'click', element: '#lense' } } }, { warn, error: vi.fn() });
+            expect(warn).toHaveBeenCalledWith(expect.anything(), PxDiagnosticCode.triggerElementNotFound, '#lense');
+        });
+
+        it('the disposer detaches the delegated and page listeners too', () => {
+            const { api, part } = withParts();
+            document.body.insertAdjacentHTML('beforeend', '<button class="play"></button>');
+            const dispose = setup(api, { actionTriggers: {
+                'timeline.start': { event: 'click', element: '#lens' },
+                'timeline.play': { event: 'click', selector: 'button.play' },
+            } });
+            dispose();
+            part('glass').dispatchEvent(pointer('click'));
+            document.querySelector('button.play')?.dispatchEvent(pointer('click'));
+            expect(api.play).not.toHaveBeenCalled();
+        });
     });
 });

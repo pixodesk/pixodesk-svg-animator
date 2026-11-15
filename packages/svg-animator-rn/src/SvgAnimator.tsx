@@ -576,7 +576,7 @@ export function SvgAnimationPlayer({
         };
         // ONE forwarder for every wrapper (core `forwardPlaybackControls`); a write warns first when a driver prop owns playback
         return {
-            playback: forwardPlaybackControls(() => player.playback, (call, run) => write(call, () => run(player.playback))),
+            timeline: forwardPlaybackControls(() => player.timeline, (call, run) => write(call, () => run(player.timeline))),
             variables: runtime.api,
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `api` / `makeDiag` read callbacks and diagnostics through `latest`; the rest changes only with `compiled`
@@ -592,8 +592,8 @@ export function SvgAnimationPlayer({
     const gate = resolveGate(view);
     const whenFinished = resolveActions(view?.actions, view?.whenFinished).whenFinished;
     /** What a `load` presses — a start, a play, or nothing. */
-    const loadPress = trigger.startPlayback.includes(PxTriggerEvent.load) ? () => player.playback.start()
-        : trigger.playPlayback.includes(PxTriggerEvent.load) ? () => player.playback.play() : undefined;
+    const loadPress = trigger.startPlayback.includes(PxTriggerEvent.load) ? () => player.timeline.start()
+        : trigger.playPlayback.includes(PxTriggerEvent.load) ? () => player.timeline.play() : undefined;
     /** Whether visibility governs this document. `continue` means "run wherever it is". */
     const gated = gate.outOfView !== PxOutOfViewBehavior.continue;
 
@@ -607,8 +607,8 @@ export function SvgAnimationPlayer({
         if (compMode === PxControlMode.fixedTime) {
             // the frame to show — `showAtTime` ms inside the iteration, `showAtProgress` counted in iterations (1.26); the
             // seek rule holds it, paused there
-            if (showAtTime !== undefined) player.playback.setCurrentTime(showAtTime);
-            else player.playback.setCurrentProgress(showAtProgress ?? 0);
+            if (showAtTime !== undefined) player.timeline.setCurrentTime(showAtTime);
+            else player.timeline.setCurrentProgress(showAtProgress ?? 0);
             return;
         }
         if (compMode === PxControlMode.playback) {
@@ -622,11 +622,11 @@ export function SvgAnimationPlayer({
             const position: PxDeclarativeProps = { playback };
             const { actions } = resolveDeclarativePlayback({ world, prev, next: position });
             prevPlaybackRef.current = { instance, props: position };
-            for (const action of actions) applyDeclarativeAction(player.playback, action);
+            for (const action of actions) applyDeclarativeAction(player.timeline, action);
             return;
         }
         // a listed `click` starts from its own handler below, and a GATED document starts from the
-        // visibility poll — calling playback.start() here as well would defeat the gate.
+        // visibility poll — calling timeline.start() here as well would defeat the gate.
         if (triggersDrive && loadPress && !gated) loadPress();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [instance, compMode, playback, showAtProgress, showAtTime]);
@@ -777,11 +777,11 @@ export function SvgAnimationPlayer({
             <Pressable
                 onPress={() => {
                     switch (triggerActionFor(trigger, player.playExecutor.state(), PxTriggerEvent.click, whenFinished)) {
-                        case PxTriggerAction.startPlayback: player.playback.start(); break;
-                        case PxTriggerAction.playPlayback: player.playback.play(); break;
-                        case PxTriggerAction.resumePlayback: player.playback.resume(); break;
-                        case PxTriggerAction.pausePlayback: player.playback.pause(); break;
-                        case PxTriggerAction.stopPlayback: player.playback.stop(); break;
+                        case PxTriggerAction.startPlayback: player.timeline.start(); break;
+                        case PxTriggerAction.playPlayback: player.timeline.play(); break;
+                        case PxTriggerAction.resumePlayback: player.timeline.resume(); break;
+                        case PxTriggerAction.pausePlayback: player.timeline.pause(); break;
+                        case PxTriggerAction.stopPlayback: player.timeline.stop(); break;
                     }
                 }}
             >

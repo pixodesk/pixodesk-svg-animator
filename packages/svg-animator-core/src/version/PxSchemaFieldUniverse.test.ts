@@ -52,7 +52,7 @@ describe('player wire-key inventory', () => {
         expect(snapshot.length).toBeLessThan(600);
         expect([...snapshot].sort()).toEqual(snapshot);
         expect(snapshot).toContain('effects.textPath.pathData');
-        expect(snapshot).toContain('effects.maskedBy.source');
+        expect(snapshot).toContain('effects.maskedBy.sourceElement');
     });
 
     it('MUTATION SELF-TEST: the historical renames are named, not merely counted', () => {

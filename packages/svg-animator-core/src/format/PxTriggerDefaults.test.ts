@@ -17,19 +17,19 @@ describe('trigger defaults', () => {
     it('a missing triggers block and an EMPTY one are the same thing — nothing starts it, the manual document (1.17)', () => {
         expect(resolveTriggers(undefined)).toEqual({ startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] });
         expect(resolveTriggers({})).toEqual({ startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] });
-        expect(resolveTriggers({ 'playback.start': 'load' })).toEqual({ startPlayback: ['load'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['load'] });
+        expect(resolveTriggers({ 'timeline.start': 'load' })).toEqual({ startPlayback: ['load'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['load'] });
     });
 
     it('resume is derived when the file does not name it: the counterpart of each pause event plus the start events that do not stop; a named list is used as written', () => {
-        expect(resolveTriggers({ 'playback.start': 'hoverIn', 'playback.pause': 'hoverOut' }))
+        expect(resolveTriggers({ 'timeline.start': 'hoverIn', 'timeline.pause': 'hoverOut' }))
             .toEqual({ startPlayback: ['hoverIn'], playPlayback: [], stopPlayback: [], pausePlayback: ['hoverOut'], resumePlayback: ['hoverIn'] });
         // the file names the list: used as written — an empty list resumes on nothing (that pause waits for start or stop)
-        expect(resolveTriggers({ 'playback.start': 'click', 'playback.pause': 'click', 'playback.resume': [] }))
+        expect(resolveTriggers({ 'timeline.start': 'click', 'timeline.pause': 'click', 'timeline.resume': [] }))
             .toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: ['click'], resumePlayback: [] });
         // a marquee: plays on load, pauses while the pointer is over it — derived, it resumes when the pointer leaves
-        expect(resolveTriggers({ 'playback.start': 'load', 'playback.pause': 'hoverIn' }).resumePlayback).toEqual(['hoverOut', 'load']);
+        expect(resolveTriggers({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn' }).resumePlayback).toEqual(['hoverOut', 'load']);
         // named, a click resumes it instead (and `triggerIssues` notes the difference)
-        expect(resolveTriggers({ 'playback.start': 'load', 'playback.pause': 'hoverIn', 'playback.resume': 'click' }).resumePlayback).toEqual(['click']);
+        expect(resolveTriggers({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn', 'timeline.resume': 'click' }).resumePlayback).toEqual(['click']);
         expect(counterpartTriggerEvent('hoverIn')).toBe('hoverOut');
         expect(counterpartTriggerEvent('load')).toBeUndefined();
         expect(derivedResume(['click'], ['click'], [])).toEqual([]);   // a start that also stops does not resume
@@ -39,19 +39,19 @@ describe('trigger defaults', () => {
         expect(triggerEventList(undefined)).toEqual([]);
         expect(triggerEventList('click')).toEqual(['click']);
         expect(triggerEventList(['hoverIn', 'click'])).toEqual(['hoverIn', 'click']);
-        const stated: PxActionTriggers = { 'playback.start': ['load', 'click'], 'playback.stop': ['hoverOut'], 'playback.pause': ['click'] };
+        const stated: PxActionTriggers = { 'timeline.start': ['load', 'click'], 'timeline.stop': ['hoverOut'], 'timeline.pause': ['click'] };
         // the wire's dotted names in, the resolved view's plain fields out
         expect(resolveTriggers(stated)).toEqual({ startPlayback: ['load', 'click'], playPlayback: [], stopPlayback: ['hoverOut'], pausePlayback: ['click'], resumePlayback: ['click', 'load'] });
     });
 
     it('click under both start and stop is the start/stop toggle (what `togglePlay` spelled until 1.11) — it resumes nothing', () => {
-        expect(resolveTriggers({ 'playback.start': 'click', 'playback.stop': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: ['click'], pausePlayback: [], resumePlayback: [] });
+        expect(resolveTriggers({ 'timeline.start': 'click', 'timeline.stop': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: ['click'], pausePlayback: [], resumePlayback: [] });
         // the play/pause toggle is the other pair — start and pause on the same event
-        expect(resolveTriggers({ 'playback.start': 'click', 'playback.pause': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: ['click'], resumePlayback: ['click'] });
+        expect(resolveTriggers({ 'timeline.start': 'click', 'timeline.pause': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: ['click'], resumePlayback: ['click'] });
     });
 
     it('a click under both start and stop STOPS while paused — a start event that also stops does not resume', () => {
-        const t = resolveTriggers({ 'playback.start': ['load', 'click'], 'playback.stop': 'click', 'playback.pause': 'hoverOut' });
+        const t = resolveTriggers({ 'timeline.start': ['load', 'click'], 'timeline.stop': 'click', 'timeline.pause': 'hoverOut' });
         expect(t.resumePlayback).toEqual(['hoverIn', 'load']);
         expect(triggerActionFor(t, PxPlaybackState.off, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.startPlayback);
         expect(triggerActionFor(t, PxPlaybackState.playing, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.stopPlayback);
@@ -63,36 +63,36 @@ describe('trigger defaults', () => {
     });
 
     it('finished is its own state: stop acts on it (the lid plays back on hover out), start alone replays', () => {
-        const lid = resolveTriggers({ 'playback.start': 'hoverIn', 'playback.stop': 'hoverOut' });
+        const lid = resolveTriggers({ 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut' });
         expect(triggerActionFor(lid, PxPlaybackState.returning, 'hoverIn', PxWhenFinished.hold)).toBe(PxTriggerAction.startPlayback);   // from the start (1.26)
         expect(triggerActionFor(lid, PxPlaybackState.returning, 'hoverOut', PxWhenFinished.hold)).toBeUndefined();                  // nothing to stop
         expect(triggerActionFor(lid, PxPlaybackState.finished, 'hoverOut', PxWhenFinished.hold)).toBe(PxTriggerAction.stopPlayback);
         expect(triggerActionFor(lid, PxPlaybackState.finished, 'hoverIn', PxWhenFinished.hold)).toBe(PxTriggerAction.startPlayback);
-        const replay = resolveTriggers({ 'playback.start': 'click' });
+        const replay = resolveTriggers({ 'timeline.start': 'click' });
         expect(triggerActionFor(replay, PxPlaybackState.finished, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.startPlayback);
         expect(triggerActionFor(replay, PxPlaybackState.finished, 'hoverOut', PxWhenFinished.hold)).toBeUndefined();
     });
 
     it('a pause click pauses while playing and resumes while paused (its counterpart); nothing when stopped', () => {
-        const t = resolveTriggers({ 'playback.start': [], 'playback.pause': 'click' });
+        const t = resolveTriggers({ 'timeline.start': [], 'timeline.pause': 'click' });
         expect(triggerActionFor(t, PxPlaybackState.off, 'click', PxWhenFinished.hold)).toBeUndefined();
         expect(triggerActionFor(t, PxPlaybackState.playing, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.pausePlayback);
         expect(triggerActionFor(t, PxPlaybackState.paused, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.resumePlayback);
     });
 
     it('an event in both stop and pause is a collision the players report; start beside resume is the normal case', () => {
-        expect(triggerIssues({ 'playback.start': 'hoverIn', 'playback.stop': 'hoverOut', 'playback.pause': 'hoverOut' }))
+        expect(triggerIssues({ 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut', 'timeline.pause': 'hoverOut' }))
             .toEqual([{ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stopPlayback, event: 'hoverOut', otherList: PxTriggerList.pausePlayback }]);
-        expect(triggerIssues({ 'playback.start': 'click', 'playback.pause': 'click' })).toEqual([]);
+        expect(triggerIssues({ 'timeline.start': 'click', 'timeline.pause': 'click' })).toEqual([]);
         // the Editor's toggle (a click that starts and stops) is no collision, nor the hover pair
-        expect(triggerIssues({ 'playback.start': 'click', 'playback.stop': 'click' })).toEqual([]);
-        expect(triggerIssues({ 'playback.start': 'hoverIn', 'playback.stop': 'hoverOut' })).toEqual([]);
+        expect(triggerIssues({ 'timeline.start': 'click', 'timeline.stop': 'click' })).toEqual([]);
+        expect(triggerIssues({ 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut' })).toEqual([]);
     });
 
     it('stop on a pause\'s counterpart is a collision too — paused, the resume wins', () => {
-        expect(triggerIssues({ 'playback.start': 'load', 'playback.pause': 'hoverIn', 'playback.stop': 'hoverOut' }))
+        expect(triggerIssues({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn', 'timeline.stop': 'hoverOut' }))
             .toEqual([{ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stopPlayback, event: 'hoverOut', otherList: PxTriggerList.resumePlayback }]);
-        const t = resolveTriggers({ 'playback.start': 'load', 'playback.pause': 'hoverIn', 'playback.stop': 'hoverOut' });
+        const t = resolveTriggers({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn', 'timeline.stop': 'hoverOut' });
         expect(triggerActionFor(t, PxPlaybackState.paused, 'hoverOut', PxWhenFinished.hold)).toBe(PxTriggerAction.resumePlayback);
     });
 
@@ -101,7 +101,7 @@ describe('trigger defaults', () => {
         expect(allowedTriggerEvents(PxTriggerList.stopPlayback)).toEqual(['hoverOut', 'click']);
         expect(allowedTriggerEvents(PxTriggerList.pausePlayback)).toEqual(['hoverIn', 'hoverOut', 'click']);
         expect(allowedTriggerEvents(PxTriggerList.resumePlayback)).toEqual(['hoverIn', 'hoverOut', 'click']);
-        const odd: PxActionTriggers = { 'playback.start': ['hoverOut', 'click'], 'playback.stop': 'load', 'playback.pause': 'load' };
+        const odd: PxActionTriggers = { 'timeline.start': ['hoverOut', 'click'], 'timeline.stop': 'load', 'timeline.pause': 'load' };
         expect(resolveTriggers(odd)).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['click'] });
         expect(triggerIssues(odd)).toEqual([
             { kind: PxTriggerIssueKind.eventNotAllowed, list: PxTriggerList.startPlayback, event: 'hoverOut' },
@@ -111,59 +111,59 @@ describe('trigger defaults', () => {
     });
 
     it('a named resume list is honoured; where it differs from the derivation the players are told — an extra event, a pause left without its resume', () => {
-        expect(triggerIssues({ 'playback.start': 'load', 'playback.pause': 'hoverIn', 'playback.resume': 'click' })).toEqual([
+        expect(triggerIssues({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn', 'timeline.resume': 'click' })).toEqual([
             { kind: PxTriggerIssueKind.resumeExtra, list: PxTriggerList.resumePlayback, event: 'click' },
             { kind: PxTriggerIssueKind.resumeMissing, list: PxTriggerList.resumePlayback, event: 'hoverOut' },
         ]);
         // the derivation's own answer, spelled out, says nothing (`load` is derived but no resume event — not missed)
-        expect(triggerIssues({ 'playback.start': 'load', 'playback.pause': 'hoverIn', 'playback.resume': 'hoverOut' })).toEqual([]);
+        expect(triggerIssues({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn', 'timeline.resume': 'hoverOut' })).toEqual([]);
         expect(triggerIssues(undefined)).toEqual([]);
     });
 
     it('the document repair drops a disallowed event — never the whole list, never a default in its place', () => {
-        expect(PxActionTriggersSchema.castOrFix({ 'playback.start': ['hoverOut', 'click'] }).value).toEqual({ 'playback.start': ['click'] });
+        expect(PxActionTriggersSchema.castOrFix({ 'timeline.start': ['hoverOut', 'click'] }).value).toEqual({ 'timeline.start': ['click'] });
         // a lone disallowed event drops the list — absent inside a present block = not listed
-        expect(PxActionTriggersSchema.castOrFix({ 'playback.start': 'click', 'playback.stop': 'load' }).value).toEqual({ 'playback.start': 'click' });
-        expect(PxActionTriggersSchema.castOrFix({ 'playback.resume': 'load' }).value).toEqual({});
-        const clean = PxActionTriggersSchema.castOrFix({ 'playback.start': ['hoverIn', 'click'], 'playback.pause': 'hoverOut' });
-        expect(clean.value).toEqual({ 'playback.start': ['hoverIn', 'click'], 'playback.pause': 'hoverOut' });
+        expect(PxActionTriggersSchema.castOrFix({ 'timeline.start': 'click', 'timeline.stop': 'load' }).value).toEqual({ 'timeline.start': 'click' });
+        expect(PxActionTriggersSchema.castOrFix({ 'timeline.resume': 'load' }).value).toEqual({});
+        const clean = PxActionTriggersSchema.castOrFix({ 'timeline.start': ['hoverIn', 'click'], 'timeline.pause': 'hoverOut' });
+        expect(clean.value).toEqual({ 'timeline.start': ['hoverIn', 'click'], 'timeline.pause': 'hoverOut' });
         expect(clean.problems).toEqual([]);
-        expect(PxActionTriggersSchema.castOrFix({ 'playback.start': ['hoverOut', 'click'] }).problems.length).toBe(1);
+        expect(PxActionTriggersSchema.castOrFix({ 'timeline.start': ['hoverOut', 'click'] }).problems.length).toBe(1);
     });
 
     it('the schema states the same allowed events — a document naming another fails strict validation', () => {
-        expect(PxActionTriggersSchema.isValid({ 'playback.start': 'click', 'playback.stop': ['hoverOut', 'click'], 'playback.pause': 'hoverIn' })).toBe(true);
-        expect(PxActionTriggersSchema.isValid({ 'playback.start': 'hoverOut' })).toBe(false);
-        expect(PxActionTriggersSchema.isValid({ 'playback.stop': ['click', 'load'] })).toBe(false);
-        expect(PxActionTriggersSchema.isValid({ 'playback.resume': 'load' })).toBe(false);
+        expect(PxActionTriggersSchema.isValid({ 'timeline.start': 'click', 'timeline.stop': ['hoverOut', 'click'], 'timeline.pause': 'hoverIn' })).toBe(true);
+        expect(PxActionTriggersSchema.isValid({ 'timeline.start': 'hoverOut' })).toBe(false);
+        expect(PxActionTriggersSchema.isValid({ 'timeline.stop': ['click', 'load'] })).toBe(false);
+        expect(PxActionTriggersSchema.isValid({ 'timeline.resume': 'load' })).toBe(false);
     });
 
     it('the state rule: the state picks the list an event is read from; pause and resume win over stop', () => {
-        const t = resolveTriggers({ 'playback.start': 'click', 'playback.pause': 'click', 'playback.stop': 'hoverOut' });
+        const t = resolveTriggers({ 'timeline.start': 'click', 'timeline.pause': 'click', 'timeline.stop': 'hoverOut' });
         expect(triggerActionFor(t, PxPlaybackState.off, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.startPlayback);
         expect(triggerActionFor(t, PxPlaybackState.playing, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.pausePlayback);
         expect(triggerActionFor(t, PxPlaybackState.paused, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.resumePlayback);     // resume = start
         expect(triggerActionFor(t, PxPlaybackState.off, 'hoverOut', PxWhenFinished.hold)).toBeUndefined();            // nothing to stop
         expect(triggerActionFor(t, PxPlaybackState.playing, 'hoverOut', PxWhenFinished.hold)).toBe(PxTriggerAction.stopPlayback);
         expect(triggerActionFor(t, PxPlaybackState.paused, 'hoverOut', PxWhenFinished.hold)).toBe(PxTriggerAction.stopPlayback);
-        const conflict = resolveTriggers({ 'playback.start': 'hoverIn', 'playback.stop': 'hoverOut', 'playback.pause': 'hoverOut' });
+        const conflict = resolveTriggers({ 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut', 'timeline.pause': 'hoverOut' });
         expect(triggerActionFor(conflict, PxPlaybackState.playing, 'hoverOut', PxWhenFinished.hold)).toBe(PxTriggerAction.pausePlayback);
         expect(triggerListsEvent(t, 'hoverOut')).toBe(true);
         expect(triggerListsEvent(t, 'load')).toBe(false);
     });
 
     it('1.26: a start event restarts in every state it is read in; a play event starts or carries on', () => {
-        const start = resolveTriggers({ 'playback.start': 'hoverIn' });
+        const start = resolveTriggers({ 'timeline.start': 'hoverIn' });
         expect(triggerActionFor(start, PxPlaybackState.playing, 'hoverIn', PxWhenFinished.hold)).toBe(PxTriggerAction.startPlayback);
         expect(triggerActionFor(start, PxPlaybackState.paused, 'hoverIn', PxWhenFinished.hold)).toBe(PxTriggerAction.resumePlayback);   // derived resume
-        const play = resolveTriggers({ 'playback.play': 'click' });
+        const play = resolveTriggers({ 'timeline.play': 'click' });
         expect(triggerActionFor(play, PxPlaybackState.off, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.playPlayback);
         expect(triggerActionFor(play, PxPlaybackState.playing, 'click', PxWhenFinished.hold)).toBeUndefined();          // nothing to carry on
         expect(triggerActionFor(play, PxPlaybackState.paused, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.playPlayback);
         expect(triggerActionFor(play, PxPlaybackState.returning, 'click', PxWhenFinished.hold)).toBe(PxTriggerAction.playPlayback);
         expect(triggerActionFor(play, PxPlaybackState.finished, 'click', PxWhenFinished.animateToStart)).toBe(PxTriggerAction.playPlayback);
         // start and play on one event: a collision, the start wins from rest
-        expect(triggerIssues({ 'playback.start': 'click', 'playback.play': 'click' }))
+        expect(triggerIssues({ 'timeline.start': 'click', 'timeline.play': 'click' }))
             .toEqual([{ kind: PxTriggerIssueKind.collision, list: PxTriggerList.startPlayback, event: 'click', otherList: PxTriggerList.playPlayback }]);
         expect(allowedTriggerEvents(PxTriggerList.playPlayback)).toEqual(['load', 'hoverIn', 'click']);
     });
@@ -177,8 +177,8 @@ describe('trigger defaults', () => {
         expect(resolveActions(undefined)).toEqual({
             stopPlayback: { behavior: 'jumpToStart' }, outOfView: { behavior: 'pause' }, whenFinished: 'hold',
         });
-        expect(resolveActions({ 'playback.stop': 'animateToEnd' }).stopPlayback).toEqual({ behavior: 'animateToEnd' });
-        expect(resolveActions({ 'playback.stop': { behavior: 'animateToEndAndBack' } }).stopPlayback.behavior).toBe('animateToEndAndBack');
+        expect(resolveActions({ 'timeline.stop': 'animateToEnd' }).stopPlayback).toEqual({ behavior: 'animateToEnd' });
+        expect(resolveActions({ 'timeline.stop': { behavior: 'animateToEndAndBack' } }).stopPlayback.behavior).toBe('animateToEndAndBack');
         expect(resolveActions(undefined, 'animateToStart').whenFinished).toBe('animateToStart');
     });
 

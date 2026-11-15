@@ -48,18 +48,18 @@ describe('scrollMomentU — the seven words', () => {
         expect(cssRangeOfMoment({ moment: PxScrollMoment.startsToLeave }, PxScrollMoment.appears)).toEqual({ name: 'exit', fraction: 0 });
         expect(cssRangeOfMoment(undefined, PxScrollMoment.gone)).toEqual({ name: 'cover', fraction: 1 });
         // an exact place on the screen's bottom or top line is a crossing; any other line has no browser spelling
-        expect(cssRangeOfMoment({ element: 0.3, screen: 'bottom' }, PxScrollMoment.appears)).toEqual({ name: 'entry-crossing', fraction: 0.3 });
-        expect(cssRangeOfMoment({ element: 'bottom', screen: 'top' }, PxScrollMoment.appears)).toEqual({ name: 'exit-crossing', fraction: 1 });
-        expect(cssRangeOfMoment({ element: 'top', screen: 0.8 }, PxScrollMoment.appears)).toBeUndefined();
+        expect(cssRangeOfMoment({ domElement: 0.3, screen: 'bottom' }, PxScrollMoment.appears)).toEqual({ name: 'entry-crossing', fraction: 0.3 });
+        expect(cssRangeOfMoment({ domElement: 'bottom', screen: 'top' }, PxScrollMoment.appears)).toEqual({ name: 'exit-crossing', fraction: 1 });
+        expect(cssRangeOfMoment({ domElement: 'top', screen: 0.8 }, PxScrollMoment.appears)).toBeUndefined();
     });
 
     it('an exact place is literal: the element\'s line at the screen\'s line', () => {
         // its top 80 % down the screen: u = (1 − 0.8) × 400 + 0 × 100 = 80, for any size
-        expect(scrollMomentU({ element: 'top', screen: 0.8 }, 100, 400)).toBeCloseTo(80);
-        expect(scrollMomentU({ element: 'top', screen: 0.8 }, 1000, 400)).toBeCloseTo(80);
+        expect(scrollMomentU({ domElement: 'top', screen: 0.8 }, 100, 400)).toBeCloseTo(80);
+        expect(scrollMomentU({ domElement: 'top', screen: 0.8 }, 1000, 400)).toBeCloseTo(80);
         // its bottom at the screen's bottom — `fullyIn` for a small element, NOT for a tall one
-        expect(scrollMomentU({ element: 'bottom', screen: 'bottom' }, 100, 400)).toBe(100);
-        expect(scrollMomentU({ element: 'bottom', screen: 'bottom' }, 1000, 400)).toBe(1000);
+        expect(scrollMomentU({ domElement: 'bottom', screen: 'bottom' }, 100, 400)).toBe(100);
+        expect(scrollMomentU({ domElement: 'bottom', screen: 'bottom' }, 1000, 400)).toBe(1000);
     });
 });
 

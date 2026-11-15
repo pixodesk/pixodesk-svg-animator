@@ -31,7 +31,7 @@ function engineFirstFrame(doc: PxDocument): Map<string, Map<string, string>> {
             written.set(id, attrs);
         },
     });
-    api.playback.setTotalTime(0);   // the playback's start — a reversed pass shows its END frame first
+    api.timeline.setTotalTime(0);   // the playback's start — a reversed pass shows its END frame first
     return written;
 }
 

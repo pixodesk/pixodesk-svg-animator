@@ -53,7 +53,7 @@ type AssertNever<T extends never> = T;
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer :actionTriggers="{ 'playback.play': 'hoverIn', 'playback.pause': 'hoverOut' }">
+ *   <SvgCssAnimationPlayer :actionTriggers="{ 'timeline.play': 'hoverIn', 'timeline.pause': 'hoverOut' }">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>
@@ -64,8 +64,8 @@ type AssertNever<T extends never> = T;
  * - `px-anim-enabled`                   — paused
  * - `px-anim-enabled px-anim-playing`   — playing
  *
- * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `playback.start`, `playback.play`,
- * `playback.stop`, `playback.pause` (`playback.resume` is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `timeline.start`, `timeline.play`,
+ * `timeline.stop`, `timeline.pause` (`timeline.resume` is derived unless named) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
  * (`createVisibilityGate`), so the two players cannot drift. No `actionTriggers`, `null` or an empty block: nothing
  * starts it.

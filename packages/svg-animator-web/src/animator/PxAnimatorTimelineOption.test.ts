@@ -17,12 +17,12 @@ import { createSvgAnimationPlayer } from './PxAnimator';
 import { PxDiagnosticCode, type PxDiagnostic, type PxDocument, type PxActionTriggers } from '@pixodesk/svg-animator-core';
 
 /** A WIRE-format document (nested `timelineOptions`) — the spelling every writer emits. */
-function wireDoc(actionTriggers: PxActionTriggers = { 'playback.start': 'load' }): PxDocument {
+function wireDoc(actionTriggers: PxActionTriggers = { 'timeline.start': 'load' }): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
         animator: {
-            timeline: { engine: 'js', outTime: 1000, iterations: 2, actionTriggers },
+            timeline: { engine: 'js', outTime: 1000, iterations: 2 }, actionTriggers,
         },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
@@ -45,38 +45,38 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
 
     it('baseline: no option plays the file as saved — this one autoplays', () => {
         const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage() });
-        expect(api.playback.isPlaying()).toBe(true);
+        expect(api.timeline.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('an `actionTriggers` OBJECT is the trigger instead of the file\'s', () => {
         // the file starts on load; the block says click — so nothing plays until a click
-        const api = createSvgAnimationPlayer({ actionTriggers: { 'playback.start': 'click' }, document: wireDoc(), container: stage() });
-        expect(api.playback.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ actionTriggers: { 'timeline.start': 'click' }, document: wireDoc(), container: stage() });
+        expect(api.timeline.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('…as a WHOLE: a list the object leaves out is gone — the file\'s `start: load` does not survive an object that lists only `pause`', () => {
-        const api = createSvgAnimationPlayer({ actionTriggers: { 'playback.pause': 'click' }, document: wireDoc({ 'playback.start': 'load' }), container: stage() });
-        expect(api.playback.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ actionTriggers: { 'timeline.pause': 'click' }, document: wireDoc({ 'timeline.start': 'load' }), container: stage() });
+        expect(api.timeline.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('`timelineOptions` MERGES over the file\'s timing — the file\'s `engine` and trigger survive, so it still plays', () => {
         const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), timelineOptions: { outTime: 500, iterations: 1 } });
-        expect(api.playback.isPlaying()).toBe(true);
+        expect(api.timeline.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('`timelineOptions` and an `actionTriggers` object together: the timing adjusted, the trigger replaced', () => {
-        const api = createSvgAnimationPlayer({ actionTriggers: { 'playback.start': 'click' }, document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
-        expect(api.playback.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ actionTriggers: { 'timeline.start': 'click' }, document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
+        expect(api.timeline.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('no driver named: the first frame, nothing plays — whatever the file says', () => {
         const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
-        expect(api.playback.isPlaying()).toBe(false);
+        expect(api.timeline.isPlaying()).toBe(false);
         api.destroy();
     });
 });
@@ -85,30 +85,30 @@ describe('createSvgAnimationPlayer — the control options: manual, a still, a m
 
     it('disableActionTriggers: manual — nothing plays by itself, the api drives it', () => {
         const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), disableActionTriggers: true });
-        expect(api.playback.isPlaying()).toBe(false);
-        api.playback.start();
-        expect(api.playback.isPlaying()).toBe(true);
+        expect(api.timeline.isPlaying()).toBe(false);
+        api.timeline.start();
+        expect(api.timeline.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('actionTriggers null: the same as disableActionTriggers', () => {
         const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), actionTriggers: null });
-        expect(api.playback.isPlaying()).toBe(false);
-        api.playback.start();
-        expect(api.playback.isPlaying()).toBe(true);
+        expect(api.timeline.isPlaying()).toBe(false);
+        api.timeline.start();
+        expect(api.timeline.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('showAsStatic: nothing plays, every playback call is ignored with PX1506, the reads still answer', () => {
         const warnings: Array<PxDiagnostic> = [];
         const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), showAsStatic: true, onWarning: d => warnings.push(d) });
-        expect(api.playback.isPlaying()).toBe(false);
-        api.playback.start();
-        api.playback.setCurrentTime(500);
-        api.playback.setSpeed(2);
-        expect(api.playback.isPlaying()).toBe(false);
-        expect(api.playback.getCurrentTime()).toBe(0);
-        expect(api.playback.getDuration()).toBe(1000);
+        expect(api.timeline.isPlaying()).toBe(false);
+        api.timeline.start();
+        api.timeline.setCurrentTime(500);
+        api.timeline.setSpeed(2);
+        expect(api.timeline.isPlaying()).toBe(false);
+        expect(api.timeline.getCurrentTime()).toBe(0);
+        expect(api.timeline.getDuration()).toBe(1000);
         expect(warnings.map(w => w.code)).toEqual([PxDiagnosticCode.showAsStaticIgnoresCall, PxDiagnosticCode.showAsStaticIgnoresCall, PxDiagnosticCode.showAsStaticIgnoresCall]);
         api.destroy();
     });
@@ -116,9 +116,9 @@ describe('createSvgAnimationPlayer — the control options: manual, a still, a m
     it('showAsStatic beside an actionTriggers block: the still wins and says so (PX1501)', () => {
         const warnings: Array<PxDiagnostic> = [];
         const api = createSvgAnimationPlayer({
-            document: wireDoc(), container: stage(), showAsStatic: true, actionTriggers: { 'playback.start': 'load' }, onWarning: d => warnings.push(d),
+            document: wireDoc(), container: stage(), showAsStatic: true, actionTriggers: { 'timeline.start': 'load' }, onWarning: d => warnings.push(d),
         });
-        expect(api.playback.isPlaying()).toBe(false);
+        expect(api.timeline.isPlaying()).toBe(false);
         expect(warnings.map(w => w.code)).toEqual([PxDiagnosticCode.controlPropsConflict]);
         api.destroy();
     });
