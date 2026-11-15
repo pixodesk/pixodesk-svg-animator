@@ -8,11 +8,11 @@ function App() {
   return (
     <>
       <div className="controls">
-        <button onClick={() => api.current?.playback.start()}>playback.start()</button>
-        <button onClick={() => api.current?.playback.pause()}>playback.pause()</button>
-        <button onClick={() => api.current?.playback.play()}>playback.play()</button>
-        <button onClick={() => api.current?.playback.stop()}>playback.stop()</button>
-        <button onClick={() => api.current?.playback.setCurrentProgress(1)}>playback.setCurrentProgress(1)</button>
+        <button onClick={() => api.current?.timeline.start()}>timeline.start()</button>
+        <button onClick={() => api.current?.timeline.pause()}>timeline.pause()</button>
+        <button onClick={() => api.current?.timeline.play()}>timeline.play()</button>
+        <button onClick={() => api.current?.timeline.stop()}>timeline.stop()</button>
+        <button onClick={() => api.current?.timeline.setCurrentProgress(1)}>timeline.setCurrentProgress(1)</button>
       </div>
       <div className="stage">
         {/* disableActionTriggers: the file's own trigger is off, so only these buttons start it */}

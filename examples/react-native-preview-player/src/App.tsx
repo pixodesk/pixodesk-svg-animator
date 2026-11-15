@@ -49,16 +49,16 @@ export default function App() {
     // keeps the JS thread idle.
     useEffect(() => {
         const id = setInterval(() => {
-            const now = api.current?.playback.getCurrentTime();
+            const now = api.current?.timeline.getCurrentTime();
             if (typeof now === 'number') setTimeMs(now);
-            const p = api.current?.playback.isPlaying() ?? false;
+            const p = api.current?.timeline.isPlaying() ?? false;
             setPlaying(prev => (prev === p ? prev : p));
         }, 50);
         return () => clearInterval(id);
     }, []);
 
     // Re-apply the speed whenever it changes or the document is rebuilt (the file's `playbackSpeed` is the initial value).
-    useEffect(() => { api.current?.playback.setSpeed(rate); }, [rate, doc]);
+    useEffect(() => { api.current?.timeline.setSpeed(rate); }, [rate, doc]);
 
     const call = (fn: (a: PxAnimationPlayerHandle) => void) => () => { if (api.current) fn(api.current); };
 
@@ -110,11 +110,11 @@ export default function App() {
                 {/* -- Transport ----------------------------------------------- */}
                 <View style={styles.transport}>
                     {([
-                        ['▶ Play', call(a => a.playback.play())],        // start, or carry on after a pause
-                        ['❚❚ Pause', call(a => a.playback.pause())],
-                        ['◼ Stop', call(a => a.playback.stop())],
-                        ['↺ Restart', call(a => a.playback.start())],    // always from the start
-                        ['⤓ Last frame', call(a => { a.playback.pause(); a.playback.setCurrentProgress(1); })],
+                        ['▶ Play', call(a => a.timeline.play())],        // start, or carry on after a pause
+                        ['❚❚ Pause', call(a => a.timeline.pause())],
+                        ['◼ Stop', call(a => a.timeline.stop())],
+                        ['↺ Restart', call(a => a.timeline.start())],    // always from the start
+                        ['⤓ Last frame', call(a => { a.timeline.pause(); a.timeline.setCurrentProgress(1); })],
                     ] as Array<[string, () => void]>).map(([label, onPress]) => (
                         <Pressable
                             key={label}
@@ -132,8 +132,8 @@ export default function App() {
                     max={duration}
                     accent={t.accent}
                     track={t.border}
-                    onScrubStart={call(a => a.playback.pause())}
-                    onSeek={(v) => { setTimeMs(v); api.current?.playback.setCurrentTime(v); }}
+                    onScrubStart={call(a => a.timeline.pause())}
+                    onSeek={(v) => { setTimeMs(v); api.current?.timeline.setCurrentTime(v); }}
                 />
                 <View style={styles.timeRow}>
                     <Text style={[styles.mono, { color: t.dim }]}>

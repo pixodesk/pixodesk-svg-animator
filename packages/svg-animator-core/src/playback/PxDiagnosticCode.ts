@@ -168,6 +168,13 @@ export enum PxDiagnosticCode {
     segmentNotFound = 1114,
 
     /**
+     * Two segments of a timeline have the same name (2026-11-15) — the first in the list is played, the later one is
+     * ignored: a trigger or a go-to cannot tell them apart.
+     * @data the name
+     */
+    segmentNameDuplicate = 1115,
+
+    /**
      * A binding names no element, or names animations that `definitions.animations` does not have.
      * @data the binding
      */

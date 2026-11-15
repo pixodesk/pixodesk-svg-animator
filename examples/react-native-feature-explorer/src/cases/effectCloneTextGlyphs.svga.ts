@@ -61,16 +61,15 @@ export const effectCloneTextGlyphs: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "actionTriggers": {
-                "playback.start": "load"
-            },
             "actions": {
                 "outOfView": {
                     "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"
-        }
+        }, "actionTriggers": {
+                "timeline.start": "load"
+            }
     },
     "children": [
         {
@@ -162,7 +161,7 @@ export const effectCloneTextGlyphs: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38gjtr8j"
+                    "sourceElement": "_px_38gjtr8j"
                 }
             }
         },
@@ -173,7 +172,7 @@ export const effectCloneTextGlyphs: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38gjtr8h"
+                    "sourceElement": "_px_38gjtr8h"
                 }
             }
         },

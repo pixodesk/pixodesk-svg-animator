@@ -80,7 +80,7 @@ type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
 /** The trigger lists, with the editor's labels — typed by the resolved lists' own keys.
  *  No `resumePlayback`: the player derives it from these four. */
-/** Each list: its wire name (`key`, the `actionTriggers` key — `"playback.start"` …) and its field in the resolved view. */
+/** Each list: its wire name (`key`, the `actionTriggers` key — `"timeline.start"` …) and its field in the resolved view. */
 const TRIGGER_LISTS: Array<{ key: PxTriggerList; field: keyof PxResolvedTriggers; label: string }> = [
   { key: PxTriggerList.startPlayback, field: 'startPlayback', label: 'Start on' },
   { key: PxTriggerList.playPlayback, field: 'playPlayback', label: 'Play on' },
@@ -344,7 +344,7 @@ function userActionForTrigger(
   outOfView: PxOutOfViewBehavior | undefined,
 ): UserAction | undefined {
   const { startPlayback, playPlayback } = resolveTriggers(actionTriggers);
-  const starts = [...startPlayback, ...playPlayback];   // `playback.start` and `playback.play` both get it going
+  const starts = [...startPlayback, ...playPlayback];   // `timeline.start` and `timeline.play` both get it going
   if (starts.includes(PxTriggerEvent.hoverIn)) return 'hover';
   if (starts.includes(PxTriggerEvent.click)) return 'click';
   if (starts.length === 0) return 'play';
@@ -459,7 +459,7 @@ btnStop.addEventListener('click', () => {
   handle?.stop();                                                // the document's stop action — the rest pose by default
   seek.value = '0';
 });
-btnRestart.addEventListener('click', () => handle?.start());    // `playback.start()` always plays from the start
+btnRestart.addEventListener('click', () => handle?.start());    // `timeline.start()` always plays from the start
 btnLastFrame.addEventListener('click', () => {
   // A seek while playing keeps playing, so pause first; the frame then holds (paused), and Play carries on from it.
   handle?.pause();

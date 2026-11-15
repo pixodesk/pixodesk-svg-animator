@@ -114,7 +114,7 @@ export const PxPointerType = {
 } as const;
 export type PxPointerType = typeof PxPointerType[keyof typeof PxPointerType];
 
-/** The segment actions (2026-11-15): go to the next segment on the ruler (after the last, the first), the previous one
+/** The segment actions (2026-11-15): go to the next segment in the list (after the last, the first), the previous one
  *  (before the first, the last), or a named one — {@link segmentGoToAction}. Each is a key of `actionTriggers` and a
  *  value a segment's `whenFinished` may hold; the same name is the page's call (`player.timeline.segment.next()`). @public */
 export const PxSegmentAction = {
@@ -920,7 +920,7 @@ function isTriggerEvent(value: string): value is PxTriggerEvent {
 // @px-area control
 /** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. Entries a list may not name are
  *  dropped ({@link triggerIssues} says which). `timeline.resume` is {@link derivedResume} unless the file names the list —
- *  then the file's list is used as written. `segmentNames`: the timeline's segments, in ruler order — their `goTo` keys are
+ *  then the file's list is used as written. `segmentNames`: the timeline's segments, in list order — their `goTo` keys are
  *  looked up by name (a key naming no segment is not read; `validateDocument` warns). @public @advanced */
 export function resolveTriggers(triggers: PxActionTriggers | undefined, segmentNames: ReadonlyArray<string> = []): PxResolvedTriggers {
     const specs = new Map<string, PxTriggerEventSpec>();
@@ -1545,7 +1545,7 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         if (timeline.whenIdle !== undefined || timeline.whenFinished !== undefined) flat.fill = fillModeOf(timeline.whenIdle, timeline.whenFinished);
         if (timeline.inViewThreshold !== undefined) flat.inViewThreshold = timeline.inViewThreshold;
         if (timeline.inViewDebounce !== undefined) flat.inViewDebounce = timeline.inViewDebounce;
-        if (timeline.segments !== undefined) flat.segments = { ...timeline.segments };
+        if (timeline.segments !== undefined) flat.segments = [...timeline.segments];
     }
 
     return flat;
@@ -1693,7 +1693,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     else if (fill === PxFillMode.backwards || fill === PxFillMode.both) timeline.whenIdle = PxWhenIdle.firstFrame;
     if (inViewThreshold !== undefined) timeline.inViewThreshold = inViewThreshold;
     if (inViewDebounce !== undefined) timeline.inViewDebounce = inViewDebounce;
-    if (segments !== undefined && Object.keys(segments).length > 0) timeline.segments = { ...segments };
+    if (segments !== undefined && segments.length > 0) timeline.segments = [...segments];
 
     // An empty time timeline says nothing — omit the block entirely. The triggers sit beside it, at the root.
     const nested: PxAnimatorConfig = Object.keys(timeline).length > 0 ? { ...shared, timeline } : { ...shared };

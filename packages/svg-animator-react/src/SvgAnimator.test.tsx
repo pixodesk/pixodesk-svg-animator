@@ -113,10 +113,11 @@ describe("SvgAnimationPlayer (React)", () => {
             expect(svg.style.opacity).toBe("1");
         });
 
-        it("is static without control props (does not auto-play or auto-finish)", () => {
+        // since 1.26 no control prop plays the file as saved (this one starts on load); the still is `showAsStatic`
+        it("is static with showAsStatic (does not auto-play or auto-finish)", () => {
             const onPlaybackStart = vi.fn();
             const onPlaybackFinish = vi.fn();
-            render(<SvgAnimationPlayer document={getTestJson()} onPlaybackStart={onPlaybackStart} onPlaybackFinish={onPlaybackFinish} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAsStatic onPlaybackStart={onPlaybackStart} onPlaybackFinish={onPlaybackFinish} />);
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
@@ -382,7 +383,8 @@ describe("SvgAnimationPlayer (React)", () => {
     describe("imperative API (apiRef)", () => {
         it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackSpeed/isPlaying", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} />);
+            // manual: the file starts on load, so its triggers are switched off — the handle drives (1.26)
+            render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} disableActionTriggers />);
 
             const api = apiRef.current;
             expect(api).not.toBeNull();
@@ -426,7 +428,8 @@ describe("SvgAnimationPlayer (React)", () => {
                 onPlaybackStart: vi.fn(), onPlaybackPause: vi.fn(),
                 onPlaybackFinish: vi.fn(), onDestroy: vi.fn(), onPlaybackStop: vi.fn(),
             };
-            const utils = render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} {...spies} />);
+            // manual (1.26): the file starts on load — switched off, so each callback counts only what the test presses
+            const utils = render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} disableActionTriggers {...spies} />);
             return { apiRef, spies, ...utils };
         }
 

@@ -12,14 +12,15 @@
 // | `withSegmentEngine` | the document as the ENGINE must see it: one plain pass of the whole window (iterations 1,
 // |                     | normal direction, no delay, the last frame held); what the timeline said about repeats,
 // |                     | direction, speed and the end is written into each segment first, so nothing is lost |
-// | `resolveSegments` | the segments in ruler order, every default applied — engine ms, repeats, the end, the leaving |
+// | `resolveSegments` | the segments in list order, every default applied — engine ms, repeats, the end, the leaving |
 // | the segment CLOCK | replaces the engine's eight primitives on the api: a clock of its own over the CURRENT segment
 // |                   | that seeks the (paused) engine every frame — so the executor, the triggers and the api's reads
 // |                   | see the segment as the whole playback, unchanged |
 // | the CONTROLLER | goes to a segment: the leaving (`whenLeaving`), the hop at the end (`whenFinished`), the guards |
 //
-// Guards (segments design §5.5): a name that does not exist is not read (`validateDocument` warns); an automatic hop
-// always shows a frame first (no ring of empty segments can spin); the newest request wins while one is leaving.
+// Guards (segments design §5.5): a name that does not exist is not read (PX1114); a name used twice — the first wins
+// (PX1115); an automatic hop always shows a frame first (no ring of empty segments can spin); the newest request wins
+// while one is leaving.
 // Accepted limit (iteration 1): the timeline's `delay` is not waited on a timeline with segments.
 // ============================================================================
 
@@ -51,7 +52,7 @@ export interface PxSegmentSettings {
 /** The segment controls on `player.timeline.segment` (2026-11-15). The same names as the file's actions:
  *  `timeline.segment.next` ↔ `next()`, `timeline.segment.goTo(intro)` ↔ `goTo('intro')`. @public */
 export interface PxSegmentControls {
-    /** Goes to the next segment on the ruler — after the last, the first. Changes and plays. */
+    /** Goes to the next segment in the list — after the last, the first. Changes and plays. */
     next(): void;
     /** Goes to the previous segment — before the first, the last. */
     previous(): void;
@@ -59,7 +60,7 @@ export interface PxSegmentControls {
     goTo(name: string): void;
     /** The segment the timeline is in; `null` when the file names none. */
     get(): string | null;
-    /** The segments' names, in ruler order. */
+    /** The segments' names, in list order. */
     getAll(): Array<string>;
 }
 
@@ -70,14 +71,24 @@ export const NO_SEGMENT_CONTROLS: PxSegmentControls = {
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/** The time timeline's segments as written, or undefined. */
-function segmentsOf(timeline: unknown): Record<string, PxTimelineSegment> | undefined {
+/** A list entry that can be a segment — an object with a name. */
+function isSegmentEntry(v: unknown): v is PxTimelineSegment {
+    return isRecord(v) && typeof v.name === 'string';
+}
+
+/** The time timeline's segments as written — the list's entries that have a name — or undefined. */
+function segmentsOf(timeline: unknown): Array<PxTimelineSegment> | undefined {
     if (!isRecord(timeline) || timeline.type === 'scroll') return undefined;
     const segments = timeline.segments;
-    if (!isRecord(segments) || Object.keys(segments).length === 0) return undefined;
-    const out: Record<string, PxTimelineSegment> = {};
-    for (const [name, seg] of Object.entries(segments)) if (isRecord(seg)) out[name] = seg;
-    return Object.keys(out).length ? out : undefined;
+    if (!Array.isArray(segments)) return undefined;
+    const out = segments.filter(isSegmentEntry);
+    return out.length ? out : undefined;
+}
+
+/** The segments the player plays: in list order, a name used twice — the first wins (the later is reported, PX1115). */
+function uniqueSegments(segments: ReadonlyArray<PxTimelineSegment>): Array<PxTimelineSegment> {
+    const seen = new Set<string>();
+    return segments.filter(seg => !seen.has(seg.name) && !!seen.add(seg.name));
 }
 
 // @px-area pipeline
@@ -95,15 +106,14 @@ export function withSegmentEngine(doc: PxDocument): PxDocument {
     const timeline = animator.timeline;
     const segments = segmentsOf(timeline);
     if (!segments || !isRecord(timeline)) return doc;
-    const baked: Record<string, PxTimelineSegment> = {};
-    for (const [name, seg] of Object.entries(segments)) {
+    const baked = segments.map((seg): PxTimelineSegment => {
         const out: PxTimelineSegment = { ...seg };
         if (out.iterations === undefined && (typeof timeline.iterations === 'number' || timeline.iterations === 'infinite')) out.iterations = timeline.iterations;
         if (out.iterationDirection === undefined && isDirection(timeline.iterationDirection)) out.iterationDirection = timeline.iterationDirection;
         if (out.playbackSpeed === undefined && typeof timeline.playbackSpeed === 'number') out.playbackSpeed = timeline.playbackSpeed;
         if (out.whenFinished === undefined && typeof timeline.whenFinished === 'string') out.whenFinished = timeline.whenFinished;
-        baked[name] = out;
-    }
+        return out;
+    });
     const engineTimeline: Record<string, unknown> = { ...timeline, iterations: 1, whenFinished: PxWhenFinished.hold, segments: baked };
     delete engineTimeline.iterationDirection;
     delete engineTimeline.delay;
@@ -123,17 +133,15 @@ const isLeaving = (v: unknown): v is PxWhenLeaving =>
     v === PxWhenLeaving.jump || v === PxWhenLeaving.animateToEnd || v === PxWhenLeaving.animateToStart;
 
 // @px-area control
-/** A runtime view's segments in ruler order (by start, then as written), every default applied; empty without
- *  segments. A segment's `whenFinished` that names no segment reads as `hold`. @public @advanced */
+/** A runtime view's segments in LIST order, every default applied; empty without segments. A name used twice: the
+ *  first wins. A segment's `whenFinished` that names no segment reads as `hold`. @public @advanced */
 export function resolveSegments(cfg: Pick<PxAnimatorRuntimeConfig, 'segments' | 'inTime' | 'duration' | 'timelineSource'> | undefined): Array<PxSegmentSettings> {
-    const segments = cfg?.segments;
-    if (!segments || cfg?.timelineSource === 'scroll') return [];
-    const windowStart = cfg?.inTime ?? 0;
-    const windowEnd = windowStart + (cfg?.duration ?? 0);
-    const names = Object.keys(segments);
-    const out: Array<PxSegmentSettings & { order: number }> = [];
-    names.forEach((name, order) => {
-        const seg = segments[name];
+    if (!cfg?.segments || cfg.timelineSource === 'scroll') return [];
+    const segments = uniqueSegments(cfg.segments);
+    const windowStart = cfg.inTime ?? 0;
+    const windowEnd = windowStart + (cfg.duration ?? 0);
+    const names = segments.map(seg => seg.name);
+    return segments.map((seg): PxSegmentSettings => {
         const inTime = typeof seg.inTime === 'number' ? seg.inTime : windowStart;
         const outTime = typeof seg.outTime === 'number' ? seg.outTime : windowEnd;
         const iterations = seg.iterations === 'infinite' ? Infinity : typeof seg.iterations === 'number' && seg.iterations > 0 ? seg.iterations : 1;
@@ -141,8 +149,8 @@ export function resolveSegments(cfg: Pick<PxAnimatorRuntimeConfig, 'segments' | 
         const target = names.find(n => segmentGoToAction(n) === whenFinished);
         const then: PxSegmentSettings['then'] = whenFinished === PxSegmentAction.next ? { next: true }
             : target !== undefined ? { segment: target } : undefined;
-        out.push({
-            name, order,
+        return {
+            name: seg.name,
             startMs: Math.max(0, inTime - windowStart),
             passMs: Math.max(0, outTime - inTime),
             iterations,
@@ -152,10 +160,20 @@ export function resolveSegments(cfg: Pick<PxAnimatorRuntimeConfig, 'segments' | 
             then,
             whenLeaving: isLeaving(seg.whenLeaving) ? seg.whenLeaving : PxWhenLeaving.jump,
             initial: seg.initial === true,
-        });
+        };
     });
-    out.sort((a, b) => a.startMs - b.startMs || a.order - b.order);
-    return out.map(({ order: _order, ...s }) => s);
+}
+
+/** The names a later segment of the list uses again — each once; the player plays the first (PX1115). @public @advanced */
+export function duplicateSegmentNames(cfg: Pick<PxAnimatorRuntimeConfig, 'segments' | 'timelineSource'>): Array<string> {
+    if (!cfg.segments || cfg.timelineSource === 'scroll') return [];
+    const seen = new Set<string>();
+    const twice = new Set<string>();
+    for (const seg of cfg.segments) {
+        if (seen.has(seg.name)) twice.add(seg.name);
+        seen.add(seg.name);
+    }
+    return [...twice];
 }
 
 /** A `timeline.segment.goTo(‹name›)` naming a segment the timeline does not have — it is ignored. @public @advanced */
@@ -170,13 +188,13 @@ export interface PxSegmentReferenceIssue {
 
 /** Every goTo in `actionTriggers` and in the segments' `whenFinished` that names no segment of this timeline. @public @advanced */
 export function segmentReferenceIssues(cfg: Pick<PxAnimatorRuntimeConfig, 'segments' | 'actionTriggers' | 'timelineSource'>): Array<PxSegmentReferenceIssue> {
-    const segments = cfg.timelineSource === 'scroll' ? undefined : cfg.segments;
-    const names = segments ? Object.keys(segments) : [];
+    const segments = cfg.timelineSource === 'scroll' ? [] : uniqueSegments(cfg.segments ?? []);
+    const names = segments.map(seg => seg.name);
     const known = new Set(names.map(segmentGoToAction));
     const unknown = (action: string | undefined): action is string => action !== undefined && isSegmentGoToAction(action) && !known.has(action);
     const issues: Array<PxSegmentReferenceIssue> = [];
     for (const action of Object.keys(cfg.actionTriggers ?? {})) if (unknown(action)) issues.push({ action, names });
-    for (const [name, seg] of Object.entries(segments ?? {})) if (unknown(seg.whenFinished)) issues.push({ action: seg.whenFinished, segment: name, names });
+    for (const seg of segments) if (unknown(seg.whenFinished)) issues.push({ action: seg.whenFinished, segment: seg.name, names });
     return issues;
 }
 
@@ -320,10 +338,11 @@ export function installSegmentClock(
     /** The current segment played to its end. */
     const reachedEnd = (): void => {
         if (leaving) { switchTo(leaving.target); return; }
-        const s = seg();
-        if (s.then && !executor?.hasPendingMove?.()) {
+        const then = seg().then;
+        if (then && !executor?.hasPendingMove?.()) {
             // the guard: the end frame is drawn before the hop — no ring of empty segments can spin within one frame
-            const to = 'next' in s.then ? (current + 1) % segments.length : segments.findIndex(x => 'segment' in s.then! && x.name === s.then.segment);
+            const target = 'segment' in then ? then.segment : undefined;
+            const to = target === undefined ? (current + 1) % segments.length : segments.findIndex(x => x.name === target);
             raf(() => { if (!disposed && to >= 0) switchTo(to); });
             return;
         }

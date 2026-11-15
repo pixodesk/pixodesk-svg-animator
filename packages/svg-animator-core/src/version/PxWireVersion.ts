@@ -510,7 +510,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
             + '`element`, an effect\'s `source` (`maskedBy`, `clone`) becomes `sourceElement`. The timeline is the thing '
             + 'that plays: `playback.start` … `playback.resume` become `timeline.start` … `timeline.resume` (the trigger '
             + 'lists and the action slots), and `actionTriggers` moves out of `timeline` to the root of `animator`. '
-            + 'New in the same step: `timeline.segments` (named parts of the timeline, played one at a time; '
+            + 'New in the same step: `timeline.segments` (a list of named parts of the timeline, played one at a time; '
             + '`timeline.segment.next` / `.previous` / `.goTo(‹name›)` in `actionTriggers` and a segment\'s '
             + '`whenFinished`), and an event can be an object `{ event, element | selector, with }` — `pointerDown`, '
             + '`pointerUp`, `keyDown`, `keyUp` among the events.',

@@ -622,7 +622,7 @@ export interface _PxActionTriggers {
      *  what hover in paused, a click what a click paused) plus the `timeline.start` events that do not stop it. Named, the
      *  list is used as written; the players note where it differs from the derivation ({@link triggerIssues}). */
     [PxTriggerList.resumePlayback]?: PxTriggerEvents;
-    /** Goes to the next segment on the ruler — after the last, the first (2026-11-15). Every event may be named. */
+    /** Goes to the next segment in the list — after the last, the first (2026-11-15). Every event may be named. */
     [PxSegmentAction.next]?: PxTriggerEvents;
     /** Goes to the previous segment — before the first, the last. */
     [PxSegmentAction.previous]?: PxTriggerEvents;
@@ -981,11 +981,15 @@ const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimeline
  * @public
  */
 export interface _PxTimelineSegment {
+    /** What the triggers, `whenFinished` and the page call it (`timeline.segment.goTo(‹name›)`, `goTo('‹name›')`). Unique in
+     *  the list: a later segment with a name already used is ignored, with a warning (PX1115). WHY `name`, not `id`: `id`
+     *  is an element's, the one a page and `#id` see. */
+    name: string;
     /** CONTENT ms where it begins. Default: the timeline's `inTime`. */
     inTime?: number;
     /** CONTENT ms where it ends. Default: the timeline's `outTime`. */
     outTime?: number;
-    /** The one the timeline is in before anything happened. None says so: the first on the ruler. */
+    /** The one the timeline is in before anything happened. None says so: the first in the list. */
     initial?: boolean;
     iterations?: number | 'infinite';
     iterationDirection?: PxPlaybackDirection;
@@ -999,6 +1003,7 @@ export interface _PxTimelineSegment {
 
 /** @public @advanced */
 export const PxTimelineSegmentSchema = implementsInterface<_PxTimelineSegment>()(px.object({
+    name: px.string(),
     inTime: px.number().optional(),
     outTime: px.number().optional(),
     initial: px.boolean().optional(),
@@ -1066,7 +1071,7 @@ export interface _PxTimeTimeline {
      *  visibility drops below the threshold before the time is up — scrolling straight past starts nothing. */
     inViewDebounce?: number;
     /** The named parts of the timeline, played one at a time (2026-11-15) — see {@link _PxTimelineSegment}. */
-    segments?: Record<string, _PxTimelineSegment>;
+    segments?: Array<_PxTimelineSegment>;
 }
 
 /** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported
@@ -1090,7 +1095,7 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     whenIdle: px.enum([PxWhenIdle.static, PxWhenIdle.firstFrame] as const, PX_PLAYBACK_DEFAULTS.whenIdle).optional(),
     inViewThreshold: px.number(PX_PLAYBACK_DEFAULTS.inViewThreshold).optional(),
     inViewDebounce: px.number(PX_PLAYBACK_DEFAULTS.inViewDebounce).optional(),
-    segments: px.record(PxTimelineSegmentSchema).optional(),
+    segments: px.array(PxTimelineSegmentSchema).optional(),
 }));
 const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
 
@@ -1231,7 +1236,7 @@ export interface _PxAnimatorConfig {
     whenFinished?: PxWhenFinished;
     /** The timeline's segments, carried through as written (2026-11-15) — a writer round-trips them; the player plays
      *  them (`PxSegments`). */
-    segments?: Record<string, PxTimelineSegment>;
+    segments?: Array<PxTimelineSegment>;
     inViewThreshold?: number;
     inViewDebounce?: number;
 

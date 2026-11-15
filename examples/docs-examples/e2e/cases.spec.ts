@@ -33,7 +33,7 @@ async function expectAnimating(page: Page, sel = 'svg', ms = 350): Promise<void>
 }
 
 async function expectFrozen(page: Page, sel = 'svg', ms = 350): Promise<void> {
-  // A playback.pause() issued a moment ago commits on the browser's next animation frame
+  // A timeline.pause() issued a moment ago commits on the browser's next animation frame
   // (WAAPI's "pending pause"), and under a parallel test run that frame can be
   // late. So the first interval is a settling period; only the second is asserted.
   await page.waitForTimeout(ms);
@@ -73,7 +73,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
     await page.click('#pause');
     await expectFrozen(page);
     await slide(page, '#time-slider', 700);
-    const t = await page.evaluate(() => (window as any).animator.playback.getCurrentTime());   // ms inside the current iteration
+    const t = await page.evaluate(() => (window as any).animator.timeline.getCurrentTime());   // ms inside the current iteration
     expect(t).toBeCloseTo(700, -1);
     await page.click('#play');                      // play() carries on from the held frame
     await expectAnimating(page);
@@ -98,10 +98,10 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   'web/triggers': async page => {
-    await expectFrozen(page);                       // 'playback.start': 'click' — nothing until clicked
+    await expectFrozen(page);                       // 'timeline.start': 'click' — nothing until clicked
     await page.click('#box svg');
     await expectAnimating(page);                    // off + click → plays (the state rule)
-    await page.click('#box svg');                   // 'playback.pause': 'click' — playing + click → pauses
+    await page.click('#box svg');                   // 'timeline.pause': 'click' — playing + click → pauses
     await expectFrozen(page);
   },
 
@@ -123,9 +123,9 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
 
   'react/imperative': async page => {
     await expectFrozen(page);                       // disableActionTriggers + playerRef = programmatic
-    await page.click('text=playback.start()');
+    await page.click('text=timeline.start()');
     await expectAnimating(page);
-    await page.click('text=playback.pause()');
+    await page.click('text=timeline.pause()');
     await expectFrozen(page);
   },
   'vue/imperative': async page => CHECKS['react/imperative'](page),
@@ -150,14 +150,14 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'vue/declarative': async page => CHECKS['react/declarative'](page),
 
   'react/css-svgr': async page => {
-    await expectFrozen(page);                       // 'playback.start': 'click'
+    await expectFrozen(page);                       // 'timeline.start': 'click'
     await page.click('svg');
     await expectAnimating(page);
   },
   'vue/css-loader': async page => CHECKS['react/css-svgr'](page),
 
   'playback/override-web': async page => {
-    await expectFrozen(page);                       // disableActionTriggers — nothing starts it but playback.start()
+    await expectFrozen(page);                       // disableActionTriggers — nothing starts it but timeline.start()
     await page.click('#play');
     await expectAnimating(page);
   },

@@ -5,18 +5,18 @@ import type { PxActionsInput, PxDocument, PxTimelineOptions, PxActionTriggers } 
  *
  * The Web (`@pixodesk/svg-animator-web`), React (`@pixodesk/svg-animator-react`)
  * and Vue (`@pixodesk/svg-animator-vue`) packages all expose the same imperative
- * surface, `player.playback` (`start` / `play` / `pause` / `stop` / `getCurrentTime` /
+ * surface, `player.timeline` (`start` / `play` / `pause` / `stop` / `getCurrentTime` /
  * `setCurrentTime` / `setSpeed`). Each adapter wraps one of them behind this interface so the
  * UI can drive any of them uniformly.
  */
 export interface PlayerHandle {
-  /** Plays from the start, in every state — a restart while playing or paused (`playback.start()`). */
+  /** Plays from the start, in every state — a restart while playing or paused (`timeline.start()`). */
   start(): void;
-  /** Start or carry on: resumes a pause, does nothing while playing, otherwise starts (`playback.play()`). */
+  /** Start or carry on: resumes a pause, does nothing while playing, otherwise starts (`timeline.play()`). */
   play(): void;
-  /** Freezes the playback at the current frame (`playback.pause()`). */
+  /** Freezes the playback at the current frame (`timeline.pause()`). */
   pause(): void;
-  /** Ends the playback as the document's stop action says — back to the rest pose by default (`playback.stop()`). */
+  /** Ends the playback as the document's stop action says — back to the rest pose by default (`timeline.stop()`). */
   stop(): void;
   /** Whether the animation is currently running. */
   isPlaying(): boolean;
@@ -57,7 +57,7 @@ export interface PlayerOptions {
   /**
    * Trigger handling:
    *  - `undefined`  → programmatic (the UI transport owns start; default);
-   *  - `'file'`     → use the document's own `animator.timeline.actionTriggers` unchanged;
+   *  - `'file'`     → use the document's own `animator.animator.actionTriggers` unchanged;
    *  - `PxActionTriggers` → these triggers instead of the document's — the WHOLE block.
    */
   actionTriggers?: 'file' | PxActionTriggers;

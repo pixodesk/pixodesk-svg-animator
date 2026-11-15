@@ -13,16 +13,15 @@ export const effectRetimeStretch: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "actionTriggers": {
-                "playback.start": "load"
-            },
             "actions": {
                 "outOfView": {
                     "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"
-        }
+        }, "actionTriggers": {
+                "timeline.start": "load"
+            }
     },
     "children": [
         {
@@ -35,7 +34,7 @@ export const effectRetimeStretch: SvgaCaseJson = {
                     "retime": {
                         "stretch": 2
                     },
-                    "source": "_px_38bqgqqn"
+                    "sourceElement": "_px_38bqgqqn"
                 }
             },
             "meta": {
@@ -105,7 +104,7 @@ export const effectRetimeStretch: SvgaCaseJson = {
                             "retime": {
                                 "stretch": 2
                             },
-                            "source": "_px_38bqgqqp"
+                            "sourceElement": "_px_38bqgqqp"
                         }
                     },
                     "meta": {

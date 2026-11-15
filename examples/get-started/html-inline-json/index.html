@@ -14,9 +14,6 @@
         "animator": {
           "timeline": {
             "outTime": 1000,
-            "actionTriggers": {
-              "playback.start": "load"
-            },
             "actions": {
               "outOfView": {
                 "behavior": "continue"
@@ -24,7 +21,9 @@
             },
             "iterations": "infinite",
             "iterationDirection": "alternate"
-          }
+          }, "actionTriggers": {
+              "timeline.start": "load"
+            }
         },
         "children": [
           {

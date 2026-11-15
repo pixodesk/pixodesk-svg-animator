@@ -12,18 +12,21 @@ import type { PxAnimationPlayerCallbacks, PxAnimationPlayerHandle } from '@pixod
 import SvgAnimationPlayer from './SvgAnimator';
 
 
+/** The control props a test may add (1.26: no control prop plays the file as saved — these documents start on load). */
+interface ControlProps { showAsStatic?: boolean; disableActionTriggers?: boolean }
+
 /**
  * Renders the animator inside a small host component so the test can grab the
  * exposed imperative API through a template ref, and optionally listen to
  * emitted events via `onX` listener props. The host forwards its `doc` prop so
  * `rerender({ doc })` reaches the animator.
  */
-function renderWithApi(doc: PxDocument, listeners: PxAnimationPlayerCallbacks = {}) {
+function renderWithApi(doc: PxDocument, listeners: PxAnimationPlayerCallbacks = {}, control: ControlProps = {}) {
     const api = ref<PxAnimationPlayerHandle | null>(null);
     const utils = render(defineComponent({
         props: { doc: { type: Object, required: true } },
         setup(props) {
-            return () => h(SvgAnimationPlayer, { document: props.doc as PxDocument, ref: api, ...listeners });
+            return () => h(SvgAnimationPlayer, { document: props.doc as PxDocument, ref: api, ...control, ...listeners });
         },
     }), {
         props: { doc },
@@ -125,10 +128,11 @@ describe("SvgAnimationPlayer (Vue)", () => {
             expect(hidden.style.display).toBe("none");
         });
 
-        it("is static without control props (does not auto-play or auto-finish)", () => {
+        // since 1.26 no control prop plays the file as saved (this one starts on load); the still is `showAsStatic`
+        it("is static with showAsStatic (does not auto-play or auto-finish)", () => {
             const onPlaybackStart = vi.fn();
             const onPlaybackFinish = vi.fn();
-            renderWithApi(getTestJson(), { onPlaybackStart, onPlaybackFinish });
+            renderWithApi(getTestJson(), { onPlaybackStart, onPlaybackFinish }, { showAsStatic: true });
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
@@ -167,7 +171,8 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
     describe("imperative API (template ref)", () => {
         it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackSpeed/isPlaying", () => {
-            const { api } = renderWithApi(getTestJson());
+            // manual: the file starts on load, so its triggers are switched off — the handle drives (1.26)
+            const { api } = renderWithApi(getTestJson(), {}, { disableActionTriggers: true });
 
             expect(api.value).not.toBeNull();
             const handle = api.value;
@@ -210,7 +215,8 @@ describe("SvgAnimationPlayer (Vue)", () => {
                 onPlaybackStart: vi.fn(), onPlaybackPause: vi.fn(),
                 onPlaybackFinish: vi.fn(), onDestroy: vi.fn(), onPlaybackStop: vi.fn(),
             };
-            const utils = renderWithApi(getTestJson(), spies);
+            // manual (1.26): the file starts on load — switched off, so each event counts only what the test presses
+            const utils = renderWithApi(getTestJson(), spies, { disableActionTriggers: true });
             return { spies, ...utils };
         }
 

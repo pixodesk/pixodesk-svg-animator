@@ -18,7 +18,9 @@ const createSvgAnimationPlayer: typeof createPlayer = (options) => {
 };
 
 /** Opacity runs 0 → 1 over content 0…3000 ms, so the opacity says where the playhead is (content ms / 3000). */
-function doc(segments: Record<string, PxTimelineSegment>, actionTriggers: PxActionTriggers = { 'timeline.start': 'load' }): PxDocument {
+/** The test's segments by name, written as the file's list in that order. */
+function doc(byName: Record<string, Omit<PxTimelineSegment, 'name'>>, actionTriggers: PxActionTriggers = { 'timeline.start': 'load' }): PxDocument {
+    const segments: Array<PxTimelineSegment> = Object.entries(byName).map(([name, seg]) => ({ name, ...seg }));
     return {
         type: 'svg', viewBox: '0 0 10 10',
         animator: { timeline: { engine: 'js', outTime: 3000, segments }, actionTriggers },
@@ -189,6 +191,25 @@ describe('segments — named parts of one timeline (2026-11-15)', () => {
             onWarning: (w) => warnings.push(w.code),
         });
         expect(warnings.filter(c => c === PxDiagnosticCode.segmentNotFound)).toHaveLength(2);
+    });
+
+    it('`next` follows the LIST, not the timeline: a later part listed first plays first', () => {
+        const api = createSvgAnimationPlayer({ document: doc({ success: THREE.success, intro: THREE.intro }, {}), container: '#box' });
+        expect(api.timeline.segment.getAll()).toEqual(['success', 'intro']);
+        expect(api.timeline.segment.get()).toBe('success');
+        api.timeline.segment.next();
+        expect(api.timeline.segment.get()).toBe('intro');
+    });
+
+    it('a name used twice: the first is played, the later ignored and reported (1115)', () => {
+        const warnings: Array<PxDiagnosticCode> = [];
+        const twice: PxDocument = doc(THREE);
+        const timeline = twice.animator?.timeline;
+        if (!timeline || timeline.type === 'scroll' || !timeline.segments) throw new Error('no segments');
+        timeline.segments.push({ name: 'intro', inTime: 2500, outTime: 3000 });
+        const api = createSvgAnimationPlayer({ document: twice, container: '#box', onWarning: (w) => warnings.push(w.code) });
+        expect(api.timeline.segment.getAll()).toEqual(['intro', 'loop', 'success']);
+        expect(warnings).toContain(PxDiagnosticCode.segmentNameDuplicate);
     });
 
     it('a timeline with no segments: get() is null and the controls do nothing', () => {

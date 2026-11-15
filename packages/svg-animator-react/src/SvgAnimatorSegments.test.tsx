@@ -17,11 +17,11 @@ const DOC: PxDocument = {
     animator: {
         timeline: {
             engine: 'js', outTime: 3000,
-            segments: {
-                intro:   { inTime: 0,    outTime: 1000, whenFinished: 'timeline.segment.next' },
-                loop:    { inTime: 1000, outTime: 2000, iterations: 'infinite' },
-                success: { inTime: 2000, outTime: 3000 },
-            },
+            segments: [
+                { name: 'intro',   inTime: 0,    outTime: 1000, whenFinished: 'timeline.segment.next' },
+                { name: 'loop',    inTime: 1000, outTime: 2000, iterations: 'infinite' },
+                { name: 'success', inTime: 2000, outTime: 3000 },
+            ],
         },
         actionTriggers: { 'timeline.start': 'load', 'timeline.segment.next': 'click' },
     },

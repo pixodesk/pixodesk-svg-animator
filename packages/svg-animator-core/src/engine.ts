@@ -49,7 +49,7 @@ export { toDomProps } from './util/PxNodeProps';
 
 export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue, PxTriggerEventSpec, PxSegmentTrigger } from './format/PxAnimatorConstants';
 // segments (2026-11-15): the engine's view of a segmented document, the segments in their settings form
-export { withSegmentEngine, resolveSegments, hasSegments, segmentReferenceIssues } from './playback/PxSegments';
+export { withSegmentEngine, resolveSegments, hasSegments, segmentReferenceIssues, duplicateSegmentNames } from './playback/PxSegments';
 export type { PxSegmentSettings, PxSegmentRuntime, PxSegmentReferenceIssue } from './playback/PxSegments';
 
 // Variables (schema 1.27) — one player's values, and the binding grammar (docs/library/variables.md)

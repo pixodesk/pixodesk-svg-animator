@@ -13,16 +13,15 @@ export const effectMaskedByLuminance: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "actionTriggers": {
-                "playback.start": "load"
-            },
             "actions": {
                 "outOfView": {
                     "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"
-        }
+        }, "actionTriggers": {
+                "timeline.start": "load"
+            }
     },
     "children": [
         {
@@ -35,7 +34,7 @@ export const effectMaskedByLuminance: SvgaCaseJson = {
             "effects": {
                 "maskedBy": {
                     "maskType": "luminance",
-                    "source": "_px_38bqgqqc"
+                    "sourceElement": "_px_38bqgqqc"
                 }
             },
             "meta": {

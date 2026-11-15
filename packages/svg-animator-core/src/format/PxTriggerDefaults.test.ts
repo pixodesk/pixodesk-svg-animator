@@ -12,24 +12,37 @@ import { describeSchema } from '../schema/PxSchema';
 import { allowedTriggerEvents, counterpartTriggerEvent, PxWhenFinished, derivedResume, PX_PLAYBACK_DEFAULTS, PxPlaybackState, PxTriggerAction, PxTriggerIssueKind, PxTriggerList, resolveActions, resolveGate, resolveTriggers, triggerActionFor, triggerEventList, triggerIssues, triggerListsEvent } from './PxAnimatorConstants';
 import { PxActionsSchema, PxOutOfViewActionSchema, PxTimeTimelineSchema, PxActionTriggersSchema, type PxActionTriggers } from './PxAnimatorTypes';
 
+/** The five playback lists of the resolved block — entry keys; a bare word's key is the word. Since 2026-11-15 the
+ *  resolved view also carries `segments` and `specs` (the segment triggers, what each key listens for). */
+function listsOf(triggers: PxActionTriggers | undefined) {
+    const t = resolveTriggers(triggers);
+    return { startPlayback: t.startPlayback, playPlayback: t.playPlayback, stopPlayback: t.stopPlayback, pausePlayback: t.pausePlayback, resumePlayback: t.resumePlayback };
+}
+
+/** The four pressed events (2026-11-15) — every list may name them. */
+const PRESSED = ['pointerDown', 'pointerUp', 'keyDown', 'keyUp'];
+
 describe('trigger defaults', () => {
 
     it('a missing triggers block and an EMPTY one are the same thing — nothing starts it, the manual document (1.17)', () => {
-        expect(resolveTriggers(undefined)).toEqual({ startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] });
-        expect(resolveTriggers({})).toEqual({ startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] });
-        expect(resolveTriggers({ 'timeline.start': 'load' })).toEqual({ startPlayback: ['load'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['load'] });
+        expect(listsOf(undefined)).toEqual({ startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] });
+        expect(listsOf({})).toEqual({ startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] });
+        expect(listsOf({ 'timeline.start': 'load' })).toEqual({ startPlayback: ['load'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['load'] });
+        // no segment actions: no segment triggers; a bare word is heard on the whole picture
+        expect(resolveTriggers({ 'timeline.start': 'load' }).segments).toEqual([]);
+        expect(resolveTriggers({ 'timeline.start': 'load' }).specs.get('load')).toEqual({ key: 'load', event: 'load' });
     });
 
     it('resume is derived when the file does not name it: the counterpart of each pause event plus the start events that do not stop; a named list is used as written', () => {
-        expect(resolveTriggers({ 'timeline.start': 'hoverIn', 'timeline.pause': 'hoverOut' }))
+        expect(listsOf({ 'timeline.start': 'hoverIn', 'timeline.pause': 'hoverOut' }))
             .toEqual({ startPlayback: ['hoverIn'], playPlayback: [], stopPlayback: [], pausePlayback: ['hoverOut'], resumePlayback: ['hoverIn'] });
         // the file names the list: used as written — an empty list resumes on nothing (that pause waits for start or stop)
-        expect(resolveTriggers({ 'timeline.start': 'click', 'timeline.pause': 'click', 'timeline.resume': [] }))
+        expect(listsOf({ 'timeline.start': 'click', 'timeline.pause': 'click', 'timeline.resume': [] }))
             .toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: ['click'], resumePlayback: [] });
         // a marquee: plays on load, pauses while the pointer is over it — derived, it resumes when the pointer leaves
-        expect(resolveTriggers({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn' }).resumePlayback).toEqual(['hoverOut', 'load']);
+        expect(listsOf({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn' }).resumePlayback).toEqual(['hoverOut', 'load']);
         // named, a click resumes it instead (and `triggerIssues` notes the difference)
-        expect(resolveTriggers({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn', 'timeline.resume': 'click' }).resumePlayback).toEqual(['click']);
+        expect(listsOf({ 'timeline.start': 'load', 'timeline.pause': 'hoverIn', 'timeline.resume': 'click' }).resumePlayback).toEqual(['click']);
         expect(counterpartTriggerEvent('hoverIn')).toBe('hoverOut');
         expect(counterpartTriggerEvent('load')).toBeUndefined();
         expect(derivedResume(['click'], ['click'], [])).toEqual([]);   // a start that also stops does not resume
@@ -41,13 +54,13 @@ describe('trigger defaults', () => {
         expect(triggerEventList(['hoverIn', 'click'])).toEqual(['hoverIn', 'click']);
         const stated: PxActionTriggers = { 'timeline.start': ['load', 'click'], 'timeline.stop': ['hoverOut'], 'timeline.pause': ['click'] };
         // the wire's dotted names in, the resolved view's plain fields out
-        expect(resolveTriggers(stated)).toEqual({ startPlayback: ['load', 'click'], playPlayback: [], stopPlayback: ['hoverOut'], pausePlayback: ['click'], resumePlayback: ['click', 'load'] });
+        expect(listsOf(stated)).toEqual({ startPlayback: ['load', 'click'], playPlayback: [], stopPlayback: ['hoverOut'], pausePlayback: ['click'], resumePlayback: ['click', 'load'] });
     });
 
     it('click under both start and stop is the start/stop toggle (what `togglePlay` spelled until 1.11) — it resumes nothing', () => {
-        expect(resolveTriggers({ 'timeline.start': 'click', 'timeline.stop': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: ['click'], pausePlayback: [], resumePlayback: [] });
+        expect(listsOf({ 'timeline.start': 'click', 'timeline.stop': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: ['click'], pausePlayback: [], resumePlayback: [] });
         // the play/pause toggle is the other pair — start and pause on the same event
-        expect(resolveTriggers({ 'timeline.start': 'click', 'timeline.pause': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: ['click'], resumePlayback: ['click'] });
+        expect(listsOf({ 'timeline.start': 'click', 'timeline.pause': 'click' })).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: ['click'], resumePlayback: ['click'] });
     });
 
     it('a click under both start and stop STOPS while paused — a start event that also stops does not resume', () => {
@@ -97,12 +110,12 @@ describe('trigger defaults', () => {
     });
 
     it('each list names only the events that make sense; others are dropped and reported', () => {
-        expect(allowedTriggerEvents(PxTriggerList.startPlayback)).toEqual(['load', 'hoverIn', 'click']);
-        expect(allowedTriggerEvents(PxTriggerList.stopPlayback)).toEqual(['hoverOut', 'click']);
-        expect(allowedTriggerEvents(PxTriggerList.pausePlayback)).toEqual(['hoverIn', 'hoverOut', 'click']);
-        expect(allowedTriggerEvents(PxTriggerList.resumePlayback)).toEqual(['hoverIn', 'hoverOut', 'click']);
+        expect(allowedTriggerEvents(PxTriggerList.startPlayback)).toEqual(['load', 'hoverIn', 'click', ...PRESSED]);
+        expect(allowedTriggerEvents(PxTriggerList.stopPlayback)).toEqual(['hoverOut', 'click', ...PRESSED]);
+        expect(allowedTriggerEvents(PxTriggerList.pausePlayback)).toEqual(['hoverIn', 'hoverOut', 'click', ...PRESSED]);
+        expect(allowedTriggerEvents(PxTriggerList.resumePlayback)).toEqual(['hoverIn', 'hoverOut', 'click', ...PRESSED]);
         const odd: PxActionTriggers = { 'timeline.start': ['hoverOut', 'click'], 'timeline.stop': 'load', 'timeline.pause': 'load' };
-        expect(resolveTriggers(odd)).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['click'] });
+        expect(listsOf(odd)).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['click'] });
         expect(triggerIssues(odd)).toEqual([
             { kind: PxTriggerIssueKind.eventNotAllowed, list: PxTriggerList.startPlayback, event: 'hoverOut' },
             { kind: PxTriggerIssueKind.eventNotAllowed, list: PxTriggerList.stopPlayback, event: 'load' },
@@ -165,7 +178,7 @@ describe('trigger defaults', () => {
         // start and play on one event: a collision, the start wins from rest
         expect(triggerIssues({ 'timeline.start': 'click', 'timeline.play': 'click' }))
             .toEqual([{ kind: PxTriggerIssueKind.collision, list: PxTriggerList.startPlayback, event: 'click', otherList: PxTriggerList.playPlayback }]);
-        expect(allowedTriggerEvents(PxTriggerList.playPlayback)).toEqual(['load', 'hoverIn', 'click']);
+        expect(allowedTriggerEvents(PxTriggerList.playPlayback)).toEqual(['load', 'hoverIn', 'click', ...PRESSED]);
     });
 
     it('the gate defaults from the one table, read off the runtime view', () => {
@@ -184,7 +197,7 @@ describe('trigger defaults', () => {
 
     it("the schema states NO default for a list — absent inside a block means 'not listed', and so does the absent BLOCK", () => {
         expect(PxActionTriggersSchema.defaults).toEqual({});
-        expect(resolveTriggers(undefined).startPlayback).toEqual([]);
+        expect(listsOf(undefined).startPlayback).toEqual([]);
     });
 
     it('the schema declares the same outOfView default the players apply — the one that makes `load` safe', () => {

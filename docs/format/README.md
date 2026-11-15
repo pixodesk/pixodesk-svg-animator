@@ -238,10 +238,11 @@ interface SVG_JSON extends NODE {
                                                    // CSS animation-fill-mode split in two: 'firstFrame' = backwards, whenFinished 'hold' = forwards
                 inViewThreshold?: number;          // how much must be on screen before it may run: 0 = any part, 1 = all of it; default 0.5
                 inViewDebounce?: number;           // and for how long, ms; default 150, so scrolling straight past starts nothing
-                segments?: {                       // NAMED PARTS of this timeline, played one at a time (2026-11-15): with segments, the
+                segments?: Array<{                 // NAMED PARTS of this timeline, played one at a time (2026-11-15): with segments, the
                                                    // playback IS the current segment — the buttons, reads and seeks act on it alone.
-                                                   // The first on the timeline is current at load (or the one `initial` names)
-                    [name: string]: {
+                                                   // A LIST: next / previous follow its order; the first is current at load (or
+                                                   // the one `initial` names)
+                        name: string;              // what triggers and go-tos call it; a name used twice — the first wins (PX1115)
                         inTime?: number;           // its part of the content, ms (default: the timeline's window)
                         outTime?: number;
                         iterations?: number | 'infinite';   // how many passes (default 1)
@@ -252,8 +253,7 @@ interface SVG_JSON extends NODE {
                             | 'timeline.segment.next' | string;  // or go on: the next segment, or 'timeline.segment.goTo(‹name›)'
                         whenLeaving?: 'jump' | 'animateToEnd' | 'animateToStart';  // how it leaves when another is asked for
                                                    // (default 'jump'): at once, after this pass, or played back to its start
-                    };
-                };
+                }>;
               }
             | {
                 type: 'scroll';                    // the SCROLLING moves the playhead: nothing starts, pauses or finishes it, so
@@ -310,7 +310,7 @@ interface SVG_JSON extends NODE {
                                            // each timeline.pause event's counterpart (hoverIn ↔ hoverOut, click → click) + the
                                            // timeline.start events that do not also stop; a named list is honoured as written and
                                            // the player notes where it differs (PX1111). hoverIn · hoverOut · click
-            'timeline.segment.next'?: EVENTS;      // the SEGMENT actions (2026-11-15): the next segment on the timeline (after the
+            'timeline.segment.next'?: EVENTS;      // the SEGMENT actions (2026-11-15): the next segment in the list (after the
             'timeline.segment.previous'?: EVENTS;  // last, the first), the previous one (before the first, the last), or a named
             [goToSegment: string]: EVENTS;         // one — the key 'timeline.segment.goTo(‹name›)', one per segment (PX1114 when
                                                    // no segment has the name). Any event, read before the playback lists
@@ -2120,7 +2120,7 @@ adapter. You need it only to build a player; everything else is on the main entr
 | Validation | `isPxDocument`, `validateDocument(doc, options?)` → `PxValidationResult` | ● the shallow guard, and THE one deep check: `{ valid, errors, findings }` (review §15). `isValidPxDocument`, `validateNodeEffects`, `validateDeprecatedTransformChannels`, `validateEasingRefs`, `validateVersionStamp` (▪) moved to `/internal` |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals. `legacyAnimatorOf` (▪) is the raw config at the pre-rendered SVG's `meta.animator` address — unchecked: cast it with `PxAnimatorConfigSchema` |
 | Segments and events | `PxTimelineSegment`, `PxSegmentAction`, `segmentGoToAction(name)`, `PxWhenLeaving`, `PxSegmentControls`, `PxSegmentProps`, `PxTriggerEventEntry`, `PxTriggerEventObject`, `PxTriggerEventFilter`, `PxPointerType` | ● named parts of one timeline and the events that move between them (2026-11-15, [Segments](../library/playback-and-triggers.md#segments--named-parts-of-one-timeline)) — the wire types, the goTo key, the handle's `timeline.segment`, the components' `segment` prop; an event entry: a word or `{ event, element, selector, with }` |
-| Segments and events — schemas and engine | `PxTimelineSegmentSchema`, `PxTriggerEventObjectSchema`, `PxTriggerEventFilterSchema`; `/engine`: `resolveSegments`, `PxSegmentSettings`, `hasSegments`, `withSegmentEngine`, `segmentReferenceIssues`, `PxSegmentReferenceIssue`, `isSegmentGoToAction`, `PxSegmentTrigger`, `PxSegmentTriggerKind`, `PX_ALL_TRIGGER_EVENTS`, `isTriggerEvents`, `triggerKeys`, `triggerKeyOf`, `triggerSpecOf`, `triggerEventOf`, `PxTriggerEventSpec` | ○ the schemas; the segments a timeline has in ruler order, the document the engine plays (one plain pass, the segment clock seeks it), the goTo names that name nothing (PX1114), and the resolved triggers' entry keys and what each listens for |
+| Segments and events — schemas and engine | `PxTimelineSegmentSchema`, `PxTriggerEventObjectSchema`, `PxTriggerEventFilterSchema`; `/engine`: `resolveSegments`, `PxSegmentSettings`, `hasSegments`, `withSegmentEngine`, `segmentReferenceIssues`, `PxSegmentReferenceIssue`, `duplicateSegmentNames`, `isSegmentGoToAction`, `PxSegmentTrigger`, `PxSegmentTriggerKind`, `PX_ALL_TRIGGER_EVENTS`, `isTriggerEvents`, `triggerKeys`, `triggerKeyOf`, `triggerSpecOf`, `triggerEventOf`, `PxTriggerEventSpec` | ○ the schemas; the segments a timeline has in list order, the document the engine plays (one plain pass, the segment clock seeks it), the goTo names that name nothing (PX1114), the names used twice (PX1115), and the resolved triggers' entry keys and what each listens for |
 | Segments — internal | `PxSegmentRuntime`; `/internal`: `createSegmentLever`, `PxSegmentLever` | ▪ the segment clock a player installs, and the lever a component's `segment` prop holds the player with |
 | Timeline shape | `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ the runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) → the nested `timeline` object. The other direction, `resolveAnimatorTimeline` (▪), moved to `/internal` (review §17a): read the view through `getAnimatorConfig` / `prepareDocument` |
 | Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |

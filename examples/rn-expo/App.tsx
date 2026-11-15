@@ -29,7 +29,7 @@ const staticDoc: PxDocument = {
 const animatedDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        timeline: { outTime: 2000, iterations: 'infinite', iterationDirection: 'alternate', actions: { outOfView: 'continue' }, actionTriggers: { 'playback.start': 'load' } },
+        timeline: { outTime: 2000, iterations: 'infinite', iterationDirection: 'alternate', actions: { outOfView: 'continue' } }, actionTriggers: { 'timeline.start': 'load' },
     },
     children: [
         {
@@ -65,7 +65,7 @@ const animatedDoc: PxDocument = {
 /** Motion along a curved path with auto-orient — materialized by core sampling. */
 const motionPathDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 200',
-    animator: { timeline: { outTime: 3000, iterations: 'infinite', actions: { outOfView: 'continue' }, actionTriggers: { 'playback.start': 'load' } } },
+    animator: { timeline: { outTime: 3000, iterations: 'infinite', actions: { outOfView: 'continue' } }, actionTriggers: { 'timeline.start': 'load' } },
     children: [
         { type: 'path', d: 'M 30 150 C 100 30 200 30 270 150', stroke: '#0087ff44', 'stroke-width': 2, fill: 'none' },
         {
@@ -119,16 +119,16 @@ export default function AppPlayer() {
             </View>
 
             <View style={styles.buttonRow}>
-                <Pressable style={styles.button} onPress={() => api.current?.playback.play()}>
+                <Pressable style={styles.button} onPress={() => api.current?.timeline.play()}>
                     <Text style={styles.buttonText}>Play</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => api.current?.playback.pause()}>
+                <Pressable style={styles.button} onPress={() => api.current?.timeline.pause()}>
                     <Text style={styles.buttonText}>Pause</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => api.current?.playback.stop()}>
+                <Pressable style={styles.button} onPress={() => api.current?.timeline.stop()}>
                     <Text style={styles.buttonText}>Stop</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => api.current?.playback.setCurrentTime(1000)}>
+                <Pressable style={styles.button} onPress={() => api.current?.timeline.setCurrentTime(1000)}>
                     <Text style={styles.buttonText}>Seek 1s</Text>
                 </Pressable>
             </View>

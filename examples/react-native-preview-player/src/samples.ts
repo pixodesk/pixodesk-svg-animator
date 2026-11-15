@@ -27,8 +27,8 @@ const bouncingBall: PxDocument = {
     animator: {
         timeline: {
             outTime: 1400, iterations: 'infinite',
-            actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' },
-        },
+actions: { outOfView: 'continue' },
+        }, actionTriggers: { 'timeline.start': 'load' },
     },
     children: [
         { type: 'line', x1: 20, y1: 250, x2: 280, y2: 250, stroke: '#ffffff33', 'stroke-width': 2 },
@@ -169,8 +169,8 @@ const textAlongPath: PxDocument = {
     animator: {
         timeline: {
             outTime: TEXT_DURATION, iterations: 'infinite',
-            actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' },
-        },
+actions: { outOfView: 'continue' },
+        }, actionTriggers: { 'timeline.start': 'load' },
     },
     children: [
         {
@@ -198,8 +198,8 @@ const strokeTrim: PxDocument = {
     animator: {
         timeline: {
             outTime: 2600, iterations: 'infinite',
-            actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' },
-        },
+actions: { outOfView: 'continue' },
+        }, actionTriggers: { 'timeline.start': 'load' },
     },
     children: [
         // Faint full path underneath so the trim is obvious.
@@ -249,8 +249,8 @@ const repeater: PxDocument = {
     animator: {
         timeline: {
             outTime: 2000, iterations: 'infinite', iterationDirection: 'alternate',
-            actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' },
-        },
+actions: { outOfView: 'continue' },
+        }, actionTriggers: { 'timeline.start': 'load' },
     },
     children: [
         {
@@ -294,8 +294,8 @@ const gradient: PxDocument = {
     animator: {
         timeline: {
             outTime: 3000, iterations: 'infinite', iterationDirection: 'alternate',
-            actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' },
-        },
+actions: { outOfView: 'continue' },
+        }, actionTriggers: { 'timeline.start': 'load' },
     },
     children: [
         {
@@ -336,8 +336,8 @@ const morph: PxDocument = {
     animator: {
         timeline: {
             outTime: 2400, iterations: 'infinite', iterationDirection: 'alternate',
-            actionTriggers: { 'playback.start': 'load' }, actions: { outOfView: 'continue' },
-        },
+actions: { outOfView: 'continue' },
+        }, actionTriggers: { 'timeline.start': 'load' },
     },
     children: [
         {

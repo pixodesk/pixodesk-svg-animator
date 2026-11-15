@@ -74,10 +74,14 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
         api.destroy();
     });
 
-    it('no driver named: the first frame, nothing plays — whatever the file says', () => {
+    it('no driver named: an override alone leaves the file\'s triggers driving (1.26) — the still is `showAsStatic`', () => {
         const api = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
-        expect(api.timeline.isPlaying()).toBe(false);
+        expect(api.timeline.isPlaying()).toBe(true);
         api.destroy();
+        // until 1.25 no driver meant the first frame, nothing playing — now the one option that says so
+        const still = createSvgAnimationPlayer({ document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 }, showAsStatic: true });
+        expect(still.timeline.isPlaying()).toBe(false);
+        still.destroy();
     });
 });
 

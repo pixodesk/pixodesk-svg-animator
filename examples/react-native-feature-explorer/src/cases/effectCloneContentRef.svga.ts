@@ -13,16 +13,15 @@ export const effectCloneContentRef: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "actionTriggers": {
-                "playback.start": "load"
-            },
             "actions": {
                 "outOfView": {
                     "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"
-        }
+        }, "actionTriggers": {
+                "timeline.start": "load"
+            }
     },
     "children": [
         {
@@ -32,7 +31,7 @@ export const effectCloneContentRef: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38bqgqon"
+                    "sourceElement": "_px_38bqgqon"
                 }
             },
             "meta": {

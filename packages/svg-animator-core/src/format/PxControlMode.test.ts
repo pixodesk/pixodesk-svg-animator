@@ -5,38 +5,42 @@
 
 // ONE control-mode rule for react / vue / rn (API review §1 and §7).
 //
-// Each component used to pick its own order: React `apiRef → playerActionTriggers → showAtProgress/showAtTime →
-// play/pause`, Vue `playerActionTriggers → showAtProgress/showAtTime → play/pause`, React Native `showAtProgress/showAtTime →
-// play/pause → playerActionTriggers`. So `playerActionTriggers` + `progress={0.5}` played on two and seeked on the
-// third, and React let a REF decide the mode — which silently disabled `playerActionTriggers`.
+// Each component used to pick its own order: React `apiRef → triggers → showAtProgress/showAtTime → play/pause`, Vue
+// `triggers → showAtProgress/showAtTime → play/pause`, React Native `showAtProgress/showAtTime → play/pause → triggers`.
+// So triggers + `progress={0.5}` played on two and seeked on the third, and React let a REF decide the mode — which
+// silently disabled the triggers. (`playerActionTriggers` until 1.25; an `actionTriggers` block since 1.26.)
 
 import { describe, expect, it } from 'vitest';
 import { PxControlMode, controlModeTakesOverTrigger, resolveControlMode, type PxControlProps } from './PxAnimatorConstants';
 
+// 1.26 (2026-11-13): `playerActionTriggers` is gone — its tier is an `actionTriggers` block (`TRIGGERS` below), and with
+// no control prop the file's own triggers drive (`actionTriggers` mode), no longer `static`.
+const TRIGGERS = { 'timeline.start': 'click' } as const;
+
 describe('resolveControlMode — precedence', () => {
 
-    it('no control props → static, the document decides', () => {
-        expect(resolveControlMode({})).toEqual({ mode: PxControlMode.static, warnings: [] });
+    it('no control props → actionTriggers, the document decides', () => {
+        expect(resolveControlMode({})).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
     });
 
     it('progress / time win over everything', () => {
         expect(resolveControlMode({ showAtProgress: 0.5 }).mode).toBe(PxControlMode.fixedTime);
         expect(resolveControlMode({ showAtTime: 250 }).mode).toBe(PxControlMode.fixedTime);
-        expect(resolveControlMode({ showAtProgress: 0.5, playback: 'on', playerActionTriggers: true }).mode).toBe(PxControlMode.fixedTime);
+        expect(resolveControlMode({ showAtProgress: 0.5, playback: 'on', actionTriggers: TRIGGERS }).mode).toBe(PxControlMode.fixedTime);
     });
 
-    it('playback wins over playerActionTriggers', () => {
+    it('playback wins over an actionTriggers block', () => {
         expect(resolveControlMode({ playback: 'on' }).mode).toBe(PxControlMode.playback);
         expect(resolveControlMode({ playback: 'paused' }).mode).toBe(PxControlMode.playback);
-        expect(resolveControlMode({ playback: 'off', playerActionTriggers: true }).mode).toBe(PxControlMode.playback);
+        expect(resolveControlMode({ playback: 'off', actionTriggers: TRIGGERS }).mode).toBe(PxControlMode.playback);
     });
 
-    it('playerActionTriggers alone is playerActionTriggers', () => {
-        expect(resolveControlMode({ playerActionTriggers: true }).mode).toBe(PxControlMode.playerActionTriggers);
+    it('an actionTriggers block alone is actionTriggers', () => {
+        expect(resolveControlMode({ actionTriggers: TRIGGERS }).mode).toBe(PxControlMode.actionTriggers);
     });
 
-    it('playerActionTriggers:false is not a control prop — it does not claim the mode', () => {
-        expect(resolveControlMode({ playerActionTriggers: false }).mode).toBe(PxControlMode.static);
+    it('disableActionTriggers:false is not a control prop — it does not claim the mode', () => {
+        expect(resolveControlMode({ disableActionTriggers: false }).mode).toBe(PxControlMode.actionTriggers);
     });
 
     it('an "off" playback still claims the mode — it is an explicit instruction', () => {
@@ -49,26 +53,26 @@ describe('resolveControlMode — conflict warnings', () => {
     it('says nothing when only one tier is used', () => {
         expect(resolveControlMode({ showAtProgress: 0.5 }).warnings).toEqual([]);
         expect(resolveControlMode({ playback: 'on' }).warnings).toEqual([]);
-        expect(resolveControlMode({ playerActionTriggers: true }).warnings).toEqual([]);
+        expect(resolveControlMode({ actionTriggers: TRIGGERS }).warnings).toEqual([]);
     });
 
     it('names both props and which one won', () => {
-        const { warnings } = resolveControlMode({ showAtProgress: 0.5, playerActionTriggers: true });
+        const { warnings } = resolveControlMode({ showAtProgress: 0.5, actionTriggers: TRIGGERS });
         expect(warnings).toHaveLength(1);
         expect(warnings[0]).toContain('showAtProgress/showAtTime');
-        expect(warnings[0]).toContain('playerActionTriggers');
+        expect(warnings[0]).toContain('actionTriggers');
         expect(warnings[0]).toContain('ignored');
     });
 
     it('reports EVERY losing tier, not just the first', () => {
-        const { warnings } = resolveControlMode({ showAtProgress: 0.5, playback: 'on', playerActionTriggers: true });
+        const { warnings } = resolveControlMode({ showAtProgress: 0.5, playback: 'on', actionTriggers: TRIGGERS });
         expect(warnings).toHaveLength(2);
         expect(warnings.join('\n')).toContain('playback');
-        expect(warnings.join('\n')).toContain('playerActionTriggers');
+        expect(warnings.join('\n')).toContain('actionTriggers');
     });
 
-    it('playback over playerActionTriggers warns once', () => {
-        expect(resolveControlMode({ playback: 'paused', playerActionTriggers: true }).warnings).toHaveLength(1);
+    it('playback over an actionTriggers block warns once', () => {
+        expect(resolveControlMode({ playback: 'paused', actionTriggers: TRIGGERS }).warnings).toHaveLength(1);
     });
 });
 
@@ -76,21 +80,20 @@ describe('apiRef is NOT a mode (§1)', () => {
 
     it('the resolver takes no ref at all — a handle is not an instruction', () => {
         // The whole bug was React treating `apiRef` as a mode, which forced
-        // `start: 'manual'` and stopped `playerActionTriggers` ever starting.
-        expect(resolveControlMode({ playerActionTriggers: true }).mode).toBe(PxControlMode.playerActionTriggers);
-        expect(controlModeTakesOverTrigger(PxControlMode.playerActionTriggers)).toBe(false);
+        // `start: 'manual'` and stopped the triggers ever starting.
+        expect(resolveControlMode({ actionTriggers: TRIGGERS }).mode).toBe(PxControlMode.actionTriggers);
+        expect(controlModeTakesOverTrigger(PxControlMode.actionTriggers)).toBe(false);
     });
 });
 
 describe('controlModeTakesOverTrigger', () => {
 
-    it('every mode EXCEPT playerActionTriggers takes the trigger over', () => {
+    it('every mode EXCEPT actionTriggers takes the trigger over', () => {
         expect(controlModeTakesOverTrigger(PxControlMode.fixedTime)).toBe(true);
         expect(controlModeTakesOverTrigger(PxControlMode.playback)).toBe(true);
-        // `static` too: a component with no control props must not start on its own —
-        // both React and Vue assert exactly that ("is static without control props").
+        // `static` too (`showAsStatic`): the picture as drawn must not start on its own
         expect(controlModeTakesOverTrigger(PxControlMode.static)).toBe(true);
-        expect(controlModeTakesOverTrigger(PxControlMode.playerActionTriggers)).toBe(false);
+        expect(controlModeTakesOverTrigger(PxControlMode.actionTriggers)).toBe(false);
     });
 });
 
@@ -98,10 +101,10 @@ describe('PxControlProps — one driver family at a time, checked by TypeScript 
     it('each family alone compiles; two at once do not; the JavaScript reader still warns on any mix', () => {
         const ok: Array<PxControlProps> = [
             {}, { playback: 'on' }, { playback: 'paused' }, { playback: 'off' }, { showAtProgress: 0.5 }, { showAtTime: 100 },
-            { playerActionTriggers: true }, { playerActionTriggers: { 'timeline.start': 'hoverIn', 'timeline.resume': 'hoverIn' } },
+            { actionTriggers: TRIGGERS }, { actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.resume': 'hoverIn' } },
         ];
         // @ts-expect-error — the lever and the triggers are two drivers
-        const two: PxControlProps = { playback: 'on', playerActionTriggers: true };
+        const two: PxControlProps = { playback: 'on', actionTriggers: TRIGGERS };
         // @ts-expect-error — a position that is not one of the three (the readout's `playing` is not a request)
         const state: PxControlProps = { playback: 'playing' };
         // @ts-expect-error — both showAt props

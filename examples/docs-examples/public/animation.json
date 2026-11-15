@@ -11,11 +11,9 @@
         "outOfView": "continue"
       },
       "iterations": 2,
-      "iterationDirection": "normal",
-      "actionTriggers": {
-        "playback.start": "load"
+      "iterationDirection": "normal"}, "actionTriggers": {
+        "timeline.start": "load"
       }
-    }
   },
   "children": [
     {

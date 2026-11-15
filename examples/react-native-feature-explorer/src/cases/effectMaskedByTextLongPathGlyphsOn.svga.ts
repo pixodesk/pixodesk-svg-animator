@@ -49,16 +49,15 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "actionTriggers": {
-                "playback.start": "load"
-            },
             "actions": {
                 "outOfView": {
                     "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"
-        }
+        }, "actionTriggers": {
+                "timeline.start": "load"
+            }
     },
     "children": [
         {
@@ -91,7 +90,7 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                 },
                 "maskedBy": {
                     "maskType": "alpha",
-                    "source": "_px_38frce9v"
+                    "sourceElement": "_px_38frce9v"
                 }
             },
             "children": [
@@ -119,7 +118,7 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                             "effects": {
                                 "maskedBy": {
                                     "maskType": "alpha",
-                                    "source": "_px_38frce9v"
+                                    "sourceElement": "_px_38frce9v"
                                 }
                             }
                         }
@@ -201,7 +200,7 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
             "effects": {
                 "maskedBy": {
                     "maskType": "alpha",
-                    "source": "_px_38frce9u"
+                    "sourceElement": "_px_38frce9u"
                 }
             }
         },
@@ -262,7 +261,7 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                 },
                 "maskedBy": {
                     "maskType": "alpha",
-                    "source": "_px_38frce9t"
+                    "sourceElement": "_px_38frce9t"
                 }
             },
             "children": [
@@ -290,7 +289,7 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                             "effects": {
                                 "maskedBy": {
                                     "maskType": "alpha",
-                                    "source": "_px_38frce9t"
+                                    "sourceElement": "_px_38frce9t"
                                 }
                             }
                         }
@@ -383,7 +382,7 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
             "effects": {
                 "maskedBy": {
                     "maskType": "alpha",
-                    "source": "_px_38frce9s"
+                    "sourceElement": "_px_38frce9s"
                 }
             }
         },

@@ -21,14 +21,14 @@ export function createWebPlayer(
   });
 
   return {
-    start: () => api.playback.start(),
-    play: () => api.playback.play(),
-    pause: () => api.playback.pause(),
-    stop: () => api.playback.stop(),
-    isPlaying: () => api.playback.isPlaying(),
-    getCurrentTime: () => api.playback.getCurrentTime(),
-    setCurrentTime: (ms) => api.playback.setCurrentTime(ms),
-    setSpeed: (speed) => api.playback.setSpeed(speed),
+    start: () => api.timeline.start(),
+    play: () => api.timeline.play(),
+    pause: () => api.timeline.pause(),
+    stop: () => api.timeline.stop(),
+    isPlaying: () => api.timeline.isPlaying(),
+    getCurrentTime: () => api.timeline.getCurrentTime(),
+    setCurrentTime: (ms) => api.timeline.setCurrentTime(ms),
+    setSpeed: (speed) => api.timeline.setSpeed(speed),
     destroy: () => api.destroy(),
   };
 }

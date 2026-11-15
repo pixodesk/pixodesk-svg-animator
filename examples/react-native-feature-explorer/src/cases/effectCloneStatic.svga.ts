@@ -13,16 +13,15 @@ export const effectCloneStatic: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "actionTriggers": {
-                "playback.start": "load"
-            },
             "actions": {
                 "outOfView": {
                     "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"
-        }
+        }, "actionTriggers": {
+                "timeline.start": "load"
+            }
     },
     "children": [
         {
@@ -153,7 +152,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38bqgqqp"
+                    "sourceElement": "_px_38bqgqqp"
                 }
             }
         },
@@ -169,7 +168,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38nb5h1q"
+                    "sourceElement": "_px_38nb5h1q"
                 }
             }
         },
@@ -185,7 +184,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38nb5h1o"
+                    "sourceElement": "_px_38nb5h1o"
                 }
             }
         },
@@ -201,7 +200,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38nb5h1m"
+                    "sourceElement": "_px_38nb5h1m"
                 }
             }
         },
@@ -217,7 +216,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "omit": "translate",
-                    "source": "_px_38nb5h1k"
+                    "sourceElement": "_px_38nb5h1k"
                 }
             }
         },

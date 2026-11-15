@@ -11,4 +11,4 @@ const animator = createSvgAnimationPlayer({
   disableActionTriggers: true,
 });
 
-document.getElementById('play')!.onclick = () => animator.playback.start();
+document.getElementById('play')!.onclick = () => animator.timeline.start();

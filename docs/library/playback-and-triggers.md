@@ -217,7 +217,7 @@ the house style of `animate`'s references — and the editor writes the shortest
 | `timeline.stop` | `timeline.stop`, per `actions["timeline.stop"]` | **playing, paused or finished** | *Stop playback on* |
 | `timeline.pause` | `timeline.pause` — freezes the current frame | **playing** | *Pause playback on* |
 | `timeline.resume` | `timeline.resume` — carries on from there. **Derived unless the file names it** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume playback on* (shown, not edited) |
-| `timeline.segment.next` | the next segment on the timeline; after the last, the first ([Segments](#segments--named-parts-of-one-timeline)) | **any state** — read before the lists above | *Add trigger* → Next segment |
+| `timeline.segment.next` | the next segment in the list; after the last, the first ([Segments](#segments--named-parts-of-one-timeline)) | **any state** — read before the lists above | *Add trigger* → Next segment |
 | `timeline.segment.previous` | the previous segment; before the first, the last | **any state** | *Add trigger* → Previous segment |
 
 `timeline.start` and `timeline.play` differ only when something is already going: a start always plays from the
@@ -574,19 +574,19 @@ field has the focus. React Native hears `click` and `pointerDown` / `pointerUp` 
 
 ## Segments — named parts of one timeline
 
-A timeline can be cut into **segments** (2026-11-15): named parts that play one at a time — an intro, a loop that waits,
-an ending. The page, or the file's own triggers, moves between them; while a segment is current, **the playback is that
-segment**: `timeline.start()` plays it, `getDuration()` is its pass, a seek lands inside it.
+A timeline can be cut into **segments** (2026-11-15): a list of named parts that play one at a time — an intro, a loop
+that waits, an ending. The page, or the file's own triggers, moves between them; while a segment is current, **the
+playback is that segment**: `timeline.start()` plays it, `getDuration()` is its pass, a seek lands inside it.
 
 ```json
 "animator": {
   "timeline": {
     "outTime": 3000,
-    "segments": {
-      "intro":   { "inTime": 0,    "outTime": 1000, "whenFinished": "timeline.segment.next" },
-      "loading": { "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" },
-      "success": { "inTime": 2000, "outTime": 3000 }
-    }
+    "segments": [
+      { "name": "intro",   "inTime": 0,    "outTime": 1000, "whenFinished": "timeline.segment.next" },
+      { "name": "loading", "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" },
+      { "name": "success", "inTime": 2000, "outTime": 3000 }
+    ]
   },
   "actionTriggers": {
     "timeline.start": "load",
@@ -601,16 +601,18 @@ the success — the loop first finishes its pass, then the success plays and hol
 <!-- px-check schema PxTimelineSegmentSchema -->
 | Field | Means |
 |---|---|
+| `name` | what triggers, go-tos and the page call it — unique in the list: a later segment with a name already used is ignored, with a warning (PX1115) |
 | `inTime` | where its part of the content starts, ms (default: the timeline's window) |
 | `outTime` | …and ends |
 | `iterations` | passes, or `"infinite"` (default 1) |
 | `iterationDirection` | as the timeline's |
 | `playbackSpeed` | as the timeline's (default 1) |
-| `initial` | the segment the timeline starts in; none: the first on the timeline |
+| `initial` | the segment the timeline starts in; none: the first in the list |
 | `whenFinished` | after its last pass: a picture word (`hold` — the default, `jumpToStart`, `animateToStart`), or go on — `"timeline.segment.next"` or `"timeline.segment.goTo(‹name›)"` |
 | `whenLeaving` | how it leaves when another is asked for (`PxWhenLeaving`): `jump` (default) at once · `animateToEnd` this pass first · `animateToStart` played back to its start |
 
-**Moving between them.** Three actions (`PxSegmentAction`): `timeline.segment.next` (after the last, the first),
+**Moving between them.** Three actions (`PxSegmentAction`): `timeline.segment.next` — the next in the LIST, not by
+time (after the last, the first),
 `timeline.segment.previous` (before the first, the last), and a go-to per segment, whose key names it —
 `"timeline.segment.goTo(success)"`; `segmentGoToAction(name)` spells it. The same keys go in `actionTriggers` (any
 event, read before the playback lists) and in a segment's `whenFinished`. A go-to naming no segment is ignored and
@@ -635,6 +637,7 @@ segment that ends is shown at its end without playing, one that repeats plays. T
 | `getState()` naming the segment | `timeline.segment.get()` beside it |
 | the timeline's own `whenFinished` moving between segments | a segment's `whenFinished` |
 | `delay` with segments | ignored — a segment plays at once |
+| `timelineOptions` changing one segment | an override REPLACES the `segments` list, as every list — pass it whole |
 | exports other than the players (Lottie, video, SVG + CSS) | the whole timeline, as before |
 | React Native's `segment` prop | `playerRef` → `timeline.segment` |
 
@@ -809,7 +812,7 @@ write yourself cannot drift from the four shipped ones:
 - **Segments and events.** `resolveSegments(view)` returns the segments in timeline order as `PxSegmentSettings`
   (`hasSegments(doc)` asks first); `withSegmentEngine(doc)` is the document the engine plays — one plain pass the
   segment clock seeks (`PxSegmentRuntime`); `segmentReferenceIssues(view)` lists the go-tos that name nothing
-  (`PxSegmentReferenceIssue`), `isSegmentGoToAction(key)` recognises one. `resolveTriggers` keys every entry —
+  (`PxSegmentReferenceIssue`), `duplicateSegmentNames(view)` the names used twice, `isSegmentGoToAction(key)` recognises one. `resolveTriggers` keys every entry —
   `triggerKeys(resolved)`, `triggerKeyOf(entry)`, `triggerSpecOf(entry)` → a `PxTriggerEventSpec` (`triggerEventOf`
   gives its event) — and lists the segment triggers (`PxSegmentTrigger`, `PxSegmentTriggerKind`);
   `isTriggerEvents(value)` guards an open key's value; `PX_ALL_TRIGGER_EVENTS` is every event.

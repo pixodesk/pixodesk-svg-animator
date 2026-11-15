@@ -23,7 +23,7 @@ The stage starts empty; use **Load demo** to load the built-in sample animation
 
 ## How it works
 
-Each package exposes the same imperative API, `player.playback` (`start` / `play` / `pause` /
+Each package exposes the same imperative API, `player.timeline` (`start` / `play` / `pause` /
 `stop` / `getCurrentTime` / `setCurrentTime` / `setSpeed`). The three adapters in
 [`src/players/`](src/players/) wrap them behind a common
 [`PlayerHandle`](src/players/types.ts) so the vanilla-TS UI in

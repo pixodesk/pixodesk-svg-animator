@@ -2389,10 +2389,13 @@
               "type": "number"
             },
             "segments": {
-              "type": "object",
-              "additionalProperties": {
+              "type": "array",
+              "items": {
                 "type": "object",
                 "properties": {
+                  "name": {
+                    "type": "string"
+                  },
                   "inTime": {
                     "type": "number"
                   },
@@ -2434,6 +2437,9 @@
                     ]
                   }
                 },
+                "required": [
+                  "name"
+                ],
                 "additionalProperties": false
               }
             }

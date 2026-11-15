@@ -7,11 +7,11 @@ createApp({
     const api = ref<PxAnimationPlayerHandle | null>(null);
     return () => [
       h('div', { class: 'controls' }, [
-        h('button', { onClick: () => api.value?.playback.start() }, 'playback.start()'),
-        h('button', { onClick: () => api.value?.playback.pause() }, 'playback.pause()'),
-        h('button', { onClick: () => api.value?.playback.play() }, 'playback.play()'),
-        h('button', { onClick: () => api.value?.playback.stop() }, 'playback.stop()'),
-        h('button', { onClick: () => api.value?.playback.setCurrentProgress(1) }, 'playback.setCurrentProgress(1)'),
+        h('button', { onClick: () => api.value?.timeline.start() }, 'timeline.start()'),
+        h('button', { onClick: () => api.value?.timeline.pause() }, 'timeline.pause()'),
+        h('button', { onClick: () => api.value?.timeline.play() }, 'timeline.play()'),
+        h('button', { onClick: () => api.value?.timeline.stop() }, 'timeline.stop()'),
+        h('button', { onClick: () => api.value?.timeline.setCurrentProgress(1) }, 'timeline.setCurrentProgress(1)'),
       ]),
       h('div', { class: 'stage' }, [
         // disableActionTriggers: the file's own trigger is off, so only these buttons start it

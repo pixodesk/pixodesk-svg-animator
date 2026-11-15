@@ -8,7 +8,7 @@ import { applyAnimatorConfig, mergeAnimatorConfig, applyPlaybackOverride, takeFo
 import { PxControlMode } from '../format/PxAnimatorConstants';
 import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxTimeline } from '../format/PxAnimatorTypes';
 import { isRecord } from '../schema/PxSchema';
-import type { PxTimelineOptions, PxActionsOptions, PxPlaybackOverrideInput } from './PxAnimatorConfigPatch';
+import type { PxTimelineOptions, PxPlaybackOverrideInput } from './PxAnimatorConfigPatch';
 import type { PxActionTriggers } from '../format/PxAnimatorTypes';
 import { untyped } from '../effects/effectTestKit';
 
@@ -211,7 +211,9 @@ describe('mergeAnimatorConfig — guards', () => {
     });
 });
 
-describe('applyPlaybackOverride — `timeline` merges, a `playerActionTriggers` object replaces the trigger (component-api plan D4)', () => {
+// 1.26: the triggers override is `actionTriggers` (`playerActionTriggers` until 1.25) and `actions` REPLACES the block;
+// since 2026-11-15 the triggers sit at the animator's root, beside `timeline`
+describe('applyPlaybackOverride — `timeline` merges, an `actionTriggers` block replaces the triggers (component-api plan D4)', () => {
     const file = (): PxDocument => ({
         type: 'svg',
         animator: { timeline: { outTime: 1000, delay: 50, iterations: 2 }, actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.stop': 'hoverOut' } },
@@ -227,41 +229,43 @@ describe('applyPlaybackOverride — `timeline` merges, a `playerActionTriggers` 
         expect(warnings).toEqual([]);
     });
 
-    it('`playerActionTriggers: true` leaves the file\'s trigger as it is', () => {
-        expect(timelineOf(applyPlaybackOverride(file(), { playerActionTriggers: true }).doc)).toEqual(timelineOf(file()));
+    it('no `actionTriggers` leaves the file\'s triggers as they are', () => {
+        const { doc } = applyPlaybackOverride(file(), {});
+        expect(timelineOf(doc)).toEqual(timelineOf(file()));
+        expect(animatorOf(doc).actionTriggers).toEqual(fileTrigger);
     });
 
-    it('a `playerActionTriggers` OBJECT replaces the trigger as a WHOLE — the keys it leaves out are gone, not kept', () => {
-        expect(timelineOf(applyPlaybackOverride(file(), { playerActionTriggers: { 'timeline.start': 'click' } }).doc))
-            .toEqual({ outTime: 1000, delay: 50, iterations: 2, actionTriggers: { 'timeline.start': 'click' } });   // the file\'s stop did not survive
+    it('an `actionTriggers` OBJECT replaces the triggers as a WHOLE — the keys it leaves out are gone, not kept', () => {
+        const { doc } = applyPlaybackOverride(file(), { actionTriggers: { 'timeline.start': 'click' } });
+        expect(timelineOf(doc)).toEqual({ outTime: 1000, delay: 50, iterations: 2 });
+        expect(animatorOf(doc).actionTriggers).toEqual({ 'timeline.start': 'click' });   // the file\'s stop did not survive
     });
 
-    it('both: the timing merged, the trigger replaced', () => {
-        expect(timelineOf(applyPlaybackOverride(file(), { timelineOptions: { iterations: 'infinite' }, playerActionTriggers: { 'timeline.start': 'load', 'timeline.pause': 'click' } }).doc))
-            .toEqual({ outTime: 1000, delay: 50, iterations: 'infinite', actionTriggers: { 'timeline.start': 'load', 'timeline.pause': 'click' } });
+    it('both: the timing merged, the triggers replaced', () => {
+        const { doc } = applyPlaybackOverride(file(), { timelineOptions: { iterations: 'infinite' }, actionTriggers: { 'timeline.start': 'load', 'timeline.pause': 'click' } });
+        expect(timelineOf(doc)).toEqual({ outTime: 1000, delay: 50, iterations: 'infinite' });
+        expect(animatorOf(doc).actionTriggers).toEqual({ 'timeline.start': 'load', 'timeline.pause': 'click' });
     });
 
-    it('`actions` merges over the file\'s actions — one slot changed, the rest kept; a JavaScript `null` changes nothing; a slot that says only `behavior` comes back as the word', () => {
+    it('`actions` REPLACES the file\'s actions block (1.26) — a slot it leaves out reads as its default, a slot is kept as written', () => {
         const d: PxDocument = { type: 'svg', animator: { timeline: { outTime: 1000, actions: { 'timeline.stop': { behavior: 'animateToStart' }, outOfView: { behavior: 'continue' } }, whenFinished: 'jumpToStart' } } };
         expect(timelineOf(applyPlaybackOverride(d, { actions: { 'timeline.stop': { behavior: 'animateToEnd' } } }).doc))
-            .toEqual({ outTime: 1000, actions: { 'timeline.stop': 'animateToEnd', outOfView: 'continue' }, whenFinished: 'jumpToStart' });
-        expect(timelineOf(applyPlaybackOverride(d, { actions: untyped<PxActionsOptions>({ outOfView: null }) }).doc))
-            .toEqual({ outTime: 1000, actions: { 'timeline.stop': 'animateToStart', outOfView: 'continue' }, whenFinished: 'jumpToStart' });
-        // RULE 5: the word form is exactly `{ behavior }`
+            .toEqual({ outTime: 1000, actions: { 'timeline.stop': { behavior: 'animateToEnd' } }, whenFinished: 'jumpToStart' });   // the file\'s outOfView is gone
+        // the word form is exactly `{ behavior }`, and stays the word
         expect(timelineOf(applyPlaybackOverride(d, { actions: { 'timeline.stop': 'jumpToStart' } }).doc))
-            .toEqual({ outTime: 1000, actions: { 'timeline.stop': 'jumpToStart', outOfView: 'continue' }, whenFinished: 'jumpToStart' });
+            .toEqual({ outTime: 1000, actions: { 'timeline.stop': 'jumpToStart' }, whenFinished: 'jumpToStart' });
         const words: PxDocument = { type: 'svg', animator: { timeline: { outTime: 1000, actions: { 'timeline.stop': 'jumpToStart' }, whenFinished: 'hold' } } };
         expect(timelineOf(applyPlaybackOverride(words, { actions: { 'timeline.stop': { behavior: 'animateToEnd' } } }).doc))
-            .toEqual({ outTime: 1000, actions: { 'timeline.stop': 'animateToEnd' }, whenFinished: 'hold' });
+            .toEqual({ outTime: 1000, actions: { 'timeline.stop': { behavior: 'animateToEnd' } }, whenFinished: 'hold' });
         // `whenFinished` is a timeline key: it travels with `timelineOptions`
         expect(timelineOf(applyPlaybackOverride(words, { timelineOptions: { whenFinished: 'animateToStart' } }).doc))
             .toEqual({ outTime: 1000, actions: { 'timeline.stop': 'jumpToStart' }, whenFinished: 'animateToStart' });
     });
 
-    it('nothing set, or `playerActionTriggers: false` — the same document comes back', () => {
+    it('nothing set, or `actionTriggers: null` (the control mode\'s to apply) — the same document comes back', () => {
         const d = file();
         expect(applyPlaybackOverride(d, {}).doc).toBe(d);
-        expect(applyPlaybackOverride(d, { playerActionTriggers: false }).doc).toBe(d);
+        expect(applyPlaybackOverride(d, { actionTriggers: null }).doc).toBe(d);
     });
 
     it('a non-object `timeline` (a JS caller\'s old JSON string) is reported and ignored, never written', () => {
@@ -272,14 +276,15 @@ describe('applyPlaybackOverride — `timeline` merges, a `playerActionTriggers` 
     });
 
     it('the types: `timeline` takes neither triggers, actions nor an unknown key; the triggers object is the schema\'s', () => {
-        const ok: PxPlaybackOverrideInput = { timelineOptions: { iterations: 1 }, playerActionTriggers: { 'timeline.start': 'click' }, actions: { 'timeline.stop': { behavior: 'animateToStart' } } };
-        // @ts-expect-error — the triggers travel with `playerActionTriggers`, never inside `timeline`
+        const ok: PxPlaybackOverrideInput = { timelineOptions: { iterations: 1 }, actionTriggers: { 'timeline.start': 'click' }, actions: { 'timeline.stop': { behavior: 'animateToStart' } } };
+        // @ts-expect-error — the triggers travel with `actionTriggers`, never inside `timeline`
         const nested: PxPlaybackOverrideInput = { timeline: { }, actionTriggers: { 'timeline.start': 'hoverIn' } };
         // @ts-expect-error — the actions travel with `actions`, never inside `timeline`
         const nestedActions: PxPlaybackOverrideInput = { timeline: { actions: { 'timeline.stop': { behavior: 'animateToStart' } } } };
         expect(nestedActions).toBeDefined();
-        // @ts-expect-error — `playsOn` is not a trigger key
-        const typo: PxPlaybackOverrideInput = { playerActionTriggers: { playsOn: 'hoverIn' } };
+        // @ts-expect-error — `hovrIn` is not an event (since 2026-11-15 the block is open to one go-to key per segment, so a
+        // misspelled KEY compiles; a known key's events are still checked)
+        const typo: PxPlaybackOverrideInput = { actionTriggers: { 'timeline.start': 'hovrIn' } };
         expect([ok, nested, typo]).toHaveLength(3);
     });
 });
@@ -295,8 +300,8 @@ describe('the patch types are the schema\'s, not records (component-api plan T1 
         const value: PxTimelineOptions = { iterations: 'forever' };
         // @ts-expect-error — `trigger` is the alias, never a `timeline` key (D2)
         const nested: PxTimelineOptions = { actionTriggers: { 'timeline.start': 'hoverIn' } };
-        // @ts-expect-error — `playsOn` is not a trigger key
-        const triggerTypo: PxActionTriggers = { playsOn: 'hoverIn' };
+        // @ts-expect-error — `hovrIn` is not an event (the block is open to go-to keys since 2026-11-15; a known key's events are checked)
+        const triggerTypo: PxActionTriggers = { 'timeline.pause': 'hovrIn' };
         expect([ok, nulled, typo, value, nested, triggerTypo]).toHaveLength(6);
     });
 });

@@ -13,16 +13,15 @@ export const effectMaskedByAlongPath: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "actionTriggers": {
-                "playback.start": "load"
-            },
             "actions": {
                 "outOfView": {
                     "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"
-        }
+        }, "actionTriggers": {
+                "timeline.start": "load"
+            }
     },
     "children": [
         {
@@ -88,7 +87,7 @@ export const effectMaskedByAlongPath: SvgaCaseJson = {
             "effects": {
                 "maskedBy": {
                     "maskType": "alpha",
-                    "source": "_px_38bqgqq9"
+                    "sourceElement": "_px_38bqgqq9"
                 }
             },
             "meta": {
