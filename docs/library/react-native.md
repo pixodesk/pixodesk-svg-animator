@@ -119,12 +119,12 @@ changes which one you are in. React, Vue and React Native all resolve this the s
 core. In every mode but the default the file's own triggers are switched off
 ([Control modes — who drives it](./playback-and-triggers.md#control-modes--who-drives-it)).
 
-**Action triggers** — the default: the document's `actionTriggers`, or the `actionTriggers` block you pass instead
+**Action triggers** — the default: the document's `actionTriggers`, or the `actionTriggers` list you pass instead
 ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)): `load` plays
 once enough of it is visible in the window; `click` is a tap — the component wraps the animation
-in a `Pressable` — read by the same state rule as on the web, so `{ 'timeline.play': 'click', 'timeline.pause': 'click' }`
-taps to play and taps again to pause, `{ 'timeline.start': 'click', 'timeline.stop': 'click' }` taps to play and taps
-again to stop, and `{ 'timeline.start': 'click' }` plays it from the start on every tap. There is no hover on a touch
+in a `Pressable` — read by the same state rule as on the web, so `timeline.play` and `timeline.pause` on `click`
+tap to play and tap again to pause, `timeline.start` and `timeline.stop` on `click` tap to play and tap again to
+stop, and `timeline.start` alone on `click` plays it from the start on every tap. There is no hover on a touch
 screen, so `hoverIn` / `hoverOut` never fire.
 
 ```tsx
@@ -249,7 +249,7 @@ the document's effects are expanded once, its animated values are worked out in 
 every element, and playback runs on the UI thread. No CSS-flavor component, no
 `className` / `style`, and a `fallback` element instead of a DOM.
 
-<!-- px-check signature pkg=rn loose=SvgAnimationPlayerProps.timelineOptions omit=SvgAnimationPlayerProps.onSegmentChange -->
+<!-- px-check signature pkg=rn loose=SvgAnimationPlayerProps.timelineOptions omit=SvgAnimationPlayerProps.onStateChange -->
 ```typescript
 // The component — a plain function, also the default export.
 function SvgAnimationPlayer(props: SvgAnimationPlayerProps): ReactElement | null;
@@ -259,7 +259,7 @@ interface SvgAnimationPlayerProps {
 
     // Playback override — the same objects as React (Playback overrides below). `engine` and
     // `frameRate` inside `timelineOptions` are accepted but ignored: React Native always plays natively.
-    timelineOptions?: PxTimelineOptions;  // the timing: the `timeline` block minus `actionTriggers` and `actions` —
+    timelineOptions?: PxTimelineOptions;  // the timing: the first timeline minus `actionTriggers` and `actions` —
                                           //   MERGED over the file's; a key left out keeps the file's value
     actions?: PxActionsInput;             // the file's `actions` block, REPLACED — how a stop looks (+ the gate's
                                           //   outOfView): { 'timeline.stop': 'animateToStart' }; a setting left out reads
@@ -268,9 +268,8 @@ interface SvgAnimationPlayerProps {
 
     // Control — `PxControlProps`: ONE at a time compiles (Control modes above); none of them = the
     // file's own triggers drive it
-    actionTriggers?: PxActionTriggersInput | null; // these triggers INSTEAD of the file's —
-                                          //   { "timeline.start", "timeline.play", "timeline.stop", "timeline.pause", "timeline.resume" }
-                                          //   (`PxActionTriggersInput`); null or {}: none. `click` = a tap;
+    actionTriggers?: PxActionTriggersInput | null; // these rules INSTEAD of the file's — a list of
+                                          //   { action, event, … } (`PxActionTriggersInput`); null or []: none. `click` = a tap;
                                           //   `hoverIn` / `hoverOut` never fire (no hover on a touch screen);
                                           //   visibility is measured every 200 ms
     disableActionTriggers?: boolean;      // manual: the file's triggers off — your code drives it through playerRef
@@ -282,9 +281,10 @@ interface SvgAnimationPlayerProps {
     showAtProgress?: number;              // a position counted in iterations — 1.2 = 20 % into the second
     showAtTime?: number;                  // ms inside one iteration, 0..playback.getDuration()
 
-    playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // `{ playback, variables }` — the same `PxTimelineControls` as on the
-                                          //   web, the same meanings: iteration time, `total…` for the playback, the
-                                          //   `…AtSpeed` reads at the current speed, clamped seeks, speed 0 rejected
+    playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // `{ timeline, state, getTimeline, variables }` — the same
+                                          //   `PxTimelineControls` as on the web, the same meanings: iteration time, `total…`
+                                          //   for the playback, the `…AtSpeed` reads at the current speed, clamped seeks,
+                                          //   speed 0 rejected. The first timeline only: getTimeline() answers undefined
 
     // Variables — `PxVariablesOptions` minus `cssVariables` (no stylesheet here). A change compiles the document
     // again on the next frame; the playback keeps running
@@ -316,16 +316,18 @@ The package exports the component (`SvgAnimationPlayer`, also its default export
 `PxDocument` (a JSON import — [TypeScript](./installation.md#typescript)); nothing else.
 
 With none of the control props set, the file's own triggers drive it — a file saved with
-`"timeline.start": "load"` plays on mount.
+`{ "action": "timeline.start", "event": "load" }` plays on mount. React Native plays the file's **first timeline**
+only: there is no `state` prop yet, `onStateChange` is typed but not called, and `getTimeline()` answers
+`undefined`.
 
 ### Playback overrides
 
 The same document can play differently on each screen. Three props, the same on every player
 ([Overriding from a player](./playback-and-triggers.md#overriding-from-a-player)), and the
-document you passed is never modified: `timelineOptions` carries corrections to the file's
-`animator.timeline` block minus its `actionTriggers` and `actions` — an object shaped like the file;
+document you passed is never modified: `timelineOptions` carries corrections to the file's first
+timeline (`animator.timelines[0]`) minus `actionTriggers` and `actions` — an object shaped like the file;
 `actions` is the `timeline.actions` block to use instead of the file's; `actionTriggers` the whole
-`actionTriggers` block to use instead of the file's.
+`actionTriggers` list to use instead of the file's.
 
 Merge or replace — the one rule for the three:
 
@@ -344,7 +346,8 @@ Merge or replace — the one rule for the three:
 />
 
 // These triggers instead of the file's: a tap plays, a second tap pauses
-<SvgAnimationPlayer document={animation} actionTriggers={{ 'timeline.play': 'click', 'timeline.pause': 'click' }} />
+<SvgAnimationPlayer document={animation}
+  actionTriggers={[{ action: 'timeline.play', event: 'click' }, { action: 'timeline.pause', event: 'click' }]} />
 ```
 
 There is no delete in `timelineOptions`: a key you leave out keeps the file's value. To get a default back, set
@@ -504,6 +507,7 @@ not supported.
 | The gate: `actions.outOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility measured against the window every 200 ms — React Native has no `IntersectionObserver` |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
+| Timelines after the first and their `byTimeline` tracks; the `state` prop, `onStateChange` | ❌ | the first timeline only — `getTimeline()` answers `undefined`; `onStateChange` is typed but not called yet ([States](./playback-and-triggers.md#states--named-parts-of-a-timeline)) |
 | Following the scroll (`timeline.type: 'scroll'`) | ❌ | measure your `ScrollView` and pass the progress with `showAtProgress`, on a clock timeline — `timelineOptions={{ type: 'time' }}` for a file saved to follow the scroll ([Following the scroll](./playback-and-triggers.md#following-the-scroll)) |
 
 ## Monorepo setup

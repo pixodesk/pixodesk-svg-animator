@@ -96,7 +96,7 @@ describe('castOrFix on real document schemas', () => {
             type: 'rect', id: 'r', width: 4,
             animate: { transform: { keyframes: [{ time: 0, value: { translate: [0, 0] } }, { time: 500, value: { translate: [5, 1] } }] } },
         }],
-        animator: { timeline: { outTime: 500 } },
+        animator: { timelines: [{ outTime: 500 }] },
     };
 
     it('a valid document comes out deep-equal, new, and stamped all the way down', () => {
@@ -131,12 +131,12 @@ describe('castOrFix — stamps are never a lie', () => {
 
 describe('castOrFix — incremental: stamped subtrees are reused, never rebuilt', () => {
     it('re-checking an edited copy rebuilds only what changed', () => {
-        const doc = { type: 'svg', children: [{ type: 'rect', id: 'r' }], animator: { timeline: { outTime: 500 } } };
+        const doc = { type: 'svg', children: [{ type: 'rect', id: 'r' }], animator: { timelines: [{ outTime: 500 }] } };
         const first = PxDocumentSchema.castOrFix(doc).value as typeof doc;
-        const edited = { ...first, animator: { timeline: { outTime: 900 } } };   // a new root, as a config override makes
+        const edited = { ...first, animator: { timelines: [{ outTime: 900 }] } };   // a new root, as a config override makes
         const second = PxDocumentSchema.castOrFix(edited).value as typeof doc;
         expect(second).not.toBe(edited);
         expect(second.children).toBe(first.children);                          // the stamped subtree was reused as is
-        expect(second.animator.timeline.outTime).toBe(900);
+        expect(second.animator.timelines?.[0].outTime).toBe(900);
     });
 });

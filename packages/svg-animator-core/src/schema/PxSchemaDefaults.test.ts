@@ -92,15 +92,15 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxStopPlaybackActionSchema.defaults).toEqual({ behavior: d.stopPlaybackBehavior });
         expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(d.whenFinished);
         expect(PxOutOfViewActionSchema.defaults).toEqual({ behavior: d.outOfViewBehavior });
-        expect(PxActionTriggersSchema.defaults).toEqual({});
+        expect(PxActionTriggersSchema.isValid([])).toBe(true);
         expect(resolveTriggers(undefined).startPlayback).toEqual([]);
         // `whenFinished` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
         expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(PxWhenFinished.hold);
-        const flat = resolveAnimatorTimeline({ timeline: { }, actionTriggers: { 'timeline.start': PxTriggerEvent.load } });
+        const flat = resolveAnimatorTimeline({ timelines: [{ }], actionTriggers: [{ action: 'timeline.start', event: PxTriggerEvent.load }] });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(resolveAnimatorTimeline({ timeline: { whenFinished: PxWhenFinished.jumpToStart } }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timeline: { }, actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) }).resetOnFinish).toBeUndefined();
+        expect(resolveAnimatorTimeline({ timelines: [{ whenFinished: PxWhenFinished.jumpToStart }] }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timelines: [{ }], actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -124,7 +124,7 @@ describe('schema.defaults — what an absent field means', () => {
     it('the reported document: an omitted resume is the start list — hovering in resumes what hovering out paused', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timeline: { outTime: 1000, iterations: 1 }, actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.pause': 'hoverOut' } },
+            animator: { timelines: [{ outTime: 1000, iterations: 1 }], actionTriggers: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }] },
             children: [],
         };
         expect(resolveTriggers(getAnimatorConfig(doc)?.actionTriggers).resumePlayback).toEqual(['hoverIn']);
@@ -134,7 +134,7 @@ describe('schema.defaults — what an absent field means', () => {
         // Structural roots: their fields are objects / free values; a sanity check that the query
         // works on them without inventing values.
         expect(PxDocumentSchema.defaults).not.toHaveProperty(schemaKeys(PxDocumentSchema).animator);
-        expect(PxAnimatorConfigSchema.defaults).not.toHaveProperty(schemaKeys(PxAnimatorConfigSchema).timeline);
+        expect(PxAnimatorConfigSchema.defaults).not.toHaveProperty(schemaKeys(PxAnimatorConfigSchema).timelines);
         expect(PxTimelineSchema).toBeTruthy();
     });
 });

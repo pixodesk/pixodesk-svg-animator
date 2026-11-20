@@ -16,7 +16,7 @@ const HTML_NS = 'http://www.w3.org/1999/xhtml';
 const page = (): PxDocument => ({
     type: 'div',
     style: { textAlign: 'center' },
-    animator: { timeline: { outTime: 1000, engine: PxTimelineEngine.js } },
+    animator: { timelines: [{ outTime: 1000, engine: PxTimelineEngine.js }] },
     children: [
         { type: 'h1', textContent: 'Hello, world!' },
         {
@@ -95,7 +95,7 @@ describe('an SVG element as the root — rendered as is, never wrapped', () => {
     /** A bare animated `<rect>` — no `<svg>` around it. */
     const rectRoot = (): PxDocument => ({
         type: 'rect', id: 'box', x: 0, y: 10, width: 20, height: 20, fill: '#2a7fff',
-        animator: { timeline: { outTime: 1000, engine: PxTimelineEngine.js } },
+        animator: { timelines: [{ outTime: 1000, engine: PxTimelineEngine.js }] },
         animate: { x: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 100 }] } },
     } as PxDocument);
 

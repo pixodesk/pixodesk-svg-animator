@@ -15,7 +15,7 @@ import { PxTransformPartsSchema, type PxDocument, type PxClipPathEffect, type Px
 import { authoredEntry, collectByType, compiledEntry, entryOf, materialize, materializeEngine, PxTimelineEngine, untyped } from './effectTestKit';
 
 const doc = (child: PxNode): PxDocument =>
-    ({ type: 'svg', animator: { timeline: { outTime: 2000 } }, children: [child] });
+    ({ type: 'svg', animator: { timelines: [{ outTime: 2000 }] }, children: [child] });
 
 
 

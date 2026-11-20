@@ -21,16 +21,39 @@ function doc11(trigger: Record<string, unknown>): Record<string, unknown> {
     };
 }
 
-/** A document's raw `animator.timeline` record — throws when there is none (a failed expectation). */
-/** The animator's `actionTriggers` — at its root since the 1.28 amendment (2026-11-15). */
-function triggersOf(doc: unknown): unknown {
-    const animator = isRecord(doc) ? doc.animator : undefined;
-    return isRecord(animator) ? animator.actionTriggers : undefined;
+
+/** A converted document's rules read back as the map by action the older steps spoke of (2026-11-20: the current
+ *  spelling is a list of rules) — so these cases keep testing the older steps' words. A list is turned into
+ *  `{ action: event | [events] }`; anything else is returned as it is. */
+function asTriggerMap(triggers: unknown): unknown {
+    if (!Array.isArray(triggers)) return triggers;
+    const map: Record<string, unknown> = {};
+    for (const rule of triggers) {
+        if (!isRecord(rule) || typeof rule.action !== 'string') continue;
+        const { action, ...rest } = rule;
+        const entry = Object.keys(rest).length === 1 && typeof rest.event === 'string' ? rest.event : rest;
+        const had = map[action];
+        map[action] = had === undefined ? entry : Array.isArray(had) ? [...had, entry] : [had, entry];
+    }
+    return map;
 }
 
+/** The first timeline — `animator.timeline` before the 2026-11-20 amendment, `animator.timelines[0]` after it. */
+function timelineRecordOf(animator: unknown): unknown {
+    if (!isRecord(animator)) return undefined;
+    return Array.isArray(animator.timelines) ? animator.timelines[0] : animator.timeline;
+}
+
+/** The animator's `actionTriggers` — at its root since the 1.28 amendment (2026-11-15), in the map form. */
+function triggersOf(doc: unknown): unknown {
+    const animator = isRecord(doc) ? doc.animator : undefined;
+    return isRecord(animator) ? asTriggerMap(animator.actionTriggers) : undefined;
+}
+
+/** A document's raw first timeline record — throws when there is none (a failed expectation). */
 function timelineOf(doc: unknown): Record<string, unknown> {
     const animator = isRecord(doc) ? doc.animator : undefined;
-    const timeline = isRecord(animator) ? animator.timeline : undefined;
+    const timeline = timelineRecordOf(animator);
     if (!isRecord(timeline)) throw new Error('no animator.timeline');
     return timeline;
 }

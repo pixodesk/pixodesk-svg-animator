@@ -16,7 +16,7 @@ import { authorCompiledAnimations } from './PxAuthoredAnimation';
 
 const doc = (inTime = 0): PxDocument => JSON.parse(JSON.stringify({
     type: 'svg',
-    animator: { timeline: { inTime, outTime: inTime + 1000 }, definitions: { easings: { smooth: [0.42, 0, 0.58, 1] } } },
+    animator: { timelines: [{ inTime, outTime: inTime + 1000 }], definitions: { easings: { smooth: [0.42, 0, 0.58, 1] } } },
     children: [
         { type: 'rect', id: 'box', animate: {
             opacity: { keyframes: [{ time: inTime, value: 1 }, { time: inTime + 500, value: 0.5 }] },

@@ -12,7 +12,7 @@ import type { PxDocumentJson } from '@pixodesk/svg-animator-core';
 function doc(extra: Record<string, unknown> = {}): PxDocumentJson {
     return {
         type: 'svg', viewBox: '0 0 10 10',
-        animator: { timeline: { engine: 'js', outTime: 1000, ...extra } },
+        animator: { timelines: [{ engine: 'js', outTime: 1000, ...extra }] },
         children: [{
             type: 'rect', id: 'r', width: 10, height: 10,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -48,7 +48,7 @@ describe('one pass from the start — the recipe that replaced playOnce() (1.26)
     });
 
     it("a loop document with whenFinished 'jumpToStart' snaps to rest after the pass", () => {
-        const api = createSvgAnimationPlayer({ document: doc({ iterations: 'infinite', actionTriggers: {}, whenFinished: 'jumpToStart' }), container: '#box', timelineOptions: { iterations: 1 } });
+        const api = createSvgAnimationPlayer({ document: doc({ iterations: 'infinite', actionTriggers: [], whenFinished: 'jumpToStart' }), container: '#box', timelineOptions: { iterations: 1 } });
         api.timeline.start();
         vi.advanceTimersByTime(1600);
         expect(api.timeline.isPlaying()).toBe(false);

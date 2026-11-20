@@ -30,7 +30,7 @@ export { applyPlaybackOverride, withActionTriggers, withActions, withoutTriggerD
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
 export type { PxAnyControlProps, PxControlProps, PxResolvedControlMode } from './format/PxAnimatorConstants';
-export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createPlayExecutor, ensurePlayExecutor, executorConfigOf, composeApiExtras, forwardPlaybackControls, PxPlaybackWrite } from './playback/PxDeclarativePlayback';
+export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createPlayExecutor, ensurePlayExecutor, executorConfigOf, composeApiExtras, forwardPlaybackControls, forwardStateControls, PxPlaybackWrite } from './playback/PxDeclarativePlayback';
 export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeTarget, PxPlayTarget, PxPlayExecutorConfig, PxApiExtrasConfig, PxApiExtrasTarget, PxApiExtras, PxComposedAnimationPlayerApi } from './playback/PxDeclarativePlayback';
 
 // The engine's runtime form — one typed channel per animated property
@@ -39,7 +39,7 @@ export { PxValueKind } from './format/PxAnimatorConstants';
 export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Which trigger, which engine
-export { resolveTriggers, resolveActions, actionSettingsOf, resolveGate, triggerEventList, triggerIssues, derivedResume, isSegmentGoToAction, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, triggerKeys, triggerKeyOf, triggerSpecOf, triggerEventOf, isTriggerEvents, PxSegmentTriggerKind, PX_ALL_TRIGGER_EVENTS, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
+export { resolveTriggers, resolveActions, actionSettingsOf, resolveGate, triggerEventList, triggerIssues, derivedResume, ruleEventEntry, ruleEntriesOf, rulesOfEntries, isPlaybackAction, firstTimelineOf, isOnFirstTimeline, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, triggerKeys, triggerKeyOf, triggerSpecOf, triggerEventOf, isTriggerEvents, PX_ALL_TRIGGER_EVENTS, PX_ACTION_NAMES, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
 
 // Adapter-driven frame-loop engine (platform-neutral playback) + the node props every renderer shares
 export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
@@ -47,10 +47,15 @@ export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 export type { PxEngineAnimationPlayerApi } from './format/PxAnimatorTypes';
 export { toDomProps } from './util/PxNodeProps';
 
-export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue, PxTriggerEventSpec, PxSegmentTrigger } from './format/PxAnimatorConstants';
-// segments (2026-11-15): the engine's view of a segmented document, the segments in their settings form
-export { withSegmentEngine, resolveSegments, hasSegments, segmentReferenceIssues, duplicateSegmentNames } from './playback/PxSegments';
-export type { PxSegmentSettings, PxSegmentRuntime, PxSegmentReferenceIssue } from './playback/PxSegments';
+export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue, PxTriggerEventSpec, PxStateTrigger } from './format/PxAnimatorConstants';
+// states (2026-11-20; segments 2026-11-15): the engine's view of a document with states, the states in their settings form
+export { withStateEngine, resolveStates, hasStates, stateReferenceIssues, duplicateStateIds, isStateActionObject } from './playback/PxStates';
+export { timelineIssues, PxTimelineIssueKind, type PxTimelineIssue } from './playback/PxTimelineChecks';
+export type { PxStateSettings, PxStateRuntime, PxStateReferenceIssue } from './playback/PxStates';
+// several timelines (2026-11-20): the units a player binds side by side, each a one-timeline document
+export { planUnits, unitDocumentsOf, unitDocumentOf } from './playback/PxUnits';
+export { timelineWindowsOf } from './playback/PxTimelineWindows';
+export type { PxUnit, PxUnitPlan } from './playback/PxUnits';
 
 // Variables (schema 1.27) — one player's values, and the binding grammar (docs/library/variables.md)
 export { PxVariablesRuntime, applyVariablesProp } from './variables/PxVariablesRuntime';

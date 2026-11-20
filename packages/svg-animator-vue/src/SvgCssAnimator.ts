@@ -53,7 +53,7 @@ type AssertNever<T extends never> = T;
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer :actionTriggers="{ 'timeline.play': 'hoverIn', 'timeline.pause': 'hoverOut' }">
+ *   <SvgCssAnimationPlayer :actionTriggers="[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }]">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>

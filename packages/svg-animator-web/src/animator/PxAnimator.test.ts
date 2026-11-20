@@ -18,7 +18,7 @@ function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: DUR } },
+        animator: { timelines: [{ engine: 'js', outTime: DUR }] },
         children: [
             {
                 type: 'rect',
@@ -122,7 +122,7 @@ describe('createSvgAnimationPlayer', () => {
     it('a load trigger on an ungated document reports onPlaybackStart — the listeners are attached before the engine presses the first button', () => {
         const onPlaybackStart = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, actions: { outOfView: 'continue' } }, actionTriggers: { 'timeline.start': 'load' } };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR, actions: { outOfView: 'continue' } }], actionTriggers: [{ action: 'timeline.start', event: 'load' }] };
         const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container', onPlaybackStart });
         window.dispatchEvent(new Event('load'));     // a no-op when the document was already complete at creation
 
@@ -133,7 +133,7 @@ describe('createSvgAnimationPlayer', () => {
     it('takes the callbacks INLINE; onPlaybackStop fires on the built-in stop only — a pause is onPlaybackPause, a resume onPlaybackResume, the end onPlaybackFinish', () => {
         const onPlaybackStart = vi.fn(), onPlaybackPause = vi.fn(), onPlaybackResume = vi.fn(), onPlaybackFinish = vi.fn(), onPlaybackStop = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR }, actionTriggers: {} };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actionTriggers: [] };
         const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container', onPlaybackStart, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onPlaybackStop });
 
         api.timeline.start();
@@ -173,7 +173,7 @@ describe('createSvgAnimationPlayer', () => {
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR }, actionTriggers: {} };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actionTriggers: [] };
         const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container' });
         expect(api.timeline.isPlaying()).toBe(false);
     });
@@ -183,7 +183,7 @@ describe('createSvgAnimationPlayer', () => {
         // load, which would fire `onPlay` a second time and hide this test's subject — that a
         // control call made before the fetch resolves is queued and replayed exactly once.
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR }, actionTriggers: {} };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actionTriggers: [] };
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
@@ -297,7 +297,7 @@ describe('createSvgAnimationPlayer', () => {
     it('an unknown key is a document diagnostic: it reaches onWarning (PX1112) and suppressWarnings silences the console — never a console line of its own', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { /* silence */ });
         // a hand-written (or mangled) file: one key this build does not know
-        const doc = untyped<PxDocument>({ ...makeDoc(), animator: { timeline: { engine: 'js', outTime: DUR, somethingAddedLater: 42 } } });
+        const doc = untyped<PxDocument>({ ...makeDoc(), animator: { timelines: [{ engine: 'js', outTime: DUR, somethingAddedLater: 42 }] } });
         const onWarning = vi.fn();
         createSvgAnimationPlayer({ document: doc, container: document.createElement('div'), onWarning });
         expect(onWarning).toHaveBeenCalledWith(expect.objectContaining({ kind: 'document', code: PxDiagnosticCode.documentSchemaMismatch }));
@@ -321,9 +321,9 @@ describe('generateNewIds', () => {
                     opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },
                 } } },
                 bindings: [{ element: '#rect1', animateWith: ['fade'] }],
-                timeline: {
+                timelines: [{
                     outTime: 100,
-                },
+                }],
             },
             children: [
                 {
@@ -438,7 +438,7 @@ describe('createSvgAnimationPlayersFromPage', () => {
 
         // One trigger block for every player — start on click, not on load — plus an inline callback: both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ actionTriggers: { 'timeline.start': 'click' }, onPlaybackStart: onPlay });
+        createSvgAnimationPlayersFromPage({ actionTriggers: [{ action: 'timeline.start', event: 'click' }], onPlaybackStart: onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-document]'))

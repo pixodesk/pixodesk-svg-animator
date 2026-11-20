@@ -765,7 +765,7 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
 describe('retime.inTime / outTime — visibility window', () => {
 
     const cropDoc = (inTime: number, outTime: number, useExtra: Partial<PxNode> = {}): PxNode => ({
-        type: 'svg', animator: { timeline: { outTime: 2000 } },
+        type: 'svg', animator: { timelines: [{ outTime: 2000 }] },
         children: [
             { type: 'rect', id: 'src', width: 10, height: 10,
               animate: { opacity: { keyframes: [{ time: 0, value: 1 }, { time: 2000, value: 0 }] } } },
@@ -813,7 +813,7 @@ describe('retime.inTime / outTime — visibility window', () => {
 
     it('no window → no wrapper at all', () => {
         const out = materializeEngine({
-            type: 'svg', animator: { timeline: { outTime: 2000 } },
+            type: 'svg', animator: { timelines: [{ outTime: 2000 }] },
             children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
                 { type: 'use', href: '#src', effects: { clone: { retime: { offset: 250 } } } },

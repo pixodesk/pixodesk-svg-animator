@@ -174,7 +174,7 @@ describe("SvgAnimationPlayer (React)", () => {
 
         it("warns when two control tiers are set, naming both and the winner", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={{ "timeline.start": 'load' }} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} />);
 
             const said = warn.mock.calls.map(c => c.map(String).join(" ")).join("\n");
             expect(said).toContain("PX" + PxDiagnosticCode.controlPropsConflict);
@@ -326,7 +326,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarning = vi.fn();
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={{ "timeline.start": 'load' }} onWarning={onWarning} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} onWarning={onWarning} />);
 
             expect(onWarning).toHaveBeenCalled();
             const d = onWarning.mock.calls[0][0];
@@ -342,7 +342,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("falls back to the console when no handler is given", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={{ "timeline.start": 'load' }} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} />);
 
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
@@ -351,7 +351,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("suppressWarnings switches the console fallback off", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={{ "timeline.start": 'load' }} suppressWarnings />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} suppressWarnings />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -361,7 +361,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
             // The control-mode conflict is a WARNING; muting errors leaves it audible.
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={{ "timeline.start": 'load' }} suppressErrors />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} suppressErrors />);
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
         });
@@ -370,7 +370,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarning = vi.fn();
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={{ "timeline.start": 'load' }} suppressWarnings onWarning={onWarning} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} suppressWarnings onWarning={onWarning} />);
 
             expect(onWarning).toHaveBeenCalled();
             expect(warn).not.toHaveBeenCalled();
@@ -595,7 +595,7 @@ describe("SvgAnimationPlayer (React)", () => {
             return {
                 type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
                 animator: {
-                    timeline: { engine: "js", outTime: 1000 }, actionTriggers: { "timeline.start": "load" },
+                    timelines: [{ engine: "js", outTime: 1000 }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
                 },
                 children: [{
                     type: "rect", id: "r1", opacity: 0,
@@ -626,7 +626,7 @@ describe("SvgAnimationPlayer (React)", () => {
 
         it("an `actionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right", () => {
             const onWarning = vi.fn();
-            render(<SvgAnimationPlayer document={wireJson()} showAtProgress={0.5} timelineOptions={{ outTime: 4000 }} actionTriggers={{ "timeline.start": 'click' }} onWarning={onWarning} />);
+            render(<SvgAnimationPlayer document={wireJson()} showAtProgress={0.5} timelineOptions={{ outTime: 4000 }} actionTriggers={[{ action: 'timeline.start', event: 'click' }]} onWarning={onWarning} />);
             expect(opacityNow()).toBe(1);
             expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
         });
@@ -806,7 +806,7 @@ describe("SvgAnimationPlayer (React)", () => {
                 // as unsafe and the two renders differ for a reason that is not the name.
                 rect[kebabToCamel(kebab)] = REFERENCE_ATTRIBUTES.has(kebab) ? "url(#r)" : "1";
             }
-            const doc: PxDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { outTime: 100, engine: "js" } }, children: [rect] };
+            const doc: PxDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timelines: [{ outTime: 100, engine: "js" }] }, children: [rect] };
 
             const host = document.createElement("div");
             document.body.appendChild(host);
@@ -916,12 +916,12 @@ function getTestJson(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -956,12 +956,12 @@ function getTestJson1000(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 1000,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -1022,12 +1022,12 @@ function getTreeJson(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_tree_ell', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -1077,12 +1077,12 @@ function getRectJson(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_rect_b', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -1110,11 +1110,11 @@ function getEffectsOnlyJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
-            timeline: {
+            timelines: [{
                 outTime: 1000,
 actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "hoverIn", "timeline.pause": "hoverOut" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }],
             version: "1.9.1",
         },
         children: [
@@ -1175,11 +1175,11 @@ function getMaskedLoadJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
-            timeline: {
+            timelines: [{
                 outTime: 1000,
 actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
             version: "1.9.1",
         },
         children: [
@@ -1328,7 +1328,7 @@ describe("SvgAnimationPlayer (React) — a scroll timeline (2026-11-14)", () => 
     /** A clock file: one rect fading in over a second. */
     const clockDoc = (timeline: Record<string, unknown> = {}): PxDocument => ({
         type: 'svg', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: 1000, ...timeline } },
+        animator: { timelines: [{ engine: 'js', outTime: 1000, ...timeline }] },
         children: [{ type: 'rect', id: 'r1', width: 10, height: 10, opacity: 0, animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }],
     });
 

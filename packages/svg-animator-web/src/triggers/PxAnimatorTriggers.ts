@@ -13,8 +13,9 @@ import {
     type PxAnimatorRuntimeConfig,
     type PxDiagnostics,
     type PxPlaybackListeners,
+    PxStateAction,
 } from '@pixodesk/svg-animator-core';
-import { duplicateSegmentNames, ensurePlayExecutor, resolveActions, resolveGate, resolveSegments, resolveTriggers, segmentReferenceIssues, triggerActionFor, triggerIssues, triggerKeys, PxSegmentTriggerKind, type PxTriggerEventSpec } from '@pixodesk/svg-animator-core/engine';
+import { duplicateStateIds, ensurePlayExecutor, resolveActions, resolveGate, resolveStates, resolveTriggers, stateReferenceIssues, triggerActionFor, triggerIssues, triggerKeys, type PxTriggerEventSpec } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 import { webRaf } from '../shared/PxWebRaf';
@@ -66,10 +67,10 @@ export function setupAnimationTriggers(
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
 
-    const trigger = resolveTriggers(config.actionTriggers, resolveSegments(config).map(s => s.name));
+    const trigger = resolveTriggers(config.actionTriggers, resolveStates(config).map(s => s.id));
     for (const issue of triggerIssues(config.actionTriggers)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
-    for (const issue of segmentReferenceIssues(config)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.segmentNotFound, issue);
-    for (const name of duplicateSegmentNames(config)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.segmentNameDuplicate, name);
+    for (const issue of stateReferenceIssues(config)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.stateNotFound, issue);
+    for (const id of duplicateStateIds(config.states)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.stateIdDuplicate, id);
 
     const root = api.getRootElement();
     if (!root) {
@@ -96,14 +97,14 @@ export function setupAnimationTriggers(
      *  from — off · playing · paused · finished · returning. `direct` is a pointer interaction — it never waits out
      *  the gate; a resume never does either (a paused playback was seen). */
     const fire = (event: string, direct: boolean): void => {
-        // the segment actions first (2026-11-15) — unless a component holds the segment (its `segment` prop)
-        const segments = api.segmentRuntime;
-        if (segments && !segments.isHeld()) {
-            for (const s of trigger.segments) {
+        // the state actions first (2026-11-20) — unless a component holds the state (its `state` prop)
+        const states = api.stateRuntime;
+        if (states && !states.isHeld()) {
+            for (const s of trigger.states) {
                 if (!s.keys.includes(event)) continue;
-                if (s.kind === PxSegmentTriggerKind.next) segments.controls.next();
-                else if (s.kind === PxSegmentTriggerKind.previous) segments.controls.previous();
-                else if (s.segment !== undefined) segments.controls.goTo(s.segment);
+                if (s.action === PxStateAction.next) states.controls.next();
+                else if (s.action === PxStateAction.previous) states.controls.previous();
+                else if (s.state !== undefined) states.controls.goTo(s.state);
             }
         }
         switch (triggerActionFor(trigger, executor.state(), event, whenFinished)) {

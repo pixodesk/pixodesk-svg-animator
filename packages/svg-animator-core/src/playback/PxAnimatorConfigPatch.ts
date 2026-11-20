@@ -42,9 +42,10 @@ export type PxRecursivePartial<T> =
 /** `Omit` applied to each member of a union, so a discriminated union keeps its members. */
 type PxDistributiveOmit<T, K extends PropertyKey> = T extends object ? Omit<T, K> : never;
 
-/** A deep-partial of the WIRE animator config (`timeline` — its `actions` included at this level —, `actionTriggers`,
- *  `definitions`, `bindings`, `version`), typed from the schema. @public */
-export type PxAnimatorConfigPatch = PxRecursivePartial<PxAnimatorConfig>;
+/** A deep-partial of the WIRE animator config (`actionTriggers`, `definitions`, `bindings`, `version`, …), typed from the
+ *  schema — with `timeline`, a deep-partial of the FIRST of `timelines` (its `actions` included at this level), merged
+ *  over it. The other timelines are not patched. @public */
+export type PxAnimatorConfigPatch = PxRecursivePartial<Omit<PxAnimatorConfig, 'timelines'>> & { timeline?: PxRecursivePartial<PxTimeline> };
 
 /** @public */
 export interface PxAnimatorConfigMergeResult {
@@ -297,8 +298,8 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
         else if (actions !== null) warnings.push('actions: not an object — ignored');
     }
     // `null` (no triggers) is the control mode's to apply — `manual`, which spares a scroll-driven document
-    if (isPlainObject(actionTriggers)) doc = withActionTriggers(doc, actionTriggers);   // a SET, not a merge
-    else if (actionTriggers !== undefined && actionTriggers !== null) warnings.push('actionTriggers: not an object — ignored');
+    if (Array.isArray(actionTriggers)) doc = withActionTriggers(doc, actionTriggers);   // a SET, not a merge
+    else if (actionTriggers !== undefined && actionTriggers !== null) warnings.push('actionTriggers: not a list of rules — ignored');
     return { doc, warnings };
 }
 
@@ -313,7 +314,7 @@ const uncheckedPatch = (p: JsonRecord): PxAnimatorConfigPatch => p as PxAnimator
  * @public @advanced
  */
 export function withActionTriggers(doc: PxDocument, actionTriggers: PxActionTriggersInput): PxDocument {
-    return withAnimatorBlock(doc, animator => ({ ...animator, actionTriggers: { ...actionTriggers } }));
+    return withAnimatorBlock(doc, animator => ({ ...animator, actionTriggers: [...actionTriggers] }));
 }
 
 /**
@@ -325,9 +326,13 @@ export function withActions(doc: PxDocument, actions: PxActionsInput): PxDocumen
     return withTimelineBlock(doc, timeline => ({ ...timeline, actions: { ...actions } }));
 }
 
-/** A new document whose wire `timeline` is `edit(timeline)` — the animator at either of its two addresses. */
+/** A new document whose first wire timeline is `edit(timeline)` — the animator at either of its two addresses. */
 function withTimelineBlock(doc: PxDocument, edit: (timeline: JsonRecord) => JsonRecord): PxDocument {
-    return withAnimatorBlock(doc, base => ({ ...base, timeline: edit(isPlainObject(base.timeline) ? base.timeline : {}) }));
+    return withAnimatorBlock(doc, base => {
+        const timelines: Array<unknown> = Array.isArray(base.timelines) ? [...base.timelines] : [];
+        timelines[0] = edit(isPlainObject(timelines[0]) ? timelines[0] : {});
+        return { ...base, timelines };
+    });
 }
 
 /** A new document whose wire `animator` block is `edit(animator)` — at either of its two addresses. */
@@ -353,7 +358,7 @@ function withAnimatorBlock(doc: PxDocument, edit: (animator: JsonRecord) => Json
  */
 export function withoutTriggerDriver(doc: PxDocument): PxDocument {
     if (isScrollTimeline(getAnimatorConfig(doc))) return doc;
-    return withActionTriggers(doc, {});
+    return withActionTriggers(doc, []);
 }
 
 /**
@@ -418,7 +423,10 @@ function mergeConfigRecord(base: unknown, patch: JsonRecord, warn: (m: string) =
         const value = patch[key];
         if (value === null || value === undefined) continue;          // left out changes nothing (no delete)
         if (key === 'timeline') {
-            out.timeline = isPlainObject(value) ? mergeTimeline(out.timeline, value, warn) : value;
+            // the patch's `timeline` is the FIRST of `timelines` (2026-11-20); the others stay as they are
+            const timelines: Array<unknown> = Array.isArray(out.timelines) ? [...out.timelines] : [];
+            timelines[0] = isPlainObject(value) ? mergeTimeline(timelines[0], value, warn) : value;
+            out.timelines = timelines;
             continue;
         }
         if (isPlainObject(value)) { out[key] = mergePlain(out[key], value); continue; }

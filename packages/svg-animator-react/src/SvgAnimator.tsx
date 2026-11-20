@@ -7,9 +7,9 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxSegmentProps, type PxVariablesOptions, type PxVariableValue } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
-import { createDiagnostics, createSegmentLever, deepEquals, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory, type PxSegmentLever } from '@pixodesk/svg-animator-core/internal';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxStateProps, type PxVariablesOptions, type PxVariableValue } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, forwardStateControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { createDiagnostics, createStateLever, deepEquals, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory, type PxStateLever } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -83,7 +83,7 @@ export interface SvgAnimatorImplProps {
      * inner component always calls the current props even though it never
      * re-renders.
      */
-    callbacksRef: React.RefObject<SvgAnimationPlayerCallbacks & Pick<PxAnimationPlayerCallbacks, 'onSegmentChange'>>;
+    callbacksRef: React.RefObject<SvgAnimationPlayerCallbacks & Pick<PxAnimationPlayerCallbacks, 'onStateChange'>>;
 
     /**
      * Latest diagnostics props (API review §5). Kept OUT of
@@ -95,8 +95,8 @@ export interface SvgAnimatorImplProps {
     /** The element `timelineOptions.follows` hands over, read when the player is created (a ref is filled by then). */
     followedRef: React.RefObject<() => Element | undefined>;
 
-    /** The `segment` prop's lever — attached to the player this component builds. */
-    segmentLever: PxSegmentLever;
+    /** The `state` prop's lever — attached to the player this component builds. */
+    stateLever: PxStateLever;
 }
 
 /** What `timelineOptions.follows` may hand over in React instead of a word: an element of the page, or a ref to one. */
@@ -136,7 +136,7 @@ export type SvgAnimationPlayerCallbacks =
  * (`timelineOptions={{ type: 'scroll', follows: chapterRef }}`), resolved when the player is created.
  * @public
  */
-export type SvgAnimationPlayerProps = PxPlaybackOverride<PxReactFollowed> & PxControlProps & PxVariablesOptions & PxSegmentProps & PxAnimationPlayerCallbacks & {
+export type SvgAnimationPlayerProps = PxPlaybackOverride<PxReactFollowed> & PxControlProps & PxVariablesOptions & PxStateProps & PxAnimationPlayerCallbacks & {
 
     /** Added to the root `<svg>`. */
     className?: string;
@@ -179,7 +179,7 @@ export type SvgAnimationPlayerProps = PxPlaybackOverride<PxReactFollowed> & PxCo
 
 // @px-importance important
 const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
-    className, style, doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef, followedRef, segmentLever
+    className, style, doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef, followedRef, stateLever
 }) => {
 
     // Render what the web player renders: materialized, then fresh ids. Rendering the raw
@@ -242,15 +242,15 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             // over in `timelineOptions.follows` holds its element.
             rootElement: rootRef.current ?? undefined,
             followedElement: followedRef.current?.(),
-            // the `segment` prop: held from the first frame, and across rebuilds
-            segmentLever,
+            // the `state` prop: held from the first frame, and across rebuilds
+            stateLever,
             onReady:  cb('onReady'),
             onPlaybackStart:  cb('onPlaybackStart'),
             onPlaybackStop:   cb('onPlaybackStop'),
             onPlaybackPause:  cb('onPlaybackPause'),
             onPlaybackResume: cb('onPlaybackResume'),
             onPlaybackFinish: cb('onPlaybackFinish'),
-            onSegmentChange: (segment, previous) => { callbacksRef.current?.onSegmentChange?.(segment, previous); },
+            onStateChange: (state, previous, stateMachine) => { callbacksRef.current?.onStateChange?.(state, previous, stateMachine); },
             onDestroy: cb('onDestroy'),
             onWarning:   diagRef.current?.onWarning,
             onError:  diagRef.current?.onError,
@@ -264,7 +264,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             api?.destroy();
             apiHolderRef.current = null;
         };
-    }, [doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef, followedRef, segmentLever]);
+    }, [doc, compMode, runtime, apiHolderRef, callbacksRef, diagRef, followedRef, stateLever]);
 
     return root;
 };
@@ -286,7 +286,7 @@ const SvgAnimatorImplOnce = React.memo(
  * 1. **As the file says** (no control prop) – the document's own triggers, or `actionTriggers` to use instead.
  *    ```tsx
  *    <SvgAnimationPlayer document={animation} />
- *    <SvgAnimationPlayer document={animation} actionTriggers={{ 'timeline.start': 'click' }} />
+ *    <SvgAnimationPlayer document={animation} actionTriggers={[{ action: 'timeline.start', event: 'click' }]} />
  *    ```
  *
  * 2. **Declarative `playback`** – the playback's position, held by the host: `"off"` · `"on"` · `"paused"`.
@@ -326,10 +326,10 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // Variables (docs/library/variables.md): values from the host, a variant, CSS delivery
     variables, variant, cssVariables,
 
-    onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onSegmentChange, onDestroy,
+    onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onStateChange, onDestroy,
 
-    // Segments (2026-11-15): the segment the page holds
-    segment,
+    // States (2026-11-20): the state the page holds
+    state,
 
     // Diagnostics (API review §5)
     onWarning, onError, suppressWarnings, suppressErrors
@@ -417,8 +417,8 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     const apiHolderRef = useRef<PxAnimationPlayerApi | null>(null);
 
     // Keep the latest callback props readable by the memoised inner component.
-    const callbacksRef = useRef<SvgAnimationPlayerCallbacks & Pick<PxAnimationPlayerCallbacks, 'onSegmentChange'>>({});
-    callbacksRef.current = { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onSegmentChange, onDestroy };
+    const callbacksRef = useRef<SvgAnimationPlayerCallbacks & Pick<PxAnimationPlayerCallbacks, 'onStateChange'>>({});
+    callbacksRef.current = { onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onStateChange, onDestroy };
 
     // Same idea for the diagnostics props, so the player and the adapter report where the
     // component does (§5).
@@ -445,6 +445,10 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
             timeline: forwardPlaybackControls(
                 () => apiHolderRef.current?.timeline,
                 (call, run) => { guardWrite(call); const playback = apiHolderRef.current?.timeline; if (playback) run(playback); }),
+            state: forwardStateControls(
+                () => apiHolderRef.current?.state,
+                (call, run) => { guardWrite(call); const states = apiHolderRef.current?.state; if (states) run(states); }),
+            getTimeline: (id: string) => apiHolderRef.current?.getTimeline(id),
             variables: runtime.api,
         };
     }, [compMode, runtime]);
@@ -472,12 +476,14 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compMode, playback, key]);
 
-    // The `segment` prop: one lever per component, made with the first value — the player (built in the inner component's
+    // The `state` prop: one lever per component, made with the first value — the player (built in the inner component's
     // effect, which runs first) holds it from its first frame; a later change is a request to the live player
-    const segmentLeverRef = useRef<PxSegmentLever | null>(null);
-    segmentLeverRef.current ??= createSegmentLever(segment);
-    const segmentLever = segmentLeverRef.current;
-    useEffect(() => { segmentLever.set(segment); }, [segmentLever, segment]);
+    const stateLeverRef = useRef<PxStateLever | null>(null);
+    stateLeverRef.current ??= createStateLever(state);
+    const stateLever = stateLeverRef.current;
+    const stateKey = JSON.stringify(state ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `stateKey` is `state` by value: a new array of the same ids is no change
+    useEffect(() => { stateLever.set(state); }, [stateLever, stateKey]);
 
     // Controlled-time mode: seek through the animator API. Scrubbing `showAtProgress` /
     // `showAtTime` only re-runs this effect — the animator is NOT recreated.
@@ -500,7 +506,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
             callbacksRef={callbacksRef}
             diagRef={diagRef}
             followedRef={followedRef}
-            segmentLever={segmentLever}
+            stateLever={stateLever}
         />
     );
 };

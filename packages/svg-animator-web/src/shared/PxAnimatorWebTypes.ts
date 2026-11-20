@@ -9,7 +9,7 @@ import type {
 import type {
     PxEngineAnimationPlayerApi as PxEngineAnimatorApiCore,
 } from '@pixodesk/svg-animator-core/engine';
-import type { PxCssRangeName } from '@pixodesk/svg-animator-core/internal';
+import type { PxCssRangeName, PxStateHolder } from '@pixodesk/svg-animator-core/internal';
 
 /**
  * DOM specializations of the platform-neutral player API types.
@@ -20,9 +20,9 @@ import type { PxCssRangeName } from '@pixodesk/svg-animator-core/internal';
 /** @public */
 export type PxAnimationPlayerApi = PxAnimatorAPICore<Element>;
 
-/** A build of the player before `variables` is added — what the engines and the binders return; with segments, the
- *  segment clock the components' `segment` prop holds. @internal */
-export type PxPlayerEngineApi = Omit<PxAnimationPlayerApi, 'variables'> & Pick<PxEngineAnimationPlayerApi, 'segmentRuntime'>;
+/** A build of the player before `variables` is added — what the engines and the binders return; with states, the
+ *  state clock — or, with several timelines, the picture's states — the components' `state` prop holds. @internal */
+export type PxPlayerEngineApi = Omit<PxAnimationPlayerApi, 'variables'> & { stateHolder?: PxStateHolder };
 
 /** What the web ENGINES construct — the api minus `playback` (the buttons, seeks and reads), composed in `finaliseAnimator`.
  *  @public @advanced */

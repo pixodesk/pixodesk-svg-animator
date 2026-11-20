@@ -62,7 +62,7 @@ type AssertNever<T extends never> = T;
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer actionTriggers={{ 'timeline.play': 'hoverIn', 'timeline.pause': 'hoverOut' }}>
+ * <SvgCssAnimationPlayer actionTriggers={[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }]}>
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```

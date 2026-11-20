@@ -18,7 +18,7 @@ import type { PxDocument } from '@pixodesk/svg-animator-core';
 const emptyDoc = (): PxDocument => ({
     type: 'svg',
     viewBox: '0 0 200 200',
-    animator: { timeline: { outTime: 1000, engine: 'auto' } },
+    animator: { timelines: [{ outTime: 1000, engine: 'auto' }] },
 });
 
 const docWithChild = (): PxDocument => ({

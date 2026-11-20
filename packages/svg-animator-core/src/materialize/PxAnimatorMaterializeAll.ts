@@ -33,7 +33,7 @@
  * gating or "nothing to do" early-outs) return the input by reference.
  */
 
-import { materializeNodeEffects } from '../effects/PlayerEffectsUtil';
+import { materializeNodeEffectsByTimeline } from './PxEffectTimelineTracks';
 import { PX_DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
 import { compileAnimationsInTree } from '../animation/PxDefinitions';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
@@ -44,6 +44,7 @@ import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
 import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 import { generateNewIds } from '../util/PxIdUtil';
 import { materializeRestPosesInTree } from './PxRestPose';
+import { firstTimelineIdOf, timelineWindowsOf } from '../playback/PxTimelineWindows';
 
 
 /** Options accepted by {@link materializeAllInTree}. Mostly forwarded to the
@@ -74,7 +75,8 @@ export function materializeAllInTree(
     const own = (r: PxDocument): PxDocument => (r === doc ? { ...r } : r);
 
     // 1. Effects → structural materialization. Always runs; returns a fresh root.
-    let root: PxDocument = stampPrep(own(materializeNodeEffects(doc).root as PxDocument), carry);
+    //    An effect parameter with `byTimeline` (2026-11-20): the effects run once per timeline, merged as tracks.
+    let root: PxDocument = stampPrep(own(materializeNodeEffectsByTimeline(doc).root as PxDocument), carry);
 
     // 1b. `alongPathMode: 'offsetPath'` transforms → CSS Motion Path (offset-path style
     //     + `offsetDistance` binding). Both engines: frames drives `offset-distance` per
@@ -95,6 +97,9 @@ export function materializeAllInTree(
         defs: config?.definitions,
         engine,
         motionPath: options?.motionPath,
+        // every other timeline's window, by id (2026-11-20): a `byTimeline` track is compiled with its own
+        timelineWindows: timelineWindowsOf(root),
+        firstTimelineId: firstTimelineIdOf(root),
     }), carry);
 
     if (engine === PxTimelineEngine.native) {

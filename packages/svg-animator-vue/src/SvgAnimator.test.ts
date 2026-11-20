@@ -485,7 +485,7 @@ describe("SvgAnimationPlayer (Vue) — attribute names", () => {
             // unsafe and the two renders differ for a reason that is not the name.
             rect[kebabToCamel(kebab)] = REFERENCE_ATTRIBUTES.has(kebab) ? "url(#r)" : "1";
         }
-        const doc: PxDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { outTime: 100, engine: "js" } }, children: [rect] };
+        const doc: PxDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timelines: [{ outTime: 100, engine: "js" }] }, children: [rect] };
 
         const host = document.createElement("div");
         document.body.appendChild(host);
@@ -580,12 +580,12 @@ function getTestJson(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -620,12 +620,12 @@ function getTestJson1000(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 1000,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -686,12 +686,12 @@ function getTreeJson(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_tree_ell', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -741,12 +741,12 @@ function getRectJson(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_rect_b', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -769,7 +769,7 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: 1000 }, actionTriggers: { "timeline.start": 'load' } },
+        animator: { timelines: [{ engine: 'js', outTime: 1000 }], actionTriggers: [{ action: 'timeline.start', event: 'load' }] },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -792,7 +792,7 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
 
     it('an `actionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarning = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actionTriggers: { "timeline.start": 'click' }, onWarning } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actionTriggers: [{ action: 'timeline.start', event: 'click' }], onWarning } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
@@ -814,11 +814,11 @@ function getEffectsOnlyJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
-            timeline: {
+            timelines: [{
                 outTime: 1000,
 actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "hoverIn", "timeline.pause": "hoverOut" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }],
             version: "1.9.1",
         },
         children: [
@@ -878,11 +878,11 @@ function getMaskedLoadJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
-            timeline: {
+            timelines: [{
                 outTime: 1000,
 actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
             version: "1.9.1",
         },
         children: [
@@ -1013,7 +1013,7 @@ describe("SvgAnimationPlayer (Vue) — a scroll timeline (2026-11-14)", () => {
     /** A clock file: one rect fading in over a second. */
     const clockDoc = (timeline: Record<string, unknown> = {}): PxDocument => ({
         type: 'svg', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: 1000, ...timeline } },
+        animator: { timelines: [{ engine: 'js', outTime: 1000, ...timeline }] },
         children: [{ type: 'rect', id: 'r1', width: 10, height: 10, opacity: 0, animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }],
     });
 

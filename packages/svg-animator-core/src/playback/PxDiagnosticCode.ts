@@ -161,18 +161,26 @@ export enum PxDiagnosticCode {
     triggerElementNotFound = 1113,
 
     /**
-     * A segment action names a segment the timeline does not have (2026-11-15) — `timeline.segment.goTo(‹name›)` as a
-     * trigger, or as a segment's `whenFinished`. It is ignored.
-     * @data the action and the names the timeline has
+     * A `state.goTo` names a state the file does not have (2026-11-20; segments 2026-11-15) — in a rule of
+     * `actionTriggers`, or in a state's `whenFinished`. It is ignored.
+     * @data the state it names, the state whose `whenFinished` holds it, and the ids the file has
      */
-    segmentNotFound = 1114,
+    stateNotFound = 1114,
 
     /**
-     * Two segments of a timeline have the same name (2026-11-15) — the first in the list is played, the later one is
-     * ignored: a trigger or a go-to cannot tell them apart.
-     * @data the name
+     * Two states have the same id (2026-11-20; segments 2026-11-15) — the first in the list is played, the later one is
+     * ignored: a rule or a go-to cannot tell them apart.
+     * @data the id
      */
-    segmentNameDuplicate = 1115,
+    stateIdDuplicate = 1115,
+
+    /**
+     * A finding about several timelines and states (2026-11-20): a repeated timeline or state machine id, a reference
+     * that names nothing, one timeline in two state machines, a state on a scroll-driven timeline, an attribute on
+     * timelines of two state machines, plain keyframes beside `byTimeline`. The file plays — the first one wins.
+     * @data the finding: `{ kind, key?, id?, at?, attribute? }` (`timelineIssues`)
+     */
+    timelineIssue = 1116,
 
     /**
      * A binding names no element, or names animations that `definitions.animations` does not have.

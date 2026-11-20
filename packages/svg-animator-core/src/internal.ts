@@ -68,10 +68,10 @@ export { resolveVariableBindings, PX_VARIABLE_NODE_MARK, PX_CSS_DELIVERABLE_PROP
 export type { PxResolveBindingsOptions, PxPredefinedDefinition } from './variables/PxVariableBindings';
 export { domAttributeOf } from './render/PxRenderTree';
 
-/** The 1.28 amendment (2026-11-15): brings a document stamped 1.28 in the first spelling over to the second — for a
- *  writer converting its own files once. @internal */
-export { upTimelineAndElementWords } from './version/PxWireVersion';
+/** The 1.28 amendments (2026-11-15, 2026-11-20): bring a document stamped 1.28 in an older spelling over to the
+ *  current one — for a writer converting its own files once. Run in this order. @internal */
+export { upTimelineAndElementWords, upTimelinesStatesAndRules } from './version/PxWireVersion';
 
-// The components' `segment` prop (2026-11-15): the lever between a component and the player it builds.
-export { createSegmentLever } from './playback/PxSegments';
-export type { PxSegmentLever } from './playback/PxSegments';
+// The components' `state` prop (2026-11-20; `segment` 2026-11-15): the lever between a component and the player it builds.
+export { createStateLever } from './playback/PxStates';
+export type { PxStateLever, PxStateHolder } from './playback/PxStates';

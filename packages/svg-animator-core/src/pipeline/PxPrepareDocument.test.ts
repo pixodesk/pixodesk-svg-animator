@@ -18,7 +18,7 @@ function makeDoc(): PxDocument {
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
             effects: { fillGradient: { type: 'linear', stops: [{ offset: 0, color: '#000' }, { offset: 1, color: '#fff' }] } },
         }],
-        animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timeline: { outTime: 800 } },
+        animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timelines: [{ outTime: 800 }] },
     })) as PxDocument;
 }
 const prep = (doc: PxDocument, options?: PxPrepareOptions) => prepareDocument(doc, options);
@@ -109,7 +109,7 @@ describe('prepareDocument', () => {
     it('a stamp is only trusted while the document holds the SAME animator config object', () => {
         const res = prep(makeDoc(), { stage: PxDocStage.resolved }) as PxDocument;
         const before = getAnimatorConfig(res);
-        (res as { animator?: unknown }).animator = { timeline: { outTime: 250 } };   // a convention breach
+        (res as { animator?: unknown }).animator = { timelines: [{ outTime: 250 }] };   // a convention breach
         expect(getAnimatorConfig(res)).not.toBe(before);
         expect(getAnimatorConfig(res)?.duration).toBe(250);
     });
@@ -134,13 +134,13 @@ describe('prepareDocument — the checked stage', () => {
 
     it('repairs what does not match the schema, reports it, and plays the rest', () => {
         const doc = makeDoc();
-        (doc.animator as Record<string, unknown>).actionTriggers = { 'timeline.start': 'onLoad' };
+        (doc.animator as Record<string, unknown>).actionTriggers = [{ action: 'timeline.start', event: 'onLoad' }];
         const seen: Array<string> = [];
         const out = prep(doc, { stage: PxDocStage.checked, onProblems: ps => ps.forEach(p => seen.push(p.message)) });
         expect(seen.length).toBe(1);
-        expect(seen[0]).toContain('actionTriggers.timeline.start');
-        expect((out.animator as { actionTriggers: Record<string, unknown> }).actionTriggers).toEqual({});   // the bad value is gone
-        expect((doc.animator as { actionTriggers: { 'timeline.start': string } }).actionTriggers['timeline.start']).toBe('onLoad');   // input untouched
+        expect(seen[0]).toContain('actionTriggers');
+        expect((out.animator as { actionTriggers: Array<unknown> }).actionTriggers).toEqual([]);   // the bad rule is gone
+        expect((doc.animator as { actionTriggers: Array<{ event: string }> }).actionTriggers[0].event).toBe('onLoad');   // input untouched
     });
 
     it('a valid document reports nothing and comes out type-stamped', () => {

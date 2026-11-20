@@ -52,7 +52,7 @@ describe('materializeAllInTree', () => {
     function fixture(): PxDocument {
         return {
             type: 'svg',
-            animator: { timeline: { outTime: 1000 } },
+            animator: { timelines: [{ outTime: 1000 }] },
             children: [
                 // Source rect with tangented motion-path + a loop.
                 {

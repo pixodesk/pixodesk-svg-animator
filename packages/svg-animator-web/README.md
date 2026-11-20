@@ -89,11 +89,11 @@ player.destroy();             // cleanup
 | `document`  | `string \| PxDocumentJson` | Required: a URL to fetch the animation document from (a string is always a URL), or the document object itself (a `.json` import passes as-is). `src` / `doc` until 1.25 |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
 | `onReady` · `onPlaybackStart` · `onPlaybackStop` · `onPlaybackPause` · `onPlaybackResume` · `onPlaybackFinish` · `onDestroy` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`; the `onPlayback…` callbacks are the playback's events, told when the act is performed; `onPlaybackFinish` only when the last pass ends by playing); plus `onWarning`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlaybackStart,onPlaybackStop,onPlaybackPause,onPlaybackResume,onPlaybackFinish,onDestroy,onWarning,onError,suppressWarnings,suppressErrors -->
-| `onSegmentChange` | `(segment: string, previous: string) => void` | the timeline went to another [segment](https://github.com/pixodesk/svg-animator/blob/main/docs/library/playback-and-triggers.md#segments--named-parts-of-one-timeline) |
+| `onStateChange` | `(state: string, previous: string, stateMachine?: string) => void` | a state machine went to another [state](../../docs/library/playback-and-triggers.md#states--named-parts-of-a-timeline); `stateMachine` is its id, none for the one without an id |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says: no triggers, no scroll; every playback call is ignored with a warning (PX1506). Beats every other option |
 | `disableActionTriggers` | `boolean` | manual: the file's triggers are switched off — nothing starts by itself, the returned api drives playback |
-| `actionTriggers` | `PxActionTriggersInput \| null` | the triggers to use instead of the file's — the whole block (lists left out are not listed); `null` or `{}`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
-| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actionTriggers` | `PxActionTriggersInput \| null` | the rules to use instead of the file's — the whole list, `[{ action: 'timeline.start', event: 'load' }]` (a rule left out is not there); `null` or `[]`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
+| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline (minus `actionTriggers` and `actions`), merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'timeline.stop': 'animateToStart' }`, and the gate's `outOfView`; a setting left out reads its default (what a finished playback shows, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; applied before the first paint. See [Variables](../../docs/library/variables.md) |
 | `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
@@ -113,12 +113,14 @@ const player = createSvgAnimationPlayer({
 player.timeline.start();
 ```
 
-It returns a `PxAnimationPlayerApi` — the player's lifecycle, and `playback`:
+It returns a `PxAnimationPlayerApi` — the player's lifecycle, `timeline` and `state`:
 
 <!-- px-check props PxAnimationPlayerApi pkg=web -->
 | Member                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `timeline`              | Everything a page does to the animation — a `PxTimelineControls`, below. One object per player, made of closures (`const { start } = player.timeline` works) |
+| `state`                 | The file's [states](../../docs/library/playback-and-triggers.md#states--named-parts-of-a-timeline) — a `PxStateControls`: `goTo(id)` · `next(stateMachine?)` · `previous(stateMachine?)` · `get(stateMachine?)` (one id per state machine) · `getAll()` |
+| `getTimeline(id)`       | One timeline of the file by its `id` — the same controls as `timeline`, on that timeline alone; `undefined` for an id the file does not have |
 | `variables`             | The document's variables — `get` / `set` / `setVariables` / `reset`, `setVariant` … (a `PxVariablesApi`); a change is drawn on the next frame and never touches the playback. See [Variables](../../docs/library/variables.md) |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) — calls made before are queued |
 | `getRootElement()`      | The rendered SVG DOM element                                      |
@@ -153,7 +155,6 @@ timeline and `start()`, `stop()` and `setCurrentProgress()` say the same):
 | `getTotalDurationAtSpeed()` | The whole playback at the current speed; `null` when `iterations` is `'infinite'` |
 | `getCurrentTimeAtSpeed()` | The playhead in the pass at the current speed: `getCurrentTime() / \|speed\|` |
 | `getTotalTimeAtSpeed()` | The playhead on the whole playback at the current speed: `getTotalTime() / \|speed\|` |
-| `segment`               | A timeline with `segments` (2026-11-15): `next()` · `previous()` · `goTo(name)` · `get()` · `getAll()`; every call above then acts on the current segment |
 
 Plain time names are content ms **inside the iteration**, progress counts **iterations** (`1.2` = 20 % into the
 second), `total…` names span the **whole playback** (including repeats — GSAP's words), the `…AtSpeed` names are
@@ -197,7 +198,7 @@ stylesheet, the predefined `player.pointer` and how a change is drawn: [Variable
 
 ### Engines
 
-`animator.timeline.engine` selects how the animated attributes get updated:
+The first timeline's `engine` selects how the animated attributes get updated:
 
 - `'auto'` (default) — the browser where it can (Web Animations API; its ScrollTimeline for scroll-driven documents), the player's frame loop where it must.
 - `'native'` — the browser only (Web Animations API).

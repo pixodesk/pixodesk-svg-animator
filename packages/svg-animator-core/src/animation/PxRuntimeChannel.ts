@@ -133,3 +133,124 @@ export function mapChannelKeyframes(
         case PxValueKind.discrete: return { ...ch, keyframes: fn(ch.keyframes, switchAtHalf) };
     }
 }
+
+// ============================================================================
+// TRACKS ON OTHER TIMELINES (2026-11-20) — a compiled entry carries what the attribute does on the file's other
+// timelines (`byTimeline`): the same kind, each compiled with its own timeline's window. The player splits them out
+// per unit (`PxUnits`). One case per kind, so every value keeps its type.
+// ============================================================================
+
+/** The entry with `track`'s keyframes added as its track on `timeline` — the same kind only (another kind cannot
+ *  ride it: the entry is returned as it is). @internal */
+export function withTimelineTrack(host: PxCompiledAnimation, timeline: string, track: PxCompiledAnimation): PxCompiledAnimation {
+    switch (host.kind) {
+        case PxValueKind.number: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.percent: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.rotate: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.skew: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.color: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.path: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.transform: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.numberList: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.translate: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.scale: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+        case PxValueKind.discrete: return track.kind === host.kind ? { ...host, byTimeline: [...(host.byTimeline ?? []), { timeline, keyframes: track.keyframes }] } : host;
+    }
+}
+
+/** The entry as it plays on `timeline`: its track there as the plain keyframes, no tracks left; `undefined` when it
+ *  has none there. `timeline` undefined: the plain keyframes themselves (the first timeline). @internal */
+export function timelineTrackOf(ch: PxCompiledAnimation, timeline: string | undefined): PxCompiledAnimation | undefined {
+    if (timeline === undefined) {
+        if (!ch.byTimeline) return ch.keyframes.length ? ch : undefined;
+        const { byTimeline: _tracks, ...plain } = ch;
+        return plain.keyframes.length ? plain : undefined;
+    }
+    switch (ch.kind) {
+        case PxValueKind.number: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.percent: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.rotate: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.skew: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.color: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.path: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.transform: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.numberList: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.translate: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.scale: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+        case PxValueKind.discrete: { const t = ch.byTimeline?.find(x => x.timeline === timeline); const { byTimeline: _t, ...rest } = ch; return t ? { ...rest, keyframes: t.keyframes } : undefined; }
+    }
+}
+
+/** One stretch of a concatenated channel (2026-11-20, a state machine whose states are on several timelines): the
+ *  track that plays there, shifted, or — where the attribute has no track — its static value held. @internal */
+export interface PxConcatRegion {
+    /** The track that plays in this stretch; absent — `hold` is held. */
+    readonly track?: PxCompiledAnimation;
+    /** The attribute's static value as a compiled channel (its first keyframe is the value); absent — nothing is held. */
+    readonly hold?: PxCompiledAnimation;
+    /** The stretch on the concatenated clock, ms. */
+    readonly from: number;
+    readonly to: number;
+    /** What is added to the track's times to place it there. */
+    readonly shift: number;
+}
+
+interface PxTypedRegion<V> { readonly keyframes?: Array<PxCompiledKeyframe<V>>; readonly hold?: V; readonly from: number; readonly to: number; readonly shift: number }
+
+/** The value of `keyframes` at `t` — a straight blend between the two around it (the easing is not applied at the cut). */
+function sampleKeyframesAt<V>(keyframes: ReadonlyArray<PxCompiledKeyframe<V>>, t: number, lerp: PxChannelLerp<V>): V {
+    if (t <= keyframes[0].time) return keyframes[0].value;
+    for (let i = 1; i < keyframes.length; i++) {
+        const b = keyframes[i];
+        if (t <= b.time) {
+            const a = keyframes[i - 1];
+            const span = b.time - a.time;
+            return span > 0 ? lerp(a.value, b.value, (t - a.time) / span) : b.value;
+        }
+    }
+    return keyframes[keyframes.length - 1].value;
+}
+
+/** The stretches laid end to end: in each, the track's keyframes inside it with an exact value at both ends, or the
+ *  held value at both ends. Between two stretches the clock is never shown. */
+function concatKeyframes<V>(regions: ReadonlyArray<PxTypedRegion<V>>, lerp: PxChannelLerp<V>): Array<PxCompiledKeyframe<V>> {
+    const out: Array<PxCompiledKeyframe<V>> = [];
+    for (const r of regions) {
+        if (r.keyframes && r.keyframes.length) {
+            const shifted = r.keyframes.map(kf => ({ ...kf, time: kf.time + r.shift }));
+            const inside = shifted.filter(kf => kf.time > r.from && kf.time < r.to);
+            const startsHere = shifted.find(kf => kf.time === r.from);
+            out.push(startsHere ?? { time: r.from, value: sampleKeyframesAt(shifted, r.from, lerp) });
+            out.push(...inside);
+            out.push({ time: r.to, value: sampleKeyframesAt(shifted, r.to, lerp) });
+        } else if (r.hold !== undefined) {
+            out.push({ time: r.from, value: r.hold }, { time: r.to, value: r.hold });
+        }
+    }
+    return out;
+}
+
+/** `regions` as `V`'s regions — `get` reads a channel's keyframes when it is of the kind, `undefined` otherwise. */
+function typedRegions<V>(regions: ReadonlyArray<PxConcatRegion>, get: (ch: PxCompiledAnimation) => Array<PxCompiledKeyframe<V>> | undefined): Array<PxTypedRegion<V>> {
+    return regions.map(r => {
+        const hold = r.hold ? get(r.hold)?.[0]?.value : undefined;
+        return { keyframes: r.track ? get(r.track) : undefined, hold, from: r.from, to: r.to, shift: r.shift };
+    });
+}
+
+/** The regions laid end to end as one channel of `template`'s kind (its unit, its auto-orient kept; no tracks). @internal */
+export function concatChannels(template: PxCompiledAnimation, regions: ReadonlyArray<PxConcatRegion>): PxCompiledAnimation {
+    switch (template.kind) {
+        case PxValueKind.number: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.number ? ch.keyframes : undefined), interpolateNum) }; }
+        case PxValueKind.percent: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.percent ? ch.keyframes : undefined), interpolateNum) }; }
+        case PxValueKind.rotate: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.rotate ? ch.keyframes : undefined), interpolateNum) }; }
+        case PxValueKind.skew: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.skew ? ch.keyframes : undefined), interpolateNum) }; }
+        case PxValueKind.color: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.color ? ch.keyframes : undefined), blendColors) }; }
+        case PxValueKind.path: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.path ? ch.keyframes : undefined), blendPaths) }; }
+        case PxValueKind.transform: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.transform ? ch.keyframes : undefined), interpolateTransformParts) }; }
+        case PxValueKind.numberList: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.numberList ? ch.keyframes : undefined), interpolateVec) }; }
+        case PxValueKind.translate: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.translate ? ch.keyframes : undefined), interpolateVec) }; }
+        case PxValueKind.scale: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.scale ? ch.keyframes : undefined), interpolateVec) }; }
+        case PxValueKind.discrete: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.discrete ? ch.keyframes : undefined), switchAtHalf) }; }
+    }
+}

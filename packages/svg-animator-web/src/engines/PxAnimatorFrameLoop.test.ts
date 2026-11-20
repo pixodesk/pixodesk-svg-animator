@@ -29,7 +29,7 @@ function makeDoc(timeline: PxTimeTimeline = {}): PxDocument {
         type: 'svg',
         viewBox: '0 0 100 100',
         animator: {
-            timeline: { engine: 'js', outTime: DUR, ...timeline },
+            timelines: [{ engine: 'js', outTime: DUR, ...timeline }],
         },
         children: [
             {

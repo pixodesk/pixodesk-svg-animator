@@ -21,11 +21,34 @@ function doc127(timeline: Record<string, unknown>): Record<string, unknown> {
     return { type: 'svg', animator: { version: '1.27.1', timeline }, children: [] };
 }
 
-/** The converted document's `animator.timeline`. */
+
+/** A converted document's rules read back as the map by action the older steps spoke of (2026-11-20: the current
+ *  spelling is a list of rules) — so these cases keep testing the older steps' words. A list is turned into
+ *  `{ action: event | [events] }`; anything else is returned as it is. */
+function asTriggerMap(triggers: unknown): unknown {
+    if (!Array.isArray(triggers)) return triggers;
+    const map: Record<string, unknown> = {};
+    for (const rule of triggers) {
+        if (!isRecord(rule) || typeof rule.action !== 'string') continue;
+        const { action, ...rest } = rule;
+        const entry = Object.keys(rest).length === 1 && typeof rest.event === 'string' ? rest.event : rest;
+        const had = map[action];
+        map[action] = had === undefined ? entry : Array.isArray(had) ? [...had, entry] : [had, entry];
+    }
+    return map;
+}
+
+/** The first timeline — `animator.timeline` before the 2026-11-20 amendment, `animator.timelines[0]` after it. */
+function timelineRecordOf(animator: unknown): unknown {
+    if (!isRecord(animator)) return undefined;
+    return Array.isArray(animator.timelines) ? animator.timelines[0] : animator.timeline;
+}
+
+/** The converted document's first timeline. */
 function converted(timeline: Record<string, unknown>): unknown {
     const doc = convertWireDocument(doc127(timeline)).doc;
     const animator = isRecord(doc) ? doc.animator : undefined;
-    return isRecord(animator) ? animator.timeline : undefined;
+    return timelineRecordOf(animator);
 }
 
 describe('1.27 → 1.28: what is followed', () => {
@@ -119,8 +142,9 @@ describe('1.27 → 1.28: holding, the axis, the rest', () => {
         expect(converted({ outTime: 1000, actionTriggers: { 'playback.start': 'load' } })).toEqual({ outTime: 1000 });
         const moved = convertWireDocument(doc127({ outTime: 1000, actionTriggers: { 'playback.start': 'load' }, actions: { 'playback.stop': 'animateToStart' } })).doc;
         const animator = isRecord(moved) ? moved.animator : undefined;
-        expect(isRecord(animator) ? animator.actionTriggers : undefined).toEqual({ 'timeline.start': 'load' });
-        expect(isRecord(animator) && isRecord(animator.timeline) ? animator.timeline.actions : undefined).toEqual({ 'timeline.stop': 'animateToStart' });
+        expect(isRecord(animator) ? asTriggerMap(animator.actionTriggers) : undefined).toEqual({ 'timeline.start': 'load' });
+        const first = timelineRecordOf(animator);
+        expect(isRecord(first) ? first.actions : undefined).toEqual({ 'timeline.stop': 'animateToStart' });
         const doc = convertWireDocument(doc127({ type: 'view', subject: '#a', range: { start: { phase: 'entry', fraction: 0.5 } } })).doc;
         expect(validateDocument(doc).errors).toEqual([]);
         expect(getAnimatorConfig(untyped<PxDocument>(doc))?.scroll).toEqual({ follows: 'pageDomElement', selector: '#a', firstFrameWhen: { moment: 'halfIn' } });
@@ -129,7 +153,7 @@ describe('1.27 → 1.28: holding, the axis, the rest', () => {
 
 describe('the scroll timeline rules validateDocument checks', () => {
     const problems = (timeline: Record<string, unknown>) =>
-        validateDocument(untyped<PxDocument>({ type: 'svg', animator: { timeline } })).errors;
+        validateDocument(untyped<PxDocument>({ type: 'svg', animator: { timelines: [timeline] } })).errors;
 
     it('a well-formed timeline has none', () => {
         expect(problems({ type: 'scroll', firstFrameWhen: 'halfIn', lastFrameWhen: { domElement: 'top', screen: 0.2 } })).toEqual([]);

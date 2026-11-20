@@ -21,7 +21,7 @@ import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxDocument,
 import { authoredEntry, collectByType, entryOf, materialize } from './effectTestKit';
 
 const doc = (child: PxNode): PxDocument =>
-    ({ type: 'svg', animator: { timeline: { outTime: 2000 } }, children: [child] });
+    ({ type: 'svg', animator: { timelines: [{ outTime: 2000 }] }, children: [child] });
 
 /** A per-copy wrapper's structured static `transform: {value: parts}` — its parts. */
 const staticParts = (g: PxNode): PxTransformParts | undefined => PxTransformValueWrapperSchema.castOrNull(g.transform)?.value;

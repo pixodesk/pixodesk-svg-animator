@@ -4,13 +4,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { isCompiledAnimation, PxNormalizedPathValueSchema, PxPathDataValueSchema, PxTransformPartsSchema, type PxDocument, type PxAnimationDefinition, type PxBezierPath, type PxCompiledAnimation, type PxCompiledKeyframe, type PxCubicBezier, type PxDefinitions, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPathValue, type PxPropertyAnimation, type PxRgba, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, PxKeyframeValueSchema, PxNormalizedPathValueSchema, PxPathDataValueSchema, PxTransformPartsSchema, type PxDocument, type PxAnimationDefinition, type PxBezierPath, type PxCompiledAnimation, type PxCompiledKeyframe, type PxCubicBezier, type PxDefinitions, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPathValue, type PxPropertyAnimation, type PxRgba, type PxTransformParts } from '../format/PxAnimatorTypes';
 import { getBindings, getDefinitions, PxAlongPathMode, PxValueKind, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
-import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, remap, reverseEasing, splitEasing, toRGBA } from '../util/PxAnimatorUtil';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, remap, reverseEasing, splitEasing, toRGBA } from '../util/PxAnimatorUtil';
 import { evaluateMotionPathSegment, sampleMotionPathKeyframes, type MotionPathMaterializationOptions, type MotionPathSegments } from '../materialize/PxMotionPath';
 import { mergeStaticTransformIntoAnimDef } from './PxStaticTransformMerge';
-import { channelKindOf, interpolateTransformParts, mapChannelKeyframes, movesAlongPath, sharedUnitOf, type PxChannelLerp, type PxNormalizedBinding, type PxRuntimeAnimation } from './PxRuntimeChannel';
+import { channelKindOf, interpolateTransformParts, mapChannelKeyframes, movesAlongPath, sharedUnitOf, withTimelineTrack, type PxChannelLerp, type PxNormalizedBinding, type PxRuntimeAnimation } from './PxRuntimeChannel';
+import { firstTimelineIdOf, timelineWindowsOf } from '../playback/PxTimelineWindows';
 
 // Declared in its own leaf module so the motion-path flattener can use it too, without importing
 // this one back (it is imported here). Re-exported so this module's surface is unchanged.
@@ -625,6 +626,12 @@ export interface PxCompileContext {
     readonly engine: PxTimelineEngine;
     /** The native engine's motion-path sampling knobs. */
     readonly motionPath?: MotionPathMaterializationOptions;
+    /** The window of every other timeline, by its `id` (2026-11-20) — a `byTimeline` track is compiled with its own;
+     *  a track naming a timeline not listed here is not compiled. */
+    readonly timelineWindows?: ReadonlyMap<string, { readonly windowStart: number; readonly windowEnd: number }>;
+    /** The first timeline's `id`, when it has one: a track naming it IS the first timeline's keyframes (it wins over
+     *  the plain ones, as `byTimeline` does everywhere). */
+    readonly firstTimelineId?: string;
 }
 
 // @px-importance important
@@ -673,6 +680,15 @@ function toCompiledChannel(
         case PxValueKind.discrete:
             return { kind, keyframes: keyframes.map(kf => at(kf, toText(kf.value))) };
     }
+}
+
+/** A static attribute value as a one-keyframe compiled channel (2026-11-20) — what a stretch of a concatenated state
+ *  machine holds where the attribute has no track; `undefined` when there is no value to hold. @internal */
+export function compileStaticChannel(propName: string, value: unknown): PxCompiledAnimation | undefined {
+    const raw = propName === TRANSFORM_ATTR && typeof value === 'string' ? parseTransformParts(value) : value;
+    const kfValue = PxKeyframeValueSchema.castOrNull(raw);
+    if (kfValue === null || kfValue === undefined) return undefined;
+    return toCompiledChannel(propName, [{ time: 0, value: kfValue }], () => undefined);
 }
 
 /** `loop: true` is the default loop; absent / false is none. */
@@ -741,6 +757,58 @@ export function compileAnimationDefinition(
     staticTransform: unknown,
     ctx: PxCompileContext,
 ): Record<string, PxCompiledAnimation> {
+    const { plain, tracks } = splitTimelineTracks(animDef, ctx.firstTimelineId);
+    if (!tracks.size) return compilePlainDefinition(plain, staticTransform, ctx, new Set());
+    // every attribute with a track elsewhere keeps an entry here, empty or not: the tracks ride on it (2026-11-20)
+    const carriers = new Set<string>();
+    for (const def of tracks.values()) for (const prop of Object.keys(def)) carriers.add(prop);
+    const out = compilePlainDefinition(plain, staticTransform, ctx, carriers);
+    for (const [timeline, def] of tracks) {
+        const window = ctx.timelineWindows?.get(timeline);
+        if (!window) continue;                     // a timeline the file does not have — `validateDocument` says so
+        const compiled = compilePlainDefinition(def, staticTransform, { ...ctx, windowStart: window.windowStart, windowEnd: window.windowEnd }, new Set());
+        for (const [prop, ch] of Object.entries(compiled)) {
+            const host = out[prop] ?? mapChannelKeyframes(ch, () => []);
+            out[prop] = withTimelineTrack(host, timeline, ch);
+        }
+    }
+    return out;
+}
+
+/** An animation definition split into its plain entries (the first timeline) and, per other timeline, the
+ *  definition its `byTimeline` tracks make. A track naming the first timeline (`firstId`) takes the plain entry's place.
+ *  Compiled entries pass through as plain (they carry their tracks). */
+function splitTimelineTracks(animDef: PxAnimationDefinition, firstId: string | undefined): { plain: PxAnimationDefinition; tracks: Map<string, PxAnimationDefinition> } {
+    const tracks = new Map<string, PxAnimationDefinition>();
+    let plain: PxAnimationDefinition | undefined;
+    for (const [propName, anim] of Object.entries(animDef)) {
+        if (isCompiledAnimation(anim) || !anim.byTimeline?.length) continue;
+        plain ??= { ...animDef };
+        const { byTimeline, ...own } = anim;
+        plain[propName] = own;
+        for (const track of byTimeline) {
+            const { timeline, ...rest } = track;
+            if (firstId !== undefined && timeline === firstId) {
+                const { keyframes: _k, value: _v, ...settings } = own;
+                plain[propName] = { ...settings, ...rest };
+                continue;
+            }
+            const def = tracks.get(timeline) ?? {};
+            def[propName] = rest;
+            tracks.set(timeline, def);
+        }
+    }
+    return { plain: plain ?? animDef, tracks };
+}
+
+/** {@link compileAnimationDefinition} for one timeline's entries; `keepEmpty` names the attributes whose entry stays
+ *  even with no keyframes here (their tracks on other timelines ride on it). */
+function compilePlainDefinition(
+    animDef: PxAnimationDefinition,
+    staticTransform: unknown,
+    ctx: PxCompileContext,
+    keepEmpty: ReadonlySet<string>,
+): Record<string, PxCompiledAnimation> {
     const merged = mergeStaticTransformIntoAnimDef(animDef, staticTransform);
     const out: Record<string, PxCompiledAnimation> = {};
     for (const [propName, anim] of Object.entries(merged)) {
@@ -752,7 +820,7 @@ export function compileAnimationDefinition(
         if (!isCompiledAnimation(anim) && propName === TRANSFORM_ATTR
             && anim.alongPathMode === PxAlongPathMode.offsetPath && merged.offsetDistance !== undefined) continue;
         const channel = isCompiledAnimation(anim) ? anim : compileAnimation(propName, anim, ctx);
-        if (channel.keyframes.length > 0) out[propName] = channel;
+        if (channel.keyframes.length > 0 || channel.byTimeline?.length || keepEmpty.has(propName)) out[propName] = channel;
     }
     return out;
 }
@@ -830,7 +898,8 @@ export function normalizeBindings(
     // The window start (first-use review §4): compiled times are content ms; they are shifted by it
     // ONCE, here, so every engine keeps sampling a [0, duration] space.
     const inTime = animatorConfig.inTime ?? 0;
-    const ctx: PxCompileContext = { windowStart: inTime, windowEnd: inTime + duration, defs, engine };
+    // every timeline's window — a `byTimeline` track is compiled against its own (2026-11-20)
+    const ctx: PxCompileContext = { windowStart: inTime, windowEnd: inTime + duration, defs, engine, timelineWindows: timelineWindowsOf(doc), firstTimelineId: firstTimelineIdOf(doc) };
 
     const bindings: PxNormalizedBinding[] = [];
 

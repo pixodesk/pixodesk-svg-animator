@@ -22,7 +22,7 @@ function makeDoc(timeline: Record<string, unknown> = {}): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: DUR, ...timeline } },
+        animator: { timelines: [{ engine: 'js', outTime: DUR, ...timeline }] },
         children: [
             {
                 type: 'rect',

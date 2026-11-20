@@ -15,7 +15,7 @@ describe('wire step 1.4 → 1.5 — debugGlobalName removed', () => {
             type: 'svg', animator: { version: '1.4.1', debugGlobalName: 'hero', timeline: { outTime: 1000 } }, children: [],
         });
         expect(JSON.stringify(out.doc)).not.toContain('debugGlobalName');
-        expect(out.doc).toMatchObject({ animator: { timeline: { outTime: 1000 } } });
+        expect(out.doc).toMatchObject({ animator: { timelines: [{ outTime: 1000 }] } });
     });
 
     it('drops the key from the SVG carrier’s meta.animator', () => {

@@ -33,7 +33,7 @@ function withEasing(easing: PxEasingOrRef, easings?: Record<string, PxCubicBezie
         type: 'svg',
         viewBox: '0 0 100 100',
         animator: {
-            timeline: { outTime: 1000 },
+            timelines: [{ outTime: 1000 }],
             ...(easings ? { definitions: { easings } } : {}),
         },
         children: [{
@@ -66,7 +66,7 @@ describe('validateDocument — a named easing must be defined (§2.9)', () => {
     });
 
     it('says nothing when no keyframe names an easing', () => {
-        expect(validateDocument(doc({ timeline: { outTime: 1000 } })).errors).toEqual([]);
+        expect(validateDocument(doc({ timelines: [{ outTime: 1000 }] })).errors).toEqual([]);
     });
 });
 
@@ -78,7 +78,7 @@ describe('validateDocument — the version stamp must parse (§2.10)', () => {
     });
 
     it('accepts an ABSENT stamp — unstamped is legal', () => {
-        expect(validateDocument(doc({ timeline: { outTime: 1000 } })).errors).toEqual([]);
+        expect(validateDocument(doc({ timelines: [{ outTime: 1000 }] })).errors).toEqual([]);
     });
 
     it('reports a stamp that does not parse', () => {

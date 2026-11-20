@@ -11,7 +11,7 @@ import type { PxDocumentJson } from '@pixodesk/svg-animator-core';
 
 const DOC: PxDocumentJson = {
     type: 'svg', viewBox: '0 0 10 10',
-    animator: { timeline: { engine: 'js', inTime: 200, outTime: 1200 } },
+    animator: { timelines: [{ engine: 'js', inTime: 200, outTime: 1200 }] },
     children: [{
         type: 'rect', id: 'r', width: 10, height: 10,
         animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1200, value: 1 }] } },

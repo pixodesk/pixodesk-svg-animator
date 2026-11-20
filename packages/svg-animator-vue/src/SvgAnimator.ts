@@ -8,8 +8,8 @@ import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimel
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback, type PxVariablesApi, type PxVariableValue } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
-import { createDiagnostics, createSegmentLever, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, forwardStateControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { createDiagnostics, createStateLever, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, isRef, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -132,8 +132,8 @@ export const svgAnimationPlayerProps = {
     variant: { type: String as PropType<string | null>, default: undefined },
     cssVariables: { type: [Boolean, Object] as PropType<boolean | Readonly<Record<string, string>>>, default: undefined },
 
-    // -- Segments (2026-11-15): the segment the page holds — the file's segment triggers rest while it is set
-    segment: { type: String, default: undefined },
+    // -- States (2026-11-20): the state the page holds — the file's state rules rest while it is set
+    state: { type: [String, Array] as PropType<string | Array<string>>, default: undefined },
 
     // -- Controlled time
     showAtProgress: { type: Number },
@@ -160,7 +160,7 @@ export const svgAnimationPlayerProps = {
  * 1. **As the file says** (no control prop) – the document's own triggers, or `actionTriggers` to use instead.
  *    ```vue
  *    <SvgAnimationPlayer :document="animation" />
- *    <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'timeline.start': 'click' }" />
+ *    <SvgAnimationPlayer :document="animation" :actionTriggers="[{ action: 'timeline.start', event: 'click' }]" />
  *    ```
  *
  * 2. **Declarative `playback`** – the playback's position, held by the host: `"off"` · `"on"` · `"paused"`.
@@ -194,7 +194,7 @@ const SvgAnimationPlayer = defineComponent({
 
     props: svgAnimationPlayerProps,
 
-    emits: ['ready', 'playbackStart', 'playbackStop', 'playbackPause', 'playbackResume', 'playbackFinish', 'segmentChange', 'destroy'],
+    emits: ['ready', 'playbackStart', 'playbackStop', 'playbackPause', 'playbackResume', 'playbackFinish', 'stateChange', 'destroy'],
 
     setup(props, { expose, emit }) {
         // The `<svg>` this component rendered — handed to the player, which attaches its
@@ -276,9 +276,9 @@ const SvgAnimationPlayer = defineComponent({
 
         // -- Animator lifecycle -------------------------------------------------
 
-        // The `segment` prop: one lever for the component's life — every player it builds holds it from its first frame
-        const segmentLever = createSegmentLever(props.segment);
-        watch(() => props.segment, next => segmentLever.set(next));
+        // The `state` prop: one lever for the component's life — every player it builds holds it from its first frame
+        const stateLever = createStateLever(props.state);
+        watch(() => props.state, next => stateLever.set(next), { deep: true });
 
         function createApi() {
             destroyApi();
@@ -302,14 +302,14 @@ const SvgAnimationPlayer = defineComponent({
                 // `timelineOptions.follows` holds its element.
                 rootElement: rootElement ?? undefined,
                 followedElement: elementOf(takeFollowedOut(props.timelineOptions, isVueFollowed).followed),
-                segmentLever,
+                stateLever,
                 onReady:  () => emit('ready'),
                 onPlaybackStart:  () => emit('playbackStart'),
                 onPlaybackStop:   () => emit('playbackStop'),
                 onPlaybackPause:  () => emit('playbackPause'),
                 onPlaybackResume: () => emit('playbackResume'),
                 onPlaybackFinish: () => emit('playbackFinish'),
-                onSegmentChange: (segment, previous) => emit('segmentChange', segment, previous),
+                onStateChange: (state, previous, stateMachine) => emit('stateChange', state, previous, stateMachine),
                 onDestroy: () => emit('destroy'),
                 // The player's own diagnostics reach the same handlers as the component's.
                 onWarning:   props.onWarning,
@@ -416,6 +416,10 @@ const SvgAnimationPlayer = defineComponent({
             timeline: forwardPlaybackControls(
                 () => apiRef.value?.timeline,
                 (call, run) => { guardWrite(call); const playback = apiRef.value?.timeline; if (playback) run(playback); }),
+            state: forwardStateControls(
+                () => apiRef.value?.state,
+                (call, run) => { guardWrite(call); const states = apiRef.value?.state; if (states) run(states); }),
+            getTimeline: (id: string) => apiRef.value?.getTimeline(id),
             variables: variablesApi,
         };
 

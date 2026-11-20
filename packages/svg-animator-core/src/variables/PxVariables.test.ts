@@ -85,7 +85,7 @@ function card(): PxDocument {
     return untyped<PxDocument>({
         type: 'svg', viewBox: '0 0 400 200',
         animator: {
-            timeline: { outTime: 1000 },
+            timelines: [{ outTime: 1000 }],
             definitions: {
                 variables: {
                     bg: { type: 'color', defaultValue: '#2a7fff', description: 'Card background' },

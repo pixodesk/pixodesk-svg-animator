@@ -513,9 +513,15 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
             + 'New in the same step: `timeline.segments` (a list of named parts of the timeline, played one at a time; '
             + '`timeline.segment.next` / `.previous` / `.goTo(‹name›)` in `actionTriggers` and a segment\'s '
             + '`whenFinished`), and an event can be an object `{ event, element | selector, with }` — `pointerDown`, '
-            + '`pointerUp`, `keyDown`, `keyUp` among the events.',
+            + '`pointerUp`, `keyDown`, `keyUp` among the events. Amended again before release (2026-11-20, the '
+            + 'timelines-and-states design): `timeline` becomes `timelines`, a list whose first entry is the default; '
+            + 'the segments leave their timeline as `states` (a segment\'s `name` is a state\'s `id`), beside '
+            + '`stateMachines`; `actionTriggers` becomes a list of rules `{ action, event, … }` — a `timeline.segment.goTo(‹name›)` '
+            + 'key a rule `{ "action": "state.goTo", "state": "‹name›" }`, `timeline.segment.next` / `.previous` the actions '
+            + '`state.next` / `state.previous`, in a `whenFinished` too, as an object; an animated value may say what it '
+            + 'does on the other timelines (`byTimeline`).',
         kind: PxWireStepKind.converted,
-        up: (doc) => { upScrollTimeline(doc); upTimelineAndElementWords(doc); },
+        up: (doc) => { upScrollTimeline(doc); upTimelineAndElementWords(doc); upTimelinesStatesAndRules(doc); },
         // no `down`: 1.27 cannot say an exact place on a line other than the screen's top or bottom
     },
 ];
@@ -627,6 +633,62 @@ export function upTimelineAndElementWords(doc: Record<string, unknown>): void {
         if (Array.isArray(children)) children.forEach(visit);
     };
     visit(doc);
+}
+
+/** The 1.28 second amendment (2026-11-20, the timelines-and-states design), on a document in the 1.28 spelling of
+ *  2026-11-15 — frozen at those words, never the live constants:
+ *  - `animator.timeline` → `animator.timelines: [timeline]`; its `segments` → `animator.states`, `name` → `id`
+ *  - `animator.actionTriggers`, a map by action → a list of rules: one per key × entry, in the keys' order;
+ *    `timeline.segment.goTo(‹name›)` → `{ action: "state.goTo", state: ‹name› }`, `timeline.segment.next` /
+ *    `.previous` → `state.next` / `state.previous`
+ *  - a segment's `whenFinished` naming a segment action → the same action as an object
+ *  Idempotent: a document already in the new spelling is left as it is. Exported (internal) so a writer can bring its
+ *  own documents stamped 1.28 in the older spelling over once. @internal */
+export function upTimelinesStatesAndRules(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    if (!animator) return;
+    const timeline = readObjectProp(animator, 'timeline');
+    if (timeline && animator['timelines'] === undefined) {
+        const segments = timeline['segments'];
+        delete timeline['segments'];
+        delete animator['timeline'];
+        animator['timelines'] = [timeline];
+        if (Array.isArray(segments) && animator['states'] === undefined) {
+            animator['states'] = segments.map((seg: unknown) => {
+                if (!seg || typeof seg !== 'object' || Array.isArray(seg)) return seg;
+                const out: Record<string, unknown> = {};
+                for (const [key, value] of Object.entries(seg as Record<string, unknown>)) {
+                    if (key === 'name') out['id'] = value;
+                    else if (key === 'whenFinished') out['whenFinished'] = actionObjectOf128(value) ?? value;
+                    else out[key] = value;
+                }
+                return out;
+            });
+        }
+    }
+    const triggers = readObjectProp(animator, 'actionTriggers');
+    if (triggers) {
+        const rules: Array<Record<string, unknown>> = [];
+        for (const [key, value] of Object.entries(triggers)) {
+            const action = actionObjectOf128(key) ?? { action: key };
+            const entries = Array.isArray(value) ? value : [value];
+            for (const entry of entries) {
+                if (typeof entry === 'string') rules.push({ ...action, event: entry });
+                else if (entry && typeof entry === 'object' && !Array.isArray(entry)) rules.push({ ...action, ...(entry as Record<string, unknown>) });
+            }
+        }
+        animator['actionTriggers'] = rules;
+    }
+}
+
+/** A 1.28 (2026-11-15) segment action word as a 2026-11-20 action object, or `undefined` for any other value. */
+function actionObjectOf128(word: unknown): Record<string, unknown> | undefined {
+    if (typeof word !== 'string') return undefined;
+    if (word === 'timeline.segment.next') return { action: 'state.next' };
+    if (word === 'timeline.segment.previous') return { action: 'state.previous' };
+    const prefix = 'timeline.segment.goTo(';
+    if (word.startsWith(prefix) && word.endsWith(')')) return { action: 'state.goTo', state: word.slice(prefix.length, -1) };
+    return undefined;
 }
 
 /** The 1.28 word a 1.27 view-range point is for every size, or `undefined`. A switch, not a table: the phase names are

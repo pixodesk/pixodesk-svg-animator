@@ -17,7 +17,7 @@ import { materializeRestPosesInTree } from './PxRestPose';
 const JS = PxTimelineEngine.js;
 const kf = <V>(time: number, value: V): { time: number; value: V } => ({ time, value });
 const docOf = (children: Array<PxNode>, timeline: Record<string, unknown> = {}): PxDocument =>
-    ({ type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { outTime: 1000, engine: 'js', ...timeline } }, children });
+    ({ type: 'svg', viewBox: '0 0 100 100', animator: { timelines: [{ outTime: 1000, engine: 'js', ...timeline }] }, children });
 const first = (doc: PxDocument): PxNode => (doc.children ?? [])[0];
 
 /** What the ENGINE writes at its first frame — `id` → attribute → value. The reference. */
@@ -131,7 +131,7 @@ describe('materializeRestPosesInTree — the static document IS the first frame'
         const out = materializeRestPosesInTree(docOf([
             { type: 'ellipse', id: 'e', rx: 64, ry: 64,
               animate: { translate: { keyframes: [kf(0, [139, 163]), kf(1000, [139, 310])] } } },
-        ], { actionTriggers: {} }), JS);   // the empty block: nothing starts it (D5)
+        ], { actionTriggers: [] }), JS);   // the empty block: nothing starts it (D5)
         // The pose is the canonical static form the editor writes, rendered like it.
         expect(first(out).transform).toEqual({ translate: [139, 163] });
         expect(staticAttr(first(out), 'transform')).toBe('translate(139,163)');

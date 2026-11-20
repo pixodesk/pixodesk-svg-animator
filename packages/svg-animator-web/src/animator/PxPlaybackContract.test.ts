@@ -12,7 +12,7 @@ import { PxDiagnosticCode, type PxDiagnostic, type PxDocumentJson } from '@pixod
 function doc(timeline: Record<string, unknown>): PxDocumentJson {
     return {
         type: 'svg', viewBox: '0 0 10 10',
-        animator: { timeline: { engine: 'js', outTime: 1000, ...timeline } },
+        animator: { timelines: [{ engine: 'js', outTime: 1000, ...timeline }] },
         children: [{
             type: 'rect', id: 'r', width: 10, height: 10,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -212,7 +212,7 @@ describe('the playback contract — a scroll timeline', () => {
         // a JavaScript caller: a clock key beside the scroll type (TypeScript would not let a literal say it)
         const timelineOptions = { type: 'scroll' as const, follows: section, playbackSpeed: 3 };
         const api = createSvgAnimationPlayer({
-            document: doc({ playbackSpeed: 2, actionTriggers: { 'timeline.start': 'load' } }), container: '#box',
+            document: doc({ playbackSpeed: 2, actionTriggers: [{ action: 'timeline.start', event: 'load' }] }), container: '#box',
             onWarning: d => said.push(d),
             timelineOptions,
         });

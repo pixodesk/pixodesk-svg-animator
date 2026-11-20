@@ -226,7 +226,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         // The keyframes start BEFORE 0, as converted documents' do.
         const scene: PxNode = {
             type: 'svg',
-            animator: { timeline: { outTime: 1000, engine: 'js' } },
+            animator: { timelines: [{ outTime: 1000, engine: 'js' }] },
             children: [
                 { type: 'rect', id: 'src', width: 20, height: 20, fill: '#fff' },
                 {

@@ -5,7 +5,7 @@ import { authoredEntry, entryOf } from '../effects/effectTestKit';
 
 const doc = (node: PxNode): PxDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
-    animator: { timeline: { outTime: 1000 } },
+    animator: { timelines: [{ outTime: 1000 }] },
     children: [node],
 });
 

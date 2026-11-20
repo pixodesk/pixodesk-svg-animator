@@ -18,14 +18,14 @@ import { createDiagnostics, PxDiagnosticKind } from '../playback/PxDiagnostics';
 /** The current wire spelling — nothing to report. */
 const sound = {
     type: 'svg',
-    animator: { timeline: { outTime: 1000, frameRate: 30 }, actionTriggers: { 'timeline.start': 'load' } },
+    animator: { timelines: [{ outTime: 1000, frameRate: 30 }], actionTriggers: [{ action: 'timeline.start', event: 'load' }] },
     children: [{ type: 'rect', id: 'r', width: 10, height: 10 }],
 };
 
 /** What a property-mangling build produces: the wire keys renamed to short internal names. */
 const mangled = {
     type: 'svg',
-    animator: { timeline: { a: 1000, b: { c: 'load' } } },
+    animator: { timelines: [{ a: 1000, b: { c: 'load' } }] },
     children: [{ type: 'rect', id: 'r' }],
 };
 
@@ -101,7 +101,7 @@ describe('reportDocumentDiagnostics', () => {
     it('caps the list so a broken document cannot flood the console', () => {
         const many: Record<string, unknown> = {};
         for (let i = 0; i < 40; i++) many['k' + i] = 1;
-        const out = captured({ type: 'svg', animator: { timeline: many } });
+        const out = captured({ type: 'svg', animator: { timelines: [many] } });
         expect(out).toContain('and ');
         expect(out.split('\n  - ').length - 1).toBeLessThanOrEqual(6);
     });

@@ -12,7 +12,7 @@ import { getAnimatorConfig, nestAnimatorTimeline } from '../index';
 
 describe('the animator type is the written shape', () => {
     it('a nested timeline type-checks and reaches the players', () => {
-        const doc: PxDocument = { type: 'svg', animator: { timeline: { outTime: 2000 } } };
+        const doc: PxDocument = { type: 'svg', animator: { timelines: [{ outTime: 2000 }] } };
         expect(getAnimatorConfig(doc)?.duration).toBe(2000);
     });
 
@@ -24,8 +24,8 @@ describe('the animator type is the written shape', () => {
     });
 
     it('the runtime view goes back to the written shape through nestAnimatorTimeline', () => {
-        const flat: PxAnimatorRuntimeConfig = { duration: 2000, actionTriggers: { 'timeline.start': 'click' } };
+        const flat: PxAnimatorRuntimeConfig = { duration: 2000, actionTriggers: [{ action: 'timeline.start', event: 'click' }] };
         const written: PxAnimatorConfig = nestAnimatorTimeline(flat);
-        expect(written).toEqual({ timeline: { outTime: 2000 }, actionTriggers: { 'timeline.start': 'click' } });
+        expect(written).toEqual({ timelines: [{ outTime: 2000 }], actionTriggers: [{ action: 'timeline.start', event: 'click' }] });
     });
 });

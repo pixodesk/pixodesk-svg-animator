@@ -4,14 +4,15 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxTimelineControls, PxTriggerEvent, PxTriggerList, type PxTriggerEventEntry } from '@pixodesk/svg-animator-core';
-import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, resolveControlMode, PxVariablesRuntime, withActionTriggers, triggerEventList, triggerEventOf, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
-import { reportDocumentProblems, takeFollowedOut, validateDeprecatedTransformChannels, type PxSegmentLever } from '@pixodesk/svg-animator-core/internal';
+import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxTimelineControls, PxTriggerEvent, PxTriggerList, type PxActionTriggerRule } from '@pixodesk/svg-animator-core';
+import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, forwardStateControls, planUnits, timelineIssues, resolveControlMode, PxVariablesRuntime, withActionTriggers, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { reportDocumentProblems, takeFollowedOut, validateDeprecatedTransformChannels, type PxStateLever } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
+import { bindUnits } from '../engines/PxAnimatorUnits';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
@@ -37,6 +38,9 @@ function createAnimatorFromConfig(
     rootElement?: Element | null,
     followed?: Element,
 ): PxPlayerEngineApi {
+    // several timelines (2026-11-20): a unit per free timeline and per state machine, side by side over this picture
+    const plan = planUnits(doc);
+    if (plan) return bindUnits(doc, plan, adapter, callbacks, rootElement, mode, followed);
     return bindWithEngineChoice(doc, adapter, callbacks, rootElement, mode, followed);
 }
 
@@ -96,6 +100,8 @@ function createAnimatorImpl(
     // keys and has its invalid values already repaired and reported above — so it names exactly the
     // keys this build does not know. Through the player's channel: `onWarning` gets it, `suppressWarnings` mutes it.
     reportDocumentDiagnostics(doc, '[PxAnimator] createSvgAnimationPlayer', diag);
+    // several timelines and states (2026-11-20): what the plan keeps first, said once
+    for (const issue of timelineIssues(doc)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.timelineIssue, issue);
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
     // depends on the final values: `timeline.engine` picks the engine, the content window drives loop
@@ -234,8 +240,8 @@ export type PxInternalAnimationPlayerOptions = PxAnimationPlayerOptions & {
      */
     followedElement?: Element;
 
-    /** The components' `segment` prop (2026-11-15): attached to every build, so the held segment survives a rebuild. */
-    segmentLever?: PxSegmentLever;
+    /** The components' `state` prop (2026-11-20): attached to every build, so the held state survives a rebuild. */
+    stateLever?: PxStateLever;
 };
 
 /** The one place `createSvgAnimationPlayer` reads past its public signature — see `PxInternalAnimationPlayerOptions`. */
@@ -243,7 +249,7 @@ function isInternalOptions(options: PxAnimationPlayerOptions): options is PxInte
     // ANY internal key. Testing `adapter` alone meant a caller passing only `rootElement` —
     // what the React and Vue components do — had it silently ignored.
     return 'adapter' in options || 'rootElement' in options || 'variablesRuntime' in options || 'followedElement' in options
-        || 'segmentLever' in options;
+        || 'stateLever' in options;
 }
 
 /** An element of the page — what `timelineOptions.follows` may hand over on the web (`Element` is absent outside a browser). */
@@ -285,14 +291,13 @@ function restorePlayback(playback: PxTimelineControls, s: PxPlaybackSnapshot): v
     }
 }
 
-/** The document without `load` in its start and play lists — a rebuild must not start the animation again. */
+/** The document without its `load` start and play rules — a rebuild must not start the animation again. */
 function withoutLoadTriggers(doc: PxDocument): PxDocument {
-    const triggers = getAnimatorConfig(doc)?.actionTriggers;
-    if (!triggers) return doc;
-    const notLoad = (e: PxTriggerEventEntry): boolean => triggerEventOf(e) !== PxTriggerEvent.load;
-    const start = triggerEventList(triggers[PxTriggerList.startPlayback]).filter(notLoad);
-    const play = triggerEventList(triggers[PxTriggerList.playPlayback]).filter(notLoad);
-    return withActionTriggers(doc, { ...triggers, [PxTriggerList.startPlayback]: start, [PxTriggerList.playPlayback]: play });
+    const rules = getAnimatorConfig(doc)?.actionTriggers;
+    if (!rules) return doc;
+    const startsOnLoad = (r: PxActionTriggerRule): boolean => r.event === PxTriggerEvent.load
+        && (r.action === PxTriggerList.startPlayback || r.action === PxTriggerList.playPlayback);
+    return withActionTriggers(doc, rules.filter(r => !startsOnLoad(r)));
 }
 
 /** The callbacks, silent while `muted()` — a rebuild's own starts, pauses and destroy are not the caller's events. */
@@ -329,7 +334,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const takenOut = takeFollowedOut(options.timelineOptions, isDomElement);
     const override: PxPlaybackOverrideInput = { timelineOptions: takenOut.timelineOptions, actions: options.actions, actionTriggers: options.actionTriggers };
     const followed = (isInternalOptions(options) ? options.followedElement : undefined) ?? takenOut.followed;
-    const segmentLever = isInternalOptions(options) ? options.segmentLever : undefined;
+    const stateLever = isInternalOptions(options) ? options.stateLever : undefined;
     // The registry hears the playback events and the finish through the player callbacks, and names the PROXY
     // below — the object the caller holds — never the engine API behind it.
     let proxy: PxAnimationPlayerApi | undefined;
@@ -408,7 +413,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
                 variables.bind(first.doc, first.root);
             }
             ready(first.api);
-            segmentLever?.attach(first.api.segmentRuntime);
+            stateLever?.attach(first.api.stateHolder);
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
@@ -430,7 +435,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             previous.destroy();
             animator = next.api;
             restorePlayback(next.api.timeline, snapshot);
-            segmentLever?.attach(next.api.segmentRuntime);
+            stateLever?.attach(next.api.stateHolder);
             variables?.bind(next.doc, next.root);
         } catch (e) {
             diag.error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, asThrownError(e));
@@ -468,6 +473,10 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             () => animator?.timeline,
             (call, run) => enqueue(call, api => { run(api.timeline); variables?.onPlaybackActivity(); }),
             () => destroyed ? PxPlaybackState.destroyed : PxPlaybackState.off),
+        "state": forwardStateControls(
+            () => animator?.state,
+            (call, run) => enqueue(call, api => { run(api.state); variables?.onPlaybackActivity(); })),
+        "getTimeline": (id) => animator?.getTimeline(id),
         "variables": variablesApi,
         "isReady": () => !!animator,
         "getRootElement": () => animator ? animator.getRootElement() : null,
@@ -476,7 +485,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             pending = null; // drop any queued calls
             pendingVariables = [];
             variables?.destroy();
-            segmentLever?.attach(undefined);
+            stateLever?.attach(undefined);
             animator?.destroy();
         }
     };

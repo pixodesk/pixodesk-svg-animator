@@ -13,7 +13,7 @@ import type { PxActionTriggers, PxDocument } from '@pixodesk/svg-animator-core';
 function windowDoc(extra: Record<string, unknown> = {}, actionTriggers?: PxActionTriggers): PxDocument {
     return {
         type: 'svg', viewBox: '0 0 10 10',
-        animator: { timeline: { engine: 'js', inTime: 500, outTime: 1500, ...extra }, ...(actionTriggers ? { actionTriggers } : {}) },
+        animator: { timelines: [{ engine: 'js', inTime: 500, outTime: 1500, ...extra }], ...(actionTriggers ? { actionTriggers } : {}) },
         children: [{
             type: 'rect', id: 'r', width: 10, height: 10,
             animate: { opacity: { keyframes: [
@@ -48,7 +48,7 @@ describe('the content window (§4)', () => {
 
     it('playbackSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
         // window 1000 ms at speed 0.5: after 500 real ms, content time 250
-        const api = createSvgAnimationPlayer({ document: windowDoc({ playbackSpeed: 0.5 }, { 'timeline.start': 'load' }), container: '#box' });
+        const api = createSvgAnimationPlayer({ document: windowDoc({ playbackSpeed: 0.5 }, [{ action: 'timeline.start', event: 'load' }]), container: '#box' });
         vi.advanceTimersByTime(500);
         expect(api.timeline.getSpeed()).toBe(0.5);
         expect(api.timeline.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real

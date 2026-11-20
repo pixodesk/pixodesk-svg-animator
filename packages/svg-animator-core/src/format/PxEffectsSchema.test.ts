@@ -50,7 +50,7 @@ describe('effect keyframes read the long spelling only — the short aliases are
     type KeyframePair = (a: PxKeyframeValue, b: PxKeyframeValue) => Array<PxKeyframe<PxKeyframeValue>>;
 
     const D = (children: Array<PxNode>): PxDocument => ({
-        type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { outTime: 1000 } }, children,
+        type: 'svg', viewBox: '0 0 100 100', animator: { timelines: [{ outTime: 1000 }] }, children,
     });
     const long: KeyframePair = (a, b) => [{ time: 0, value: a }, { time: 1000, value: b }];
     // the removed short `{t, v}` spelling — not in the type, on purpose
@@ -94,7 +94,7 @@ describe('effect keyframes read the long spelling only — the short aliases are
 
 describe('gradient geometry animation', () => {
     const linearDoc = (): PxDocument => ({
-        type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { outTime: 1000 } },
+        type: 'svg', viewBox: '0 0 200 200', animator: { timelines: [{ outTime: 1000 }] },
         children: [{
             type: 'ellipse', id: 'a', rx: 50, ry: 50, transform: 'translate(100,100)',
             effects: {
@@ -137,7 +137,7 @@ describe('gradient geometry animation', () => {
 
     it('maps every radial channel onto its SVG attribute', () => {
         const doc: PxDocument = {
-            type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { outTime: 1000 } },
+            type: 'svg', viewBox: '0 0 200 200', animator: { timelines: [{ outTime: 1000 }] },
             children: [{
                 type: 'ellipse', id: 'a', rx: 50, ry: 50,
                 effects: {

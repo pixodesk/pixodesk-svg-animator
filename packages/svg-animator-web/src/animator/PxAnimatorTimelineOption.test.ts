@@ -17,12 +17,12 @@ import { createSvgAnimationPlayer } from './PxAnimator';
 import { PxDiagnosticCode, type PxDiagnostic, type PxDocument, type PxActionTriggers } from '@pixodesk/svg-animator-core';
 
 /** A WIRE-format document (nested `timelineOptions`) — the spelling every writer emits. */
-function wireDoc(actionTriggers: PxActionTriggers = { 'timeline.start': 'load' }): PxDocument {
+function wireDoc(actionTriggers: PxActionTriggers = [{ action: 'timeline.start', event: 'load' }]): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
         animator: {
-            timeline: { engine: 'js', outTime: 1000, iterations: 2 }, actionTriggers,
+            timelines: [{ engine: 'js', outTime: 1000, iterations: 2 }], actionTriggers,
         },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
@@ -51,13 +51,13 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
 
     it('an `actionTriggers` OBJECT is the trigger instead of the file\'s', () => {
         // the file starts on load; the block says click — so nothing plays until a click
-        const api = createSvgAnimationPlayer({ actionTriggers: { 'timeline.start': 'click' }, document: wireDoc(), container: stage() });
+        const api = createSvgAnimationPlayer({ actionTriggers: [{ action: 'timeline.start', event: 'click' }], document: wireDoc(), container: stage() });
         expect(api.timeline.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('…as a WHOLE: a list the object leaves out is gone — the file\'s `start: load` does not survive an object that lists only `pause`', () => {
-        const api = createSvgAnimationPlayer({ actionTriggers: { 'timeline.pause': 'click' }, document: wireDoc({ 'timeline.start': 'load' }), container: stage() });
+        const api = createSvgAnimationPlayer({ actionTriggers: [{ action: 'timeline.pause', event: 'click' }], document: wireDoc([{ action: 'timeline.start', event: 'load' }]), container: stage() });
         expect(api.timeline.isPlaying()).toBe(false);
         api.destroy();
     });
@@ -69,7 +69,7 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
     });
 
     it('`timelineOptions` and an `actionTriggers` object together: the timing adjusted, the trigger replaced', () => {
-        const api = createSvgAnimationPlayer({ actionTriggers: { 'timeline.start': 'click' }, document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
+        const api = createSvgAnimationPlayer({ actionTriggers: [{ action: 'timeline.start', event: 'click' }], document: wireDoc(), container: stage(), timelineOptions: { iterations: 1 } });
         expect(api.timeline.isPlaying()).toBe(false);
         api.destroy();
     });
@@ -120,7 +120,7 @@ describe('createSvgAnimationPlayer — the control options: manual, a still, a m
     it('showAsStatic beside an actionTriggers block: the still wins and says so (PX1501)', () => {
         const warnings: Array<PxDiagnostic> = [];
         const api = createSvgAnimationPlayer({
-            document: wireDoc(), container: stage(), showAsStatic: true, actionTriggers: { 'timeline.start': 'load' }, onWarning: d => warnings.push(d),
+            document: wireDoc(), container: stage(), showAsStatic: true, actionTriggers: [{ action: 'timeline.start', event: 'load' }], onWarning: d => warnings.push(d),
         });
         expect(api.timeline.isPlaying()).toBe(false);
         expect(warnings.map(w => w.code)).toEqual([PxDiagnosticCode.controlPropsConflict]);

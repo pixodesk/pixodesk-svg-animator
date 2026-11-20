@@ -13,8 +13,8 @@ animation. Since schema 1.27.
 {
   "type": "svg", "viewBox": "0 0 400 200",
   "animator": {
-    "timeline": { "outTime": 1000, "iterations": "infinite", "iterationDirection": "alternate" },
-    "actionTriggers": { "timeline.start": "load" },
+    "timelines": [ { "outTime": 1000, "iterations": "infinite", "iterationDirection": "alternate" } ],
+    "actionTriggers": [ { "action": "timeline.start", "event": "load" } ],
     "definitions": {
       "variables": {
         "bg":    { "type": "color",  "defaultValue": "#2a7fff", "description": "Ball colour" },

@@ -37,7 +37,7 @@ code starts it. The control props change who drives it:
 | Prop | Mode | Who drives it |
 |---|---|---|
 | none (the default) | `actionTriggers` | the file's own triggers — and the template ref, if you take one |
-| `:actionTriggers="{ … }"` | `actionTriggers` | these triggers instead of the file's |
+| `:actionTriggers="[ … ]"` | `actionTriggers` | these rules instead of the file's |
 | `disableActionTriggers` | `manual` | your code, through the template ref — the file's triggers are off |
 | `:playback="'off' \| 'on' \| 'paused'"` | `playback` | your state |
 | `:showAtProgress` / `:showAtTime` | `fixedTime` | your position — one frame, held |
@@ -71,8 +71,8 @@ import animation from './animation.json';
 
 It uses the triggers saved in the document — their event lists and the visibility gate
 ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)). Bind `actionTriggers` and
-that is the whole block to use for this mount instead — a replacement, not a merge: the lists you leave out
-are simply not listed, never the file's values. `:actionTriggers="null"` lists nothing, the same as
+that is the whole list of rules to use for this mount instead — a replacement, not a merge: a rule you leave
+out is simply not there, never the file's. `:actionTriggers="null"` (or `[]`) names nothing, the same as
 `disableActionTriggers`. How each action looks stays in the file's `actions`, which the `actions` prop
 replaces — see [Playback overrides](#playback-overrides).
 
@@ -81,17 +81,34 @@ replaces — see [Playback overrides](#playback-overrides).
   <!-- plays while hovered; when the pointer leaves it plays on to the end of the current pass, then rests
        (`timeline.play` carries on — a hover-in on the way to the end does not restart it) -->
   <SvgAnimationPlayer :document="animation"
-    :actionTriggers="{ 'timeline.play': 'hoverIn', 'timeline.stop': 'hoverOut' }"
+    :actionTriggers="[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.stop', event: 'hoverOut' }]"
     :actions="{ 'timeline.stop': 'animateToEnd' }" />
 
-  <!-- a click toggles off → playing → paused → playing (the state rule picks the list) -->
-  <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'timeline.play': 'click', 'timeline.pause': 'click' }" />
+  <!-- a click toggles off → playing → paused → playing (the state rule picks the rule) -->
+  <SvgAnimationPlayer :document="animation"
+    :actionTriggers="[{ action: 'timeline.play', event: 'click' }, { action: 'timeline.pause', event: 'click' }]" />
 
   <!-- a click starts it, the next click stops it -->
-  <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'timeline.start': 'click', 'timeline.stop': 'click' }" />
+  <SvgAnimationPlayer :document="animation"
+    :actionTriggers="[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]" />
 
   <!-- every click plays it from the start — also while it plays -->
-  <SvgAnimationPlayer :document="animation" :actionTriggers="{ 'timeline.start': 'click' }" />
+  <SvgAnimationPlayer :document="animation" :actionTriggers="[{ action: 'timeline.start', event: 'click' }]" />
+</template>
+```
+
+### States (`state`)
+
+A file with [states](./playback-and-triggers.md#states--named-parts-of-a-timeline) — named parts of its
+timelines, an intro, a loop, a success — is moved between them by its own rules, by the template ref
+(`player.value?.state.goTo('success')`), or by the `state` prop. The prop is a lever: while it is set, your app
+holds that state machine and the file's rules for it rest. A list holds one state per state machine; the
+`stateChange` event says where it went.
+
+```vue
+<template>
+  <!-- the save icon follows your app: 'idle' · 'saving' · 'success' are states of the file -->
+  <SvgAnimationPlayer :document="saveIcon" :state="status" @state-change="(state, previous) => console.log(previous, '→', state)" />
 </template>
 ```
 
@@ -216,15 +233,16 @@ const player = ref<PxAnimationPlayerHandle | null>(null);
 ```
 
 The ref holds core's `PxAnimationPlayerHandle` — the one handle name every framework package
-exports, so the three cannot drift apart: `playback`, everything a page does to the animation, the same
-`PxTimelineControls` the web player hands out — [every member is listed there](./web-player.md#the-playback-api).
+exports, so the three cannot drift apart: `timeline`, everything a page does to the animation, the same
+`PxTimelineControls` the web player hands out, `state` for the file's states and `getTimeline(id)` for one
+timeline — [every member is listed there](./web-player.md#the-playback-api).
 The five buttons take no arguments: `timeline.start()` always plays from the start, `timeline.play()` starts or
 carries on (a Play button), `timeline.stop()`, `timeline.pause()` and `timeline.resume()`. How a stop looks is the
 file's `actions`, and the handle follows it exactly as the triggers and the `playback` prop do. One spelling per
 act (until 1.25 the methods sat flat on the handle, and `playOnce()`, `jumpToStart()` and `jumpToEnd()` existed —
 a one-iteration timeline and `start()`, `stop()` and `setCurrentProgress()` say the same).
 
-<!-- px-check signature pkg=vue loose=PxAnimationPlayerHandle.timeline,PxAnimationPlayerHandle.variables -->
+<!-- px-check signature pkg=vue loose=PxAnimationPlayerHandle.timeline,PxAnimationPlayerHandle.variables,PxAnimationPlayerHandle.state,PxAnimationPlayerHandle.getTimeline -->
 ```typescript
 interface PxAnimationPlayerHandle {
     readonly timeline: PxTimelineControls; // start · play · stop · pause · resume — the buttons (each emits
@@ -233,6 +251,9 @@ interface PxAnimationPlayerHandle {
                                            //   seeks; getDuration · getCurrentTime · … ·
                                            //   getTotalProgress — content time; getSpeed / setSpeed and the
                                            //   …AtSpeed reads — the speed
+    readonly state: PxStateControls;       // the file's states — goTo(id) · next() · previous() · get() ·
+                                           //   getAll() (each move emits `stateChange`)
+    getTimeline(id: string): PxTimelineControls | undefined;  // one timeline of the file by its `id`
     readonly variables: PxVariablesApi;    // the document's variables — get · set · setVariables · reset ·
                                            //   setVariant …, the same as the web player's (Variables below)
 }
@@ -263,12 +284,12 @@ The same document can play differently in each place you mount it. Three props, 
 player ([Overriding from a player](./playback-and-triggers.md#overriding-from-a-player)), and
 the document you passed is never modified:
 
-- `timelineOptions` — corrections to the file's `animator.timeline` block, minus its `actionTriggers`
+- `timelineOptions` — corrections to the file's first timeline (`animator.timelines[0]`), minus `actionTriggers`
   and `actions`: an object shaped like the file — `iterations`, `delay`, `playbackSpeed`, the gate
   numbers; whoever needs more edits the document.
 - `actions` — the `timeline.actions` block to use instead of the file's: `{ 'timeline.stop': 'animateToStart' }`
   says how a stop looks; a setting left out reads its default, never the file's value.
-- `actionTriggers` — the whole `actionTriggers` block to use instead of the file's
+- `actionTriggers` — the whole `actionTriggers` list to use instead of the file's
   ([Action triggers](#action-triggers-actiontriggers)). To have your code drive instead, pass
   `disableActionTriggers` — the file's triggers are then switched off and the template ref is the driver.
 
@@ -288,7 +309,7 @@ Merge or replace — the one rule for the three:
 
   <!-- These triggers instead of the file's, and a smooth retreat on hover-out (a hover-in on the way back turns it around) -->
   <SvgAnimationPlayer :document="animation"
-    :actionTriggers="{ 'timeline.play': 'hoverIn', 'timeline.stop': 'hoverOut' }"
+    :actionTriggers="[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.stop', event: 'hoverOut' }]"
     :actions="{ 'timeline.stop': 'animateToStart' }" />
 </template>
 ```
@@ -363,7 +384,7 @@ const SvgAnimationPlayer: DefineComponent<{
     document: PxDocumentJson;             // required — the animation; a .json import passes as-is (inline only)
 
     // Playback override (Playback overrides above)
-    timelineOptions?: PxTimelineOptions;  // the timing: the `timeline` block minus `actionTriggers` and `actions` —
+    timelineOptions?: PxTimelineOptions;  // the timing: the first timeline minus `actionTriggers` and `actions` —
                                           //   MERGED over the file's
     actions?: PxActionsInput;             // the file's `actions` block, REPLACED — how a stop looks (+ the gate's
                                           //   outOfView): { 'timeline.stop': 'animateToStart' }; a setting left out reads
@@ -375,17 +396,18 @@ const SvgAnimationPlayer: DefineComponent<{
     showAsStatic?: boolean;               // the picture as drawn: nothing plays, no scroll; playback calls on the
                                           //   ref are ignored (PX1506). Beats every other control prop
     disableActionTriggers?: boolean;      // manual: the file's triggers off — your code drives it through the ref
-    actionTriggers?: PxActionTriggersInput | null; // these triggers INSTEAD of the file's —
-                                          //   { "timeline.start", "timeline.play", "timeline.stop", "timeline.pause", "timeline.resume" },
-                                          //   each one event or a list of the events that list may name ('load' | 'hoverIn' |
-                                          //   'hoverOut' | 'click'); timeline.resume is derived when left out. null or {}: none
+    actionTriggers?: PxActionTriggersInput | null; // these rules INSTEAD of the file's — a list of
+                                          //   { action, event, … }: [{ action: 'timeline.start', event: 'load' }]; an
+                                          //   event its action may not name drops the rule; timeline.resume is derived
+                                          //   when no rule names it. null or []: none
     playback?: 'off' | 'on' | 'paused';    // a LEVER (`PxPlayback`): a change of position presses one button — off → on
                                           //   timeline.start(), on → paused timeline.pause(), paused → on timeline.resume(), → off timeline.stop();
                                           //   how each looks is the file's `actions`; a mount with 'off' presses nothing
     showAtProgress?: number;              // a frame, counted in iterations — 1.2 = 20 % into the second
     showAtTime?: number;                  // a frame at this ms inside one iteration, 0..getDuration()
-    segment?: string;                     // holds that segment of the file (2026-11-15) — a lever beside the others; the
-                                          //   file's segment triggers rest while it is set
+    state?: string | Array<string>;       // holds that state of the file — one id, or one per state machine; a lever
+                                          //   beside the others: the file's rules for that state machine rest while it
+                                          //   is set (`segment` until 2026-11-20)
 
     // Variables — `PxVariablesOptions` (Variables above); a change never builds a new player
     variables?: Readonly<Record<string, PxVariableValue>>;   // values by name — they win over the file; a name that
@@ -420,7 +442,7 @@ dimensions to the element that contains it — the SVG keeps its proportions eit
 | `playbackFinish` | the last pass ended by playing — the state is `finished`, whatever `whenFinished` then shows. Never for a stop that goes to the end (that emits `playbackStop`), never for a loop without end (`finish` until 1.25) |
 | `destroy` | the player was thrown away: the component unmounted, or you passed a different `document` and a new player was built for it |
 | `playbackStop` | the playback was stopped — a `timeline.stop` trigger, `playback` `'off'`, `timeline.stop()` or the visibility gate's `stop`; at once, or on arrival for the stops that finish the pass first. A pause is `playbackPause`, the end `playbackFinish`; a seek emits nothing |
-| `segmentChange` | the timeline went to another segment — `(segment, previous)`: a trigger, a segment's `whenFinished`, `timeline.segment.goTo()` or the `segment` prop (2026-11-15) |
+| `stateChange` | a state machine went to another state — `(state, previous, stateMachine?)`: a rule, a state's `whenFinished`, `state.goTo()` on the ref or the `state` prop; `stateMachine` is its id, none for the one without an id (`segmentChange` until 2026-11-20) |
 
 `onWarning` and `onError` are **props**, not events. With an event, Vue would treat the message as
 handled even when nobody listens, so it would never reach the console. As props, leaving them
@@ -467,28 +489,30 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 </script>
 
 <template>
-  <SvgCssAnimationPlayer :actionTriggers="{ 'timeline.play': 'hoverIn', 'timeline.pause': 'hoverOut' }" style="width: 400px; height: 400px">
+  <SvgCssAnimationPlayer
+    :actionTriggers="[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }]"
+    style="width: 400px; height: 400px">
     <AnimationSvg />
   </SvgCssAnimationPlayer>
 </template>
 ```
 
-`actionTriggers` is the JSON player's block — the same lists over the same events, read by
+`actionTriggers` is the JSON player's list — the same rules over the same events, read by
 the same rules ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)) —
 and the gate is the same gate. Unlike the JSON component, it has no file triggers to fall back on: a
 script-free SVG imported as a component carries none the component could read. So with no `actionTriggers`
-(or `null`, or an empty block) nothing starts the animation; to play on load, say so:
-`:actionTriggers="{ 'timeline.start': 'load' }"`. The gate numbers go in `timelineOptions`, as on the
+(or `null`, or an empty list) nothing starts the animation; to play on load, say so:
+`:actionTriggers="[{ action: 'timeline.start', event: 'load' }]"`. The gate numbers go in `timelineOptions`, as on the
 JSON component: `:timelineOptions="{ inViewThreshold: 1 }"`.
 
 <!-- px-check signature pkg=vue loose=SvgCssAnimationPlayer.timelineOptions -->
 ```typescript
 // The SVG goes in the default slot; every other attribute (class, style, …) lands on the wrapper div.
 const SvgCssAnimationPlayer: DefineComponent<{
-    actionTriggers?: PxActionTriggersInput | null; // { "timeline.start", "timeline.play", "timeline.stop",
-                                          //   "timeline.pause", "timeline.resume" }, each one event or a list of the events
-                                          //   that list may name ('load' | 'hoverIn' | 'hoverOut' | 'click');
-                                          //   timeline.resume is derived when left out. None given: nothing starts it
+    actionTriggers?: PxActionTriggersInput | null; // a list of rules { action, event }: timeline.start ·
+                                          //   timeline.play · timeline.stop · timeline.pause · timeline.resume, each on
+                                          //   'load' | 'hoverIn' | 'hoverOut' | 'click'; timeline.resume is derived when
+                                          //   no rule names it. None given: nothing starts it
     timelineOptions?: { inViewThreshold?: number; inViewDebounce?: number };
                                           // the gate numbers only: 0–1 of the SVG on screen before it may run
                                           //   (default 0.5; 0 = any visible pixel), and ms it must hold first (150)

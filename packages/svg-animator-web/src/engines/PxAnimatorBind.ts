@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
-import { applyPlaybackOverride, composeApiExtras, withSegmentEngine, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor, type PxTimelineControls } from '@pixodesk/svg-animator-core';
+import { applyPlaybackOverride, composeApiExtras, withStateEngine, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -55,9 +55,12 @@ export function finaliseAnimator(
     // §10, D5); the playback events are the executor's to tell (when it performs the act), never the engine's
     const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, playbackListeners: listeners }, webRaf);
     executor = res.playExecutor;
+    // no timeline by id until the binder that knows the document says which (`bindWithEngineChoice`)
+    const built: PxPlayerEngineApi = Object.assign(res, { getTimeline: (): PxTimelineControls | undefined => undefined });
+    built.stateHolder = res.stateRuntime;
 
     // the file's `playbackSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
-    return res;
+    return built;
 }
 
 /** The playback events (`onPlaybackStart` … `onPlaybackFinish`) are told — not on a scroll timeline, which never starts
@@ -84,10 +87,15 @@ export function bindWithEngineChoice(
 ): PxPlayerEngineApi {
     // One channel for everything this binder and the scroll driver have to say (review §5).
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
-    // a timeline with segments (2026-11-15): the engine plays ONE plain pass of the window — the segment clock seeks it
-    doc = withSegmentEngine(doc);
-    if (mode === PxControlMode.static) return guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false));
-    return bindEngine(doc, adapter, callbacks, rootElement, diag, true, followed);
+    // a timeline with states (2026-11-20; segments 2026-11-15): the engine plays ONE plain pass of the window — the
+    // state clock seeks it
+    doc = withStateEngine(doc);
+    const api = mode === PxControlMode.static ? guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false))
+        : bindEngine(doc, adapter, callbacks, rootElement, diag, true, followed);
+    // one timeline: `getTimeline` finds it by its id (2026-11-20)
+    const firstId = doc.animator?.timelines?.[0]?.id;
+    api.getTimeline = (id) => (firstId !== undefined && id === firstId ? api.timeline : undefined);
+    return api;
 }
 
 /** {@link bindWithEngineChoice}'s engine; `followScroll` false builds a scroll-driven document's engine with no scroll

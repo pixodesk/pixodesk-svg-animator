@@ -12,10 +12,10 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The triggers do not list `load`.** Check `animator.actionTriggers["timeline.start"]` (or `"timeline.play"`)
-in the file (or *Play on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an absent or empty block (`{}`)
-waits for you to call `timeline.start()` — since schema 1.17 a file that plays by itself says `'timeline.start': 'load'`,
-an absent block no longer means load (stamped files were migrated; a hand-written file without a
+**No rule starts it on `load`.** Check the file's `animator.actionTriggers` for a rule
+`{ "action": "timeline.start", "event": "load" }` (or `"timeline.play"`) (or *Play on* in the editor). `click`, `hoverIn`
+and `hoverOut` wait for the user; an absent or empty list (`[]`) waits for you to call `timeline.start()` — since
+schema 1.17 a file that plays by itself says so, an absent block no longer means load (stamped files were migrated; a hand-written file without a
 version stamp has to say it). Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). Remember that every control prop or option
@@ -59,6 +59,25 @@ document means a new player; the old one is thrown away and reports it on its wa
 component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
+
+**`animator.timeline`, `segments`, the `segment` prop, `onSegmentChange` or `player.timeline.segment` is not there;
+`actionTriggers` is not an object.** Changed on 2026-11-20 (schema 1.28, amended): a file can hold several timelines and
+states.
+
+<!-- px-check off old and new spelling, prose -->
+| Was | Is |
+|---|---|
+| `"timeline": { … }` | `"timelines": [ { … } ]` — the first is the default and needs no `id` |
+| `timeline.segments: [{ "name": "intro", … }]` | `"states": [{ "id": "intro", … }]` beside `timelines` — `id` is the handle, `name` only a label |
+| `"actionTriggers": { "timeline.start": "load" }` | `"actionTriggers": [{ "action": "timeline.start", "event": "load" }]` — one rule per event |
+| `"timeline.segment.goTo(intro)"` · `"timeline.segment.next"` · `.previous` | `{ "action": "state.goTo", "state": "intro" }` · `{ "action": "state.next" }` · `state.previous` |
+| a segment's `"whenFinished": "timeline.segment.next"` | `"whenFinished": { "action": "state.next" }` |
+| `player.timeline.segment.goTo()` · `.next()` · `.get()` | `player.state.goTo()` · `.next()` · `.get()` — `get()` is a list, one id per state machine |
+| the `segment` prop · `onSegmentChange` · Vue `segmentChange` | the `state` prop · `onStateChange` · Vue `stateChange` |
+| a `"timeline.resume"` key with an empty list | not possible any more: with no `timeline.resume` rule, the resume is derived |
+
+The `actionTriggers` prop and option take the list too. Stamped 1.28 files are converted on read — see
+[States](./playback-and-triggers.md#states--named-parts-of-a-timeline).
 
 **`playback.playOnce()` / `playback.jumpToStart()` / `playback.jumpToEnd()` is not a function; `src`, `doc`,
 `playUsingActionTriggers` or `onFinish` is not an option; `timeline.atEnd` is not read.** Changed in 1.26: the
@@ -104,8 +123,8 @@ reads say so: `getPlaybackDuration()` → `timeline.getDurationAtSpeed()`, `setP
 
 **`'startPlayback'` / `'startRun'` / `'start'` is not a key of `actionTriggers`.** Since 1.25 the built-in action names
 are dotted — `"timeline.start"`, `"timeline.stop"`, `"timeline.pause"`, `"timeline.resume"` — in `actionTriggers` and in
-`actions` (`"actionTriggers": { "timeline.start": "load" }`, `actions={{ 'timeline.stop': 'animateToStart' }}`); a dot
-marks a built-in action, so from JavaScript the keys need quotes. Stamped files are migrated on read (`start` until
+`actions` (`"actionTriggers": [{ "action": "timeline.start", "event": "load" }]`, `actions={{ 'timeline.stop': 'animateToStart' }}`);
+a dot marks a built-in action, so from JavaScript an `actions` key needs quotes. Stamped files are migrated on read (`start` until
 1.23, `startRun` in 1.24).
 
 **`play` / `pause` / `playState` is not a prop; `stop()` / `getPlayState()` is not a function; `onPlay` / `onStop`
@@ -117,7 +136,7 @@ state read is `timeline.getState()` — `off` · `playing` · `paused` · `finis
 `off`) — plus `timeline.isActive()`; the callbacks are `onPlaybackStart` / `onPlaybackResume` (both were `onPlay`),
 `onPlaybackPause` (the out-of-view gate's pause reports it too since 1.26), `onPlaybackStop`; the Vue events `playbackStart` ·
 `playbackResume` · `playbackPause` · `playbackStop`; the registry events likewise. `actions.finish` is the timeline key
-`whenFinished` (`"timeline": { "whenFinished": "hold" }`; `atEnd` until 1.25). Types: `PxPlayState` → `PxPlaybackState`,
+`whenFinished` (`"timelines": [{ "whenFinished": "hold" }]`; `atEnd` until 1.25). Types: `PxPlayState` → `PxPlaybackState`,
 `PxStopBehavior` / `PxFinishBehavior` → `PxStopPlaybackBehavior` / `PxWhenFinished` (`PxStartBehavior` is gone),
 `PxPlayStateRequest` → `PxPlayback` (1.24 spelt them `PxRunState`, `PxStartRunBehavior`, `PxStopRunBehavior`,
 `PxPlayRun`). Stamped files are migrated on read.
@@ -210,16 +229,18 @@ first and the last frame are shown — `firstFrameWhen` / `lastFrameWhen`, from 
 `"firstFrameWhen": { "domElement": "top", "screen": 0.8 }` starts when its top is 80 % down the screen — see
 [The two moments](./playback-and-triggers.md#the-two-moments).
 
-**A trigger event does nothing, or the console warns about the triggers.** Each list names only
+**A trigger event does nothing, or the console warns about the triggers.** Each action names only
 the events that make sense for it — `timeline.start` and `timeline.play` never `hoverOut`, `timeline.stop` never `load` or `hoverIn`,
-`timeline.pause` and `timeline.resume` never `load` — and any other event is ignored (PX1110). What resumes a
+`timeline.pause` and `timeline.resume` never `load` — and a rule with any other event is dropped (PX1110). A
+`state.goTo` naming a state the file does not have is ignored (PX1114), and so is a rule whose `timeline` or
+`stateMachine` names nothing (PX1116). What resumes a
 pause is derived unless the file names it (the counterpart of the `timeline.pause` event, plus the `timeline.start`
-events that do not stop it); a named `timeline.resume` list is honoured as written, and the player notes
+events that do not stop it); named `timeline.resume` rules are honoured as written, and the player notes
 where it differs from that derivation (PX1111); `timeline.stop` on the
 same event as `timeline.pause`, or on its counterpart, collides, and so does `timeline.start` on the same event as
 `timeline.play` (PX1109) — all three on
 [the codes page](../diagnostics.md#what-the-document-says). See
-[Which events each list may name](./playback-and-triggers.md#which-events-each-list-may-name).
+[Which events each action may name](./playback-and-triggers.md#which-events-each-action-may-name).
 
 **Jumping to a time while playing.** `timeline.setCurrentTime(ms)` works while playing (the animation
 continues from the new point); in every other state — off, paused, finished — the playback becomes `paused`

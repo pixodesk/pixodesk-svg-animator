@@ -10,12 +10,13 @@
 // So triggers + `progress={0.5}` played on two and seeked on the third, and React let a REF decide the mode — which
 // silently disabled the triggers. (`playerActionTriggers` until 1.25; an `actionTriggers` block since 1.26.)
 
+import type { PxActionTriggers } from './PxAnimatorTypes';
 import { describe, expect, it } from 'vitest';
 import { PxControlMode, controlModeTakesOverTrigger, resolveControlMode, type PxControlProps } from './PxAnimatorConstants';
 
 // 1.26 (2026-11-13): `playerActionTriggers` is gone — its tier is an `actionTriggers` block (`TRIGGERS` below), and with
 // no control prop the file's own triggers drive (`actionTriggers` mode), no longer `static`.
-const TRIGGERS = { 'timeline.start': 'click' } as const;
+const TRIGGERS: PxActionTriggers = [{ action: 'timeline.start', event: 'click' }];
 
 describe('resolveControlMode — precedence', () => {
 
@@ -101,7 +102,7 @@ describe('PxControlProps — one driver family at a time, checked by TypeScript 
     it('each family alone compiles; two at once do not; the JavaScript reader still warns on any mix', () => {
         const ok: Array<PxControlProps> = [
             {}, { playback: 'on' }, { playback: 'paused' }, { playback: 'off' }, { showAtProgress: 0.5 }, { showAtTime: 100 },
-            { actionTriggers: TRIGGERS }, { actionTriggers: { 'timeline.start': 'hoverIn', 'timeline.resume': 'hoverIn' } },
+            { actionTriggers: TRIGGERS }, { actionTriggers: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.resume', event: 'hoverIn' }] },
         ];
         // @ts-expect-error — the lever and the triggers are two drivers
         const two: PxControlProps = { playback: 'on', actionTriggers: TRIGGERS };
@@ -138,12 +139,12 @@ describe('resolveControlMode — the file drives by default; showAsStatic, disab
     });
 
     it('an actionTriggers block — the empty one included — is the triggers tier', () => {
-        expect(resolveControlMode({ actionTriggers: { 'timeline.start': 'click' } })).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
-        expect(resolveControlMode({ actionTriggers: {} }).mode).toBe(PxControlMode.actionTriggers);
+        expect(resolveControlMode({ actionTriggers: [{ action: 'timeline.start', event: 'click' }] })).toEqual({ mode: PxControlMode.actionTriggers, warnings: [] });
+        expect(resolveControlMode({ actionTriggers: [] }).mode).toBe(PxControlMode.actionTriggers);
     });
 
     it('disableActionTriggers beats a block; the lever beats both', () => {
-        expect(resolveControlMode({ disableActionTriggers: true, actionTriggers: { 'timeline.start': 'click' } })).toEqual({
+        expect(resolveControlMode({ disableActionTriggers: true, actionTriggers: [{ action: 'timeline.start', event: 'click' }] })).toEqual({
             mode: PxControlMode.manual,
             warnings: ['disableActionTriggers and actionTriggers were both set — disableActionTriggers wins, actionTriggers is ignored.'],
         });
@@ -166,12 +167,12 @@ describe('resolveControlMode — the file drives by default; showAsStatic, disab
 
     it('the types: each new family alone compiles; mixed with another does not', () => {
         const ok: Array<PxControlProps> = [
-            {}, { showAsStatic: true }, { disableActionTriggers: true }, { actionTriggers: null }, { actionTriggers: { 'timeline.start': 'click' } },
+            {}, { showAsStatic: true }, { disableActionTriggers: true }, { actionTriggers: null }, { actionTriggers: [{ action: 'timeline.start', event: 'click' }] },
         ];
         // @ts-expect-error — the still and the lever are two drivers
         const still: PxControlProps = { showAsStatic: true, playback: 'on' };
         // @ts-expect-error — manual and a triggers block are two drivers
-        const manual: PxControlProps = { disableActionTriggers: true, actionTriggers: { 'timeline.start': 'click' } };
+        const manual: PxControlProps = { disableActionTriggers: true, actionTriggers: [{ action: 'timeline.start', event: 'click' }] };
         expect([ok, still, manual]).toHaveLength(3);
     });
 });

@@ -113,14 +113,16 @@ filled in every one of them.
 
 ### Action triggers — the default
 
-Uses the triggers defined in the animation document (`'timeline.start': 'load'` plays once enough of it is
+Uses the triggers defined in the animation document (a `timeline.start` rule on `load` plays once enough of it is
 on screen; `click` is a tap; `hoverIn` / `hoverOut` never fire — there is no hover on a touch
-screen), or the `actionTriggers` block you pass instead of the file's:
+screen), or the `actionTriggers` list you pass instead of the file's:
 
 ```tsx
 <SvgAnimationPlayer document={animation} />
-<SvgAnimationPlayer document={animation} actionTriggers={{ 'timeline.play': 'click', 'timeline.pause': 'click' }} />   {/* tap plays, tap again pauses */}
-<SvgAnimationPlayer document={animation} actionTriggers={{ 'timeline.start': 'click', 'timeline.stop': 'click' }} />  {/* tap plays, tap again stops */}
+<SvgAnimationPlayer document={animation}
+  actionTriggers={[{ action: 'timeline.play', event: 'click' }, { action: 'timeline.pause', event: 'click' }]} />   {/* tap plays, tap again pauses */}
+<SvgAnimationPlayer document={animation}
+  actionTriggers={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />   {/* tap plays, tap again stops */}
 <SvgAnimationPlayer document={animation} showAsStatic />   {/* the picture as drawn — nothing plays */}
 ```
 
@@ -158,7 +160,7 @@ const playerRef = useRef<PxAnimationPlayerHandle>(null);
 <Button title="Restart" onPress={() => playerRef.current?.timeline.start()} />
 ```
 
-`PxAnimationPlayerHandle` is `{ playback, variables }` — `variables` is the document's variables ([Variables](#variables)); `playback` the same `PxTimelineControls` as the web player: the five buttons
+`PxAnimationPlayerHandle` is `{ timeline, state, getTimeline, variables }` — `variables` is the document's variables ([Variables](#variables)); `state` the file's states and `getTimeline(id)` one timeline (React Native plays the first timeline only, so it answers `undefined`); `timeline` the same `PxTimelineControls` as the web player: the five buttons
 `timeline.start()` (always from the start, in every state), `timeline.play()` (start, or carry on — a paused
 playback resumes, a picture on its way back turns around, nothing while playing), `timeline.stop()` (the configured
 stop, `actions["timeline.stop"]` — `animateToEnd` stops after the current pass), `timeline.pause()`,
@@ -202,18 +204,18 @@ variables. See [Variables](../../docs/library/variables.md#react-native).
 
 ## Props
 
-<!-- px-check props SvgAnimationPlayerProps pkg=rn omit=onSegmentChange -->
+<!-- px-check props SvgAnimationPlayerProps pkg=rn omit=onStateChange -->
 | Prop | Type | Description |
 |---|---|---|
 | `document` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is (inline only, no URL form yet) |
-| `actionTriggers` | `PxActionTriggersInput \| null` | these triggers instead of the document's own — `{ "timeline.start", "timeline.play", "timeline.stop", "timeline.pause", "timeline.resume" }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `timeline.resume` is derived when left out); `null` or `{}`: none. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `actionTriggers` | `PxActionTriggersInput \| null` | these rules instead of the document's own — a list of `{ action, event, … }`, `[{ action: 'timeline.start', event: 'load' }]`; a rule whose action may not name its event is dropped; `timeline.resume` is derived when no rule names it; `null` or `[]`: none. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
 | `disableActionTriggers` | `boolean` | manual: the document's triggers are switched off — your code drives it through `playerRef` |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says; playback calls on `playerRef` are ignored with a warning (PX1506). Beats every other control prop |
 | `playback` | `'off' \| 'on' \| 'paused'` | A lever (`PxPlayback`): its position is held, and a change presses one button — `off` → `on` `timeline.start()`, `on` → `paused` `timeline.pause()`, `paused` → `on` `timeline.resume()`, → `off` `timeline.stop()`. How a stop looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-a-stop-looks); `'on'` always plays from the start. A mount with `'off'` presses nothing; with `'paused'` starts the playback frozen |
 | `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |
 | `showAtProgress` | `number` | show the frame at this position, counted in iterations: `0` is the first frame, `0.5` the middle of the first iteration, `1` its last frame, `1.2` 20 % into the second |
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `timeline.getDuration()`) |
-| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, merged over it — same shape as the file; a key left out keeps the file's value. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline, minus `actionTriggers` and `actions`, merged over it — same shape as the file; a key left out keeps the file's value. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'timeline.stop': 'animateToStart' }`, and `outOfView`; a setting left out reads its default (what shows once finished, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; a name that leaves the prop goes back to the file's value. A change compiles the document again; the playback keeps running. See [Variables](../../docs/library/variables.md#react-native) |
 | `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
@@ -371,6 +373,7 @@ player sees plain nodes. **All are supported:**
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent — use `click`, or drive `playback` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
+| Timelines after the first and their `byTimeline` tracks; the `state` prop, `onStateChange` | ❌ | the first timeline only — `playerRef.current.getTimeline()` answers `undefined`; `onStateChange` is typed but not called yet |
 
 ### Known limitations
 

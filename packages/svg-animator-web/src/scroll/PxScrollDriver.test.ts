@@ -476,7 +476,7 @@ describe('createScrollDriver', () => {
         scroller.appendChild(subject);
         const seen: Array<number> = [];
         const driver = createScrollDriver(subject, scrollConfig({ follows: PxScrollFollows.containerScroll }, {
-            actionTriggers: { 'timeline.start': 'click' },   // must have no effect
+            actionTriggers: [{ action: 'timeline.start', event: 'click' }],   // must have no effect
         }), p => seen.push(p));
         expect(driver).toBeTruthy();
         expect(seen.length).toBe(1);

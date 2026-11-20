@@ -14,8 +14,8 @@ import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxHoldAt, PxPlaybackDirection,
     PxScrollAxis, PxScrollFollows, PxScrollLine, PxScrollMoment, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType,
-    PX_ALL_TRIGGER_EVENTS, PxPointerType, PxSegmentAction, PxWhenLeaving } from './PxAnimatorConstants';
-import type { PxPlaybackState, PxScrollSettings, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
+    PX_ALL_TRIGGER_EVENTS, PxPointerType, PxStateAction, PxWhenLeaving } from './PxAnimatorConstants';
+import type { PxActionName, PxPlaybackState, PxScrollSettings, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
 // `PxSchemaVersion`, so this edge creates no cycle.
@@ -25,7 +25,7 @@ import { animatorOf } from './PxDocStage';
 // bindings themselves. These modules import only TYPES from here, so the edges create no cycle.
 import { isVariableName } from '../variables/PxFormula';
 import type { PxVariablesApi } from '../variables/PxVariablesRuntime';
-import type { PxSegmentControls, PxSegmentRuntime } from '../playback/PxSegments';
+import type { PxStateControls, PxStateRuntime } from '../playback/PxStates';
 import { collectBindingSites, firstKeyframeValue, isAnimatedVariableValue, nodeAtPath, predefinedVariableOf, resolveVariableBindings, variableDefaultFits, viewBoxCenterOf, type PxBindingSite } from '../variables/PxVariableBindings';
 // The diagnostics channel's payload, named by `PxEngineCallbacks` below (review §5).
 // `PxDiagnostics` imports nothing, so this edge creates no cycle either.
@@ -324,9 +324,45 @@ export interface _PxPropertyAnimation {
      * `offset-distance`). Written by the editor, consumed by `materializeAllInTree`.
      */
     alongPathMode?: 'sampled' | 'offsetPath';
+
+    /**
+     * What the attribute does on the file's OTHER timelines (2026-11-20) — one entry per timeline, by its `id`. The
+     * plain `keyframes` above are on the first timeline. An entry holds a `value` while its timeline shows, or
+     * `keyframes` from that timeline's time 0. On a timeline that is not showing, the attribute has the node's own
+     * value. Beside a `byTimeline` the plain `keyframes` are not played (a warning) — `byTimeline` wins.
+     */
+    byTimeline?: Array<_PxTimelineTrack>;
 }
 
-// `{ value?:KeyframeValue, keyframes?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool, alongPathMode?:'sampled'|'offsetPath' }`
+/**
+ * One timeline's track of an attribute — an entry of {@link _PxPropertyAnimation.byTimeline} (2026-11-20). The same
+ * keys as the plain animation, plus the timeline it is on.
+ * @public
+ */
+export interface _PxTimelineTrack {
+    /** The timeline's `id` — one of `animator.timelines`. */
+    timeline: string;
+    value?: _PxKeyframeValue;
+    keyframes?: Array<_PxKeyframe>;
+    loop?: PxLoop | boolean;
+    autoOrient?: boolean;
+    alongPathMode?: 'sampled' | 'offsetPath';
+}
+
+/** @public @advanced */
+export const PxTimelineTrackSchema = implementsInterface<_PxTimelineTrack>()(px.object({
+    timeline: px.string(),
+    value: PxKeyframeValueSchema.optional(),
+    keyframes: px.array(PxKeyframeSchema).optional(),
+    loop: px.union([PxLoopSchema, px.boolean()]).optional(),
+    autoOrient: px.boolean().optional(),
+    alongPathMode: px.enum([PxAlongPathMode.sampled, PxAlongPathMode.offsetPath] as const, PxAlongPathMode.sampled).optional(),
+}));
+/** @public */
+export type PxTimelineTrack = PxInfer<typeof PxTimelineTrackSchema>;
+const _ck_PxTimelineTrack: KeysMatch<PxTimelineTrack, _PxTimelineTrack> = true;
+
+// `{ value?:KeyframeValue, keyframes?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool, alongPathMode?:'sampled'|'offsetPath', byTimeline?:TimelineTrack[] }`
 // (the `kfs` alias was removed outright — review §1.2/§6.1: one spelling only)
 /** @public @advanced */
 export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimation>()(px.object({
@@ -335,6 +371,7 @@ export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimatio
     loop: px.union([PxLoopSchema, px.boolean()]).optional(),
     autoOrient: px.boolean().optional(),
     alongPathMode: px.enum([PxAlongPathMode.sampled, PxAlongPathMode.offsetPath] as const, PxAlongPathMode.sampled).optional(),
+    byTimeline: px.array(PxTimelineTrackSchema).optional(),
 }));
 
 /** Animation definition for a single CSS/SVG property — the authored form. @public */
@@ -467,8 +504,13 @@ export type PxCompiledKeyframe<V> = Omit<PxInfer<typeof PxCompiledTransformKeyfr
 /** A `d` value once compiled: the parsed bezier paths. @public @advanced */
 export type PxPathValue = PxInfer<typeof PxNormalizedPathValueSchema>;
 
+/** A compiled entry's tracks on the file's other timelines (2026-11-20) — the same kind; each compiled with its own
+ *  timeline's window (its loop fills that window). What the player splits per timeline; see `byTimeline`. */
+const compiledTracks = <V>(keyframe: PxSchema<V>) =>
+    px.array(px.object({ timeline: px.string(), keyframes: px.array(keyframe) })).optional();
+
 const compiledMember = <K extends PxValueKind, V>(kind: K, value: PxSchema<V>) =>
-    px.object({ kind: px.literal(kind), keyframes: px.array(compiledKeyframe(value)) });
+    px.object({ kind: px.literal(kind), keyframes: px.array(compiledKeyframe(value)), byTimeline: compiledTracks(compiledKeyframe(value)) });
 
 /** One member per `kind` — the value each kind holds. */
 const PX_COMPILED_MEMBERS = [
@@ -486,6 +528,7 @@ const PX_COMPILED_MEMBERS = [
         keyframes: px.array(PxCompiledTransformKeyframeSchema),
         /** With tangents: the frame loop turns the element along the path. */
         autoOrient: px.boolean().optional(),
+        byTimeline: compiledTracks(PxCompiledTransformKeyframeSchema),
     }),
     compiledMember(PxValueKind.numberList, px.array(px.number())),
     compiledMember(PxValueKind.translate, px.array(px.number())),
@@ -607,28 +650,33 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
  * clock's and the gate's rules, not page events, so they have no list here. Which list an event is read from in each
  * state: `triggerActionFor`.
  */
-export interface _PxActionTriggers {
-    /** Starts a playback from the start — in every state it is read in (1.26). An absent block, like an empty one, means
-     *  nothing starts it (1.17); a file that plays by itself says `'load'`. */
-    [PxTriggerList.startPlayback]?: PxTriggerEvents;
-    /** Start or carry on (1.26): resumes a paused playback, turns a returning picture around, starts otherwise; nothing
-     *  while playing. What `timeline.start` did by default until 1.25. */
-    [PxTriggerList.playPlayback]?: PxTriggerEvents;
-    /** Stops the playback (when playing, paused or finished) — per `actions["timeline.stop"]`. */
-    [PxTriggerList.stopPlayback]?: PxTriggerEvents;
-    /** Freezes the playback where it is (when playing). */
-    [PxTriggerList.pausePlayback]?: PxTriggerEvents;
-    /** Resumes it (when paused). Absent, it is DERIVED — the counterpart of each `timeline.pause` event (hover out resumes
-     *  what hover in paused, a click what a click paused) plus the `timeline.start` events that do not stop it. Named, the
-     *  list is used as written; the players note where it differs from the derivation ({@link triggerIssues}). */
-    [PxTriggerList.resumePlayback]?: PxTriggerEvents;
-    /** Goes to the next segment in the list — after the last, the first (2026-11-15). Every event may be named. */
-    [PxSegmentAction.next]?: PxTriggerEvents;
-    /** Goes to the previous segment — before the first, the last. */
-    [PxSegmentAction.previous]?: PxTriggerEvents;
-    /** `timeline.segment.goTo(‹name›)` — goes to that segment; one key per segment, made from its name (read through
-     *  `isTriggerEvents`, the open schema types it `unknown`). */
-    [segmentGoToKey: string]: unknown;
+export interface _PxActionTriggerRule {
+    /** What to do — one name for one action, wherever it is written (in a rule, in `whenFinished`, as the page's call):
+     *  - `timeline.start` — starts a playback from the start, in every state it is read in (1.26);
+     *  - `timeline.play` — start or carry on: resumes a paused playback, turns a returning picture around, starts
+     *    otherwise; nothing while playing;
+     *  - `timeline.stop` — stops it (when playing, paused or finished), as `actions["timeline.stop"]` says;
+     *  - `timeline.pause` — freezes it where it is (when playing);
+     *  - `timeline.resume` — resumes it (when paused). With no `timeline.resume` rule at all, it is DERIVED: the
+     *    counterpart of each `timeline.pause` event (hover out resumes what hover in paused) plus the `timeline.start`
+     *    events that do not stop it. Named, the rules are used as written ({@link triggerIssues} notes a difference);
+     *  - `state.goTo` — goes to `state`; `state.next` · `state.previous` — the next or previous state of a state machine
+     *    (`stateMachine`; none — the one without an id), after the last the first. */
+    action: PxActionName;
+    /** The timeline a `timeline.*` action acts on — an `id` of `animator.timelines`. None: the whole picture. */
+    timeline?: string;
+    /** The state `state.goTo` goes to — an `id` of `animator.states`. */
+    state?: string;
+    /** The state machine `state.next` / `state.previous` steps through — an `id` of `animator.stateMachines`. */
+    stateMachine?: string;
+    /** The event that does it. */
+    event: PxTriggerEvent;
+    /** Where it is heard: one of this file's elements, `"#id"` — its fresh id is followed when the player renames ids. */
+    element?: string;
+    /** Where it is heard: an element of the page around it, a CSS selector. */
+    selector?: string;
+    /** The event's own fields it must have — see {@link _PxTriggerEventFilter}. */
+    with?: _PxTriggerEventFilter;
 }
 
 /**
@@ -711,31 +759,72 @@ export const PxTriggerEventsSchema = triggerListOf(PX_ALL_TRIGGER_EVENTS);
 function triggerListOf(events: ReadonlyArray<PxTriggerEvent>) {
     return px.oneOrMany(triggerEntrySchema(events));
 }
-function triggerListSchema(list: PxTriggerList) {
-    return triggerListOf(allowedTriggerEvents(list));
+
+/** One rule whose `action` is `action`, naming one of `events` — the shape every member of the rule union shares. */
+function ruleSchemaOf<A extends PxActionName>(action: A, events: ReadonlyArray<PxTriggerEvent>) {
+    return px.object({
+        action: px.literal(action),
+        timeline: px.string().optional(),
+        state: px.string().optional(),
+        stateMachine: px.string().optional(),
+        event: px.enum(events),
+        element: px.string().optional(),
+        selector: px.string().optional(),
+        with: PxTriggerEventFilterSchema.optional(),
+    });
 }
 
-/** `animator.actionTriggers` — open: a `timeline.segment.goTo(‹name›)` key is one per segment, so it cannot be listed;
- *  `validateDocument` checks that the name exists. @public @advanced */
-export const PxActionTriggersSchema = px.openObject({
-    [PxTriggerList.startPlayback]: triggerListSchema(PxTriggerList.startPlayback).optional(),
-    [PxTriggerList.playPlayback]: triggerListSchema(PxTriggerList.playPlayback).optional(),
-    [PxTriggerList.stopPlayback]: triggerListSchema(PxTriggerList.stopPlayback).optional(),
-    [PxTriggerList.pausePlayback]: triggerListSchema(PxTriggerList.pausePlayback).optional(),
-    [PxTriggerList.resumePlayback]: triggerListSchema(PxTriggerList.resumePlayback).optional(),
-    [PxSegmentAction.next]: PxTriggerEventsSchema.optional(),
-    [PxSegmentAction.previous]: PxTriggerEventsSchema.optional(),
-}, PxTriggerEventsSchema);
+/** One rule of `actionTriggers` — see {@link _PxActionTriggerRule}. A member per action, so the schema states the events
+ *  each may name ({@link allowedTriggerEvents}): a playback action naming another fails strict validation, and the
+ *  document repair drops the rule. A state action may name every event. @public @advanced */
+export const PxActionTriggerRuleSchema = implementsInterface<_PxActionTriggerRule>()(px.discriminatedUnion('action', [
+    ruleSchemaOf(PxTriggerList.startPlayback, allowedTriggerEvents(PxTriggerList.startPlayback)),
+    ruleSchemaOf(PxTriggerList.playPlayback, allowedTriggerEvents(PxTriggerList.playPlayback)),
+    ruleSchemaOf(PxTriggerList.stopPlayback, allowedTriggerEvents(PxTriggerList.stopPlayback)),
+    ruleSchemaOf(PxTriggerList.pausePlayback, allowedTriggerEvents(PxTriggerList.pausePlayback)),
+    ruleSchemaOf(PxTriggerList.resumePlayback, allowedTriggerEvents(PxTriggerList.resumePlayback)),
+    ruleSchemaOf(PxStateAction.goTo, PX_ALL_TRIGGER_EVENTS),
+    ruleSchemaOf(PxStateAction.next, PX_ALL_TRIGGER_EVENTS),
+    ruleSchemaOf(PxStateAction.previous, PX_ALL_TRIGGER_EVENTS),
+] as const));
+/** One rule of `actionTriggers`. @public */
+export type PxActionTriggerRule = _PxActionTriggerRule;
 
-/** WHEN each built-in action fires — the `actionTriggers` block; see {@link _PxActionTriggers}. A key names the
- *  action, the same key in `actions` says how that action looks. @public */
+/** `animator.actionTriggers` — a LIST of rules (2026-11-20; a map by action until then): each says on which event to do
+ *  which action, and by id what it acts on. An absent list, like an empty one, means nothing starts it; a file that
+ *  plays by itself has `{ "action": "timeline.start", "event": "load" }`. @public @advanced */
+export const PxActionTriggersSchema = px.validItems(PxActionTriggerRuleSchema);
+
+/** WHEN each action fires — the `actionTriggers` list; see {@link _PxActionTriggerRule}. @public */
 export type PxActionTriggers = PxInfer<typeof PxActionTriggersSchema>;
 
-/** The block the `actionTriggers` prop / option takes (every surface, `bind` included) — the same shape the FILE has
- *  ({@link _PxActionTriggers}), `timeline.resume` included: left out, it is derived from the other lists; named, it is used
- *  as written. WHY the same power as the file (`resume` was left out until 1.22): an override that cannot say what a
- *  file can is a trap. @public @advanced */
+/** The list the `actionTriggers` prop / option takes (every surface, `bind` included) — the same shape the FILE has.
+ *  WHY the same power as the file: an override that cannot say what a file can is a trap. @public @advanced */
 export type PxActionTriggersInput = PxActionTriggers;
+
+/**
+ * An action written as a value (2026-11-20) — a `whenFinished` that goes somewhere: `{ "action": "state.goTo",
+ * "state": "hover" }`, `{ "action": "state.next" }`. The same object, and the same names, as a rule of `actionTriggers`,
+ * without its event.
+ * @public
+ */
+export interface _PxActionObject {
+    action: PxStateAction;
+    /** The state `state.goTo` goes to. */
+    state?: string;
+    /** The state machine `state.next` / `state.previous` steps through; none — the state's own. */
+    stateMachine?: string;
+}
+
+/** @public @advanced */
+export const PxActionObjectSchema = implementsInterface<_PxActionObject>()(px.object({
+    action: px.enum([PxStateAction.goTo, PxStateAction.next, PxStateAction.previous] as const),
+    state: px.string().optional(),
+    stateMachine: px.string().optional(),
+}));
+/** @public */
+export type PxActionObject = PxInfer<typeof PxActionObjectSchema>;
+const _ck_PxActionObject: KeysMatch<PxActionObject, _PxActionObject> = true;
 
 /**
  * HOW the built-in actions look (playback-layers.md, layer 1) — one slot per button that has a choice: `behavior` names a
@@ -975,46 +1064,79 @@ export type PxHoldOnScreen = PxInfer<typeof PxHoldOnScreenSchema>;
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const, PxTimelineEngineSetting.auto).optional();
 
 /**
- * A SEGMENT (2026-11-15) — a named part of the timeline; the timeline is always in one of them, and they play one at
- * a time. It says what plays (`inTime` – `outTime`), how it repeats, what happens at its end (`whenFinished`) and how it
- * is left when another is asked for (`whenLeaving`). What it does not say, it takes from the timeline.
+ * A STATE (2026-11-20; a "segment", nested in its timeline, until then) — a named situation of the picture, given as a
+ * part of ONE timeline: `timeline` (none — the first) and `inTime` – `outTime` on it (none — the whole of it). Of the
+ * states of one state machine exactly one is current; while it is current, its part plays. It OVERRIDES its timeline —
+ * how it repeats, its direction, its speed, what happens at its end (`whenFinished`) and how it is left when another is
+ * asked for (`whenLeaving`); what it does not say, it takes from its timeline.
  * @public
  */
-export interface _PxTimelineSegment {
-    /** What the triggers, `whenFinished` and the page call it (`timeline.segment.goTo(‹name›)`, `goTo('‹name›')`). Unique in
-     *  the list: a later segment with a name already used is ignored, with a warning (PX1115). WHY `name`, not `id`: `id`
-     *  is an element's, the one a page and `#id` see. */
-    name: string;
-    /** CONTENT ms where it begins. Default: the timeline's `inTime`. */
+export interface _PxState {
+    /** What the rules, `whenFinished` and the page call it (`state.goTo`, `player.state.goTo('‹id›')`). Unique in the
+     *  list: a later state with an id already used is ignored, with a warning (PX1115). */
+    id: string;
+    /** A label for people — the editor shows it; nothing refers to it. */
+    name?: string;
+    /** The state machine it belongs to — an `id` of `animator.stateMachines`. None: the state machine without an id. */
+    stateMachine?: string;
+    /** The timeline it is a part of — an `id` of `animator.timelines`. None: the first. */
+    timeline?: string;
+    /** CONTENT ms on its timeline where it begins. Default: the timeline's `inTime`. */
     inTime?: number;
-    /** CONTENT ms where it ends. Default: the timeline's `outTime`. */
+    /** CONTENT ms on its timeline where it ends. Default: the timeline's `outTime`. */
     outTime?: number;
-    /** The one the timeline is in before anything happened. None says so: the first in the list. */
+    /** Where its state machine starts. None says so: the first of the state machine's states in the list. */
     initial?: boolean;
     iterations?: number | 'infinite';
     iterationDirection?: PxPlaybackDirection;
     playbackSpeed?: number;
     /** At its end: `hold` (default) · `jumpToStart` · `animateToStart` — what the picture shows, the playback is then
-     *  finished — or a segment action: `timeline.segment.next`, `timeline.segment.goTo(‹name›)` — it goes on there. */
-    whenFinished?: string;
-    /** How it is left when another segment is asked for: `jump` (default) · `animateToEnd` · `animateToStart`. */
+     *  finished — or an action: `{ "action": "state.goTo", "state": "‹id›" }`, `{ "action": "state.next" }` — it goes
+     *  on there. */
+    whenFinished?: PxWhenFinished | _PxActionObject;
+    /** How it is left when another state is asked for: `jump` (default) · `animateToEnd` · `animateToStart`. */
     whenLeaving?: PxWhenLeaving;
 }
 
 /** @public @advanced */
-export const PxTimelineSegmentSchema = implementsInterface<_PxTimelineSegment>()(px.object({
-    name: px.string(),
+export const PxStateSchema = implementsInterface<_PxState>()(px.object({
+    id: px.string(),
+    name: px.string().optional(),
+    stateMachine: px.string().optional(),
+    timeline: px.string().optional(),
     inTime: px.number().optional(),
     outTime: px.number().optional(),
     initial: px.boolean().optional(),
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),
     iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const).optional(),
     playbackSpeed: px.number().optional(),
-    whenFinished: px.string().optional(),
+    whenFinished: px.union([px.enum([PxWhenFinished.hold, PxWhenFinished.jumpToStart, PxWhenFinished.animateToStart] as const), PxActionObjectSchema]).optional(),
     whenLeaving: px.enum([PxWhenLeaving.jump, PxWhenLeaving.animateToEnd, PxWhenLeaving.animateToStart] as const, PxWhenLeaving.jump).optional(),
 }));
 /** @public */
-export type PxTimelineSegment = PxInfer<typeof PxTimelineSegmentSchema>;
+export type PxState = PxInfer<typeof PxStateSchema>;
+const _ck_PxState: KeysMatch<PxState, _PxState> = true;
+
+/**
+ * A STATE MACHINE (2026-11-20) — of its states exactly one is current, and events move it. State machines run at the
+ * same time and do not know of each other. States that name none form one state machine without an id.
+ * @public
+ */
+export interface _PxStateMachine {
+    /** What a state's `stateMachine` and a rule call it. Unique in the list. */
+    id: string;
+    /** A label for people — the editor shows it; nothing refers to it. */
+    name?: string;
+}
+
+/** @public @advanced */
+export const PxStateMachineSchema = implementsInterface<_PxStateMachine>()(px.object({
+    id: px.string(),
+    name: px.string().optional(),
+}));
+/** @public */
+export type PxStateMachine = PxInfer<typeof PxStateMachineSchema>;
+const _ck_PxStateMachine: KeysMatch<PxStateMachine, _PxStateMachine> = true;
 
 /**
  * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
@@ -1022,6 +1144,10 @@ export type PxTimelineSegment = PxInfer<typeof PxTimelineSegmentSchema>;
  * timeline through `any`, so without this lock nothing else in the repo would notice.
  */
 export interface _PxTimeTimeline {
+    /** What states, tracks (`byTimeline`) and rules call it — unique in `timelines`. The first needs none. */
+    id?: string;
+    /** A label for people — the editor shows it; nothing refers to it. */
+    name?: string;
     /** Optional: an absent `type` (or an absent `timeline`) already means this member. */
     type?: 'time';
     /** How the animated attributes get updated. Default `auto`. WHY `engine`, not `mode`: it picks HOW attributes
@@ -1070,14 +1196,14 @@ export interface _PxTimeTimeline {
     /** How long that must hold, ms (default 150). WHY `debounce`, not `delay`: a pending open is CANCELLED when
      *  visibility drops below the threshold before the time is up — scrolling straight past starts nothing. */
     inViewDebounce?: number;
-    /** The named parts of the timeline, played one at a time (2026-11-15) — see {@link _PxTimelineSegment}. */
-    segments?: Array<_PxTimelineSegment>;
 }
 
 /** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported
  *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.whenIdle`).
  *  @public @advanced */
 export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
+    id: px.string().optional(),
+    name: px.string().optional(),
     type: px.literal('time').optional(),
     engine: PxTimelineEngineSchema,
     frameRate: px.number().optional(),
@@ -1095,7 +1221,6 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     whenIdle: px.enum([PxWhenIdle.static, PxWhenIdle.firstFrame] as const, PX_PLAYBACK_DEFAULTS.whenIdle).optional(),
     inViewThreshold: px.number(PX_PLAYBACK_DEFAULTS.inViewThreshold).optional(),
     inViewDebounce: px.number(PX_PLAYBACK_DEFAULTS.inViewDebounce).optional(),
-    segments: px.array(PxTimelineSegmentSchema).optional(),
 }));
 const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
 
@@ -1106,6 +1231,10 @@ const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTim
 
 /** The scroll timeline. Locked by an interface, like the time member. */
 export interface _PxScrollTimeline {
+    /** What tracks (`byTimeline`) and rules call it — unique in `timelines`. The first needs none. */
+    id?: string;
+    /** A label for people. */
+    name?: string;
     type: 'scroll';
     /** What the playhead follows. Default `thisDomElement`. */
     follows?: PxScrollFollows;
@@ -1133,6 +1262,8 @@ export interface _PxScrollTimeline {
 
 /** The scroll member of {@link PxTimelineSchema}. @public @advanced */
 export const PxScrollTimelineSchema = implementsInterface<_PxScrollTimeline>()(px.object({
+    id: px.string().optional(),
+    name: px.string().optional(),
     type: px.literal('scroll'),
     follows: px.enum([PxScrollFollows.thisDomElement, PxScrollFollows.parentDomElement, PxScrollFollows.pageDomElement,
         PxScrollFollows.pageScroll, PxScrollFollows.containerScroll] as const, PxScrollFollows.thisDomElement).optional(),
@@ -1222,11 +1353,10 @@ export interface _PxAnimatorConfig {
      *  player's frame loop; ignored by WAAPI, React Native and the pre-rendered CSS export. */
     frameRate?: number;
 
-    /** WHEN each button is pressed — the lists of events (wire AND view: the root of `animator`, beside `timeline`,
-     *  since the triggers will name more than one timeline). Absent and `{}` are the same: nothing starts it (the
-     *  manual document); a file that plays by itself names `"timeline.start": 'load'`. WHY: a default nobody wrote is a
-     *  guess, and an absent block and an empty one meaning different things trapped every merge patch and hand edit.
-     *  A scroll timeline reads none: nothing starts it. */
+    /** WHEN each action fires — the list of rules (wire AND view: the root of `animator`, beside `timelines`, since a
+     *  rule may name any timeline or state). Absent and `[]` are the same: nothing starts it (the manual document); a
+     *  file that plays by itself has `{ "action": "timeline.start", "event": "load" }`. WHY: a default nobody wrote is a
+     *  guess. A scroll timeline reads none: nothing starts it. */
     actionTriggers?: PxActionTriggers;
     /** HOW the built-in actions look — copied from the wire (`fill` / `resetOnFinish` / `direction` above are derived). */
     actions?: PxActions;
@@ -1234,9 +1364,11 @@ export interface _PxAnimatorConfig {
     whenIdle?: PxWhenIdle;
     /** The wire's `whenFinished`, carried through (the executor reads it; the engines read `fill` / `resetOnFinish`). */
     whenFinished?: PxWhenFinished;
-    /** The timeline's segments, carried through as written (2026-11-15) — a writer round-trips them; the player plays
-     *  them (`PxSegments`). */
-    segments?: Array<PxTimelineSegment>;
+    /** The states, as written (wire AND view, 2026-11-20) — a writer round-trips them; the player plays the first
+     *  timeline's (`PxStates`). */
+    states?: Array<PxState>;
+    /** The state machines, as written (wire AND view, 2026-11-20). */
+    stateMachines?: Array<PxStateMachine>;
     inViewThreshold?: number;
     inViewDebounce?: number;
 
@@ -1258,9 +1390,9 @@ export interface _PxAnimatorConfig {
      * is the player's own clock; `'scroll'` is scroll-linked playback ("scrubbing"), matching
      * CSS scroll-driven animations.
      *
-     * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll');
+     * The wire spells this as the first timeline's `type` ('time' — or absent — vs 'scroll');
      * `resolveAnimatorTimeline` folds it into this field for the engines.
-     * Distinct from `actionTriggers["timeline.start"]`, which says what STARTS the animation: one
+     * Distinct from a `timeline.start` rule of `actionTriggers`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      */
     timelineSource?: string;
@@ -1269,11 +1401,11 @@ export interface _PxAnimatorConfig {
      *  `timelineSource: 'scroll'`. The wire spells them inside `timeline`. */
     scroll?: PxScrollSettings;
 
-    /** What advances the animation — THE wire spelling (review §2.1): a discriminated
-     *  `{ type?: 'time' | 'scroll', … }` object. Carries the playback dynamics for time, what is followed and the
-     *  stretch for scroll; the flat fields above are the internal runtime view `resolveAnimatorTimeline` produces
-     *  from it. */
-    timeline?: PxTimeline;
+    /** The timelines — THE wire spelling (2026-11-20; one `timeline` object until then): a flat list, each a
+     *  discriminated `{ type?: 'time' | 'scroll', … }` object. The first is the default one — plain keyframes ride it,
+     *  `player.timeline` reads it; every other has an `id`. The flat fields above are the internal runtime view
+     *  `resolveAnimatorTimeline` produces from the first. */
+    timelines?: Array<PxTimeline>;
 
     /**
      * WIRE FORMAT VERSION, `"a.b.c"` — the layering, not a build number:
@@ -1337,8 +1469,10 @@ const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets ar
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     // (`mode`, `duration` and `frameRate` live INSIDE `timeline` on the wire — §2.8; they exist
     // at this level only on the runtime view, like the rest of the playback dynamics.)
-    // THE spelling of "what advances progress" — the clock or the scrolling (review §2.1).
-    timeline: PxTimelineSchema.optional(),
+    // THE spelling of "what advances progress" — the clock or the scrolling (review §2.1); several since 2026-11-20.
+    timelines: px.array(PxTimelineSchema).optional(),
+    states: px.array(PxStateSchema).optional(),
+    stateMachines: px.array(PxStateMachineSchema).optional(),
     actionTriggers: PxActionTriggersSchema.optional(),
     definitions: PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
@@ -2175,9 +2309,15 @@ function collectVersionStampProblems(doc: PxDocument, ctx: PxValidationContext):
  *  come in scroll order, `pageDomElement` names its element, `holdOnScreen` stands instead of `follows`. The player keeps
  *  playing in each case — it takes the default, clamps, or takes the stretch in scroll order. */
 function collectScrollProblems(doc: PxDocument, ctx: PxValidationContext): void {
-    const timeline = (animatorOf(doc) as PxAnimatorConfig | undefined)?.timeline;
-    if (!timeline || typeof timeline !== 'object' || timeline.type !== 'scroll') return;
-    const path = (...keys: Array<string>) => [PX_VALIDATION_ROOT_SEGMENT, 'animator', 'timeline', ...keys];
+    const timelines = (animatorOf(doc) as PxAnimatorConfig | undefined)?.timelines;
+    if (!Array.isArray(timelines)) return;
+    timelines.forEach((timeline, index) => {
+        if (timeline && typeof timeline === 'object' && timeline.type === 'scroll') collectScrollTimelineProblems(timeline, index, ctx);
+    });
+}
+
+function collectScrollTimelineProblems(timeline: _PxScrollTimeline, index: number, ctx: PxValidationContext): void {
+    const path = (...keys: Array<string>) => [PX_VALIDATION_ROOT_SEGMENT, 'animator', 'timelines', String(index), ...keys];
     const held = timeline.holdOnScreen === true || (!!timeline.holdOnScreen && typeof timeline.holdOnScreen === 'object');
     const ofElement = held || followsElement(timeline.follows);
     if (held && (timeline.follows !== undefined || timeline.selector !== undefined)) {
@@ -2208,7 +2348,7 @@ function collectScrollProblems(doc: PxDocument, ctx: PxValidationContext): void 
                 : 'a moment word or an exact place fits only an element — use { scrolled }; the default moment is used');
             continue;
         }
-        if (typeof moment === 'string') words.push(PX_SCROLL_MOMENT_ORDER.indexOf(moment));
+        if (typeof moment === 'string') words.push(PX_SCROLL_MOMENT_ORDER.indexOf(moment as PxScrollMoment));
         else if ('scrolled' in moment) checkShare(moment.scrolled, [key, 'scrolled']);
         else { checkShare(moment.domElement, [key, 'domElement']); checkShare(moment.screen, [key, 'screen']); }
     }
@@ -2614,18 +2754,20 @@ export interface PxAnimationPlayerCallbacks extends PxDiagnosticsConfig {
      *  `whenFinished` then shows. Not for a stop that goes to the end (that is `onPlaybackStop`), never for a loop without
      *  end. WHY `finish`: one pair with the `finished` state — WAAPI's word. (`onFinish` until 1.25.) */
     onPlaybackFinish?: () => void;
-    /** The timeline went to another segment (2026-11-15): `segment` is the new one, `previous` the one it left. */
-    onSegmentChange?: (segment: string, previous: string) => void;
+    /** A state machine went to another state (2026-11-20; `onSegmentChange` until then): `state` is the new one,
+     *  `previous` the one it left, `stateMachine` the state machine's id (none — the one without an id). */
+    onStateChange?: (state: string, previous: string, stateMachine?: string) => void;
     /** `destroy()`'s pair (review §11): the player was torn down — an unmount, a document swap, or an explicit
      *  `destroy()` call. */
     onDestroy?: () => void;
 }
 
-/** The components' `segment` prop (React, Vue; 2026-11-15): the segment the page holds — a lever, so the file's segment
- *  triggers are not read while it is set. At mount a segment that ends is shown at its end without playing, one that
- *  repeats plays; a change plays the way there (its `whenLeaving` honoured). A name the timeline lacks is ignored. @public */
-export interface PxSegmentProps {
-    segment?: string;
+/** The components' `state` prop (React, Vue; 2026-11-20 — `segment` until then): the state the page holds, or one per
+ *  state machine — a lever, so the file's rules for that state machine are not read while it is set. At mount a state
+ *  that ends is shown at its end without playing, one that repeats plays; a change plays the way there (its
+ *  `whenLeaving` honoured). An id the file lacks is ignored. @public */
+export interface PxStateProps {
+    state?: string | Array<string>;
 }
 
 
@@ -2797,10 +2939,6 @@ export interface PxTimelineControls {
     getCurrentTimeAtSpeed(): number | null;
     /** The playhead on the whole playback in ms at the current speed: `getTotalTime() / |speed|`. `null` before ready. */
     getTotalTimeAtSpeed(): number | null;
-    // ── the segments (2026-11-15) ──
-    /** The timeline's named parts — `next()` · `previous()` · `goTo(name)` · `get()` · `getAll()`. With segments, every read
-     *  and seek above is of the CURRENT segment. A timeline with none: `get()` is `null`, the rest does nothing. */
-    readonly segment: PxSegmentControls;
 }
 
 /**
@@ -2811,8 +2949,15 @@ export interface PxTimelineControls {
  * @public
  */
 export interface PxAnimationPlayerApi<TRoot = unknown> {
-    /** The timeline: the buttons, the state, the seeks, both clocks, the speed and the segments — see {@link PxTimelineControls}. */
+    /** The timeline: the buttons, the state, the seeks, both clocks and the speed — see {@link PxTimelineControls}. With
+     *  several timelines its buttons and speed act on the whole picture; its reads and seeks are of the first. */
     readonly timeline: PxTimelineControls;
+    /** The states (2026-11-20) — `goTo(id)` · `next()` · `previous()` · `get()` · `getAll()`; see {@link PxStateControls}.
+     *  While a state machine is in a state, every read and seek of its timeline is of that state. */
+    readonly state: PxStateControls;
+    /** One timeline by its `id` (2026-11-20) — the same kind of handle as `timeline`, acting on that timeline alone (on
+     *  its state machine, when states use it); `undefined` for an id the file does not have. */
+    getTimeline(id: string): PxTimelineControls | undefined;
     /** The document's variables — read them, give them values, pick a variant (schema 1.27). */
     readonly variables: PxVariablesApi;
     /** Whether the document has loaded and the player is built — calls made earlier are queued. */
@@ -2836,7 +2981,7 @@ export type PxAnimationPlayerHandle = Omit<PxAnimationPlayerApi, 'isReady' | 'ge
 
 
 /** The playback events the executor tells — the public callbacks' playback subset, told when the act is PERFORMED. @public @advanced */
-export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onPlaybackFinish' | 'onSegmentChange'>;
+export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onPlaybackFinish' | 'onStateChange'>;
 
 /**
  * The player's ONE executor of the buttons (dev-docs/plans/playback-layers.md, animation-state.brainstorm.md) — what
@@ -2900,8 +3045,8 @@ export interface PxEngineAnimationPlayerApi<TRoot = unknown> {
     destroy(): void;
     /** The player's one executor (D5), attached by the engine so triggers wired inside it and the composed api share one state. */
     playExecutor?: PxPlayExecutor;
-    /** A timeline with segments (2026-11-15): the segment clock that took the primitives over. */
-    segmentRuntime?: PxSegmentRuntime;
+    /** A timeline with states (2026-11-20): the state clock that took the primitives over. */
+    stateRuntime?: PxStateRuntime;
 }
 
 

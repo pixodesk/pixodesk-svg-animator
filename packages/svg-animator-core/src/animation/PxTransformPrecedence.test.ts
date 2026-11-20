@@ -110,7 +110,7 @@ describe('end-to-end — normalizeBindings composes the static transform under t
 
     const docWith = (animate: PxAnimationDefinition, staticTransform: PxAttrValue): PxDocument => ({
         type: 'svg',
-        animator: { timeline: { outTime: 1000 } },
+        animator: { timelines: [{ outTime: 1000 }] },
         children: [{ type: 'rect', id: 'r', width: 10, height: 10, transform: staticTransform, animate }],
     });
 

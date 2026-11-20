@@ -966,6 +966,26 @@ class Arr<T> extends Base<Array<T>> {
 }
 
 
+/** Array whose items `item` rejects are DROPPED whole — never repaired into another value (2026-11-20, the rules of
+ *  `actionTriggers`: an unknown action or event repaired to the enum's first word would start the picture on load). */
+class ValidItems<T> extends Arr<T> {
+    constructor(private readonly valid: PxSchema<T>) { super(valid); }
+    override sanitize(raw: unknown): Array<T> {
+        return Array.isArray(raw) ? raw.filter(el => this.valid.isValid(el)).map(el => this.valid.sanitize(el)) : [];
+    }
+    override _fix(raw: unknown, run: PxFixRun): Array<T> {
+        if (isStampedFor(raw, this)) return raw as Array<T>;   // already checked — reuse, never rebuild
+        const before = run.repairs;
+        const out: Array<T> = [];
+        if (!Array.isArray(raw)) run.repairs++;
+        else for (const el of raw) {
+            if (this.valid.isValid(el)) out.push(this.valid._fix(el, run));
+            else run.repairs++;                                  // dropped whole
+        }
+        return this._seal(out, run.repairs === before);
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Words — one word or several from a closed vocabulary; an unknown word is DROPPED
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1369,6 +1389,10 @@ export const px = {
     /** Array whose unrecoverable items are filtered out. Default: []. */
     array: <T>(item: PxSchema<T>): PxSchema<Array<T>> =>
         new Arr(item),
+
+    /** Array whose items `item` rejects are DROPPED whole — never repaired into another value. Default: []. */
+    validItems: <T>(item: PxSchema<T>): PxSchema<Array<T>> =>
+        new ValidItems(item),
 
     /** One word or several (`"a"` / `["a", "b"]`) from a closed vocabulary. Repair DROPS an unknown word — a lone
      *  unknown word drops the optional field — where a plain union would put its default in place of the whole value. */

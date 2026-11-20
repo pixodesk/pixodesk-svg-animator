@@ -4,7 +4,8 @@
 
 Change how an animation plays — its length, loops, direction, what starts and stops it, what the
 end leaves behind — without going back to the editor. Everything about *when* and *how* it plays
-lives in one place, the document's `animator.timeline` block, and every player lets you
+lives in the document's `animator` block — its `timelines`, its `actionTriggers` and, for a picture with
+named situations, its [`states`](#states--named-parts-of-a-timeline) — and every player lets you
 **override it at runtime** from component props or the player options. This page is the
 reference for those fields and the overrides.
 
@@ -22,14 +23,18 @@ comments, so a real file has none.)
 
   // Everything about WHEN and HOW the animation plays lives here
   "animator": {
-    "timeline": {
-      "outTime": 2000,
-      "iterations": "infinite",
-      "iterationDirection": "alternate",
-      // Plays as soon as half of it is on screen; pauses while it is scrolled away
-      "actions": { "outOfView": "pause" }, "inViewThreshold": 0.5
-    },
-    "actionTriggers": { "timeline.start": "load" }
+    // A list — one entry is the usual file; the first is the default and needs no id
+    "timelines": [
+      {
+        "outTime": 2000,
+        "iterations": "infinite",
+        "iterationDirection": "alternate",
+        // Plays as soon as half of it is on screen; pauses while it is scrolled away
+        "actions": { "outOfView": "pause" }, "inViewThreshold": 0.5
+      }
+    ],
+    // A list of rules: an action, and the event that does it
+    "actionTriggers": [ { "action": "timeline.start", "event": "load" } ]
   },
   "children": [
     {
@@ -66,8 +71,10 @@ the start) or `timeline.play` (start, or carry on), lasts while the animation is
 `off` is no playback. Reaching the end makes the playback `finished`, whatever the picture then shows. The two
 blocks are not mirror images of each other:
 
-- `actionTriggers` keys are the **requests** a page event can make — `timeline.start`, `timeline.play`,
-  `timeline.stop`, `timeline.pause` (`timeline.resume` is derived unless the file names it).
+- `actionTriggers` rules name the **requests** a page event can make, in their `action` — `timeline.start`,
+  `timeline.play`, `timeline.stop`, `timeline.pause` (`timeline.resume` is derived unless the file names it) —
+  and the state actions `state.goTo`, `state.next`, `state.previous`
+  ([States](#states--named-parts-of-a-timeline)).
 - `actions` keys are the **moments** whose outcome is configurable — `timeline.stop` and `outOfView`.
 - `timeline.stop` is in both because it is both a request and a moment. The other buttons have one behaviour
   each — a start always plays from the start, a pause freezes — so there is no `actions["timeline.start"]` (until
@@ -86,7 +93,7 @@ blocks are not mirror images of each other:
 | **outOfView** / back in view | nobody can see it / seen again | `actions.outOfView.behavior`: `pause` · `continue` · `stop` | — (the view sensor: a condition, not an event) |
 
 So `player.timeline.stop()` on a looping heartbeat with `actions: { 'timeline.stop': 'animateToEnd' }` finishes the
-beat and then rests — and so does a `hoverOut` listed in `actionTriggers["timeline.stop"]`, and so does
+beat and then rests — and so does a rule `{ "action": "timeline.stop", "event": "hoverOut" }`, and so does
 `playback="off"` on the React component. One vocabulary, learnt once — [the action words](#the-action-words).
 
 ### Playback states
@@ -110,10 +117,15 @@ neither a `returning` one nor a `finished` one that `whenFinished: 'animateToSta
 [visibility gate](#whether-it-may-run--the-visibility-gate) presses the same buttons, so a playback scrolled out
 of view reads `paused` (or `off`, with `outOfView: 'stop'`) and reports it.
 
-## The `timeline` — what advances the playhead
+## Timelines — what advances the playhead
 
-`animator.timeline` says what *drives* the animation's progress, exactly like a Web Animations
-API timeline. Its `type` answers one question — who moves the playhead:
+`animator.timelines` is a list of time axes. One entry is the usual file. **The first is the default**: it needs
+no `id`, plain keyframes ride it, and `player.timeline` reads it. Every other entry has an `id`, unique in the
+list, and the attributes that move on it say so with `byTimeline`
+([Several timelines](#several-timelines-and-bytimeline)). A `name` is only a label for people.
+
+A timeline says what *drives* the animation's progress, exactly like a Web Animations API timeline. Its `type`
+answers one question — who moves the playhead:
 
 <!-- px-check schema PxTimelineSchema values=type -->
 | `timeline.type` | The playhead follows… |
@@ -122,26 +134,29 @@ API timeline. Its `type` answers one question — who moves the playhead:
 | `scroll` | the scrolling — an element on its way across the screen, or how far the page or a box is scrolled — [Following the scroll](#following-the-scroll) |
 
 Each type carries only the fields that mean something for it — a scroll timeline has no
-`actionTriggers`, no `actions`, no `delay` and no `frameRate`, and the format gives them no slot there. Omitting
-`timeline` entirely means a time-driven timeline with every default.
+`actions`, no `delay` and no `frameRate`, and the format gives them no slot there; no rule starts it. Omitting
+`timelines` entirely means one time-driven timeline with every default.
 
 ## Timing
 
 Timing, the playback dynamics, how the animated attributes get updated and at what rate ALL live
-in the timeline. `animator` itself keeps only what is not playback: the lookup tables
-(`definitions`, `bindings`).
+in a timeline — each entry of `timelines` has its own. Beside the timelines, `animator` keeps the rules
+(`actionTriggers`), the [states](#states--named-parts-of-a-timeline) and the lookup tables (`definitions`,
+`bindings`). The keys of a clock timeline:
 
-<!-- px-check schema PxAnimatorConfigSchema partial -->
-| Field | Values | Default | Meaning |
+<!-- px-check schema PxTimeTimelineSchema partial -->
+| Key | Values | Default | Meaning |
 |---|---|---|---|
-| `timeline.inTime` | ms | `0` | where the content WINDOW begins. Keyframe times are absolute content ms |
-| `timeline.outTime` | ms | max keyframe time | …and where it ends — one pass plays `inTime` → `outTime`. The editor always writes it |
-| `timeline.playbackSpeed` | factor | `1` | the speed one pass plays at: `2` plays one pass in half the time, `0.5` in twice. Content ms stay content ms — only the speed changes. Must be positive in a file (the direction is `iterationDirection`). The handle's `timeline.setSpeed()` replaces it at runtime; `timeline.setDurationAtSpeed(ms)` asks for the same knob as a length. WHY a speed, not a duration (`playDuration` until 1.15): every player spells speed as a factor (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`) and a factor needs no knowledge of the content's length. WHY `playback…` (`playSpeed` until 1.21): "playback speed" is how media players say it, and the handle's family reads the same (`timeline.getDurationAtSpeed()`, `timeline.getCurrentTimeAtSpeed()`) |
-| `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.engine` selects, so it sits beside it. A clock timeline only: a scroll timeline draws a frame when the scroll moves |
-| `timeline.engine` | `auto` · `native` · `js` | `auto` | how the animated attributes get updated — [Engine](#engine) |
-| `timeline.delay` | ms | `0` | waited whenever a playback starts from the beginning — every `timeline.start`, a `timeline.play` from rest — never on a resume from a paused position. Scaled by the speed as WAAPI's `delay` is: at `playbackSpeed: 2` a `delay: 500` waits 250 ms. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s |
-| `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
-| `timeline.iterationDirection` | `normal` · `reverse` · `alternate` · `alternateReverse` | `normal` | each iteration's direction; `alternate` ping-pongs on every other iteration. `reverse` applies to a single pass too — still one iteration |
+| `id` | text | — | what states, rules and `byTimeline` tracks call it — unique in `timelines`; the first needs none |
+| `name` | text | — | a label for people; nothing refers to it |
+| `inTime` | ms | `0` | where the content WINDOW begins. Keyframe times are absolute content ms |
+| `outTime` | ms | max keyframe time | …and where it ends — one pass plays `inTime` → `outTime`. The editor always writes it |
+| `playbackSpeed` | factor | `1` | the speed one pass plays at: `2` plays one pass in half the time, `0.5` in twice. Content ms stay content ms — only the speed changes. Must be positive in a file (the direction is `iterationDirection`). The handle's `timeline.setSpeed()` replaces it at runtime; `timeline.setDurationAtSpeed(ms)` asks for the same knob as a length. WHY a speed, not a duration (`playDuration` until 1.15): every player spells speed as a factor (lottie-web `setSpeed`, WAAPI `playbackRate`, GSAP `timeScale`) and a factor needs no knowledge of the content's length. WHY `playback…` (`playSpeed` until 1.21): "playback speed" is how media players say it, and the handle's family reads the same (`timeline.getDurationAtSpeed()`, `timeline.getCurrentTimeAtSpeed()`) |
+| `frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `engine` selects, so it sits beside it. A clock timeline only: a scroll timeline draws a frame when the scroll moves |
+| `engine` | `auto` · `native` · `js` | `auto` | how the animated attributes get updated — [Engine](#engine) |
+| `delay` | ms | `0` | waited whenever a playback starts from the beginning — every `timeline.start`, a `timeline.play` from rest — never on a resume from a paused position. Scaled by the speed as WAAPI's `delay` is: at `playbackSpeed: 2` a `delay: 500` waits 250 ms. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s |
+| `iterations` | number · `"infinite"` | `1` | how many times the whole timeline repeats |
+| `iterationDirection` | `normal` · `reverse` · `alternate` · `alternateReverse` | `normal` | each iteration's direction; `alternate` ping-pongs on every other iteration. `reverse` applies to a single pass too — still one iteration |
 
 **Per-property loops vs `iterations`.** There are two kinds of repetition, and they work at
 different levels. `iterations` repeats the **whole document** — every element, from the first
@@ -194,45 +209,68 @@ same way.
 
 ## Triggers — WHEN it plays
 
-The `actionTriggers` block — at the root of `animator`, beside the time timeline — names the user interactions that call the
-built-in buttons. One list per request — `timeline.start`, `timeline.play`, `timeline.stop`, `timeline.pause`, and
-`timeline.resume` when the file names it — over one open vocabulary of events:
+`animator.actionTriggers` — at the root of `animator`, beside `timelines` — is a **list of rules**. Each rule
+says one thing: on this event, do this action. A rule names its `action`, the `event` that fires it, and — by id —
+what it acts on:
 
 ```json
-"timeline": {
-  "actions": { "timeline.stop": "animateToEnd" }
-},
-"actionTriggers": { "timeline.play": ["hoverIn", "click"], "timeline.stop": "hoverOut", "timeline.pause": "click" }
+"timelines": [
+  { "actions": { "timeline.stop": "animateToEnd" } }
+],
+"actionTriggers": [
+  { "action": "timeline.play",  "event": "hoverIn" },
+  { "action": "timeline.play",  "event": "click" },
+  { "action": "timeline.stop",  "event": "hoverOut" },
+  { "action": "timeline.pause", "event": "click" }
+]
 ```
 
 Read cold: play on hover-in or click (carrying on if it is already going), stop (after the beat) on hover-out,
-a click while playing pauses and the next click carries on. Each list is a single event or an array of them —
-the house style of `animate`'s references — and the editor writes the shortest exact spelling.
+a click while playing pauses and the next click carries on. One rule per event; the order of the rules does not
+matter to the playback actions — the [state rule](#one-event-several-lists) decides. (Until 2026-11-20 the block
+was a map by action, `{ "timeline.start": "load" }`; older files are converted on read.)
 
-<!-- px-check schema PxActionTriggersSchema -->
-| List | Presses | Acts while the playback is… | Editor label |
+<!-- px-check schema PxActionTriggerRuleSchema -->
+| Field | Means |
+|---|---|
+| `action` | what to do — the table below |
+| `event` | the event that does it — `load` · `hoverIn` · `hoverOut` · `click` · `pointerDown` · `pointerUp` · `keyDown` · `keyUp` |
+| `timeline` | the timeline a `timeline.*` action acts on, by its `id`. None: the whole picture — every timeline and every state machine |
+| `state` | the state `state.goTo` goes to, by its `id` |
+| `stateMachine` | the state machine `state.next` / `state.previous` steps through, by its `id`. None: the one without an id |
+| `element` | heard on one element of the picture, `"#id"` — [below](#an-event-on-one-element-a-page-element-or-a-key) |
+| `selector` | heard on an element of the page, a CSS selector |
+| `with` | fields the event must have — a key, a pointer button |
+
+<!-- px-check schema PxActionTriggerRuleSchema values=action -->
+| `action` | Does | Acts while the playback is… | Editor label |
 |---|---|---|---|
-| `timeline.start` | `timeline.start` — always from the start | **off, finished or returning** — and **playing** or **paused** when no other list names the event: it restarts | *Start playback on* |
-| `timeline.play` | `timeline.play` — starts, or carries on: resumes a pause, turns a picture on its way back around | **off, finished, returning or paused** — nothing to do while playing | — |
-| `timeline.stop` | `timeline.stop`, per `actions["timeline.stop"]` | **playing, paused or finished** | *Stop playback on* |
-| `timeline.pause` | `timeline.pause` — freezes the current frame | **playing** | *Pause playback on* |
-| `timeline.resume` | `timeline.resume` — carries on from there. **Derived unless the file names it** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume playback on* (shown, not edited) |
-| `timeline.segment.next` | the next segment in the list; after the last, the first ([Segments](#segments--named-parts-of-one-timeline)) | **any state** — read before the lists above | *Add trigger* → Next segment |
-| `timeline.segment.previous` | the previous segment; before the first, the last | **any state** | *Add trigger* → Previous segment |
+| `timeline.start` | a start — always from the start | **off, finished or returning** — and **playing** or **paused** when no other rule names the event: it restarts | *Start playback on* |
+| `timeline.play` | starts, or carries on: resumes a pause, turns a picture on its way back around | **off, finished, returning or paused** — nothing to do while playing | — |
+| `timeline.stop` | a stop, per `actions["timeline.stop"]` | **playing, paused or finished** | *Stop playback on* |
+| `timeline.pause` | freezes the current frame | **playing** | *Pause playback on* |
+| `timeline.resume` | carries on from there. **Derived unless the file has such a rule** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume playback on* (shown, not edited) |
+| `state.goTo` | goes to `state` and plays it ([States](#states--named-parts-of-a-timeline)) | **any state** — read before the actions above | *Add trigger* |
+| `state.next` | the next state of a state machine, in list order; after the last, the first | **any state** | *Add trigger* |
+| `state.previous` | the previous state; before the first, the last | **any state** | *Add trigger* |
 
 `timeline.start` and `timeline.play` differ only when something is already going: a start always plays from the
 start, a play carries on. A hover animation that should not jump back when the pointer returns mid-way uses
-`timeline.play`; a splash that replays on every click uses `timeline.start`. (Until 1.25 the start list carried
+`timeline.play`; a splash that replays on every click uses `timeline.start`. (Until 1.25 the start carried
 on by default, as `timeline.play` does now. A 1.25 file is converted on read: with that default, its hover and
 click start events move to `timeline.play`, and `load` stays a start.)
 
-Two clicks make two toggles — spelt with the lists themselves, no extra key:
+A rule that does not fit the schema — an unknown action, or an event its action may not name — is **dropped
+whole**, with a warning ([PX1108](../diagnostics.md#what-the-document-says)). The type of one rule is
+`PxActionTriggerRule` (its `action` a `PxActionName`), the list `PxActionTriggers`.
+
+Two clicks make two toggles — spelt with the rules themselves, no extra key:
 
 <!-- px-check off the two click toggles, prose -->
-| Click toggles | `actionTriggers` | A click while… |
+| Click toggles | Rules on `click` | A click while… |
 |---|---|---|
-| start / stop | `{ "timeline.start": "click", "timeline.stop": "click" }` | off starts it; playing or paused stops it |
-| play / pause | `{ "timeline.play": "click", "timeline.pause": "click" }` | off starts it; playing pauses it; paused resumes it |
+| start / stop | `timeline.start` · `timeline.stop` | off starts it; playing or paused stops it |
+| play / pause | `timeline.play` · `timeline.pause` | off starts it; playing pauses it; paused resumes it |
 
 <!-- px-check values PxTriggerEvent pkg=core -->
 | Event | Fires when… |
@@ -246,16 +284,17 @@ Two clicks make two toggles — spelt with the lists themselves, no extra key:
 | `keyDown` | a key goes down — heard on the page while the animation is in view and no text field has the focus; narrow it with `with: { key }` |
 | `keyUp` | it comes up |
 
-The vocabulary is open: a later interaction (focus, an app event) is a new word in the same lists, never a new key.
-Each entry of a list is a word — the whole picture — or an [event object](#an-event-on-one-element-a-page-element-or-a-key).
+The vocabulary is open: a later interaction (focus, an app event) is a new word for `event`, never a new key.
+A rule with no `element` or `selector` hears the whole picture
+([An event on one element, a page element, or a key](#an-event-on-one-element-a-page-element-or-a-key)).
 
-### Which events each list may name
+### Which events each action may name
 
-Each list names only the events that make sense for it; any other event is ignored, with a
-warning ([PX1110](../diagnostics.md#what-the-document-says)).
+Each playback action names only the events that make sense for it; a rule with any other event is dropped,
+with a warning ([PX1110](../diagnostics.md#what-the-document-says)).
 
 <!-- px-check values PxTriggerList pkg=core -->
-| List | `load` | `hoverIn` | `hoverOut` | `click` | Why |
+| `action` | `load` | `hoverIn` | `hoverOut` | `click` | Why |
 |---|---|---|---|---|---|
 | `timeline.start` | ✓ | ✓ | — | ✓ | starting when the pointer *leaves* makes no sense |
 | `timeline.play` | ✓ | ✓ | — | ✓ | the same as `timeline.start` |
@@ -263,89 +302,89 @@ warning ([PX1110](../diagnostics.md#what-the-document-says)).
 | `timeline.pause` | — | ✓ | ✓ | ✓ | a marquee pauses on hover-in, a hover animation on hover-out |
 | `timeline.resume` | — | ✓ | ✓ | ✓ | derived unless the file names it — see below |
 
-The four pressed events — `pointerDown`, `pointerUp`, `keyDown`, `keyUp` — may stand in every list, and the segment
-actions take any event.
+The four pressed events — `pointerDown`, `pointerUp`, `keyDown`, `keyUp` — may stand with every action, and the
+state actions take any event.
 
 ### What resumes a pause — derived unless named
 
-`timeline.resume` need not be written: when the file does not name it, the player derives it from
-`timeline.start`, `timeline.stop` and `timeline.pause`. A paused animation then resumes on
+`timeline.resume` need not be written: when no rule names it, the player derives it from the
+`timeline.start`, `timeline.stop` and `timeline.pause` rules. A paused animation then resumes on
 
-1. the **counterpart** of each `timeline.pause` event — `hoverIn` ↔ `hoverOut`, `click` → `click`
-   (`load` has none), and
+1. the **counterpart** of each `timeline.pause` event — `hoverIn` ↔ `hoverOut`, `click` → `click`,
+   `pointerDown` ↔ `pointerUp`, `keyDown` ↔ `keyUp` (`load` has none), and
 2. the `timeline.start` events that do not also stop it — so a click that starts *and* stops
-   (`"timeline.start": "click", "timeline.stop": "click"`) stops a paused animation, as the lists say.
+   (`timeline.start` and `timeline.stop` on `click`) stops a paused animation, as the rules say.
 
-<!-- px-check off worked examples of the derived resume — the lists are checked in the tables above -->
-| `actionTriggers` | Resume playback on | Plays as… |
+<!-- px-check off worked examples of the derived resume — the actions are checked in the tables above -->
+| Rules (action on event) | Resume playback on | Plays as… |
 |---|---|---|
-| `{ "timeline.start": "load", "timeline.pause": "hoverIn" }` | `hoverOut` (and `load`, which has fired by then) | a marquee: runs on load, holds while the pointer is over it, carries on when it leaves |
-| `{ "timeline.start": "hoverIn", "timeline.pause": "hoverOut" }` | `hoverIn` | a hover animation that holds where it is when the pointer leaves |
-| `{ "timeline.start": "click", "timeline.pause": "click" }` | `click` | the play / pause click toggle: start → pause → resume → pause … |
-| `{ "timeline.start": "click", "timeline.stop": "click" }` | — | the start / stop click toggle: one click starts it, the next stops it — also while paused |
+| `timeline.start` on `load` · `timeline.pause` on `hoverIn` | `hoverOut` (and `load`, which has fired by then) | a marquee: runs on load, holds while the pointer is over it, carries on when it leaves |
+| `timeline.start` on `hoverIn` · `timeline.pause` on `hoverOut` | `hoverIn` | a hover animation that holds where it is when the pointer leaves |
+| `timeline.start` on `click` · `timeline.pause` on `click` | `click` | the play / pause click toggle: start → pause → resume → pause … |
+| `timeline.start` on `click` · `timeline.stop` on `click` | — | the start / stop click toggle: one click starts it, the next stops it — also while paused |
 
-A `timeline.resume` list the file **does** name is honoured as written. Where it differs from the
-derivation — it names an event the derivation would not, or leaves out one it would (that pause
-then waits for another list: `timeline.play`, `timeline.stop` or `timeline.start`) — the player notes it
-([PX1111](../diagnostics.md#what-the-document-says)), so a surprising resume is no mystery.
+`timeline.resume` rules the file **does** have are honoured as written. Where they differ from the
+derivation — they name an event the derivation would not, or leave out one it would (that pause
+then waits for another action: `timeline.play`, `timeline.stop` or `timeline.start`) — the player notes it
+([PX1111](../diagnostics.md#what-the-document-says)), so a surprising resume is no mystery. An empty resume
+list cannot be written: with no `timeline.resume` rule, the resume is derived.
 
 ### One event, several lists
 
-An event may be listed under several lists. The player's **state** picks the lists it is read
-from, in order, and the first list that names the event wins — every button checks the state **as it was when
-the event arrived**:
+An event may be named by rules of several actions. The player's **state** picks the actions it is read
+for, in order, and the first action with a rule on the event wins — every button checks the state **as it was
+when the event arrived**. The state actions come first, in any state:
 
 <!-- px-check off the state rule, prose — triggerActionFor is described under "For player authors" -->
-| State | Lists, first match wins |
+| State | Actions, first match wins |
 |---|---|
 | `playing` | `timeline.pause` · `timeline.stop` · `timeline.start` (a play has nothing to do) |
 | `paused` | `timeline.resume` · `timeline.play` · `timeline.stop` · `timeline.start` |
 | `off`, `returning` | `timeline.start` · `timeline.play` |
 | `finished` | last frame held (`whenFinished: 'hold'`): `timeline.stop` · `timeline.start` · `timeline.play`; otherwise `timeline.start` · `timeline.play` · `timeline.stop` |
 
-- `{ "timeline.play": "click", "timeline.pause": "click" }`: a click while off starts, while playing pauses,
+- `timeline.play` and `timeline.pause` on `click`: a click while off starts, while playing pauses,
   while paused resumes.
-- `{ "timeline.start": "click" }` alone: every click plays from the start — also while it is playing.
-- `{ "timeline.start": "click", "timeline.stop": "click" }` on a one-shot: a click on the finished animation
+- `timeline.start` alone on `click`: every click plays from the start — also while it is playing.
+- `timeline.start` and `timeline.stop` on `click`, on a one-shot: a click on the finished animation
   undoes it while its last frame is held; when `whenFinished` already took the picture back, the click plays it
   again.
 
-Two lists that react to the same event **in the same state** are a **collision**: the players
+Two actions that react to the same event **in the same state** are a **collision**: the players
 report it ([PX1109](../diagnostics.md#what-the-document-says)) and one of them wins.
 
-<!-- px-check off collision cases — the lists are checked in the tables above -->
-| `actionTriggers` | Collision? | What happens |
+<!-- px-check off collision cases — the actions are checked in the tables above -->
+| Rules (action on event) | Collision? | What happens |
 |---|---|---|
-| `{ "timeline.stop": "click", "timeline.pause": "click" }` | **yes** — `timeline.stop` with `timeline.pause` | while playing, `timeline.pause` wins |
-| `{ "timeline.start": "load", "timeline.pause": "hoverIn", "timeline.stop": "hoverOut" }` | **yes** — `timeline.stop` with the counterpart of a `timeline.pause` event | while paused, `hoverOut` resumes rather than stops |
-| `{ "timeline.start": "click", "timeline.play": "click" }` | **yes** — `timeline.start` with `timeline.play` | while off, `timeline.start` wins — the file should name one |
-| `{ "timeline.play": "click", "timeline.pause": "click" }` | no | the normal play / pause toggle — the state decides which list a click is read from |
-| `{ "timeline.start": "click", "timeline.stop": "click" }` | no | the start / stop click toggle — the state decides which list a click is read from |
-| `{ "timeline.play": "hoverIn", "timeline.stop": "hoverOut" }` | no | play on hover-in, stop on hover-out |
+| `timeline.stop` on `click` · `timeline.pause` on `click` | **yes** — `timeline.stop` with `timeline.pause` | while playing, `timeline.pause` wins |
+| `timeline.start` on `load` · `timeline.pause` on `hoverIn` · `timeline.stop` on `hoverOut` | **yes** — `timeline.stop` with the counterpart of a `timeline.pause` event | while paused, `hoverOut` resumes rather than stops |
+| `timeline.start` on `click` · `timeline.play` on `click` | **yes** — `timeline.start` with `timeline.play` | while off, `timeline.start` wins — the file should name one |
+| `timeline.play` on `click` · `timeline.pause` on `click` | no | the normal play / pause toggle — the state decides which action a click is read for |
+| `timeline.start` on `click` · `timeline.stop` on `click` | no | the start / stop click toggle — the state decides which action a click is read for |
+| `timeline.play` on `hoverIn` · `timeline.stop` on `hoverOut` | no | play on hover-in, stop on hover-out |
 
-Every warning the players give about a triggers block, by kind:
+Every warning the players give about the rules, by kind:
 
 <!-- px-check values PxTriggerIssueKind pkg=core -->
 | Kind | Example | The player… | Code |
 |---|---|---|---|
-| `eventNotAllowed` | `"timeline.stop": "load"` | ignores the event (in a file, the document repair drops it from the list first — [PX1108](../diagnostics.md#what-the-document-says)) | [PX1110](../diagnostics.md#what-the-document-says) |
-| `collision` | `"timeline.stop": "click", "timeline.pause": "click"` | lets `timeline.pause` win while playing, the resume while paused, `timeline.start` over `timeline.play` while off | [PX1109](../diagnostics.md#what-the-document-says) |
-| `resumeExtra` | `"timeline.start": "load", "timeline.pause": "hoverIn", "timeline.resume": ["hoverOut", "click"]` | honours the list as written; `click` is the event the derivation would not name | [PX1111](../diagnostics.md#what-the-document-says) |
-| `resumeMissing` | `"timeline.start": "load", "timeline.pause": ["hoverIn", "click"], "timeline.resume": "hoverOut"` | honours the list as written; a pause by `click` then waits for `timeline.start` or `timeline.stop` | [PX1111](../diagnostics.md#what-the-document-says) |
+| `eventNotAllowed` | `timeline.stop` on `load` | ignores the rule (in a file, the document repair drops it first — [PX1108](../diagnostics.md#what-the-document-says)) | [PX1110](../diagnostics.md#what-the-document-says) |
+| `collision` | `timeline.stop` and `timeline.pause` on `click` | lets `timeline.pause` win while playing, the resume while paused, `timeline.start` over `timeline.play` while off | [PX1109](../diagnostics.md#what-the-document-says) |
+| `resumeExtra` | `timeline.start` on `load` · `timeline.pause` on `hoverIn` · `timeline.resume` on `hoverOut` and on `click` | honours the rules as written; `click` is the event the derivation would not name | [PX1111](../diagnostics.md#what-the-document-says) |
+| `resumeMissing` | `timeline.start` on `load` · `timeline.pause` on `hoverIn` and on `click` · `timeline.resume` on `hoverOut` | honours the rules as written; a pause by `click` then waits for `timeline.start` or `timeline.stop` | [PX1111](../diagnostics.md#what-the-document-says) |
 
 ### Absent, or empty
 
-An absent `actionTriggers` block and an empty one, `"actionTriggers": {}`, mean the same thing:
-nothing is listed, so nothing starts the animation until something drives it — your code's
-`timeline.start()`, a component's `playback` prop, or an `actionTriggers` block given to the player. A file that plays by
-itself says so: `"actionTriggers": { "timeline.start": "load" }`. The editor always writes it, and files saved before
-schema 1.17 — when an absent block still meant `load` — get the line written in when they are
+An absent `actionTriggers` list and an empty one, `"actionTriggers": []`, mean the same thing:
+no rule, so nothing starts the animation until something drives it — your code's
+`timeline.start()`, a component's `playback` prop, or an `actionTriggers` list given to the player. A file that plays by
+itself says so: `"actionTriggers": [{ "action": "timeline.start", "event": "load" }]`. The editor always writes it, and
+files saved before schema 1.17 — when an absent block still meant `load` — get the rule written in when they are
 migrated. WHY: a default nobody wrote is a guess, and an absent block meaning something other than an
-empty one trapped every merge patch, hand edit and tool that drops empty objects. A list that is
-absent is simply not listed.
+empty one trapped every merge patch, hand edit and tool that drops empty objects.
 
-**Pause and carry on need no setting.** "Pause when the pointer leaves" is `hoverOut` listed under
-`timeline.pause` (hover-in resumes it — derived); "keep playing" is `hoverOut` not listed at all. That is
+**Pause and carry on need no setting.** "Pause when the pointer leaves" is a `timeline.pause` rule on
+`hoverOut` (hover-in resumes it — derived); "keep playing" is no rule on `hoverOut` at all. That is
 what the editor does for you: ticking *Hover in* under *Start playback on* adds *Hover out* under *Pause playback
 on*, editable.
 
@@ -435,7 +474,7 @@ trigger rule: a click listed under both `timeline.start` and `timeline.stop` und
 last frame is held, and plays it again once `whenFinished` took the picture back
 ([One event, several lists](#one-event-several-lists)).
 
-In a file: `"timeline": { "whenFinished": "hold" }`; per mount, the same key inside `timelineOptions`
+In a file: `"timelines": [{ "whenFinished": "hold" }]` (a state has its own — [States](#states--named-parts-of-a-timeline)); per mount, the same key inside `timelineOptions`
 (`timelineOptions={{ whenFinished: 'jumpToStart' }}`). The schema of the key is `PxWhenFinishedSchema`.
 
 ### What shows while off — `whenIdle`
@@ -504,15 +543,15 @@ so a threshold of `0.5` or `1` can always be met. Where nothing can measure visi
 render, a test environment without `IntersectionObserver` — the animation plays as if fully
 visible, rather than silently never playing.
 
-**To play an animation when it scrolls into view**, nothing has to be set: `"timeline.start": load` behind
+**To play an animation when it scrolls into view**, nothing has to be set: a `timeline.start` rule on `load` behind
 the default gate IS that behaviour — it waits on its first frame until half of it is on screen
 for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 
 ### Where triggers work
 
-- **Every player** — web, React, Vue and React Native — honours the lists, the actions and the
+- **Every player** — web, React, Vue and React Native — honours the rules, the actions and the
   gate, with one exception: React Native has no `hoverIn` / `hoverOut`, because there is no hover
-  on a touch screen.
+  on a touch screen. React Native plays the first timeline only.
 - **Pre-rendered SVG + CSS animation + JS triggers** honours all of them too. The editor writes a
   few lines of script into the file for this; no library is involved.
 - **Pre-rendered SVG + CSS animation** (no script at all) listens for `load` and, through CSS
@@ -522,7 +561,7 @@ for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
   choice *(CSS)* or *(JS)* so you see what the script-free flavour keeps. See
   [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
 - **The CSS components** (`SvgCssAnimationPlayer` in React and Vue) take the JS component's prop
-  names, narrowed: `actionTriggers` (the block), `timelineOptions` with the two gate numbers, and
+  names, narrowed: `actionTriggers` (the list), `timelineOptions` with the two gate numbers, and
   `actions` limited to `outOfView` — read with the same rules. A script-free SVG carries no triggers the
   component could read, so with no `actionTriggers` nothing starts it. Accepted limits of a class toggle: a start that is not
   from rest restarts by remounting the content (a class cannot rewind keyframes), the stop is always
@@ -531,30 +570,31 @@ for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 
 ### An event on one element, a page element, or a key
 
-A list entry can be an object instead of a word (2026-11-15) — the same event, heard somewhere else or narrowed:
+A rule's event can be heard somewhere else than the whole picture, or narrowed (2026-11-15):
 
 ```json
-"actionTriggers": {
-  "timeline.start": ["load", { "event": "click", "element": "#lens" }],
-  "timeline.segment.next": [
-    { "event": "click", "selector": ".next-step" },
-    { "event": "keyDown", "with": { "key": "ArrowRight" } }
-  ],
-  "timeline.pause": { "event": "pointerDown", "with": { "button": 2 } }
-}
+"actionTriggers": [
+  { "action": "timeline.start", "event": "load" },
+  { "action": "timeline.start", "event": "click", "element": "#lens" },
+  { "action": "state.next",     "event": "click", "selector": ".next-step" },
+  { "action": "state.next",     "event": "keyDown", "with": { "key": "ArrowRight" } },
+  { "action": "timeline.pause", "event": "pointerDown", "with": { "button": 2 } }
+]
 ```
+
+The four fields are the same in a rule and in an event object (`PxTriggerEventObject` — the shape core's helpers
+read a rule's event in):
 
 <!-- px-check schema PxTriggerEventObjectSchema -->
 | Field | Means |
 |---|---|
-| `event` | one of the events — the list's own, or any for a segment action |
+| `event` | one of the events — one its action may name; a state action takes any |
 | `element` | one element **of the picture**, by its id (`"#lens"`). The player renders fresh ids and follows them; a hover counts only on crossing that element's edge. An id the picture lacks is reported (PX1113) |
 | `selector` | an element **of the page**, by CSS selector — a *Next* button outside the animation |
 | `with` | fields the event must have — below |
 
-Neither `element` nor `selector`: the whole picture, as a bare word. A word and an object mean the same where both can be
-said: `"click"` is `{ "event": "click" }`. The types are `PxTriggerEventEntry` (a word or a `PxTriggerEventObject`) and
-`PxTriggerEventFilter`.
+Neither `element` nor `selector`: the whole picture. In core's helpers an event is a `PxTriggerEventEntry` — a bare
+word (the whole picture) or a `PxTriggerEventObject`; `with` is a `PxTriggerEventFilter`.
 
 <!-- px-check schema PxTriggerEventFilterSchema -->
 | `with` field | The event must have… |
@@ -572,74 +612,181 @@ said: `"click"` is `{ "event": "click" }`. The types are `PxTriggerEventEntry` (
 A key event is heard on the page — the animation has no focus of its own — while the animation is in view and no text
 field has the focus. React Native hears `click` and `pointerDown` / `pointerUp` on the whole picture only.
 
-## Segments — named parts of one timeline
+## States — named parts of a timeline
 
-A timeline can be cut into **segments** (2026-11-15): a list of named parts that play one at a time — an intro, a loop
-that waits, an ending. The page, or the file's own triggers, moves between them; while a segment is current, **the
-playback is that segment**: `timeline.start()` plays it, `getDuration()` is its pass, a seek lands inside it.
+A **state** is a named situation of the picture — idle, hover, loading, success — given as **a part of one
+timeline**. States are grouped into **state machines**: of one state machine's states exactly one is current,
+and while it is current its part plays. Several state machines run at the same time. The page, or the file's own
+rules, moves between states.
 
 ```json
 "animator": {
-  "timeline": {
-    "outTime": 3000,
-    "segments": [
-      { "name": "intro",   "inTime": 0,    "outTime": 1000, "whenFinished": "timeline.segment.next" },
-      { "name": "loading", "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" },
-      { "name": "success", "inTime": 2000, "outTime": 3000 }
-    ]
-  },
-  "actionTriggers": {
-    "timeline.start": "load",
-    "timeline.segment.goTo(success)": { "event": "click", "selector": "#save" }
-  }
+  "timelines": [ { "outTime": 3000 } ],
+  "states": [
+    { "id": "intro",   "inTime": 0,    "outTime": 1000, "whenFinished": { "action": "state.next" } },
+    { "id": "loading", "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" },
+    { "id": "success", "inTime": 2000, "outTime": 3000 }
+  ],
+  "actionTriggers": [
+    { "action": "timeline.start", "event": "load" },
+    { "action": "state.goTo", "state": "success", "event": "click", "selector": "#save" }
+  ]
 }
 ```
 
-Read cold: the intro plays once and goes on to the loading loop by itself; a click on the page's *Save* button asks for
-the success — the loop first finishes its pass, then the success plays and holds its last frame.
+Read cold: the intro plays once and goes on to the loading loop by itself; a click on the page's *Save* button asks
+for the success — the loop first finishes its pass, then the success plays and holds its last frame. The three
+states name no `stateMachine`, so they form the one state machine without an id, and no `timeline`, so they are
+parts of the first timeline. (Until 2026-11-20 these were the timeline's `segments`, named by `name`; older files
+are converted on read.)
 
-<!-- px-check schema PxTimelineSegmentSchema -->
+**A state overrides its timeline** while it is current: its part, its repeats, direction, speed and end. What it
+does not say, it takes from the timeline. While a state machine is in a state, **the playback is that state**:
+`timeline.start()` plays it, `getDuration()` is its pass, a seek lands inside it.
+
+<!-- px-check schema PxStateSchema -->
 | Field | Means |
 |---|---|
-| `name` | what triggers, go-tos and the page call it — unique in the list: a later segment with a name already used is ignored, with a warning (PX1115) |
-| `inTime` | where its part of the content starts, ms (default: the timeline's window) |
+| `id` | what rules, `whenFinished` and the page call it — unique in `states`: a later state with an id already used is ignored, with a warning ([PX1115](../diagnostics.md#what-the-document-says)) |
+| `name` | a label for people; nothing refers to it — two states can both be called "Open" |
+| `stateMachine` | the state machine it belongs to, by its `id`. None: the state machine without an id |
+| `timeline` | the timeline it is a part of, by its `id`. None: the first |
+| `inTime` | where its part of that timeline starts, ms (default: the timeline's window) |
 | `outTime` | …and ends |
-| `iterations` | passes, or `"infinite"` (default 1) |
+| `initial` | where its state machine starts; none says so: the first of its states in the list |
+| `iterations` | passes, or `"infinite"` (default: the timeline's) |
 | `iterationDirection` | as the timeline's |
-| `playbackSpeed` | as the timeline's (default 1) |
-| `initial` | the segment the timeline starts in; none: the first in the list |
-| `whenFinished` | after its last pass: a picture word (`hold` — the default, `jumpToStart`, `animateToStart`), or go on — `"timeline.segment.next"` or `"timeline.segment.goTo(‹name›)"` |
-| `whenLeaving` | how it leaves when another is asked for (`PxWhenLeaving`): `jump` (default) at once · `animateToEnd` this pass first · `animateToStart` played back to its start |
+| `playbackSpeed` | as the timeline's, on top of the player's speed |
+| `whenFinished` | after its last pass: a picture word (`hold` · `jumpToStart` · `animateToStart`; default: the timeline's, else `hold`), or an action — it goes on there |
+| `whenLeaving` | how it is left when another state is asked for (`PxWhenLeaving`): `jump` (default) at once · `animateToEnd` this pass first · `animateToStart` played back to its start |
 
-**Moving between them.** Three actions (`PxSegmentAction`): `timeline.segment.next` — the next in the LIST, not by
-time (after the last, the first),
-`timeline.segment.previous` (before the first, the last), and a go-to per segment, whose key names it —
-`"timeline.segment.goTo(success)"`; `segmentGoToAction(name)` spells it. The same keys go in `actionTriggers` (any
-event, read before the playback lists) and in a segment's `whenFinished`. A go-to naming no segment is ignored and
-reported (PX1114); a request while a segment is leaving replaces the earlier one — the newest wins.
+A `whenFinished` that goes somewhere is **the same small object as a rule**, without its event (`PxActionObject`):
 
-<!-- px-check signature pkg=core -->
-```typescript
-// The `actionTriggers` key — and the `whenFinished` value — that goes to the segment `name`:
-//   'timeline.segment.goTo(' + name + ')'. A whole key, looked up as it is; nothing takes it apart.
-function segmentGoToAction(name: string): string;
+<!-- px-check values PxStateAction pkg=core -->
+| Action | `whenFinished` | Goes to |
+|---|---|---|
+| `state.goTo` | `{ "action": "state.goTo", "state": "hover" }` | that state |
+| `state.next` | `{ "action": "state.next" }` | the next state of its state machine, in list order — after the last, the first |
+| `state.previous` | `{ "action": "state.previous" }` | the previous one — before the first, the last |
+
+### State machines
+
+`animator.stateMachines` lists the state machines that have an id. States with no `stateMachine` form one more,
+without an id — enough for most files. State machines do not know of each other: a button's pointer states and its
+notification badge can each have their own, and both play at once.
+
+<!-- px-check schema PxStateMachineSchema -->
+| Field | Means |
+|---|---|
+| `id` | what a state's `stateMachine` and a rule's `stateMachine` call it — unique in the list |
+| `name` | a label for people |
+
+```json
+"states": [
+  { "id": "idle",    "timeline": "grow", "inTime": 0, "outTime": 0 },
+  { "id": "hover",   "timeline": "grow", "whenLeaving": "animateToStart" },
+  { "id": "calm",    "stateMachine": "notice", "timeline": "ring", "inTime": 0, "outTime": 0 },
+  { "id": "ringing", "stateMachine": "notice", "timeline": "ring", "inTime": 0, "outTime": 600, "iterations": 3,
+    "whenFinished": { "action": "state.next" } },
+  { "id": "unread",  "stateMachine": "notice", "timeline": "ring", "inTime": 600, "outTime": 1400 }
+],
+"stateMachines": [ { "id": "notice", "name": "Notification" } ]
 ```
 
-**From page code**, `player.timeline.segment` (`PxSegmentControls`): `next()`, `previous()`, `goTo(name)`, `get()` and
-`getAll()`; `onSegmentChange(segment, previous)` tells the page — [the web player](./web-player.md#the-playback-api).
-**A component** takes the segment as a lever: `<SvgAnimationPlayer document={saveIcon} segment={status} />` (React, Vue;
-`PxSegmentProps`). While the prop is set the page holds the segment and the file's segment triggers rest; at mount a
-segment that ends is shown at its end without playing, one that repeats plays. The wire type is `PxTimelineSegment`.
+`idle` and `hover` are the state machine without an id; `calm`, `ringing` and `unread` are `notice`, three parts of
+one timeline, `ring`.
+
+### Several timelines and `byTimeline`
+
+A file can hold several timelines. The first carries the plain keyframes; any other is named by its `id`, and an
+attribute that moves on it says what it does there in **`byTimeline`** — a held `value`, or `keyframes` counted from
+that timeline's time 0. On a timeline that is not showing, the attribute has the node's own value. A node names
+timelines only, never a state — so cutting or regrouping states touches no node.
+
+```json
+"timelines": [
+  { "outTime": 4000, "iterations": "infinite" },
+  { "id": "grow", "outTime": 150 },
+  { "id": "dip",  "outTime": 200 }
+],
+"children": [
+  { "type": "rect", "id": "bg", "width": 200, "height": 80, "fill": "#2a7fff",
+    "animate": {
+      "scale": { "byTimeline": [
+        { "timeline": "grow", "keyframes": [ { "time": 0, "value": 1 }, { "time": 150, "value": 1.08 } ] },
+        { "timeline": "dip",  "keyframes": [ { "time": 0, "value": 1.08 }, { "time": 100, "value": 0.96 }, { "time": 200, "value": 1.08 } ] } ] },
+      "fill": { "byTimeline": [ { "timeline": "dip", "value": "#1f5fbf" } ] } } }
+]
+```
+
+`byTimeline` works wherever an animated value does — a node's `animate`, a shared animation in
+`definitions.animations`, and the animatable parameters of effects. Plain `keyframes` beside a `byTimeline`
+are not played: `byTimeline` wins, with a finding. One entry is a `PxTimelineTrack`; the full shape is on the
+[JSON format page](../format/README.md#timelines-states-and-state-machines).
+
+### Moving between states
+
+<!-- px-check off the four ways to move a state, prose -->
+| From | How |
+|---|---|
+| a rule of the file | `{ "action": "state.goTo", "state": "success", "event": "click" }`; `state.next` / `state.previous` with an optional `stateMachine` — any event, read before the playback actions ([Triggers](#triggers--when-it-plays)) |
+| a state's end | its `whenFinished` action |
+| page code | `player.state.goTo('success')`, `.next(stateMachine?)`, `.previous(stateMachine?)`; `.get(stateMachine?)` is the current state of each state machine, a list; `.getAll()` every id — [the web player](./web-player.md#the-playback-api) |
+| a component | the `state` prop — one id, or a list with one id per state machine: `<SvgAnimationPlayer document={saveIcon} state={status} />` (React, Vue) |
+
+`onStateChange(state, previous, stateMachine?)` tells the page — the Vue event is `stateChange`. Going to the
+current state does nothing; an id the file does not have is ignored and reported
+([PX1114](../diagnostics.md#what-the-document-says)); a request while a state is leaving replaces the earlier one
+— the newest wins. While the `state` prop is set, the page holds that state machine and the file's rules for it
+rest; at mount a state that ends is shown at its end without playing, one that repeats plays. The prop's type is
+`PxStateProps`, the handle's `PxStateControls`, the wire types `PxState` and `PxStateMachine`.
+
+### How it plays
+
+<!-- px-check off how several timelines and states play, prose -->
+| | |
+|---|---|
+| A timeline that no state uses | plays by itself, as a single timeline does: its own playback state, `whenFinished`, `whenIdle`, `actions` |
+| A timeline that states use | is always in the current state of its state machine, or not showing. Being in a state is not playing: `timeline.start` starts it; going to a state plays it from its start, also when paused or off |
+| `timeline.*` with no `timeline` | acts on the whole picture — every timeline, every state machine. With a `timeline`: on that one |
+| `player.timeline` | its buttons and speed act on the whole picture; its reads and seeks are of the first timeline. `player.getTimeline(id)` is the same kind of handle for one timeline (`undefined` for an id the file lacks) |
+| The callbacks | `onPlaybackStart` … `onPlaybackFinish` report the first timeline; `onStateChange` reports every state machine |
+| Key events | heard on the page, only while the picture is in view and not while typing in a field |
+| What shows before anything plays | a timeline that plays by itself: its `whenIdle`; a state machine: the first frame of its starting state; an attribute on a timeline that is not showing: the node's own value |
+| A scroll timeline | an entry with `"type": "scroll"` — alone in the file, or beside other timelines. It plays by itself, moved by the scrolling, while the others go on. States cannot cut it |
+
+### Checks
+
+Each is a finding of the file check; none stops a file from playing — the player keeps the first and goes on.
+Repeated state ids are [PX1115](../diagnostics.md#what-the-document-says), a `state.goTo` naming no state
+[PX1114](../diagnostics.md#what-the-document-says); every other finding is
+[PX1116](../diagnostics.md#what-the-document-says), with its `kind`:
+
+<!-- px-check values PxTimelineIssueKind pkg=core -->
+| `kind` | When | What the player does |
+|---|---|---|
+| `idDuplicate` | two timelines, or two state machines, share an id | the first wins |
+| `referenceNotFound` | a `timeline`, `state` or `stateMachine` names nothing — on a state, a rule or a `byTimeline` entry | it is not read |
+| `timelineShared` | states of two state machines are on one timeline | it has one playhead: the first state machine keeps it |
+| `stateOnScrollTimeline` | a state on a scroll timeline | not read |
+| `attributeSplit` | one attribute rides timelines of two state machines — or of a state machine and a timeline that plays by itself. A node's transform parts (translate, rotate, scale, skew, origin) count as one attribute | the first entry wins |
+| `keyframesBesideTracks` | plain `keyframes` beside `byTimeline` | `byTimeline` wins |
+
+### Accepted limits
 
 <!-- px-check off accepted limits, prose -->
-| Not in this first cut | Instead |
+| Limit | The way round |
 |---|---|
-| `getState()` naming the segment | `timeline.segment.get()` beside it |
-| the timeline's own `whenFinished` moving between segments | a segment's `whenFinished` |
-| `delay` with segments | ignored — a segment plays at once |
-| `timelineOptions` changing one segment | an override REPLACES the `segments` list, as every list — pass it whole |
-| exports other than the players (Lottie, video, SVG + CSS) | the whole timeline, as before |
-| React Native's `segment` prop | `playerRef` → `timeline.segment` |
+| One state — one timeline: two clocks of different length in one state cannot be said | two state machines moved by the same event — or one timeline and a per-property `loop` |
+| No blend between two timelines, no crossfade between two states | two states on one timeline: it plays from one part to the other — `whenLeaving` |
+| An id is unique in its whole list — two states cannot both be `open` | `eyesOpen`, `mouthOpen`; a `name` beside the id can still say "Open" |
+| The transform parts of one node are one attribute — `scale` on one timeline and `rotate` on another overwrite each other | a group around the node takes the second move, as in SVG itself |
+| A rule applies in every state of its state machine | — |
+| A timeline's `delay` is not waited when states use it | a state plays at once |
+| `getState()` naming the state | `state.get()` beside it |
+| `timelineOptions` changing one state | `timelineOptions` patches the first timeline only; states are the file's |
+| Exports other than the players — SVG + CSS with no script, Lottie, video | the first timeline, whole |
+| React Native | the first timeline only — `getTimeline()` answers `undefined`, no `state` prop yet |
 
 ## Overriding from a player
 
@@ -655,9 +802,9 @@ never modified:
 <!-- px-check off the three override props, prose — their types are checked in each player's signature block -->
 | | prop / option | what it carries |
 |---|---|---|
-| the timing | `timelineOptions` | corrections to the file's `timeline` block, minus its `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, `whenFinished`, the gate numbers — as an object shaped like the file, **merged** over it; whoever needs more edits the document |
-| the actions | `actions` | the `timeline.actions` block to use **instead** of the file's — `{ 'timeline.stop': 'animateToStart' }` says how a stop looks; a slot left out (`outOfView`, say) reads its default, never the file's value |
-| the triggers | `actionTriggers` | the `actionTriggers` block to use **instead** of the file's — `timeline.resume` included (derived when left out), so the override has the file's power. Lists left out are simply not listed, never the file's values. `null` or `{}`: no triggers, the same as `disableActionTriggers` ([Control modes](#control-modes--who-drives-it)) |
+| the timing | `timelineOptions` | corrections to the file's first timeline, minus `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, `whenFinished`, the gate numbers — as an object shaped like the file, **merged** over it; whoever needs more edits the document |
+| the actions | `actions` | the first timeline's `actions` block to use **instead** of the file's — `{ 'timeline.stop': 'animateToStart' }` says how a stop looks; a slot left out (`outOfView`, say) reads its default, never the file's value |
+| the triggers | `actionTriggers` | the `actionTriggers` list to use **instead** of the file's — the same rules a file can have, `timeline.resume` and the state actions included, so the override has the file's power. A rule left out is not there, never the file's. `null` or `[]`: no triggers, the same as `disableActionTriggers` ([Control modes](#control-modes--who-drives-it)) |
 
 Merge or replace — the one rule for the three:
 
@@ -665,15 +812,16 @@ Merge or replace — the one rule for the three:
 | | |
 |---|---|
 | `timelineOptions` | **a recursive partial** — "options": objects merge key by key, values replace, a key left out keeps the file's value |
-| `actions`, `actionTriggers` | **blocks** that replace the file's as a whole — their slots belong together: switching hover → click wants other lists too, and one action slot changed against the file's others can make no sense |
+| `actions`, `actionTriggers` | **blocks** that replace the file's as a whole — their slots and rules belong together: switching hover → click wants other rules too, and one action slot changed against the file's others can make no sense |
 
 So a hover file that saves `actions: { outOfView: 'continue' }`, mounted with
 `actions={{ 'timeline.stop': 'animateToStart' }}`, scrolls out of view with `outOfView` at its default,
 `pause`. To keep a slot, write it in the block you pass.
 
-The prop is `timelineOptions`, not `timeline`: it is not the file's `timeline` object — two of its
-keys live on other props — and a prop that shares a file key's name would promise the same shape.
-`actions` and `actionTriggers` keep the file's names because each IS that block.
+The prop is `timelineOptions`, not `timeline`: it is not a timeline of the file — one of its keys lives on
+another prop, and the rules sit beside the timelines — and a prop that shares a file key's name would promise
+the same shape. `actions` and `actionTriggers` keep the file's names because each IS that block. With several
+timelines, `timelineOptions` and `actions` patch the **first** one; the others play as the file says.
 
 **Web player**
 
@@ -703,11 +851,13 @@ a.timeline.stop();   // plays on to the end of the current pass, then rests — 
 
 // these triggers instead of the file's: plays on hover-in, plays back on hover-out —
 // a hover-in on the way back turns it around
-<SvgAnimationPlayer document={animation} actionTriggers={{ 'timeline.play': 'hoverIn', 'timeline.stop': 'hoverOut' }}
+<SvgAnimationPlayer document={animation}
+  actionTriggers={[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.stop', event: 'hoverOut' }]}
   actions={{ 'timeline.stop': 'animateToStart' }} />
 
 // one click starts it, the next stops it
-<SvgAnimationPlayer document={animation} actionTriggers={{ 'timeline.start': 'click', 'timeline.stop': 'click' }} />
+<SvgAnimationPlayer document={animation}
+  actionTriggers={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />
 
 // driven by your state — the same actions, the same settings
 <SvgAnimationPlayer document={spinner} playback={busy ? 'on' : 'off'} actions={{ 'timeline.stop': 'animateToEnd' }} />
@@ -723,8 +873,8 @@ a.timeline.stop();   // plays on to the end of the current pass, then rests — 
 | **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
 | **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0, whenFinished: 'hold' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
-| **`actionTriggers` and `actions` are not timeline keys here** | the file nests them, the props lift them: only `actionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error. Both are whole blocks, set as given (`actions` merged until 1.25) |
-| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations` and `engine` — the keys both kinds share. Clock-only keys (`actionTriggers`, `actions`, `whenIdle`, `whenFinished`, `delay`, `playbackSpeed`, `iterationDirection`, `frameRate`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning; so is `iterations: 'infinite'` |
+| **`actionTriggers` and `actions` are not timeline keys here** | the file keeps them apart (the rules beside the timelines, `actions` inside one), the props lift them: only `actionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error. Both are whole blocks, set as given (`actions` merged until 1.25) |
+| **Changing the `type` starts over** | switching the first timeline between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations` and `engine` — the keys both kinds share. Clock-only keys (`actions`, `whenIdle`, `whenFinished`, `delay`, `playbackSpeed`, `iterationDirection`, `frameRate`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning; so is `iterations: 'infinite'` |
 | **A moment and `holdOnScreen` are one value each** | on a scroll timeline, `firstFrameWhen`, `lastFrameWhen` and `holdOnScreen` are replaced whole — a word and an object never mix: `timelineOptions: { holdOnScreen: { at: 'center' } }` over a file's `{ forScreens: 3 }` holds at the centre for the page's own tall section |
 
 Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions, actionTriggers })`
@@ -742,7 +892,7 @@ timing, typed from `PxTimelineTiming` (the timeline minus `actionTriggers` and `
 `PxTimelineOptions<TFollowed>`, is what a scroll timeline's `follows` may also take from page code — an `Element`
 on the web player, none by default ([From page code](#from-page-code)). `PxActionsInput`
 (the `actions` prop) is the `actions` block itself (`PxActions`), and `PxActionTriggersInput` the triggers
-block. WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until
+list of rules. WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until
 1.25): `PxRecursivePartial` says what the type IS — the common `RecursivePartial`; "options" is the word
 for a merge, "input" for a block taken as given. `withActionTriggers(doc, triggers)` and
 `withActions(doc, actions)` are the SETs the two blocks need (an empty block and a replacement that drops
@@ -762,11 +912,11 @@ can still drive it through the handle.
 | `fixedTime` | `showAtProgress` / `showAtTime` (components) | off; the player seeks and holds that frame | works; a write warns ([PX1503](../diagnostics.md#the-props-a-component-was-given)) and the next prop change reasserts the frame |
 | `playback` | `playback` (components) | off; the lever presses the buttons | works; a write warns (PX1503) and the next prop change reasserts the lever |
 | `manual` | `disableActionTriggers` (or `actionTriggers: null`) | off — nothing starts it by itself | your code presses the buttons |
-| `actionTriggers` (default) | nothing — or an `actionTriggers` block | the file's own, or the block given | works too |
+| `actionTriggers` (default) | nothing — or an `actionTriggers` list | the file's own, or the list given | works too |
 
 When two are set at once the higher row wins — `showAsStatic` beats everything — and the player warns
 once, naming both and the winner ([PX1501](../diagnostics.md#the-props-a-component-was-given)); TypeScript
-rejects the mix on the components first. `actionTriggers={{}}` is the default mode with an empty block, so
+rejects the mix on the components first. `actionTriggers={[]}` is the default mode with an empty list, so
 it does what `disableActionTriggers` does. `playerRef` (a Vue template ref, the web player's returned api)
 is not a mode: the handle is filled in every mode and never changes which one you are in, so a bare
 component with `playerRef` plays as the file says AND gives you the handle — add `disableActionTriggers`
@@ -791,7 +941,7 @@ whether that mode switches the file's triggers off — true for every mode excep
 switched off: `static` → `withStaticPicture(doc)` (the triggers emptied and `whenIdle: 'static'`, so the
 picture is the SVG as drawn; a scroll-driven document comes back as it is — its scroll is simply not
 attached), the other modes that take the triggers over → `withoutTriggerDriver(doc)` (an **empty**
-`actionTriggers` block; a scroll-driven document is spared), `actionTriggers` → as it is. The web player and
+`actionTriggers` list; a scroll-driven document is spared), `actionTriggers` → as it is. The web player and
 the pre-rendered builds call it; the components apply their own pose rules beside it.
 
 ### For player authors — the same rules, exported
@@ -802,25 +952,40 @@ write yourself cannot drift from the four shipped ones:
 - **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means
   (`stopPlaybackBehavior: 'jumpToStart'` · `whenFinished: 'hold'` · `outOfViewBehavior: 'pause'`,
   `whenIdle: 'static'`, 0.5, 150 ms — and no `timeline.start`: an absent trigger block names no event).
-  `resolveTriggers(triggers)` returns a `PxResolvedTriggers` —
-  every list an array of the events it may name (`triggerEventList` normalises one), `timeline.resume`
-  derived unless the file names it, an absent block and an empty one both nothing.
+  `resolveTriggers(rules, stateIds?)` returns a `PxResolvedTriggers` —
+  the rules grouped by playback action, each an array of the events it may name (`triggerEventList` normalises
+  one), `timeline.resume` derived unless a rule names it, an absent list and an empty one both nothing.
   `resolveActions(actions, whenFinished?)` returns a
   `PxResolvedActions` — the `timeline.stop` and `outOfView` settings plus `whenFinished`, every one defaulted; `actionSettingsOf(slot)` reads one slot however it
   is written (the word `'animateToStart'` is exactly `{ behavior: 'animateToStart' }`). `resolveGate(view)` returns a `PxResolvedGate`:
   the `outOfView` behavior and the two sensor numbers, defaulted.
-- **Segments and events.** `resolveSegments(view)` returns the segments in timeline order as `PxSegmentSettings`
-  (`hasSegments(doc)` asks first); `withSegmentEngine(doc)` is the document the engine plays — one plain pass the
-  segment clock seeks (`PxSegmentRuntime`); `segmentReferenceIssues(view)` lists the go-tos that name nothing
-  (`PxSegmentReferenceIssue`), `duplicateSegmentNames(view)` the names used twice, `isSegmentGoToAction(key)` recognises one. `resolveTriggers` keys every entry —
-  `triggerKeys(resolved)`, `triggerKeyOf(entry)`, `triggerSpecOf(entry)` → a `PxTriggerEventSpec` (`triggerEventOf`
-  gives its event) — and lists the segment triggers (`PxSegmentTrigger`, `PxSegmentTriggerKind`);
-  `isTriggerEvents(value)` guards an open key's value; `PX_ALL_TRIGGER_EVENTS` is every event.
-- **The lists.** `PxTriggerList` names them (`timeline.start` · `timeline.play` · `timeline.stop` · `timeline.pause` · `timeline.resume`);
+- **Rules.** `PX_ACTION_NAMES` lists every action a rule may name (a `PxActionName`), `isPlaybackAction(action)`
+  tells the five playback actions from the three state actions (`PxStateAction`). `ruleEntriesOf(rules, action)`
+  gives the events of the rules that name an action, `ruleEventEntry(rule)` one rule's event as an entry (a bare word,
+  or a `PxTriggerEventObject`), and `rulesOfEntries(action, entries, refs?)` turns entries back into rules —
+  `PxTriggerEvents` is one entry or several, as those helpers take them.
+  `resolveTriggers` keys every entry — `triggerKeys(resolved)`, `triggerKeyOf(entry)`, `triggerSpecOf(entry)` → a
+  `PxTriggerEventSpec` (`triggerEventOf` gives its event) — and lists the state rules (`states`, each a
+  `PxStateTrigger`); `isTriggerEvents(value)` guards an open value; `PX_ALL_TRIGGER_EVENTS` is every event.
+- **States.** `hasStates(doc)` asks whether the first timeline has states; `resolveStates(view)` returns them in list
+  order as `PxStateSettings`, every default applied; `withStateEngine(doc)` is the document the engine plays — one
+  plain pass the state clock seeks. `isStateActionObject(value)` recognises a `whenFinished` that is an action.
+  `stateReferenceIssues(view)` lists the `state.goTo` that name nothing (`PxStateReferenceIssue`, PX1114),
+  `duplicateStateIds(states)` the ids used twice (PX1115). `firstTimelineOf(view)` is the default timeline and
+  `isOnFirstTimeline(state, first)` says whether a state is a part of it. `forwardStateControls(target, write)` builds
+  the forwarding `state` every wrapper hands out — the twin of `forwardPlaybackControls`.
+- **Several timelines.** `timelineIssues(doc)` returns every finding of [Checks](#checks) as a `PxTimelineIssue` —
+  `{ kind, key?, id?, at?, attribute? }`, its `kind` a `PxTimelineIssueKind`; the web player reports them as PX1116.
+  The players split a file into units — one per timeline that plays by itself and one per state machine — and play
+  them side by side (`planUnits`, internal).
+- **The playback actions.** `PxTriggerList` names them (`timeline.start` · `timeline.play` · `timeline.stop` · `timeline.pause` · `timeline.resume`);
   `allowedTriggerEvents(list)` is the table of events each may name (the schema is built from it);
   `counterpartTriggerEvent(event)` is the event that undoes another (`hoverIn` ↔ `hoverOut`,
   `click` → `click`, none for `load`); `derivedResume(startPlayback, stopPlayback, pausePlayback)` is the derived resume.
-- **Schemas.** `PxActionTriggersSchema` (fixed lists, each limited to its events) and `PxActionsSchema`, one fixed sub-schema per
+- **Schemas.** `PxActionTriggersSchema` is the list of rules — `PxActionTriggerRuleSchema` one rule, a member per action,
+  each limited to the events it may name, so a rule that does not fit is dropped whole; `PxActionObjectSchema` is a
+  `whenFinished` action, `PxStateSchema` · `PxStateMachineSchema` a state and a state machine, `PxTimelineTrackSchema`
+  one `byTimeline` entry. `PxActionsSchema` has one fixed sub-schema per
   slot — `PxStopPlaybackActionSchema`, `PxOutOfViewActionSchema` — each stating its
   defaults; `PxWhenFinishedSchema` is the `whenFinished` enum on the timeline (`hold` · `jumpToStart` · `animateToStart`, default `hold`).
 - **The event rule.** `triggerActionFor(triggers, state, event, whenFinished)` — the playback's state (`PxPlaybackState`:
@@ -828,9 +993,9 @@ write yourself cannot drift from the four shipped ones:
   [One event, several lists](#one-event-several-lists) (`whenFinished` decides the order while finished), and the answer is a
   `PxTriggerAction`: `timeline.start`, `timeline.play`, `timeline.stop`, `timeline.pause` or `timeline.resume`.
   `triggerListsEvent` says which listeners to attach at all.
-- **The warnings.** `triggerIssues(triggers)` returns every problem with a block as a
+- **The warnings.** `triggerIssues(rules)` returns every problem with the rules as a
   `PxTriggerIssue` — `{ kind, list, event, otherList? }`, its `kind` a `PxTriggerIssueKind`
-  (`eventNotAllowed` · `collision` · `resumeExtra` · `resumeMissing`); an empty array is a clean block. The web
+  (`eventNotAllowed` · `collision` · `resumeExtra` · `resumeMissing`); an empty array is a clean list. The web
   player reports them as PX1110, PX1109 and PX1111 (both resume kinds).
 - **Where they live.** The trigger functions (`resolveTriggers` … `triggerIssues`) and their types
   (`PxResolvedTriggers`, `PxTriggerIssue`) come from `@pixodesk/svg-animator-core/engine`; the
@@ -843,7 +1008,7 @@ write yourself cannot drift from the four shipped ones:
   finish (`finished`, `onPlaybackFinish`, then `whenFinished`), or the end of a return leg. It owns the states
   engines cannot report — paused versus off, finished, returning — and tells the playback events
   (`setListeners(PxPlaybackListeners)`: `onPlaybackStart` · `onPlaybackStop` · `onPlaybackPause` · `onPlaybackResume` ·
-  `onPlaybackFinish`, the playback subset of `PxAnimationPlayerCallbacks`); an engine's own raw end never reaches a page.
+  `onPlaybackFinish` · `onStateChange`, the playback subset of `PxAnimationPlayerCallbacks`); an engine's own raw end never reaches a page.
   `resolveDeclarativePlayback(args)` (`/engine`) turns a change of the `playback` prop (`PxDeclarativeProps`) into
   the buttons to press — `PxDeclarativeAction`: `startPlayback` · `stopPlayback` · `pausePlayback` · `resumePlayback` — so every
   framework component resolves `playback` the same way (a mount with `"off"` presses nothing; no position pair is
@@ -877,7 +1042,7 @@ What the names alone do not settle — each row is a test in the packages:
 | Progress counts iterations | `timeline.getCurrentProgress()` / `timeline.setCurrentProgress()` and `showAtProgress`: `1.2` is 20 % into the second iteration, in play order; clamped to `0 … iterations`, no upper bound when endless; nothing wraps |
 | A negative speed multiplies with `iterationDirection` | `timeline.setSpeed(-1)` plays a `reverse` pass forwards. A file's `playbackSpeed` must be positive — in a file the direction is `iterationDirection` |
 | On a scroll timeline only the scroll moves the playhead | `timeline.getState()` reads `scrubbing` on every engine and no playback callback fires. The buttons — `timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()` — `timeline.setSpeed()`, `timeline.setDurationAtSpeed()` and the seeks — `timeline.setCurrentTime()`, `timeline.setCurrentProgress()`, `timeline.setTotalTime()`, the components' `showAtProgress` / `showAtTime` — are ignored with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); the reads still answer |
-| With no control prop the file drives | no `showAsStatic`, `showAt…`, `playback`, `disableActionTriggers` or `actionTriggers`: the document's own `actionTriggers` start it, on every player — a file saved with `"timeline.start": "load"` plays at once, a file without triggers stays still until code calls `timeline.start()` |
+| With no control prop the file drives | no `showAsStatic`, `showAt…`, `playback`, `disableActionTriggers` or `actionTriggers`: the document's own `actionTriggers` start it, on every player — a file saved with a `timeline.start` rule on `load` plays at once, a file without triggers stays still until code calls `timeline.start()` |
 | A player shown with `showAsStatic` never moves | the picture as drawn, whatever the file says: no triggers, no scroll, and `timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()`, every seek, `timeline.setSpeed()` and `timeline.setDurationAtSpeed()` are no-ops with the usage warning `showAsStaticIgnoresCall` ([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer. It beats every other control prop |
 | `playback="off"` on mount does nothing | a component mounted with `playback="off"` presses no button — there is nothing to stop yet; a change from `"on"` to `"off"` stops. A mount with `"on"` starts the playback, with `"paused"` starts it frozen |
 | The gate presses the real buttons | scrolled out of view, `outOfView: 'pause'` makes the state `paused` and reports `onPlaybackPause` (`onPlaybackResume` when seen again); `'stop'` makes it `off` and reports `onPlaybackStop` (`onPlaybackStart` when it starts again). It only undoes what it did: a playback the page paused stays paused |
@@ -894,7 +1059,7 @@ playback panel, or set it in the file:
   // The playhead follows this animation on its way across the screen: the first frame as it
   // appears at the bottom, the last frame as it is gone at the top. The keyframes up to
   // `outTime` are spread between those two moments.
-  "timeline": { "type": "scroll", "outTime": 3000 }
+  "timelines": [ { "type": "scroll", "outTime": 3000 } ]
 }
 ```
 
@@ -906,12 +1071,16 @@ alone is a whole timeline:
   gone, unless they say otherwise;
 - whether it is **held on screen** meanwhile — `holdOnScreen`.
 
-The clock keys — `actionTriggers`, `actions`, `delay`, `playbackSpeed`, `iterationDirection`, `whenIdle`,
-`whenFinished`, `frameRate` and the gate numbers — have no slot on a scroll timeline.
+The clock keys — `actions`, `delay`, `playbackSpeed`, `iterationDirection`, `whenIdle`, `whenFinished`,
+`frameRate` and the gate numbers — have no slot on a scroll timeline, and no rule of `actionTriggers` starts it.
+A scroll timeline can be the only one, or stand beside clock timelines: an entry with an `id`, and the attributes
+that follow the scroll ride it through `byTimeline` ([Several timelines](#several-timelines-and-bytimeline)).
 
 <!-- px-check schema PxScrollTimelineSchema -->
-| `timeline.` | Values | Default | Meaning |
+| Key | Values | Default | Meaning |
 |---|---|---|---|
+| `id` | text | — | what rules and `byTimeline` tracks call it — unique in `timelines`; the first needs none |
+| `name` | text | — | a label for people |
 | `type` | `scroll` | — | the scrolling moves the playhead |
 | `follows` | `thisDomElement` · `parentDomElement` · `pageDomElement` · `pageScroll` · `containerScroll` | `thisDomElement` | what the playhead follows — [What it follows](#what-it-follows) |
 | `selector` | a CSS selector **in the page** | — | the element `pageDomElement` follows, or the scrolling box `containerScroll` follows (without one: the box around the animation) |
@@ -1034,37 +1203,39 @@ and its file says `{ "type": "scroll", "follows": "pageScroll" }`.
 ### The common cases
 
 ```js
+// Each line is one entry of `timelines`.
+
 // Across the screen: the first frame as it appears, the last as it is gone (the defaults)
-"timeline": { "type": "scroll" }
+{ "type": "scroll" }
 
 // Draws itself while it comes in — done once all of it is in
-"timeline": { "type": "scroll", "lastFrameWhen": "fullyIn" }
+{ "type": "scroll", "lastFrameWhen": "fullyIn" }
 
 // Plays out as it goes
-"timeline": { "type": "scroll", "firstFrameWhen": "startsToLeave" }
+{ "type": "scroll", "firstFrameWhen": "startsToLeave" }
 
 // From the middle of the screen until it is half out
-"timeline": { "type": "scroll", "firstFrameWhen": "centered", "lastFrameWhen": "halfOut" }
+{ "type": "scroll", "firstFrameWhen": "centered", "lastFrameWhen": "halfOut" }
 
 // A reading-progress bar: how far the page is scrolled, top to bottom
-"timeline": { "type": "scroll", "follows": "pageScroll" }
+{ "type": "scroll", "follows": "pageScroll" }
 
 // …over the middle of the page only: from 20 % to 80 % scrolled
-"timeline": { "type": "scroll", "follows": "pageScroll",
-              "firstFrameWhen": { "scrolled": 0.2 }, "lastFrameWhen": { "scrolled": 0.8 } }
+{ "type": "scroll", "follows": "pageScroll",
+  "firstFrameWhen": { "scrolled": 0.2 }, "lastFrameWhen": { "scrolled": 0.8 } }
 
 // Held in the centre of the screen for three screens of scrolling, playing meanwhile
-"timeline": { "type": "scroll", "holdOnScreen": { "at": "center", "forScreens": 3 } }
+{ "type": "scroll", "holdOnScreen": { "at": "center", "forScreens": 3 } }
 
 // An element of the page drives it: the chapter, on its way across the screen
-"timeline": { "type": "scroll", "follows": "pageDomElement", "selector": "#chapter-2" }
+{ "type": "scroll", "follows": "pageDomElement", "selector": "#chapter-2" }
 
 // An exact place: the first frame when its top is 80 % down the screen
-"timeline": { "type": "scroll", "firstFrameWhen": { "domElement": "top", "screen": 0.8 } }
+{ "type": "scroll", "firstFrameWhen": { "domElement": "top", "screen": 0.8 } }
 
 // A horizontal strip, a soft catch-up, a window of the keyframes played twice across the stretch
-"timeline": { "type": "scroll", "axis": "horizontal", "smoothing": 150,
-              "inTime": 1000, "outTime": 3000, "iterations": 2 }
+{ "type": "scroll", "axis": "horizontal", "smoothing": 150,
+  "inTime": 1000, "outTime": 3000, "iterations": 2 }
 ```
 
 ### From page code
@@ -1158,7 +1329,7 @@ from the start edge: `top` / `left` 0, `center` 0.5, `bottom` / `right` 1, a num
 | A seek from page code | make it a clock timeline |
 | A held element that follows something else | stick it with the page's CSS and follow `pageScroll` |
 | A stretch that begins before the element appears — a share outside 0–1 | `inTime` starts the animation at a later frame |
-| One part follows the scroll while the rest plays on the clock | — : one timeline per document, so the whole document follows the scroll |
+| States on a scroll timeline | — : a state on it is not read; it plays by itself |
 | An `axis` across the page's writing direction (vertical lines of text) | `horizontal` on an ordinary page |
 
 ## Engine

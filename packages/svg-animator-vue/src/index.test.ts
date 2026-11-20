@@ -62,12 +62,12 @@ function getTestJson(): PxDocument {
                 }
             } } },
             bindings: [{ element: '#_px_2pp00tnc', animateWith: ['a0'] }],
-            timeline: {
+            timelines: [{
                 engine: "js",
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }, actionTriggers: { "timeline.start": "load" },
+            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [

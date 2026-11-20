@@ -36,10 +36,10 @@ const mkDoc = (): PxDocument => ({
             { time: 750, value: { translate: END } },
         ] } } } },
         bindings: [{ element: '#el1', animateWith: ['a0'] }],
-        timeline: {
+        timelines: [{
             engine: 'js',
             outTime: 1000,
-        },
+        }],
     },
     children: [{ type: 'ellipse', id: 'el1', rx: 9.641, ry: 9.641 }],
 });
