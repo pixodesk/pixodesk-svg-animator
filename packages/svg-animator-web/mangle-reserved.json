@@ -109,6 +109,7 @@
   "filter",
   "findings",
   "firstFrameWhen",
+  "firstTimelineId",
   "flatnessTolerance",
   "focal",
   "followed",

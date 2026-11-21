@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from '../packages/svg-animator-core/dist/index.js';
+import { parseSchemaChangeCodes } from './lib/schema-change-codes.mjs';
 // the field inventory and the bump rule are @internal — see dev-docs/reviews/api-surface-review.md §4
 import * as coreInternal from '../packages/svg-animator-core/dist/internal.js';
 
@@ -66,7 +67,8 @@ if (plan.changed || declared !== last.version) {
     const step = core.PX_WIRE_STEPS.find(s => s.to === declared);
     releases.push({
         version: declared, date: new Date().toISOString().slice(0, 10),
-        added, removed, note: step ? step.reason : undefined,
+        // the log keeps the words: the step's code, described as on docs/schema-changes.md
+        added, removed, note: step ? 'PXS' + step.code + ' — ' + parseSchemaChangeCodes().find(c => c.value === step.code).paragraphs.join(' ') : undefined,
     });
     writeFileSync(RELEASES, JSON.stringify(releases, null, 1) + '\n');
     writeFileSync(SNAPSHOT, JSON.stringify(live, null, 1) + '\n');

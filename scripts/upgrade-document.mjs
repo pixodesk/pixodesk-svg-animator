@@ -40,7 +40,7 @@ if (to) {
     console.log('File schema: ' + from + ' — ' + result.relation + ' relative to this player (' + coreInternal.PX_WIRE_SCHEMA_VERSION + ').');
     if (result.advice) console.log(result.advice);
 }
-for (const step of result.applied) console.log('  applied ' + step.from + ' → ' + step.to + ': ' + step.reason);
+for (const step of result.applied) console.log('  applied ' + step.from + ' → ' + step.to + ': ' + core.schemaChangeRef(step.code));
 if (!result.applied.length) {
     console.log('Nothing to convert — no file written.');
     process.exit(0);

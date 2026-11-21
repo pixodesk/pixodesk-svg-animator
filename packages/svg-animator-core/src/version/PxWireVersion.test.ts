@@ -8,6 +8,7 @@
 
 import { assert, describe, expect, it } from 'vitest';
 import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
+import { PxSchemaChangeCode, schemaChangeRef } from './PxSchemaChangeCode';
 import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
@@ -129,7 +130,6 @@ describe('the step table', () => {
         for (const step of PX_WIRE_STEPS) {
             if (step.kind === PxWireStepKind.converted) expect(step.up).toBeTypeOf('function');
             else expect(step.up).toBeUndefined();
-            expect(step.reason.length).toBeGreaterThan(10);
             const from = parseWireVersion(step.from);
             const to = parseWireVersion(step.to);
             assert(from && to, 'step ' + step.from + ' → ' + step.to + ' parses');
@@ -138,12 +138,21 @@ describe('the step table', () => {
         }
     });
 
+    it('every step has its own schema change code, the codes only go forward, and every code is used', () => {
+        // A NUMBER IS FOREVER (PxSchemaChangeCode.ts): a new step takes the next number, never an old one.
+        const codes = PX_WIRE_STEPS.map(s => s.code);
+        codes.forEach((code, i) => { if (i > 0) expect(code, 'step ' + PX_WIRE_STEPS[i].to).toBeGreaterThan(codes[i - 1]); });
+        const members = Object.values(PxSchemaChangeCode).filter((v): v is number => typeof v === 'number');
+        expect([...members].sort((a, b) => a - b)).toEqual(codes);
+        expect(schemaChangeRef(PxSchemaChangeCode.triggerTwoAxes)).toBe('PXS1 https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/schema-changes.md#pxs1');
+    });
+
     it('MUTATION SELF-TEST: a real step converts, re-stamps, and leaves `meta.*` untouched', () => {
         // Runs the actual machinery on a fabricated 1.1 → 1.2 step, because an empty table proves
         // only that nothing is needed yet, not that conversion works when it is.
         const step: PxWireVersionStep = {
             from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
-            reason: 'self-test only — renames animator.timeline.duration to durationMs',
+            code: PxSchemaChangeCode.triggerTwoAxes,   // self-test only — renames animator.timeline.duration to durationMs
             up: (d) => {
                 const timeline = (d.animator as Record<string, unknown>).timeline as Record<string, unknown>;
                 timeline.durationMs = timeline.duration;
@@ -169,7 +178,7 @@ describe('the step table', () => {
         // `up` by hand — with a step temporarily spliced into the live table.
         const step: PxWireVersionStep = {
             from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
-            reason: 'self-test only — renames timeline.duration to durationMs',
+            code: PxSchemaChangeCode.triggerTwoAxes,   // self-test only — renames timeline.duration to durationMs
             up: (d) => {
                 const t = (d.animator as Record<string, unknown>).timeline as Record<string, unknown>;
                 t.durationMs = t.duration;
@@ -197,7 +206,7 @@ describe('the step table', () => {
     it('a step that THROWS degrades to "not converted" — never to a failed open', () => {
         const boom: PxWireVersionStep = {
             from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
-            reason: 'self-test only — always throws',
+            code: PxSchemaChangeCode.triggerTwoAxes,   // self-test only — always throws
             up: () => { throw new Error('deliberate'); },
         };
         const original = doc('1.1.1');
@@ -254,12 +263,12 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
 
     const undoable = (from: string, to: string): PxWireVersionStep => ({
         from, to, kind: PxWireStepKind.converted,
-        reason: 'spec only — renames timeline.duration ⇄ durationMs',
+        code: PxSchemaChangeCode.triggerTwoAxes,   // spec only — renames timeline.duration ⇄ durationMs
         up: (d) => { const t = rawTimeline(d); t.durationMs = t.duration; delete t.duration; },
         down: (d) => { const t = rawTimeline(d); t.duration = t.durationMs; delete t.durationMs; },
     });
     const oneWay = (from: string, to: string): PxWireVersionStep => ({
-        from, to, kind: PxWireStepKind.converted, reason: 'spec only — the shape rework: no way back',
+        from, to, kind: PxWireStepKind.converted, code: PxSchemaChangeCode.triggerTwoAxes,   // spec only — the shape rework: no way back
         up: () => { /* forward only */ },
     });
     const at12 = () => ({ type: 'svg', animator: { timeline: { durationMs: 1000 }, version: '1.2.0' } });
@@ -286,7 +295,7 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
         expect(r.ok).toBe(false);
         if (r.ok) return;
         expect(r.blocking).toHaveLength(1);
-        expect(r.reason).toContain('1.1 → 1.2');
+        expect(r.reason).toContain('1.1 → 1.2 (PXS1 https://');   // the blocking step, by its code and the page
         expect(r.reason).toContain('cannot be undone');
     });
 
@@ -300,7 +309,7 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
     });
 
     it('additive steps need no `down` — an older reader ignores what they added', () => {
-        const additive: PxWireVersionStep = { from: '1.1', to: '1.2', kind: PxWireStepKind.additive, reason: 'spec only — a new optional field' };
+        const additive: PxWireVersionStep = { from: '1.1', to: '1.2', kind: PxWireStepKind.additive, code: PxSchemaChangeCode.triggerTwoAxes };   // spec only — a new optional field
         const r = applyWireStepsDown(at12(), { steps: [additive], target: { a: 1, b: 1, c: 0 }, readerReadsEditorPart: false });
         expect(r.ok).toBe(true);
     });
@@ -331,7 +340,7 @@ describe('T3 — conversion is idempotent', () => {
     it('converting twice is converting once: the stamp stops a second pass', () => {
         const step: PxWireVersionStep = {
             from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
-            reason: 'spec only — renames timeline.duration to durationMs',
+            code: PxSchemaChangeCode.triggerTwoAxes,   // spec only — renames timeline.duration to durationMs
             up: (d) => { const t = rawTimeline(d); t.durationMs = t.duration; delete t.duration; },
         };
         const cfg = { steps: [step], target: { a: 1, b: 2, c: 0 }, readerReadsEditorPart: false };

@@ -2,15 +2,15 @@
   "type": "svg",
   "viewBox": "0 0 400 400",
   "animator": {
-    "timeline": {
-      "outTime": 1000,
-      "actions": {
-        "outOfView": "continue"
-      },
-      "iterations": "infinite",
-      "iterationDirection": "alternate"}, "actionTriggers": {
-        "timeline.start": "load"
+    "timelines": [
+      {
+        "outTime": 1000,
+        "actions": { "outOfView": "continue" },
+        "iterations": "infinite",
+        "iterationDirection": "alternate"
       }
+    ],
+    "actionTriggers": [{ "action": "timeline.start", "event": "load" }]
   },
   "children": [
     {

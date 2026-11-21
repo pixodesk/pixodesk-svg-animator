@@ -30,6 +30,7 @@ export {
     downgradeWireDocument,
     PxWireStepKind,
 } from './version/PxWireVersion';
+export { PxSchemaChangeCode, schemaChangeRef } from './version/PxSchemaChangeCode';
 export type {
     PxWireVersion,
     PxWireVersionStep,

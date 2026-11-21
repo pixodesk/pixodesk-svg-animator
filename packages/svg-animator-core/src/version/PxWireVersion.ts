@@ -32,6 +32,7 @@ import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
 import { isPxDocument, maxKeyframeTimeOf, PX_DEFAULT_DURATION_MS } from '../format/PxAnimatorConstants';
 // The 1.27 step's `down` evaluates bindings with the grammar itself — a module with no imports, so no cycle.
 import { isBindingText, PxVariableBinding } from '../variables/PxFormula';
+import { PxSchemaChangeCode, schemaChangeRef } from './PxSchemaChangeCode';
 
 /** The wire key, under the animator config block. @public @advanced */
 export const PX_WIRE_VERSION_KEY = 'version';
@@ -180,8 +181,8 @@ export interface PxWireVersionStep {
     readonly from: string;
     /** …and TO. Must be the `from` of the next step, so the table is one unbroken chain. */
     readonly to: string;
-    /** Why the format moved — the sentence a future reader needs, not a commit hash. */
-    readonly reason: string;
+    /** Why the format moved — a permanent number; the words are on docs/schema-changes.md ({@link schemaChangeRef}). */
+    readonly code: PxSchemaChangeCode;
     readonly kind: PxWireStepKind;
     /**
      * Older → newer, MUTATING the document in place. Required for {@link PxWireStepKind.converted}.
@@ -208,11 +209,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.1',
         to: '1.2',
-        reason: 'The trigger block became two axes: `start` says what STARTS an animation, '
-            + '`offScreen` + `visibilityThreshold` + `visibilityDebounce` say whether it may RUN. '
-            + '`scrollIntoView` is no longer a start value — it is what `start: \'load\'` behind '
-            + 'the default gate already means — and `outAction` split into `offScreen` (scroll) '
-            + 'and `mouseOut` (hover), because one field meant three things.',
+        code: PxSchemaChangeCode.triggerTwoAxes,
         kind: PxWireStepKind.converted,
         up: upTriggerTwoAxes,
         // No `down`: 1.2 can express combinations 1.1 could not ("start on click AND pause when
@@ -221,10 +218,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.2',
         to: '1.3',
-        reason: 'The timeline\'s one length became a content WINDOW (first-use review §4): '
-            + '`duration` is renamed `outTime`, and `inTime` (window start, default 0) and '
-            + '`playDuration` (the window remapped to wall ms) join it. `duration` read as the '
-            + 'CSS word for speed, which it never was.',
+        code: PxSchemaChangeCode.timelineContentWindow,
         kind: PxWireStepKind.converted,
         up: upDurationToWindow,
         // No `down`: 1.3 can express fragments and remaps 1.2 could not.
@@ -232,10 +226,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.3',
         to: '1.4',
-        reason: 'What is shown after the end was decided in two places (first-use review §13): '
-            + '`trigger.finish` moves OUT of the trigger — the only trigger key about neither '
-            + 'starting nor running — and next to `fillMode` as `timeline.finish`, because the '
-            + 'two answer the same question and must document how they combine.',
+        code: PxSchemaChangeCode.finishLeavesTrigger,
         kind: PxWireStepKind.converted,
         up: upFinishToTimeline,
         down: downFinishToTrigger,
@@ -243,9 +234,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.4',
         to: '1.5',
-        reason: '`animator.debugGlobalName` is removed: it let a FILE write any `window` property of '
-            + 'the page playing it (`fetch`, `location`, …). Reaching a live animator from the '
-            + 'console is the page registry\'s job — `getAllSvgAnimationPlayers()`.',
+        code: PxSchemaChangeCode.debugGlobalNameRemoved,
         kind: PxWireStepKind.converted,
         up: upDropDebugGlobalName,
         // nothing to restore: every 1.5 document is a valid 1.4 one (the key was optional)
@@ -254,9 +243,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.5',
         to: '1.6',
-        reason: 'An `animate` entry may be COMPILED — `{ kind, keyframes }` with explicit values typed by '
-            + '`kind`, no `loop`, no named easing — the low layer the player lowers a document to before '
-            + 'playing it (dev-docs/plans/compiled-animation-layer.md). Authored entries are unchanged.',
+        code: PxSchemaChangeCode.compiledAnimations,
         kind: PxWireStepKind.converted,
         // a 1.5 document has no compiled entries: nothing to convert
         up: () => {},
@@ -266,10 +253,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.6',
         to: '1.7',
-        reason: 'Trigger words name the event each key is about (first-use review §21): `start: \'mouseOver\'` '
-            + 'becomes `\'hover\'` and `\'none\'` becomes `\'manual\'`; `mouseOut` becomes `hoverEnd`; the visibility '
-            + 'gate is one "view" family — `visibilityThreshold` / `visibilityDebounce` (its opening edge) become '
-            + '`inViewThreshold` / `inViewDebounce`, and `offScreen` (its closing edge) becomes `outOfView`.',
+        code: PxSchemaChangeCode.triggerEventWords,
         kind: PxWireStepKind.converted,
         up: upTriggerWords,
         // an exact rename: every 1.7 trigger has a 1.6 spelling
@@ -278,10 +262,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.7',
         to: '1.8',
-        reason: 'Every value the format defines is camelCase (first-use review §25): `timeline.direction: '
-            + '\'alternate-reverse\'` becomes `\'alternateReverse\'`, and the scroll range phases `\'entry-crossing\'` / '
-            + '`\'exit-crossing\'` become `\'entryCrossing\'` / `\'exitCrossing\'`. The players spell them the CSS way '
-            + 'only where they hand them to the browser.',
+        code: PxSchemaChangeCode.camelCaseValues,
         kind: PxWireStepKind.converted,
         up: upCamelCaseValues,
         // an exact rename: every 1.8 value has a 1.7 spelling
@@ -290,11 +271,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.8',
         to: '1.9',
-        reason: 'The trigger says only WHEN (dev-docs/plans/component-api.md D5): `start` / `hoverEnd` become the '
-            + 'event lists `playStart` / `playStop` / `pauseStart` / `pauseStop`; HOW is the timeline\'s own — `fillMode` + '
-            + '`finish` become `playFinishAction` (+ `showFirstFrameBeforePlayStart`), `direction` becomes `iterationDirection`, '
-            + 'the gate keys move up (`outOfView` → `outOfViewAction`), and `playStartAction` / `playStopAction` / '
-            + '`completeIterationOnPlayStop` are new.',
+        code: PxSchemaChangeCode.triggerEventLists,
         kind: PxWireStepKind.converted,
         up: upPlaybackKeys,
         // No `down`: 1.9 can say what 1.8 could not (a click that restarts, a stop that rewinds, …).
@@ -302,12 +279,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.9',
         to: '1.10',
-        reason: 'Triggers and actions (dev-docs/plans/playback-layers.md, layers 0–1): `trigger` becomes `triggers` with the '
-            + 'lists `start` / `stop` / `pause` / `resume` (+ the new `togglePlay`; each list names only the events it can use, and '
-            + '`resume` is derived for the built-in events); the play keys become one '
-            + '`actions` block — `start` / `stop` / `finish` / `suspend`, each `{ transition }` (`resume` → `continue`, '
-            + '`jumpToEnd` → `jumpToFinished`, `outOfViewAction` → `suspend`, `completeIterationOnPlayStop` → '
-            + '`stop.completeIteration`) — and `showFirstFrameBeforePlayStart: true` becomes `beforeStart: \'firstFrame\'`.',
+        code: PxSchemaChangeCode.triggersAndActions,
         kind: PxWireStepKind.converted,
         up: upTriggersAndActions,
         // No `down`: 1.10 can say what 1.9 could not (`togglePlay`).
@@ -315,9 +287,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.10',
         to: '1.11',
-        reason: 'The names say the link (dev-docs/reviews/react-props-review.md): `timeline.triggers` becomes `actionTriggers` — '
-            + 'a key names the action it fires, the same key in `actions` says how that action looks — and an action\'s '
-            + '`transition` becomes `do`, written as the word itself when it is the only setting (`stop: \'rewind\'`).',
+        code: PxSchemaChangeCode.actionTriggersName,
         kind: PxWireStepKind.converted,
         up: upActionTriggersAndDo,
         // No `down`: the shorthand and the names are 1.11's; 1.10 readers do not know them.
@@ -325,8 +295,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.11',
         to: '1.12',
-        reason: '`actionTriggers.togglePlay` is gone (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.3): it only ever '
-            + 'meant `click` under both `start` and `stop`, and read as a play/pause toggle to everyone — the two lists say it as it is.',
+        code: PxSchemaChangeCode.togglePlayRemoved,
         kind: PxWireStepKind.converted,
         up: upTogglePlay,
         // No `down`: the two lists are 1.11 spelling already; the shortcut is not recovered.
@@ -334,9 +303,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.12',
         to: '1.13',
-        reason: '`actions.suspend` becomes `actions.outOfView` (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.4): the key '
-            + 'names the condition — none of it on screen — in the words `inViewThreshold` / `inViewDebounce` already use; '
-            + '`suspend` made readers ask "suspended by what?".',
+        code: PxSchemaChangeCode.outOfViewAction,
         kind: PxWireStepKind.converted,
         up: upOutOfView,
         down: downOutOfView,   // exactly invertible: a key rename
@@ -344,8 +311,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.13',
         to: '1.14',
-        reason: 'An action\'s `do` becomes `behavior` (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.6): "stop behavior: rewind" '
-            + 'says what kind of thing the value is, `do` did not. The word form (`stop: \'rewind\'`) is unchanged.',
+        code: PxSchemaChangeCode.actionBehavior,
         kind: PxWireStepKind.converted,
         up: (doc) => renameActionField(doc, 'do', 'behavior'),
         down: (doc) => renameActionField(doc, 'behavior', 'do'),   // exactly invertible: a key rename
@@ -353,9 +319,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.14',
         to: '1.15',
-        reason: '`timeline.beforeStart` becomes `timeline.showWhenStopped` (dev-docs/reviews/schema-and-props-review-fix-plan.md §3.1): '
-            + 'the key governs the whole STOPPED state — after a reset or a rewind too, not only before the first start — and takes '
-            + 'the `show…` verb of the components\' `showAtProgress` / `showAtTime`. The values `static` / `firstFrame` are unchanged.',
+        code: PxSchemaChangeCode.showWhenStopped,
         kind: PxWireStepKind.converted,
         up: (doc) => renameTimelineKey(doc, 'beforeStart', 'showWhenStopped'),
         down: (doc) => renameTimelineKey(doc, 'showWhenStopped', 'beforeStart'),   // exactly invertible: a key rename
@@ -363,11 +327,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.15',
         to: '1.16',
-        reason: '`timeline.playDuration` (wall ms of one pass) becomes `timeline.playSpeed` (a factor, 1 = content ms '
-            + 'pass as real ms; dev-docs/reviews/schema-and-props--manual-review.md A2): every player spells speed as a '
-            + 'factor, a factor needs no knowledge of the content\'s length, and with it no key on the API is wall time. '
-            + '`playSpeed = (outTime − inTime) / playDuration`; a file without `outTime` gets it written (the derived '
-            + 'max keyframe time) so the conversion is exact.',
+        code: PxSchemaChangeCode.playSpeed,
         kind: PxWireStepKind.converted,
         up: upPlaySpeed,
         down: downPlaySpeed,   // exactly invertible once `outTime` is written
@@ -375,10 +335,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.16',
         to: '1.17',
-        reason: 'An absent `actionTriggers` block no longer means `start: \'load\'` — absent and `{}` are the same, nothing '
-            + 'starts it (dev-docs/reviews/schema-and-props--manual-review.md B2): a default nobody wrote is a guess, '
-            + 'and two spellings with two meanings trapped merge patches and hand edits. A time timeline without the '
-            + 'block gets `{ start: \'load\' }` written, so every file keeps playing as it did.',
+        code: PxSchemaChangeCode.noImplicitAutoplay,
         kind: PxWireStepKind.converted,
         up: upExplicitLoad,
         down: downExplicitLoad,   // the block 1.17 wrote is what 1.16 read into an absent one
@@ -386,8 +343,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.17',
         to: '1.18',
-        reason: '`actions.start: \'jumpToFinished\'` becomes `\'jumpToEnd\'` (dev-docs/reviews/schema-and-props--manual-review.md A4): '
-            + 'its siblings name positions and motion (`restart`, `rewind`, `reset`), while `finished` is a state.',
+        code: PxSchemaChangeCode.jumpToEnd,
         kind: PxWireStepKind.converted,
         up: (doc) => renameActionValue(doc, 'start', 'jumpToFinished', 'jumpToEnd'),
         down: (doc) => renameActionValue(doc, 'start', 'jumpToEnd', 'jumpToFinished'),   // exactly invertible: a value rename
@@ -395,9 +351,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.18',
         to: '1.19',
-        reason: '`timeline.showWhenStopped` becomes `timeline.whenIdle` (dev-docs/reviews/schema-and-props--manual-review.md B3): '
-            + '`idle` is WAAPI\'s word for the state it governs and carries no VCR reading — "stopped" read as '
-            + 'played-then-stopped. The values `static` / `firstFrame` are unchanged.',
+        code: PxSchemaChangeCode.whenIdle,
         kind: PxWireStepKind.converted,
         up: (doc) => renameTimelineKey(doc, 'showWhenStopped', 'whenIdle'),
         down: (doc) => renameTimelineKey(doc, 'whenIdle', 'showWhenStopped'),   // exactly invertible: a key rename
@@ -405,9 +359,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.19',
         to: '1.20',
-        reason: '`effects.clone.without` becomes `effects.clone.omit` (dev-docs/reviews/schema-and-props--manual-review.md B4): '
-            + 'TypeScript\'s `Omit<T, K>` and lodash\'s `_.omit` mean exactly this, a copy without these keys. The value '
-            + '`translate` is unchanged.',
+        code: PxSchemaChangeCode.cloneOmit,
         kind: PxWireStepKind.converted,
         up: (doc) => forEachRawNode(doc, node => renameEffectKey(node, 'clone', 'without', 'omit')),
         down: (doc) => forEachRawNode(doc, node => renameEffectKey(node, 'clone', 'omit', 'without')),   // exactly invertible: a key rename
@@ -415,10 +367,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.20',
         to: '1.21',
-        reason: '`effects.clone.retime` spells its window like the timeline does (dev-docs/reviews/schema-and-props--manual-review.md B5): '
-            + '`timeCrop: [a, b]` becomes `inTime: a, outTime: b` (Lottie\'s own `ip` / `op`; tuples are for vectors and '
-            + 'points, a window is two named points everywhere else), and `start` becomes `offset` (`start` is a trigger '
-            + 'list and an action elsewhere). `stretch` is unchanged.',
+        code: PxSchemaChangeCode.cloneRetimeWindow,
         kind: PxWireStepKind.converted,
         up: (doc) => forEachRawNode(doc, upRetimeWindow),
         down: (doc) => forEachRawNode(doc, downRetimeWindow),   // exactly invertible for a complete window
@@ -426,9 +375,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.21',
         to: '1.22',
-        reason: '`timeline.playSpeed` becomes `timeline.playbackSpeed` (dev-docs/reviews/schema-and-props--improvements.md §0): '
-            + '"playback speed" is how media players say it, and the handle\'s family reads the same '
-            + '(`getPlaybackSpeed()`, `getPlaybackDuration()`, `getCurrentPlaybackTime()`). The value is unchanged.',
+        code: PxSchemaChangeCode.playbackSpeed,
         kind: PxWireStepKind.converted,
         up: (doc) => renameTimelineKey(doc, 'playSpeed', 'playbackSpeed'),
         down: (doc) => renameTimelineKey(doc, 'playbackSpeed', 'playSpeed'),   // exactly invertible: a key rename
@@ -436,11 +383,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.22',
         to: '1.23',
-        reason: 'The action words name WHERE a move goes and HOW (dev-docs/reviews/schema-and-props--improvements.md §0): '
-            + '`reset` → `jumpToStart`, `rewind` → `animateToStart`, `actions.start: \'restart\'` → `\'jumpToStart\'`; '
-            + '`actions.stop` gains `jumpToEnd` / `animateToEnd`, and arriving at the end runs `finish` — so '
-            + '`stop.completeIteration: true` becomes `stop: \'animateToEnd\'` (an endless timeline takes the old stop '
-            + 'word as its `finish`, which only a stop could reach; a finite one keeps its `finish`).',
+        code: PxSchemaChangeCode.moveWords,
         kind: PxWireStepKind.converted,
         up: upActionWords,
         // exact for every 1.22 spelling; the two new stop words have none, and an older reader takes them as its default
@@ -449,11 +392,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.23',
         to: '1.24',
-        reason: 'The run model (dev-docs/plans/animation-state.brainstorm.md §0): the four buttons of the player box name '
-            + 'the trigger lists and the actions — `start` → `startRun`, `stop` → `stopRun`, `pause` → `pauseRun`, '
-            + '`resume` → `resumeRun` (the handle\'s methods and the `playRun` prop\'s edges say the same) — and '
-            + '`actions.finish` moves beside `whenIdle` as `timeline.atEnd`: the clock\'s rule, not a button\'s. '
-            + 'Every value is unchanged.',
+        code: PxSchemaChangeCode.runModel,
         kind: PxWireStepKind.converted,
         up: upRunWords,
         down: downRunWords,   // exactly invertible: key renames, and `atEnd` back to `actions.finish`
@@ -461,12 +400,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.24',
         to: '1.25',
-        reason: 'Playback is the noun, and a built-in action is named `<state variable>.<verb>` '
-            + '(dev-docs/plans/animation-state.playback-noun.md, animation-state.playback-namespace.md): "start / stop / '
-            + 'pause / resume playback" are the phrases of every media player, where "run" read as a verb — `startRun` → '
-            + '`playback.start`, `stopRun` → `playback.stop`, `pauseRun` → `playback.pause`, `resumeRun` → '
-            + '`playback.resume`, in the trigger lists and the action slots (the handle says `player.playback.start()`). '
-            + 'The dot reserves the built-in names against custom ones. Every value is unchanged.',
+        code: PxSchemaChangeCode.playbackNoun,
         kind: PxWireStepKind.converted,
         up: upPlaybackWords,
         down: downPlaybackWords,   // exactly invertible: key renames
@@ -474,12 +408,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.25',
         to: '1.26',
-        reason: 'State words and move words (dev-docs/plans/animation-state.feedback.2026-11-12.md): `playback.start` '
-            + 'always plays from the start, so `actions["playback.start"]` leaves the file — its default `continue` '
-            + 'becomes the new `playback.play` list for the events where the two differ (hover, click; `load` stays a '
-            + 'start), and `jumpToStart` / `jumpToEnd` become plain starts. `timeline.atEnd` → `timeline.whenFinished` '
-            + '(the playback stays finished whatever it then shows), `actions.outOfView: jumpToStart` → `stop`, and the '
-            + 'stop gains `animateToEndAndBack`.',
+        code: PxSchemaChangeCode.stateAndMoveWords,
         kind: PxWireStepKind.converted,
         up: upStateAndMoveWords,
         // no `down`: 1.25 cannot say `playback.play`, `animateToEndAndBack`, or a start that always restarts
@@ -487,10 +416,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.26',
         to: '1.27',
-        reason: 'Variables (docs/library/variables.md): `definitions.variables` declares named, typed '
-            + 'values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere '
-            + 'may be written `"variable(name)"` or `"calc(…)"` instead of the value. Nothing older has any of it, so '
-            + 'there is nothing to convert up.',
+        code: PxSchemaChangeCode.variables,
         kind: PxWireStepKind.additive,
         // exact for the picture with the defaults: every binding becomes its value, the two blocks go
         down: downVariables,
@@ -498,35 +424,14 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
     {
         from: '1.27',
         to: '1.28',
-        reason: 'One scroll timeline in plain words (docs/library/playback-and-triggers.md, "Following the scroll"): '
-            + '`type: "view"` and `"scroll"` become `type: "scroll"` with `follows` (`thisElement`, `parentElement`, '
-            + '`pageElement` + `selector`, `pageScroll`, `containerScroll`) in place of `source` and `subject`; `range` '
-            + 'becomes `firstFrameWhen` / `lastFrameWhen` — one of seven words (`appears` … `gone`, the old range names at '
-            + '0, 50 and 100 %), an exact place `{ element, screen }`, or `{ scrolled }`; `pin` becomes `holdOnScreen` '
-            + '(`at`, `forScreens`, `offset`), which follows its own held stretch; `axis` says `vertical` / `horizontal`; '
-            + '`frameRate` leaves the scroll timeline. Amended before release (2026-11-15, the segments design): the '
-            + 'page\'s elements are DOM elements — `thisDomElement`, `parentDomElement`, `pageDomElement`, an exact place '
-            + '`{ domElement, screen }` — so that `element` can mean one of the file\'s own: a binding\'s `target` becomes '
-            + '`element`, an effect\'s `source` (`maskedBy`, `clone`) becomes `sourceElement`. The timeline is the thing '
-            + 'that plays: `playback.start` … `playback.resume` become `timeline.start` … `timeline.resume` (the trigger '
-            + 'lists and the action slots), and `actionTriggers` moves out of `timeline` to the root of `animator`. '
-            + 'New in the same step: `timeline.segments` (a list of named parts of the timeline, played one at a time; '
-            + '`timeline.segment.next` / `.previous` / `.goTo(‹name›)` in `actionTriggers` and a segment\'s '
-            + '`whenFinished`), and an event can be an object `{ event, element | selector, with }` — `pointerDown`, '
-            + '`pointerUp`, `keyDown`, `keyUp` among the events. Amended again before release (2026-11-20, the '
-            + 'timelines-and-states design): `timeline` becomes `timelines`, a list whose first entry is the default; '
-            + 'the segments leave their timeline as `states` (a segment\'s `name` is a state\'s `id`), beside '
-            + '`stateMachines`; `actionTriggers` becomes a list of rules `{ action, event, … }` — a `timeline.segment.goTo(‹name›)` '
-            + 'key a rule `{ "action": "state.goTo", "state": "‹name›" }`, `timeline.segment.next` / `.previous` the actions '
-            + '`state.next` / `state.previous`, in a `whenFinished` too, as an object; an animated value may say what it '
-            + 'does on the other timelines (`byTimeline`).',
+        code: PxSchemaChangeCode.scrollAndTimelines,
         kind: PxWireStepKind.converted,
         up: (doc) => { upScrollTimeline(doc); upTimelineAndElementWords(doc); upTimelinesStatesAndRules(doc); },
         // no `down`: 1.27 cannot say an exact place on a line other than the screen's top or bottom
     },
 ];
 
-/** 1.27 → 1.28 (see the step's `reason`). Frozen at the words of the two versions — never the live constants. */
+/** 1.27 → 1.28 (see the step's `code`). Frozen at the words of the two versions — never the live constants. */
 function upScrollTimeline(doc: Record<string, unknown>): void {
     const animator = getAnimatorBlock(doc);
     const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
@@ -578,7 +483,7 @@ function upScrollTimeline(doc: Record<string, unknown>): void {
     animator['timeline'] = out;
 }
 
-/** The 1.28 amendment (2026-11-15, see the step's `reason`) — frozen at the words of the two spellings:
+/** The 1.28 amendment (2026-11-15, see the step's `code`) — frozen at the words of the two spellings:
  *  - `timeline.actionTriggers` → `animator.actionTriggers`, its `playback.*` keys → `timeline.*`; the same keys in
  *    `timeline.actions`; a scroll timeline's triggers dropped (nothing starts it)
  *  - `bindings[].target` → `element`; `effects.maskedBy.source` / `effects.clone.source` → `sourceElement`
@@ -774,7 +679,7 @@ function downVariables(doc: Record<string, unknown>): void {
     }
 }
 
-/** 1.25 → 1.26 (see the step's `reason`). Frozen at the words of the two versions — never the live constants. */
+/** 1.25 → 1.26 (see the step's `code`). Frozen at the words of the two versions — never the live constants. */
 function upStateAndMoveWords(doc: Record<string, unknown>): void {
     const animator = getAnimatorBlock(doc);
     const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
@@ -1151,7 +1056,7 @@ const ACTION_KEYS_1_10: ReadonlyArray<readonly [string, string, string]> = [
 /** 1.9 → 1.10 transition values that changed spelling. */
 const TRANSITION_VALUES_1_10: ReadonlyArray<readonly [string, string]> = [['resume', 'continue'], ['jumpToEnd', 'jumpToFinished']];
 
-/** 1.9 → 1.10: `triggers`, `actions`, `beforeStart` (see the step's `reason`). */
+/** 1.9 → 1.10: `triggers`, `actions`, `beforeStart` (see the step's `code`). */
 function upTriggersAndActions(doc: Record<string, unknown>): void {
     const animator = getAnimatorBlock(doc);
     const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
@@ -1176,7 +1081,7 @@ function upTriggersAndActions(doc: Record<string, unknown>): void {
     delete timeline['showFirstFrameBeforePlayStart'];
 }
 
-/** 1.8 → 1.9: the trigger's event lists, the play keys on the timeline (see the step's `reason`). */
+/** 1.8 → 1.9: the trigger's event lists, the play keys on the timeline (see the step's `code`). */
 function upPlaybackKeys(doc: Record<string, unknown>): void {
     const animator = getAnimatorBlock(doc);
     const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
@@ -1262,7 +1167,7 @@ function renameTriggerWords(doc: Record<string, unknown>, up: boolean): void {
     }
 }
 
-/** 1.6 → 1.7: the trigger words (see the step's `reason`). */
+/** 1.6 → 1.7: the trigger words (see the step's `code`). */
 function upTriggerWords(doc: Record<string, unknown>): void { renameTriggerWords(doc, true); }
 
 /** 1.7 → 1.6: the exact inverse. */
@@ -1290,7 +1195,7 @@ function renameCamelCaseValues(doc: Record<string, unknown>, up: boolean): void 
     }
 }
 
-/** 1.7 → 1.8: the three kebab-case values (see the step's `reason`). */
+/** 1.7 → 1.8: the three kebab-case values (see the step's `code`). */
 function upCamelCaseValues(doc: Record<string, unknown>): void { renameCamelCaseValues(doc, true); }
 
 /** 1.8 → 1.7: the exact inverse. */
@@ -1556,7 +1461,7 @@ export function applyWireStepsDown(doc: unknown, cfg: PxWireDowngradeOptions): P
         return {
             ok: false, blocking,
             reason: 'Cannot convert down to ' + formatWireVersion(cfg.target) + ': '
-                + blocking.map(s => s.from + ' → ' + s.to + ' (' + s.reason + ')').join('; ')
+                + blocking.map(s => s.from + ' → ' + s.to + ' (' + schemaChangeRef(s.code) + ')').join('; ')
                 + ' cannot be undone.',
         };
     }

@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
 import { diffFieldUniverse, planSchemaRelease, releaseLogProblems, type SchemaReleaseRecord } from './PxSchemaRelease';
 import { PX_WIRE_BASELINE_VERSION, PX_WIRE_STEPS, PxWireStepKind, type PxWireVersionStep } from './PxWireVersion';
+import { PxSchemaChangeCode } from './PxSchemaChangeCode';
 
 const releases: Array<SchemaReleaseRecord> = JSON.parse(readFileSync(resolve(__dirname, 'schema-releases.player.json'), 'utf8'));
 
@@ -20,7 +21,7 @@ const LATEST_RELEASED = releases[releases.length - 1].version;
 const PAST_THE_LOG = ((): string => { const [a, b] = LATEST_RELEASED.split('.').map(Number); return a + '.' + (b + 1); })();
 
 const step = (to: string, kind: PxWireStepKind, from: string = LATEST_RELEASED): PxWireVersionStep => ({
-    from, to, kind, reason: 'spec only — a fabricated step',
+    from, to, kind, code: PxSchemaChangeCode.triggerTwoAxes,   // spec only — a fabricated step
     ...(kind === PxWireStepKind.converted ? { up: () => { /* spec */ } } : {}),
 });
 

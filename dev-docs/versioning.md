@@ -75,31 +75,39 @@ Rules:
 
 1. Change the schema — `packages/svg-animator-core/src/format/PxAnimatorTypes.ts`.
 2. Set `PX_WIRE_SCHEMA_VERSION = '1.2'` — `src/version/PxSchemaVersion.ts`.
-3. Add the step — `PX_WIRE_STEPS` in `packages/svg-animator-core/src/version/PxWireVersion.ts`:
+3. Say why, as a code — a new member of `PxSchemaChangeCode` (`src/version/PxSchemaChangeCode.ts`) with
+   the NEXT number; its comment is the description `docs/schema-changes.md` shows (`pnpm build` regenerates
+   the page). Numbers are never reused and only go forward; the words may be improved later:
+   ```ts
+   /** `textPath.path` is renamed `textPath.pathData`, the word every other path value uses. */
+   textPathData = 28,
+   ```
+4. Add the step — `PX_WIRE_STEPS` in `packages/svg-animator-core/src/version/PxWireVersion.ts` (keep
+   `from`, `to`, `code` first and in that order — the page generator reads them):
    ```ts
    {
        from: '1.1', to: '1.2',
+       code: PxSchemaChangeCode.textPathData,
        kind: PxWireStepKind.converted,              // additive for a new optional key
-       reason: 'textPath.path renamed to textPath.pathData',
        up: (doc) => { /* mutate the copy; never touch meta.* */ },
        down: (doc) => { /* optional — only if exactly invertible */ },
    },
    ```
-4. Build and test the core — move the version literals the bump breaks (the next-version case in
+5. Build and test the core — move the version literals the bump breaks (the next-version case in
    `PxSchemaRelease.test.ts`, the stamped fixture in `PxPrepareDocument.test.ts`):
    ```sh
    pnpm --filter @pixodesk/svg-animator-core build
    pnpm --filter @pixodesk/svg-animator-core test
    ```
-5. Check, then apply the release (writes the field snapshot, the dated changelog entry, `SCHEMA.json`):
+6. Check, then apply the release (writes the field snapshot, the dated changelog entry, `SCHEMA.json`):
    ```sh
    node scripts/schema-release.mjs            # dry run — exit 1 = REFUSED, read the message
    node scripts/schema-release.mjs --apply
    ```
-6. In the **app** repo: restamp its fixtures, regenerate the editor snapshot (§4), re-save the
+7. In the **app** repo: restamp its fixtures, regenerate the editor snapshot (§4), re-save the
    feature-explorer fixtures (their round-trip guard reports *STALE* otherwise) and run the
    relevant specs. The SVG carrier converts its raw tree on open too (`wireVersionGuard.spec.ts`).
-7. Bump the library (§3C), then commit both repos.
+8. Bump the library (§3C), then commit both repos.
 
 ### B · Editor `meta.*` change — `1.1.1 → 1.1.2` (app repo)
 
@@ -107,8 +115,11 @@ Rules:
 2. Set `EDITOR_EXTENSION_REVISION = 2` — `src/svgeditor/model/serialization/schema/version/PxWireVersion.ts`.
 3. Add the step to `EDITOR_WIRE_STEPS` — full `a.b.c` versions, `meta.*` only:
    ```ts
-   { from: '1.1.1', to: '1.1.2', kind: PxWireStepKind.converted, reason: '…', up: (doc) => { /* meta.* */ } },
+   { from: '1.1.1', to: '1.1.2', kind: PxWireStepKind.converted, code: …, up: (doc) => { /* meta.* */ } },
    ```
+   Accepted limit: a step's `code` is a `PxSchemaChangeCode`, the PLAYER's registry, and the editor has no
+   `meta.*` steps yet. The first one needs a code of its own (an editor registry in the app repo, and a step
+   type that can carry it) — never editor words on the public `docs/schema-changes.md`.
 4. Regenerate the editor snapshot (§4) and run the suite. The SVG-carrier tripwire in step A.6
    applies here too.
 

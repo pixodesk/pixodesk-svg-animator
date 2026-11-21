@@ -35,7 +35,7 @@ export const CASES = [
 
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (playerRef)', anchor: 'imperative-api-playerref',
-    summary: 'playback.start / play / pause / stop / setCurrentProgress through a ref.' },
+    summary: 'timeline.start / play / pause / stop / setCurrentProgress through a ref.' },
   { group: 'react', id: 'play-using-action-triggers', title: 'Action triggers — the default', anchor: 'action-triggers-actiontriggers',
     summary: 'With no control prop the component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
@@ -53,7 +53,7 @@ export const CASES = [
   { group: 'vue', id: 'declarative',     title: 'Declarative playback — playback', anchor: 'declarative-playback--playrun',
     summary: 'One lever: playback holds off · on · paused, and each change of position presses one button.' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
-    summary: 'playback.start / play / pause / stop / setCurrentProgress through a template ref.' },
+    summary: 'timeline.start / play / pause / stop / setCurrentProgress through a template ref.' },
   { group: 'vue', id: 'css-loader',      title: 'CSS-flavor SVG — SvgCssAnimationPlayer + vite-svg-loader', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
