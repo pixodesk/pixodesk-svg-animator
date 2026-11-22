@@ -255,7 +255,12 @@ export enum PxSchemaChangeCode {
      * of rules `{ action, event, … }` — a `timeline.segment.goTo(‹name›)` key a rule `{ "action": "state.goTo",
      * "state": "‹name›" }`, `timeline.segment.next` / `.previous` the actions `state.next` / `state.previous`, in
      * a `whenFinished` too, as an object; an animated value may say what it does on the other timelines
-     * (`byTimeline`).
+     * (`byTimeline`). Amended a third time before release (2026-11-22, the flows): `states` become `flowSteps` and
+     * `stateMachines` become `flows`; a step's and a rule's `stateMachine` becomes `flow`, a rule's and a
+     * `whenFinished`'s `state` becomes `flowStep`, and the actions `state.goTo` / `state.next` / `state.previous`
+     * become `flow.goTo` / `flow.next` / `flow.previous`. The default timeline is the one with no id, wherever it
+     * stands, and keyframes that name no timeline are its; a timeline no step names is a step of the flow `default`;
+     * a `byTimeline` entry holds keyframes only.
      */
     scrollAndTimelines = 27,
 }

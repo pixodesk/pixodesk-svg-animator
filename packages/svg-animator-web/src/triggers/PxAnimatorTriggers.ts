@@ -13,9 +13,10 @@ import {
     type PxAnimatorRuntimeConfig,
     type PxDiagnostics,
     type PxPlaybackListeners,
-    PxStateAction,
+    type PxPlayExecutor,
+    PxFlowAction,
 } from '@pixodesk/svg-animator-core';
-import { duplicateStateIds, ensurePlayExecutor, resolveActions, resolveGate, resolveStates, resolveTriggers, stateReferenceIssues, triggerActionFor, triggerIssues, triggerKeys, type PxTriggerEventSpec } from '@pixodesk/svg-animator-core/engine';
+import { duplicateFlowStepIds, ensurePlayExecutor, resolveActions, resolveGate, resolveTriggers, flowStepReferenceIssues, triggerActionFor, triggerIssues, triggerKeys, type PxFlowRuntime, type PxTriggerEventSpec } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 import { webRaf } from '../shared/PxWebRaf';
@@ -62,25 +63,43 @@ export function setupAnimationTriggers(
 ): () => void {
     // Public export, so the channel is optional and falls back to the console (review §5).
     const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
-
-    // Everything attached below registers its own undo here, so one call detaches it all.
-    const cleanups: Array<() => void> = [];
-    const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
-
-    const trigger = resolveTriggers(config.actionTriggers, resolveStates(config).map(s => s.id));
-    for (const issue of triggerIssues(config.actionTriggers)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
-    for (const issue of stateReferenceIssues(config)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.stateNotFound, issue);
-    for (const id of duplicateStateIds(config.states)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.stateIdDuplicate, id);
+    reportTriggerProblems(config, report);
+    for (const issue of flowStepReferenceIssues(config)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepNotFound, issue);
+    for (const id of duplicateFlowStepIds(config.flowSteps)) report.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepIdDuplicate, id);
 
     const root = api.getRootElement();
     if (!root) {
         report.warn(PxDiagnosticKind.host, PxDiagnosticCode.triggersNoRoot);
-        return dispose;
+        return () => {};
     }
-
     const executor = ensurePlayExecutor(api, config, webRaf);
     // attached BEFORE anything below can press a button: a `load` trigger fires right here when the document is complete
     if (playbackListeners) executor.setListeners(playbackListeners);
+    return wireTriggers(root, executor, api.flowRuntime, config, report);
+}
+
+/** What `triggerIssues` finds in the rules — a disallowed event, a named resume list that differs, a collision. @internal */
+export function reportTriggerProblems(config: PxAnimatorRuntimeConfig, report: PxDiagnostics): void {
+    for (const issue of triggerIssues(config.actionTriggers)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
+}
+
+/**
+ * The listeners, the gate and the state rule over one executor (2026-11-22) — what {@link setupAnimationTriggers} wires
+ * for one engine, and a flow wires once over its switch (the current step's playback). `flows`: the flow the
+ * `flow.*` rules move — none for a player of one timeline. Returns the disposer.
+ * @internal
+ */
+export function wireTriggers(
+    root: Element,
+    executor: PxPlayExecutor,
+    flows: PxFlowRuntime | undefined,
+    config: PxAnimatorRuntimeConfig,
+    report: PxDiagnostics,
+): () => void {
+    // Everything attached below registers its own undo here, so one call detaches it all.
+    const cleanups: Array<() => void> = [];
+    const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
+    const trigger = resolveTriggers(config.actionTriggers, (config.flowSteps ?? []).map(s => s.id));
 
     // Permission to run, for every document and whatever starts it. Leaving and returning are the executor's buttons.
     const gateRule = resolveGate(config);
@@ -90,21 +109,19 @@ export function setupAnimationTriggers(
     });
     cleanups.push(() => gate.dispose());
 
-
     const whenFinished = resolveActions(config.actions, config.whenFinished).whenFinished;
 
     /** The state rule (core's `triggerActionFor`): the player's state picks the lists an event is read
      *  from — off · playing · paused · finished · returning. `direct` is a pointer interaction — it never waits out
      *  the gate; a resume never does either (a paused playback was seen). */
     const fire = (event: string, direct: boolean): void => {
-        // the state actions first (2026-11-20) — unless a component holds the state (its `state` prop)
-        const states = api.stateRuntime;
-        if (states && !states.isHeld()) {
-            for (const s of trigger.states) {
+        // the flow actions first — unless a component holds the step (its `flowStep` prop)
+        if (flows && !flows.isHeld()) {
+            for (const s of trigger.flows) {
                 if (!s.keys.includes(event)) continue;
-                if (s.action === PxStateAction.next) states.controls.next();
-                else if (s.action === PxStateAction.previous) states.controls.previous();
-                else if (s.state !== undefined) states.controls.goTo(s.state);
+                if (s.action === PxFlowAction.next) flows.controls.next();
+                else if (s.action === PxFlowAction.previous) flows.controls.previous();
+                else if (s.flowStep !== undefined) flows.controls.goTo(s.flowStep);
             }
         }
         switch (triggerActionFor(trigger, executor.state(), event, whenFinished)) {

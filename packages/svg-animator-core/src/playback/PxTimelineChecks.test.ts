@@ -3,13 +3,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// The checks of several timelines and states (2026-11-20) — a clean file, then one mistake at a time.
+// The checks of timelines, flows and flow steps (2026-11-20; flows 2026-11-22) — a clean file, then one mistake at a time.
 
 import { describe, expect, it } from 'vitest';
 import type { PxDocument } from '../format/PxAnimatorTypes';
+import { PX_DEFAULT_TIMELINE } from '../format/PxAnimatorConstants';
 import { PxTimelineIssueKind, timelineIssues } from './PxTimelineChecks';
 
-/** A free shine, a pointer state machine on `grow` + `dip`, a `notice` state machine on `ring`, a scroll `reveal`. */
+/** The flow `default` (the shine, idle · press on `grow` + `dip`, the scroll `reveal` no step names), a `notice` flow on `ring`. */
 function bell(): PxDocument {
     return {
         type: 'svg', viewBox: '0 0 100 100',
@@ -21,24 +22,24 @@ function bell(): PxDocument {
                 { id: 'ring', outTime: 1400 },
                 { id: 'reveal', type: 'scroll', outTime: 1000 },
             ],
-            states: [
+            flowSteps: [
                 { id: 'idle', timeline: 'grow', inTime: 0, outTime: 0 },
                 { id: 'press', timeline: 'dip' },
-                { id: 'ringing', stateMachine: 'notice', timeline: 'ring' },
+                { id: 'ringing', flow: 'notice', timeline: 'ring' },
             ],
-            stateMachines: [{ id: 'notice' }],
+            flows: [{ id: 'notice' }],
             actionTriggers: [
                 { action: 'timeline.start', event: 'load' },
-                { action: 'state.next', stateMachine: 'notice', event: 'keyDown' },
+                { action: 'flow.next', flow: 'notice', event: 'keyDown' },
                 { action: 'timeline.pause', timeline: 'ring', event: 'hoverOut' },
             ],
         },
         children: [
             { type: 'rect', id: 'shine', animate: { x: { keyframes: [{ time: 0, value: 0 }, { time: 4000, value: 40 }] } } },
             { type: 'rect', id: 'bg', animate: {
-                opacity: { byTimeline: [{ timeline: 'grow', value: 1 }, { timeline: 'dip', value: 0.5 }] },
-                translate: { byTimeline: [{ timeline: 'grow', value: [0, 0] }] },
-                scale: { byTimeline: [{ timeline: 'dip', value: [1, 1] }] },
+                opacity: { byTimeline: [{ timeline: 'grow', keyframes: [{ time: 0, value: 1 }] }, { timeline: 'dip', keyframes: [{ time: 0, value: 0.5 }] }] },
+                translate: { byTimeline: [{ timeline: 'grow', keyframes: [{ time: 0, value: [0, 0] }] }] },
+                scale: { byTimeline: [{ timeline: 'dip', keyframes: [{ time: 0, value: [1, 1] }] }] },
             } },
         ],
     };
@@ -47,48 +48,55 @@ function bell(): PxDocument {
 const kinds = (doc: PxDocument) => timelineIssues(doc).map(i => [i.kind, i.key ?? i.attribute ?? '', i.id ?? '', i.at ?? '']);
 
 describe('timeline checks', () => {
-    it('the bell file is clean — a state machine over two timelines, its transform parts on both', () => {
+    it('the bell file is clean — a flow over several timelines, its transform parts on two of them', () => {
         expect(timelineIssues(bell())).toEqual([]);
     });
 
-    it('a repeated timeline or state machine id', () => {
+    // 2026-11-22: the timeline with no id is called '' (PX_DEFAULT_TIMELINE), no longer `default`
+    it('a repeated timeline or flow id — two timelines with no id are two default ones', () => {
         const doc = bell();
-        doc.animator?.timelines?.push({ id: 'grow' });
-        doc.animator?.stateMachines?.push({ id: 'notice' });
+        doc.animator?.timelines?.push({ id: 'grow' }, { outTime: 10 });
+        doc.animator?.flows?.push({ id: 'notice' });
         expect(kinds(doc)).toEqual([
             [PxTimelineIssueKind.idDuplicate, 'timelines', 'grow', ''],
-            [PxTimelineIssueKind.idDuplicate, 'stateMachines', 'notice', ''],
+            [PxTimelineIssueKind.idDuplicate, 'timelines', PX_DEFAULT_TIMELINE, ''],
+            [PxTimelineIssueKind.idDuplicate, 'flows', 'notice', ''],
         ]);
     });
 
-    it('references that name nothing: a state\'s timeline and state machine, a rule\'s, a track\'s timeline', () => {
+    it('a timeline whose id is `default` is an ordinary one — no repeated id beside the one with no id (2026-11-22)', () => {
         const doc = bell();
-        doc.animator?.states?.push({ id: 'lost', timeline: 'nope', stateMachine: 'gone' });
+        doc.animator?.timelines?.push({ id: 'default', outTime: 10 });
+        expect(kinds(doc)).toEqual([]);
+    });
+
+    it('references that name nothing: a step\'s timeline, a rule\'s, a track\'s timeline — a flow only steps name is a flow', () => {
+        const doc = bell();
+        doc.animator?.flowSteps?.push({ id: 'lost', timeline: 'nope', flow: 'gone' });
         doc.animator?.actionTriggers?.push({ action: 'timeline.stop', timeline: 'nope2', event: 'click' });
-        doc.children?.push({ type: 'rect', id: 'stray', animate: { x: { byTimeline: [{ timeline: 'nope3', value: 1 }] } } });
+        doc.children?.push({ type: 'rect', id: 'stray', animate: { x: { byTimeline: [{ timeline: 'nope3', keyframes: [{ time: 0, value: 1 }] }] } } });
         expect(kinds(doc)).toEqual([
             [PxTimelineIssueKind.referenceNotFound, 'timeline', 'nope', 'lost'],
-            [PxTimelineIssueKind.referenceNotFound, 'stateMachine', 'gone', 'lost'],
             [PxTimelineIssueKind.referenceNotFound, 'timeline', 'nope2', 'timeline.stop'],
             [PxTimelineIssueKind.referenceNotFound, 'timeline', 'nope3', 'stray'],
         ]);
     });
 
-    it('one timeline in two state machines; a state on the scroll timeline', () => {
+    it('one timeline in two flows; a step on a PART of the scroll timeline (the whole of it is a step)', () => {
         const doc = bell();
-        doc.animator?.states?.push({ id: 'taken', stateMachine: 'notice', timeline: 'grow' }, { id: 'scrolled', timeline: 'reveal' });
+        doc.animator?.flowSteps?.push({ id: 'taken', flow: 'notice', timeline: 'grow' }, { id: 'scrolled', timeline: 'reveal', inTime: 0, outTime: 500 });
         expect(kinds(doc)).toEqual([
+            [PxTimelineIssueKind.partOfScrollTimeline, '', 'reveal', 'scrolled'],
             [PxTimelineIssueKind.timelineShared, '', 'grow', 'taken'],
-            [PxTimelineIssueKind.stateOnScrollTimeline, '', 'reveal', 'scrolled'],
         ]);
     });
 
-    it('an attribute on timelines of two units — a free one and a state machine\'s; transform parts count as one', () => {
+    it('an attribute two flows move — `default` and `notice`; transform parts count as one', () => {
         const doc = bell();
         doc.children?.push({ type: 'rect', id: 'mixed', animate: {
-            opacity: { byTimeline: [{ timeline: 'grow', value: 1 }, { timeline: 'ring', value: 0 }] },
+            opacity: { byTimeline: [{ timeline: 'grow', keyframes: [{ time: 0, value: 1 }] }, { timeline: 'ring', keyframes: [{ time: 0, value: 0 }] }] },
             rotate: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 90 }] },
-            scale: { byTimeline: [{ timeline: 'dip', value: [2, 2] }] },
+            scale: { byTimeline: [{ timeline: 'ring', keyframes: [{ time: 0, value: [2, 2] }] }] },
         } });
         expect(kinds(doc)).toEqual([
             [PxTimelineIssueKind.attributeSplit, 'opacity', '', 'mixed'],
@@ -96,11 +104,14 @@ describe('timeline checks', () => {
         ]);
     });
 
-    it('plain keyframes beside byTimeline', () => {
+    it('plain keyframes beside byTimeline are the default timeline\'s — no finding (2026-11-22); with no default timeline, a finding', () => {
         const doc = bell();
         doc.children?.push({ type: 'rect', id: 'both', animate: {
-            x: { keyframes: [{ time: 0, value: 0 }], byTimeline: [{ timeline: 'grow', value: 1 }] },
+            x: { keyframes: [{ time: 0, value: 0 }], byTimeline: [{ timeline: 'grow', keyframes: [{ time: 0, value: 1 }] }] },
         } });
-        expect(kinds(doc)).toContainEqual([PxTimelineIssueKind.keyframesBesideTracks, 'x', '', 'both']);
+        expect(kinds(doc).filter(k => k[3] === 'both')).toEqual([]);
+        const named: PxDocument = { type: 'svg', animator: { timelines: [{ id: 'only', outTime: 100 }] },
+            children: [{ type: 'rect', id: 'r', animate: { x: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] } } }] };
+        expect(kinds(named)).toEqual([[PxTimelineIssueKind.keyframesWithoutDefault, 'x', '', 'r']]);
     });
 });

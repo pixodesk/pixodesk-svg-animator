@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getAnimatorConfig, PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxCompiledAnimation, type PxCompiledKeyframe, PxDiagnosticCode, PxDiagnosticKind } from '@pixodesk/svg-animator-core';
-import { normalizeBindings, PxValueKind, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, seekCeilingMs } from '@pixodesk/svg-animator-core/engine';
+import { normalizeBindings, PxValueKind, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, seekCeilingMs, shouldWireOwnTriggers } from '@pixodesk/svg-animator-core/engine';
 import { cssPlaybackDirection, PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
@@ -183,23 +183,28 @@ export interface PxWebApiScrollTimeline {
     rangeEnd?: PxNativeRangeOffset;
 }
 
+/** A flow step's document moving nothing is no mistake of the file (another flow may hold its attributes) — the file
+ *  is judged whole (2026-11-22). */
+const shouldWarnNoBindings = (flowStep: boolean | undefined): boolean => !flowStep;
+
 // @px-importance important
 /** @internal Forced: never `null` (only an unforced call steps aside for unsupported attrs). */
 export function createWebApiAnimator(
     doc: PxDocument, callbacks: PxEngineCallbacks | undefined, rootElement: Element | null | undefined,
-    forceEvenIfHasUnsupportedAttrs: true, scrollTimeline?: PxWebApiScrollTimeline,
+    forceEvenIfHasUnsupportedAttrs: true, scrollTimeline?: PxWebApiScrollTimeline, flowStep?: boolean,
 ): PxEngineAnimationPlayerApi<Element>;
 /** @internal */
 export function createWebApiAnimator(
     doc: PxDocument, callbacks?: PxEngineCallbacks, rootElement?: Element | null,
-    forceEvenIfHasUnsupportedAttrs?: boolean, scrollTimeline?: PxWebApiScrollTimeline,
+    forceEvenIfHasUnsupportedAttrs?: boolean, scrollTimeline?: PxWebApiScrollTimeline, flowStep?: boolean,
 ): PxEngineAnimationPlayerApi<Element> | null;
 export function createWebApiAnimator(
     doc: PxDocument,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null,
     forceEvenIfHasUnsupportedAttrs?: boolean,
-    scrollTimeline?: PxWebApiScrollTimeline
+    scrollTimeline?: PxWebApiScrollTimeline,
+    flowStep?: boolean,
 ): PxEngineAnimationPlayerApi<Element> | null {
 
     const config = getAnimatorConfig(doc) || {};
@@ -243,7 +248,7 @@ export function createWebApiAnimator(
     ////////////////////////////////////////////////////////////////
 
     // Warn if no bindings defined
-    if (!bindings?.length) {
+    if (!bindings?.length && shouldWarnNoBindings(flowStep)) {
         diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.noBindings);
     }
 
@@ -431,7 +436,7 @@ export function createWebApiAnimator(
     // the gate's `pause` out-of-view behavior — so an unseen animation does not run).
     if (config.timelineSource === 'scroll') {
         if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
-    } else {
+    } else if (shouldWireOwnTriggers(callbacks)) {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
         const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.playbackListeners);
         const destroyEngine = api.destroy.bind(api);

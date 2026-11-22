@@ -29,7 +29,7 @@ describe('trigger defaults', () => {
         expect(listsOf([])).toEqual({ startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [] });
         expect(listsOf([{ action: 'timeline.start', event: 'load' }])).toEqual({ startPlayback: ['load'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['load'] });
         // no segment actions: no segment triggers; a bare word is heard on the whole picture
-        expect(resolveTriggers([{ action: 'timeline.start', event: 'load' }]).states).toEqual([]);
+        expect(resolveTriggers([{ action: 'timeline.start', event: 'load' }]).flows).toEqual([]);
         expect(resolveTriggers([{ action: 'timeline.start', event: 'load' }]).specs.get('load')).toEqual({ key: 'load', event: 'load' });
     });
 

@@ -11,7 +11,7 @@ import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformP
 import { evaluateMotionPathSegment, sampleMotionPathKeyframes, type MotionPathMaterializationOptions, type MotionPathSegments } from '../materialize/PxMotionPath';
 import { mergeStaticTransformIntoAnimDef } from './PxStaticTransformMerge';
 import { channelKindOf, interpolateTransformParts, mapChannelKeyframes, movesAlongPath, sharedUnitOf, withTimelineTrack, type PxChannelLerp, type PxNormalizedBinding, type PxRuntimeAnimation } from './PxRuntimeChannel';
-import { firstTimelineIdOf, timelineWindowsOf } from '../playback/PxTimelineWindows';
+import { timelineWindowsOf } from '../playback/PxTimelineWindows';
 
 // Declared in its own leaf module so the motion-path flattener can use it too, without importing
 // this one back (it is imported here). Re-exported so this module's surface is unchanged.
@@ -626,12 +626,9 @@ export interface PxCompileContext {
     readonly engine: PxTimelineEngine;
     /** The native engine's motion-path sampling knobs. */
     readonly motionPath?: MotionPathMaterializationOptions;
-    /** The window of every other timeline, by its `id` (2026-11-20) — a `byTimeline` track is compiled with its own;
-     *  a track naming a timeline not listed here is not compiled. */
+    /** The window of every named timeline, by its `id` (2026-11-20) — a `byTimeline` track is compiled with its own;
+     *  a track naming a timeline not listed here is not compiled. The plain keyframes are the default timeline's. */
     readonly timelineWindows?: ReadonlyMap<string, { readonly windowStart: number; readonly windowEnd: number }>;
-    /** The first timeline's `id`, when it has one: a track naming it IS the first timeline's keyframes (it wins over
-     *  the plain ones, as `byTimeline` does everywhere). */
-    readonly firstTimelineId?: string;
 }
 
 // @px-importance important
@@ -757,7 +754,7 @@ export function compileAnimationDefinition(
     staticTransform: unknown,
     ctx: PxCompileContext,
 ): Record<string, PxCompiledAnimation> {
-    const { plain, tracks } = splitTimelineTracks(animDef, ctx.firstTimelineId);
+    const { plain, tracks } = splitTimelineTracks(animDef);
     if (!tracks.size) return compilePlainDefinition(plain, staticTransform, ctx, new Set());
     // every attribute with a track elsewhere keeps an entry here, empty or not: the tracks ride on it (2026-11-20)
     const carriers = new Set<string>();
@@ -775,10 +772,10 @@ export function compileAnimationDefinition(
     return out;
 }
 
-/** An animation definition split into its plain entries (the first timeline) and, per other timeline, the
- *  definition its `byTimeline` tracks make. A track naming the first timeline (`firstId`) takes the plain entry's place.
- *  Compiled entries pass through as plain (they carry their tracks). */
-function splitTimelineTracks(animDef: PxAnimationDefinition, firstId: string | undefined): { plain: PxAnimationDefinition; tracks: Map<string, PxAnimationDefinition> } {
+/** An animation definition split into its plain entries (the default timeline's — they may stand beside tracks,
+ *  2026-11-22) and, per named timeline, the definition its `byTimeline` tracks make. Compiled entries pass through as
+ *  plain (they carry their tracks). */
+function splitTimelineTracks(animDef: PxAnimationDefinition): { plain: PxAnimationDefinition; tracks: Map<string, PxAnimationDefinition> } {
     const tracks = new Map<string, PxAnimationDefinition>();
     let plain: PxAnimationDefinition | undefined;
     for (const [propName, anim] of Object.entries(animDef)) {
@@ -788,11 +785,6 @@ function splitTimelineTracks(animDef: PxAnimationDefinition, firstId: string | u
         plain[propName] = own;
         for (const track of byTimeline) {
             const { timeline, ...rest } = track;
-            if (firstId !== undefined && timeline === firstId) {
-                const { keyframes: _k, value: _v, ...settings } = own;
-                plain[propName] = { ...settings, ...rest };
-                continue;
-            }
             const def = tracks.get(timeline) ?? {};
             def[propName] = rest;
             tracks.set(timeline, def);
@@ -899,7 +891,7 @@ export function normalizeBindings(
     // ONCE, here, so every engine keeps sampling a [0, duration] space.
     const inTime = animatorConfig.inTime ?? 0;
     // every timeline's window — a `byTimeline` track is compiled against its own (2026-11-20)
-    const ctx: PxCompileContext = { windowStart: inTime, windowEnd: inTime + duration, defs, engine, timelineWindows: timelineWindowsOf(doc), firstTimelineId: firstTimelineIdOf(doc) };
+    const ctx: PxCompileContext = { windowStart: inTime, windowEnd: inTime + duration, defs, engine, timelineWindows: timelineWindowsOf(doc) };
 
     const bindings: PxNormalizedBinding[] = [];
 

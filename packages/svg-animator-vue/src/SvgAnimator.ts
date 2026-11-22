@@ -8,8 +8,8 @@ import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimel
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback, type PxVariablesApi, type PxVariableValue } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, forwardStateControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
-import { createDiagnostics, createStateLever, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { applyDeclarativeAction, applyPlaybackOverride, applyVariablesProp, forwardPlaybackControls, forwardFlowControls, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, PxVariablesRuntime, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { createDiagnostics, createFlowLever, createRunLever, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, takeFollowedOut, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, isRef, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -132,8 +132,11 @@ export const svgAnimationPlayerProps = {
     variant: { type: String as PropType<string | null>, default: undefined },
     cssVariables: { type: [Boolean, Object] as PropType<boolean | Readonly<Record<string, string>>>, default: undefined },
 
-    // -- States (2026-11-20): the state the page holds — the file's state rules rest while it is set
-    state: { type: [String, Array] as PropType<string | Array<string>>, default: undefined },
+    // -- Flows (2026-11-22; `state` 11-20): the step the page holds — the file's rules for its flow rest while it is set
+    flowStep: { type: [String, Array] as PropType<string | Array<string>>, default: undefined },
+    // -- What runs (2026-11-22): a change plans again over the same picture — no remount
+    flows: { type: Array as PropType<Array<string>>, default: undefined },
+    timelines: { type: Array as PropType<Array<string>>, default: undefined },
 
     // -- Controlled time
     showAtProgress: { type: Number },
@@ -194,7 +197,7 @@ const SvgAnimationPlayer = defineComponent({
 
     props: svgAnimationPlayerProps,
 
-    emits: ['ready', 'playbackStart', 'playbackStop', 'playbackPause', 'playbackResume', 'playbackFinish', 'stateChange', 'destroy'],
+    emits: ['ready', 'playbackStart', 'playbackStop', 'playbackPause', 'playbackResume', 'playbackFinish', 'flowStepChange', 'destroy'],
 
     setup(props, { expose, emit }) {
         // The `<svg>` this component rendered — handed to the player, which attaches its
@@ -276,9 +279,12 @@ const SvgAnimationPlayer = defineComponent({
 
         // -- Animator lifecycle -------------------------------------------------
 
-        // The `state` prop: one lever for the component's life — every player it builds holds it from its first frame
-        const stateLever = createStateLever(props.state);
-        watch(() => props.state, next => stateLever.set(next), { deep: true });
+        // The `flowStep` prop: one lever for the component's life — every player it builds holds it from its first frame
+        const flowLever = createFlowLever(props.flowStep);
+        watch(() => props.flowStep, next => flowLever.set(next), { deep: true });
+        // The `flows` / `timelines` props: what runs — a change plans again, the picture stays
+        const runLever = createRunLever({ flows: props.flows, timelines: props.timelines });
+        watch(() => [props.flows, props.timelines], () => runLever.set({ flows: props.flows, timelines: props.timelines }), { deep: true });
 
         function createApi() {
             destroyApi();
@@ -302,14 +308,15 @@ const SvgAnimationPlayer = defineComponent({
                 // `timelineOptions.follows` holds its element.
                 rootElement: rootElement ?? undefined,
                 followedElement: elementOf(takeFollowedOut(props.timelineOptions, isVueFollowed).followed),
-                stateLever,
+                flowLever,
+                runLever,
                 onReady:  () => emit('ready'),
                 onPlaybackStart:  () => emit('playbackStart'),
                 onPlaybackStop:   () => emit('playbackStop'),
                 onPlaybackPause:  () => emit('playbackPause'),
                 onPlaybackResume: () => emit('playbackResume'),
                 onPlaybackFinish: () => emit('playbackFinish'),
-                onStateChange: (state, previous, stateMachine) => emit('stateChange', state, previous, stateMachine),
+                onFlowStepChange: (flowStep, previous, flow) => emit('flowStepChange', flowStep, previous, flow),
                 onDestroy: () => emit('destroy'),
                 // The player's own diagnostics reach the same handlers as the component's.
                 onWarning:   props.onWarning,
@@ -416,9 +423,9 @@ const SvgAnimationPlayer = defineComponent({
             timeline: forwardPlaybackControls(
                 () => apiRef.value?.timeline,
                 (call, run) => { guardWrite(call); const playback = apiRef.value?.timeline; if (playback) run(playback); }),
-            state: forwardStateControls(
-                () => apiRef.value?.state,
-                (call, run) => { guardWrite(call); const states = apiRef.value?.state; if (states) run(states); }),
+            flow: forwardFlowControls(
+                () => apiRef.value?.flow,
+                (call, run) => { guardWrite(call); const flows = apiRef.value?.flow; if (flows) run(flows); }),
             getTimeline: (id: string) => apiRef.value?.getTimeline(id),
             variables: variablesApi,
         };

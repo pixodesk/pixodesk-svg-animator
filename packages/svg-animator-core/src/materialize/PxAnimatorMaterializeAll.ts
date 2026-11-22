@@ -44,7 +44,7 @@ import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
 import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 import { generateNewIds } from '../util/PxIdUtil';
 import { materializeRestPosesInTree } from './PxRestPose';
-import { firstTimelineIdOf, timelineWindowsOf } from '../playback/PxTimelineWindows';
+import { timelineWindowsOf } from '../playback/PxTimelineWindows';
 
 
 /** Options accepted by {@link materializeAllInTree}. Mostly forwarded to the
@@ -99,7 +99,6 @@ export function materializeAllInTree(
         motionPath: options?.motionPath,
         // every other timeline's window, by id (2026-11-20): a `byTimeline` track is compiled with its own
         timelineWindows: timelineWindowsOf(root),
-        firstTimelineId: firstTimelineIdOf(root),
     }), carry);
 
     if (engine === PxTimelineEngine.native) {

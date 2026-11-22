@@ -4,15 +4,16 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor, type PxTimelineControls } from '@pixodesk/svg-animator-core';
-import { applyPlaybackOverride, composeApiExtras, withStateEngine, isNativeForced, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { PX_DEFAULT_TIMELINE, getAnimatorConfig, toPxDocument, type PxRunListProps, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxCommonControlProps, type PxEngineCallbacks, type PxPlayExecutor, type PxTimelineControls } from '@pixodesk/svg-animator-core';
+import { applyPlaybackOverride, composeApiExtras, isNativeForced, type PxRunLists, mayUseNativeScrollTimeline, PxControlMode, PxPlaybackWrite, PxVariablesRuntime, resolveControlMode, withControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import { webRaf } from '../shared/PxWebRaf';
-import type { PxAnimationPlayerApi, PxEngineAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
+import { bindPlanned } from './PxAnimatorUnits';
+import type { PxAnimationPlayerApi, PxBoundPlayerApi, PxEngineAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 import { applyHoldOnScreen, createNativeScrollTimeline, createScrollDriver } from '../scroll/PxScrollDriver';
 
@@ -37,8 +38,9 @@ import { applyHoldOnScreen, createNativeScrollTimeline, createScrollDriver } fro
 export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
     callbacks: PxPlayerCallbacks | undefined,
-    make: (engineCallbacks?: PxEngineCallbacks) => PxEngineAnimationPlayerApi<Element>
-): PxPlayerEngineApi {
+    make: (engineCallbacks?: PxEngineCallbacks) => PxEngineAnimationPlayerApi<Element>,
+    triggersByFlow?: boolean,
+): PxBoundPlayerApi {
 
     const told = tellsPlaybackEvents(animatorConfig);
     const listeners = told ? callbacks : undefined;
@@ -49,6 +51,7 @@ export function finaliseAnimator(
         // `make`, before `composeApiExtras` could attach them); the engine never fires them itself
         playbackListeners: listeners,
         onFinish: told ? () => { executor?.onNaturalFinish(); } : undefined,
+        triggersByFlow,
     };
 
     // `playback` (the buttons, the seeks, the reads) is composed ON TOP of the engine — the one shared rule (review
@@ -56,8 +59,7 @@ export function finaliseAnimator(
     const res = composeApiExtras(make(engineCallbacks), { ...animatorConfig, playbackListeners: listeners }, webRaf);
     executor = res.playExecutor;
     // no timeline by id until the binder that knows the document says which (`bindWithEngineChoice`)
-    const built: PxPlayerEngineApi = Object.assign(res, { getTimeline: (): PxTimelineControls | undefined => undefined });
-    built.stateHolder = res.stateRuntime;
+    const built: PxBoundPlayerApi = Object.assign(res, { getTimeline: (): PxTimelineControls | undefined => undefined });
 
     // the file's `playbackSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
     return built;
@@ -84,17 +86,14 @@ export function bindWithEngineChoice(
     rootElement?: Element | null,
     mode: PxControlMode = PxControlMode.actionTriggers,
     followed?: Element,
-): PxPlayerEngineApi {
+    triggersByFlow?: boolean,
+): PxBoundPlayerApi {
     // One channel for everything this binder and the scroll driver have to say (review §5).
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
-    // a timeline with states (2026-11-20; segments 2026-11-15): the engine plays ONE plain pass of the window — the
-    // state clock seeks it
-    doc = withStateEngine(doc);
-    const api = mode === PxControlMode.static ? guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false))
-        : bindEngine(doc, adapter, callbacks, rootElement, diag, true, followed);
-    // one timeline: `getTimeline` finds it by its id (2026-11-20)
-    const firstId = doc.animator?.timelines?.[0]?.id;
-    api.getTimeline = (id) => (firstId !== undefined && id === firstId ? api.timeline : undefined);
+    const api = mode === PxControlMode.static ? guardStaticPlayback(diag, bindEngine(doc, adapter, callbacks, rootElement, diag, false, undefined, triggersByFlow))
+        : bindEngine(doc, adapter, callbacks, rootElement, diag, true, followed, triggersByFlow);
+    // one timeline — the default one: `getTimeline(PX_DEFAULT_TIMELINE)` finds it (2026-11-22)
+    api.getTimeline = (id) => (id === PX_DEFAULT_TIMELINE ? api.timeline : undefined);
     return api;
 }
 
@@ -108,7 +107,8 @@ function bindEngine(
     diag: ReturnType<typeof createDiagnostics>,
     followScroll: boolean,
     followed?: Element,
-): PxPlayerEngineApi {
+    triggersByFlow?: boolean,
+): PxBoundPlayerApi {
     const animatorConfig = getAnimatorConfig(doc) || {};
 
     // Scroll-driven document: the playhead follows scroll position, never the wall
@@ -135,7 +135,7 @@ function bindEngine(
                 const native = createNativeScrollTimeline(rootElement, animatorConfig, diag, followed);
                 if (native) {
                     const api = createWebApiAnimator(doc, cb, rootElement,
-                        isNativeForced(animatorConfig.engine), native);
+                        isNativeForced(animatorConfig.engine), native, triggersByFlow);
                     if (api) {
                         const destroyNative = api.destroy.bind(api);
                         api.destroy = () => { unpin(); destroyNative(); };
@@ -151,7 +151,7 @@ function bindEngine(
             // `mode`: waapi unless `player` pins frames or waapi declines the doc.
             const api = (
                 animatorConfig.engine !== PxTimelineEngineSetting.js
-                    ? createWebApiAnimator(doc, cb, rootElement, isNativeForced(animatorConfig.engine))
+                    ? createWebApiAnimator(doc, cb, rootElement, isNativeForced(animatorConfig.engine), undefined, triggersByFlow)
                     : null
             ) || createFrameLoopAnimator(doc, adapter, cb, rootElement);
 
@@ -174,7 +174,7 @@ function bindEngine(
                 diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollNoRootToObserve);
             }
             return api;
-        }));
+        }, triggersByFlow));
     }
 
     return finaliseAnimator(animatorConfig, callbacks, cb => {
@@ -186,18 +186,18 @@ function bindEngine(
         // attrs) unless `native` demands waapi.
         return (
             createWebApiAnimator(doc, cb, rootElement,
-                isNativeForced(animatorConfig.engine)
+                isNativeForced(animatorConfig.engine), undefined, triggersByFlow,
             ) ||
             createFrameLoopAnimator(doc, adapter, cb, rootElement)
         );
-    });
+    }, triggersByFlow);
 }
 
 /** On a scroll timeline the scrolling owns the playhead, on every engine:
  *  - the state reads `scrubbing` (D3) — never playing, paused or finished; `destroyed` after `destroy()`
  *  - the buttons, the speed and the seeks are no-ops that say so (PX1505 `scrollOwnsPlayhead`, D16); the reads answer
  *  - the driver moves the engine's own clock, which no guard touches */
-function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxPlayerEngineApi): PxPlayerEngineApi {
+function guardScrollDrivenPlayback<T extends PxPlayerEngineApi>(diag: ReturnType<typeof createDiagnostics>, api: T): T {
     const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollOwnsPlayhead, call);
     const playback = api.timeline;
     let destroyed = false;
@@ -221,7 +221,7 @@ function guardScrollDrivenPlayback(diag: ReturnType<typeof createDiagnostics>, a
 
 /** `showAsStatic`: the picture stays as drawn — every playback write is a no-op that says so (PX1506
  *  `showAsStaticIgnoresCall`); the reads answer from the engine, which never moves. */
-function guardStaticPlayback(diag: ReturnType<typeof createDiagnostics>, api: PxPlayerEngineApi): PxPlayerEngineApi {
+function guardStaticPlayback<T extends PxPlayerEngineApi>(diag: ReturnType<typeof createDiagnostics>, api: T): T {
     const ignored = (call: PxPlaybackWrite) => (): void => diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.showAsStaticIgnoresCall, call);
     const playback = api.timeline;
     playback.start = ignored(PxPlaybackWrite.start);
@@ -244,7 +244,7 @@ function guardStaticPlayback(diag: ReturnType<typeof createDiagnostics>, api: Px
  * document's own `actionTriggers` decide — the way the editor saved it.
  * @public
  */
-export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCallbacks, PxCommonControlProps {
+export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCallbacks, PxCommonControlProps, PxRunListProps {
     /**
      * The animation document. For a pre-rendered SVG this carries `animator.definitions`
      * and `animator.bindings` only — no `children`, because the elements are already
@@ -298,7 +298,9 @@ function buildOrReport(options: PxPrerenderedAnimationPlayerOptions, build: () =
  */
 export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
     const { doc, mode } = docToPlay(options);
-    return registered(options, callbacks => buildOrReport(options, () => bindWithEngineChoice(doc, undefined, callbacks, null, mode)));
+    // planned as the full player plans it (2026-11-22): flows side by side, one step's playback live in each
+    return registered(options, callbacks => buildOrReport(options, () => bindPlanned(doc,
+        (d, cb, followed, byFlow) => bindWithEngineChoice(d, undefined, cb, null, mode, followed, byFlow), callbacks, undefined, runListsOf(options))));
 }
 
 /**
@@ -329,9 +331,14 @@ function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callba
  */
 export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
     const { doc, mode } = docToPlay(options);
-    return registered(options, callbacks => buildOrReport(options, () => {
-        const animatorConfig = getAnimatorConfig(doc) || {};
-        const api = finaliseAnimator(animatorConfig, callbacks, cb => createWebApiAnimator(doc, cb, null, true));
-        return mode === PxControlMode.static ? guardStaticPlayback(createDiagnostics(callbacks, '[PxAnimator]'), api) : api;
-    }));
+    // planned as the full player plans it (2026-11-22) — every step on WAAPI alone, so no frame loop is linked
+    return registered(options, callbacks => buildOrReport(options, () => bindPlanned(doc, (d, cb, _followed, byFlow) => {
+        const api = finaliseAnimator(getAnimatorConfig(d) || {}, cb, ecb => createWebApiAnimator(d, ecb, null, true, undefined, byFlow), byFlow);
+        return mode === PxControlMode.static ? guardStaticPlayback(createDiagnostics(cb, '[PxAnimator]'), api) : api;
+    }, callbacks, undefined, runListsOf(options))));
+}
+
+/** The page's lists of what runs (2026-11-22), from the options. */
+function runListsOf(options: PxRunListProps): PxRunLists {
+    return { flows: options.flows, timelines: options.timelines };
 }

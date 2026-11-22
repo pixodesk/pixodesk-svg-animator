@@ -53,7 +53,8 @@ function paramFor(param: Record<string, unknown>, timeline: string | undefined):
     if (timeline === undefined || !Array.isArray(byTimeline)) return plain;
     const track = byTimeline.find(t => isRecord(t) && t.timeline === timeline);
     const { keyframes, value, ...rest } = plain;
-    if (isRecord(track)) {
+    // a track with no keyframes is no track (2026-11-22: a track holds keyframes only)
+    if (isRecord(track) && Array.isArray(track.keyframes) && track.keyframes.length) {
         const { timeline: _t, ...own } = track;
         return { ...rest, ...own };
     }

@@ -5,10 +5,11 @@
  *---------------------------------------------------------------------------------------*/
 
 // Every timeline of a document and its WINDOW (2026-11-20) — what a `byTimeline` track is compiled against
-// (`PxCompileContext.timelineWindows`) and what the units plan reads (`PxUnits.ts`). The first timeline's window comes
-// from the runtime view; another's from its own keys, else its tracks' last keyframe.
+// (`PxCompileContext.timelineWindows`) and what the plan reads (`PxUnits.ts`). The DEFAULT timeline — the first with no
+// id, wherever it stands (2026-11-22) — takes its window from the runtime view; another from its own keys, else its
+// tracks' last keyframe. A second timeline with no id, or a repeated id, is not read (the first wins).
 
-import { PX_DEFAULT_DURATION_MS, getAnimatorConfig } from '../format/PxAnimatorConstants';
+import { PX_DEFAULT_DURATION_MS, PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, getAnimatorConfig } from '../format/PxAnimatorConstants';
 import { animatorOf } from '../format/PxDocStage';
 import type { PxDocument } from '../format/PxAnimatorTypes';
 
@@ -16,8 +17,15 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 
 /** One timeline of the file, as the plan reads it. @internal */
 export interface PxTimelineInfo {
+    /** Its place among the timelines that are read. */
     readonly index: number;
     readonly id?: string;
+    /** What the page and the rules call it: its id, or {@link PX_DEFAULT_TIMELINE}. */
+    readonly name: string;
+    /** The id of the step it is when no written step names it: its id, or `default` (`PX_DEFAULT_ID`). */
+    readonly stepId: string;
+    /** The timeline with no id — keyframes that name no timeline are its. */
+    readonly isDefault: boolean;
     readonly timeline: Record<string, unknown>;
     readonly scroll: boolean;
     readonly windowStart: number;
@@ -46,22 +54,30 @@ function maxTrackTimeOf(doc: PxDocument, id: string): number | undefined {
     return max;
 }
 
-/** Every timeline of the document with its window — the first's from the runtime view, the others' from their keys. */
+/** Every timeline of the document that is read, with its window — the default one's from the runtime view, the
+ *  others' from their keys. */
 export function timelinesOf(doc: PxDocument): Array<PxTimelineInfo> {
     const animator = animatorOf(doc);
     const list = isRecord(animator) && Array.isArray(animator.timelines) ? animator.timelines : [];
     const view = getAnimatorConfig(doc);
-    return list.filter(isRecord).map((timeline, index): PxTimelineInfo => {
-        const id = typeof timeline.id === 'string' ? timeline.id : undefined;
+    const out: Array<PxTimelineInfo> = [];
+    let hasDefault = false;
+    for (const timeline of list.filter(isRecord)) {
+        const id = typeof timeline.id === 'string' && timeline.id !== PX_DEFAULT_TIMELINE ? timeline.id : undefined;
+        if (id === undefined ? hasDefault : out.some(t => t.id === id)) continue;   // the first wins (PX1116)
         const scroll = timeline.type === 'scroll';
-        if (index === 0) {
+        const index = out.length;
+        if (id === undefined) {
+            hasDefault = true;
             const start = view?.inTime ?? 0;
-            return { index, id, timeline, scroll, windowStart: start, windowEnd: start + (view?.duration ?? PX_DEFAULT_DURATION_MS) };
+            out.push({ index, id, name: PX_DEFAULT_TIMELINE, stepId: PX_DEFAULT_ID, isDefault: true, timeline, scroll, windowStart: start, windowEnd: start + (view?.duration ?? PX_DEFAULT_DURATION_MS) });
+            continue;
         }
         const start = typeof timeline.inTime === 'number' ? timeline.inTime : 0;
-        const end = typeof timeline.outTime === 'number' ? timeline.outTime : (id !== undefined ? maxTrackTimeOf(doc, id) : undefined) ?? start + PX_DEFAULT_DURATION_MS;
-        return { index, id, timeline, scroll, windowStart: start, windowEnd: Math.max(start, end) };
-    });
+        const end = typeof timeline.outTime === 'number' ? timeline.outTime : maxTrackTimeOf(doc, id) ?? start + PX_DEFAULT_DURATION_MS;
+        out.push({ index, id, name: id, stepId: id, isDefault: false, timeline, scroll, windowStart: start, windowEnd: Math.max(start, end) });
+    }
+    return out;
 }
 
 /** The ids of the timelines some attribute rides — a `byTimeline` track on a node or in a shared animation. @internal */
@@ -83,17 +99,10 @@ export function trackedTimelineIds(doc: PxDocument): Set<string> {
     return out;
 }
 
-/** The first timeline's `id`, when it has one — a track naming it is that timeline's keyframes. @internal */
-export function firstTimelineIdOf(doc: PxDocument): string | undefined {
-    const animator = animatorOf(doc);
-    const first = isRecord(animator) && Array.isArray(animator.timelines) ? animator.timelines[0] : undefined;
-    return isRecord(first) && typeof first.id === 'string' ? first.id : undefined;
-}
-
-/** Every timeline's window by its id — the first's too when it has one. What `byTimeline` is compiled against. @internal */
+/** Every named timeline's window by its id — what `byTimeline` is compiled against. @internal */
 export function timelineWindowsOf(doc: PxDocument): Map<string, { windowStart: number; windowEnd: number }> {
     const out = new Map<string, { windowStart: number; windowEnd: number }>();
-    for (const t of timelinesOf(doc)) if (t.id !== undefined && !out.has(t.id)) out.set(t.id, { windowStart: t.windowStart, windowEnd: t.windowEnd });
+    for (const t of timelinesOf(doc)) if (t.id !== undefined) out.set(t.id, { windowStart: t.windowStart, windowEnd: t.windowEnd });
     return out;
 }
 

@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxDocument, type PxEngineCallbacks, type PxDiagnostics } from '@pixodesk/svg-animator-core';
-import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter, shouldWireOwnTriggers } from '@pixodesk/svg-animator-core/engine';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
@@ -97,7 +97,7 @@ export function createFrameLoopAnimator(
     // the gate's `pause` out-of-view behavior — so an unseen animation does not run).
     if (isScrollTimeline(config)) {
         if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
-    } else {
+    } else if (shouldWireOwnTriggers(callbacks)) {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
         const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.playbackListeners);
         const destroyEngine = api.destroy.bind(api);
@@ -109,6 +109,15 @@ export function createFrameLoopAnimator(
 export function createDomAdapter(rootElement?: Element | null, diag?: PxDiagnostics) {
     // Track warnings to avoid spamming console
     const warnedSelectors = new Set<string>();
+    /** Each attribute as it was before the first write — what `release` puts back (2026-11-22). */
+    const originals = new Map<Element, Map<string, { attr: string | null; style?: string }>>();
+    const remember = (element: Element, attrName: string, styleName: string | undefined): void => {
+        const byAttr = originals.get(element) ?? new Map<string, { attr: string | null; style?: string }>();
+        if (byAttr.has(attrName)) return;
+        const style = styleName !== undefined && (element instanceof SVGElement || element instanceof HTMLElement) ? element.style.getPropertyValue(styleName) : undefined;
+        byAttr.set(attrName, { attr: element.getAttribute(attrName), style });
+        originals.set(element, byAttr);
+    };
     // Called directly by consumers too, so the channel is optional and defaults to the console.
     const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
 
@@ -140,11 +149,26 @@ export function createDomAdapter(rootElement?: Element | null, diag?: PxDiagnost
                 const effectiveAttrName = attrName === 'transform' && element.tagName === 'pattern'
                     ? 'patternTransform'
                     : attrName;
+                remember(element, effectiveAttrName, PX_STYLE_ATTR_NAMES.has(attrName) ? camelCaseToKebabWordIfNeeded(attrName) : undefined);
                 element.setAttribute(effectiveAttrName, value);
                 if (PX_STYLE_ATTR_NAMES.has(attrName) && (element instanceof SVGElement || element instanceof HTMLElement)) {
                     element.style.setProperty(camelCaseToKebabWordIfNeeded(attrName), value);
                 }
             }
+        },
+        release: () => {
+            for (const [element, byAttr] of originals) {
+                for (const [attrName, was] of byAttr) {
+                    if (was.attr === null) element.removeAttribute(attrName);
+                    else element.setAttribute(attrName, was.attr);
+                    if (was.style !== undefined && (element instanceof SVGElement || element instanceof HTMLElement)) {
+                        const styleName = camelCaseToKebabWordIfNeeded(attrName);
+                        if (was.style) element.style.setProperty(styleName, was.style);
+                        else element.style.removeProperty(styleName);
+                    }
+                }
+            }
+            originals.clear();
         },
     };
     return adapter;

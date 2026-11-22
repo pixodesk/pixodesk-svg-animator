@@ -426,7 +426,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         to: '1.28',
         code: PxSchemaChangeCode.scrollAndTimelines,
         kind: PxWireStepKind.converted,
-        up: (doc) => { upScrollTimeline(doc); upTimelineAndElementWords(doc); upTimelinesStatesAndRules(doc); },
+        up: (doc) => { upScrollTimeline(doc); upTimelineAndElementWords(doc); upTimelinesStatesAndRules(doc); upFlowWords(doc); },
         // no `down`: 1.27 cannot say an exact place on a line other than the screen's top or bottom
     },
 ];
@@ -584,6 +584,45 @@ export function upTimelinesStatesAndRules(doc: Record<string, unknown>): void {
         }
         animator['actionTriggers'] = rules;
     }
+}
+
+/** The 1.28 third amendment (2026-11-22, the flows): the 2026-11-20 words → the flow words — frozen at those words,
+ *  never the live constants:
+ *  - `animator.states` → `animator.flowSteps`; `animator.stateMachines` → `animator.flows`
+ *  - in a step: `stateMachine` → `flow`; in a rule and in a `whenFinished` object: `state` → `flowStep`,
+ *    `stateMachine` → `flow`, and the actions `state.goTo` · `state.next` · `state.previous` → `flow.*`
+ *  Idempotent: a document already in the flow words is left as it is. Exported (internal) so a writer can bring its
+ *  own documents stamped 1.28 in the older spelling over once. @internal */
+export function upFlowWords(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    if (!animator) return;
+    const renameKey = (o: Record<string, unknown>, from: string, to: string): void => {
+        if (o[from] === undefined) return;
+        if (o[to] === undefined) o[to] = o[from];
+        delete o[from];
+    };
+    const actionOf = (o: Record<string, unknown>): void => {
+        const action = o['action'];
+        if (action === 'state.goTo') o['action'] = 'flow.goTo';
+        else if (action === 'state.next') o['action'] = 'flow.next';
+        else if (action === 'state.previous') o['action'] = 'flow.previous';
+        renameKey(o, 'state', 'flowStep');
+        renameKey(o, 'stateMachine', 'flow');
+    };
+    const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+    renameKey(animator, 'states', 'flowSteps');
+    renameKey(animator, 'stateMachines', 'flows');
+    const steps = animator['flowSteps'];
+    if (Array.isArray(steps)) {
+        for (const step of steps) {
+            if (!isObject(step)) continue;
+            renameKey(step, 'stateMachine', 'flow');
+            const wf = step['whenFinished'];
+            if (isObject(wf)) actionOf(wf);
+        }
+    }
+    const rules = animator['actionTriggers'];
+    if (Array.isArray(rules)) for (const rule of rules) if (isObject(rule)) actionOf(rule);
 }
 
 /** A 1.28 (2026-11-15) segment action word as a 2026-11-20 action object, or `undefined` for any other value. */

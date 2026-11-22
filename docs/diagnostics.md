@@ -48,9 +48,9 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1111"></a>**1111** | The file's `timeline.resume` list differs from what the player would derive — the counterpart of each `timeline.pause` event plus the `timeline.start` events that do not stop it: it names an event the derivation would not, or leaves out one it would (that pause then waits for `timeline.start` or `timeline.stop`). The list is honoured as written. | the list and the event |
 | <a id="px1112"></a>**1112** | The document has keys or shapes this build's schema does not know — unrecognized keys above all. It plays, with those parts ignored. If you did not author them, the usual cause is a build that MANGLES PROPERTY NAMES: an animation document is data loaded at runtime, so renaming the property reads inside the player stops them matching the keys in the JSON, and the animation silently does nothing. Feed the published reserved-name list to your minifier — `@pixodesk/svg-animator-web/mangle-reserved.json`, see docs/library/minification.md. Reaches `onWarning` like every other diagnostic; `suppressWarnings` silences the console fallback (until 1.15 this report went to the console on its own). | the problems (path: finding), the first twelve, then the mangling hint |
 | <a id="px1113"></a>**1113** | An event names an `element` (2026-11-15) that the picture does not have — a typo, or an element the file lost. The event is never heard. | the element reference |
-| <a id="px1114"></a>**1114** | A `state.goTo` names a state the file does not have (2026-11-20; segments 2026-11-15) — in a rule of `actionTriggers`, or in a state's `whenFinished`. It is ignored. | the state it names, the state whose `whenFinished` holds it, and the ids the file has |
-| <a id="px1115"></a>**1115** | Two states have the same id (2026-11-20; segments 2026-11-15) — the first in the list is played, the later one is ignored: a rule or a go-to cannot tell them apart. | the id |
-| <a id="px1116"></a>**1116** | A finding about several timelines and states (2026-11-20): a repeated timeline or state machine id, a reference that names nothing, one timeline in two state machines, a state on a scroll-driven timeline, an attribute on timelines of two state machines, plain keyframes beside `byTimeline`. The file plays — the first one wins. | the finding: `{ kind, key?, id?, at?, attribute? }` (`timelineIssues`) |
+| <a id="px1114"></a>**1114** | A `flow.goTo` names a flow step the file does not have (flows 2026-11-22; states 11-20, segments 11-15) — in a rule of `actionTriggers`, or in a step's `whenFinished`. It is ignored. | the step it names, the step whose `whenFinished` holds it, and the ids the file has |
+| <a id="px1115"></a>**1115** | Two flow steps have the same id (flows 2026-11-22; states 11-20, segments 11-15) — the first in the list is played, the later one is ignored: a rule or a go-to cannot tell them apart. | the id |
+| <a id="px1116"></a>**1116** | A finding about timelines, flows and flow steps (2026-11-20; flows 2026-11-22): a repeated timeline or flow id, a reference that names nothing, one timeline in two flows, a step on a part of a scroll-driven timeline, an attribute two flows move, plain keyframes in a file with no default timeline. The file plays — the first one wins. | the finding: `{ kind, key?, id?, at?, attribute? }` (`timelineIssues`) |
 | <a id="px1106"></a>**1106** | A binding names no element, or names animations that `definitions.animations` does not have. | the binding |
 
 ## The mount: elements the player could not find
@@ -95,6 +95,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1504"></a>**1504** | A call on a destroyed player — ignored; `timeline.getState()` says `destroyed`. | the call |
 | <a id="px1505"></a>**1505** | A playback call on a scroll timeline — a button (`timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()`), the speed (`timeline.setSpeed()`, `timeline.setDurationAtSpeed()`) or a seek (`timeline.setCurrentTime()`, `timeline.setCurrentProgress()`, `timeline.setTotalTime()`, and the components' `showAtProgress` / `showAtTime`, which seek through them) — ignored: the scrolling owns the playhead. The reads still answer. To drive it from code, make it a clock timeline: `timelineOptions: { type: 'time' }`. | the call |
 | <a id="px1506"></a>**1506** | A playback call (`timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()`, a seek, `timeline.setSpeed()`, `timeline.setDurationAtSpeed()`) on a player shown with `showAsStatic` — ignored: the picture stays as drawn. The reads still answer. | the call |
+| <a id="px1507"></a>**1507** | A name in the `flows` or `timelines` option or prop that the file does not have (2026-11-22) — ignored. `default` names the flow `default` and the timeline with no id. | the list (`flows` or `timelines`) · the name |
 
 ## React Native
 
@@ -105,6 +106,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1602"></a>**1602** | Rendering the compiled document threw, so `fallback` is shown. | the Error |
 | <a id="px1603"></a>**1603** | The error boundary caught a render failure below this component. | the Error · the React component stack |
 | <a id="px1604"></a>**1604** | `react-native-svg` cannot express part of this document, so it was left out or simplified. | what was left out |
+| <a id="px1605"></a>**1605** | React Native plays ONE flow (2026-11-22): the first that runs; the others are not played. Its steps go one to the next at once — a step's `whenLeaving` is not played on React Native. | the flows not played |
 
 ## Variables
 

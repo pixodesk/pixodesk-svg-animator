@@ -5,33 +5,36 @@
  *---------------------------------------------------------------------------------------*/
 
 // ============================================================================
-// THE CHECKS of several timelines and states (2026-11-20, kf app/docs/app-design/timelines-and-states.design.md §2.7).
-// Each is a finding; none stops a file from playing — the player keeps the first and goes on (`planUnits`).
+// THE CHECKS of timelines, flows and flow steps (2026-11-20; flows 2026-11-22, kf app/docs/app-design/timelines-and-states.plan.md).
+// Each is a finding; none stops a file from playing — the player keeps the first and goes on. The decisions are the
+// plan's own (`planUnits`, `attributeOwnersOf`): what is reported here is what the player does.
 //
 // | kind | when |
 // |---|---|
-// | `idDuplicate` | two timelines, states or state machines share an id — the first wins |
-// | `referenceNotFound` | a state's or a rule's `timeline` / `stateMachine`, a rule's `state`, a track's `timeline` names nothing |
-// | `timelineShared` | states of two state machines are on one timeline — it has one playhead; the first keeps it |
-// | `stateOnScrollTimeline` | a state on a scroll-driven timeline — not read |
-// | `attributeSplit` | an attribute (a node's transform parts count as one) rides timelines of two units — the first wins |
-// | `keyframesBesideTracks` | plain `keyframes` beside `byTimeline` — `byTimeline` wins |
+// | `idDuplicate` | two timelines (also two with no id) or two flows share an id — the first wins |
+// | `referenceNotFound` | a step's or a rule's `timeline` / `flow`, a rule's `flowStep`, a track's `timeline` names nothing |
+// | `timelineShared` | steps of two flows are on one timeline — the first flow keeps it |
+// | `partOfScrollTimeline` | a step is a part of a scroll timeline (`inTime` / `outTime`) — not read; the whole of one is a step |
+// | `attributeSplit` | an attribute (a node's transform parts count as one) is moved by two flows — the first wins |
+// | `keyframesWithoutDefault` | plain keyframes in a file whose timelines all have an id — they are no timeline's: not played |
 //
-// Duplicate state ids and a `state.goTo` naming no state have their own codes (PX1115, PX1114).
+// Duplicate step ids and a `flow.goTo` naming no step have their own codes (PX1115, PX1114).
 // ============================================================================
 
 import { animatorOf } from '../format/PxDocStage';
-import { PxStateAction } from '../format/PxAnimatorConstants';
+import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction } from '../format/PxAnimatorConstants';
 import type { PxDocument } from '../format/PxAnimatorTypes';
+import { attributeOwnersOf, planUnits } from './PxUnits';
+import { timelinesOf } from './PxTimelineWindows';
 
 /** What {@link timelineIssues} reports. @public @advanced */
 export const PxTimelineIssueKind = {
-    idDuplicate:           'idDuplicate',
-    referenceNotFound:     'referenceNotFound',
-    timelineShared:        'timelineShared',
-    stateOnScrollTimeline: 'stateOnScrollTimeline',
-    attributeSplit:        'attributeSplit',
-    keyframesBesideTracks: 'keyframesBesideTracks',
+    idDuplicate:             'idDuplicate',
+    referenceNotFound:       'referenceNotFound',
+    timelineShared:          'timelineShared',
+    partOfScrollTimeline:    'partOfScrollTimeline',
+    attributeSplit:          'attributeSplit',
+    keyframesWithoutDefault: 'keyframesWithoutDefault',
 } as const;
 /** @public @advanced */
 export type PxTimelineIssueKind = typeof PxTimelineIssueKind[keyof typeof PxTimelineIssueKind];
@@ -39,13 +42,13 @@ export type PxTimelineIssueKind = typeof PxTimelineIssueKind[keyof typeof PxTime
 /** One finding — structured, so a caller decides on `kind`, never on text. @public @advanced */
 export interface PxTimelineIssue {
     readonly kind: PxTimelineIssueKind;
-    /** The list the id is in (`timelines`, `states`, `stateMachines`), or the reference's field (`timeline`, `state`, `stateMachine`). */
+    /** The list the id is in (`timelines`, `flows`), or the reference's field (`timeline`, `flowStep`, `flow`). */
     readonly key?: string;
-    /** The id: the repeated one, the one named, the shared timeline. */
+    /** The id: the repeated one, the one named, the shared timeline (`PX_DEFAULT_TIMELINE`, '', for the timeline with no id). */
     readonly id?: string;
-    /** Where: a state's id, a rule's action, an element's id. */
+    /** Where: a step's id, a rule's action, an element's id. */
     readonly at?: string;
-    /** The attribute (`attributeSplit`, `keyframesBesideTracks`). */
+    /** The attribute (`attributeSplit`, `keyframesWithoutDefault`). */
     readonly attribute?: string;
 }
 
@@ -53,94 +56,85 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const listOf = (v: unknown): Array<Record<string, unknown>> => Array.isArray(v) ? v.filter(isRecord) : [];
 const idOf = (v: Record<string, unknown>): string | undefined => typeof v.id === 'string' ? v.id : undefined;
 
-/** A node's transform parts — one attribute while playing. */
-const TRANSFORM_PARTS: ReadonlyArray<string> = ['transform', 'translate', 'rotate', 'scale', 'skew', 'transformOrigin'];
-
-/** The attribute a node's `animate` key counts as: a transform part → `transform`. */
-const attributeGroupOf = (key: string): string => TRANSFORM_PARTS.includes(key) ? 'transform' : key;
-
 // @px-importance important
-/** Every finding of §2.7 in a document (its authored form, a version-current one). An empty list is a clean file.
+/** Every finding in a document (its authored form, a version-current one). An empty list is a clean file.
  *  @public @advanced */
 export function timelineIssues(doc: PxDocument): Array<PxTimelineIssue> {
     const animator = animatorOf(doc);
     if (!isRecord(animator)) return [];
     const issues: Array<PxTimelineIssue> = [];
-    const timelines = listOf(animator.timelines);
-    const states = listOf(animator.states);
-    const machines = listOf(animator.stateMachines);
+    const rawTimelines = listOf(animator.timelines);
+    const steps = listOf(animator.flowSteps);
+    const flows = listOf(animator.flows);
 
-    for (const [key, items] of [['timelines', timelines], ['states', states], ['stateMachines', machines]] as const) {
-        const seen = new Set<string>();
-        for (const item of items) {
-            const id = idOf(item);
-            if (id === undefined) continue;
-            // a repeated state id has its own code (PX1115)
-            if (seen.has(id) && key !== 'states') issues.push({ kind: PxTimelineIssueKind.idDuplicate, key, id });
-            seen.add(id);
-        }
+    // repeated ids — timelines (two with no id are two default ones) and flows; a repeated step id is PX1115
+    const seenTimelines = new Set<string>();
+    for (const t of rawTimelines) {
+        const name = idOf(t) ?? PX_DEFAULT_TIMELINE;
+        if (seenTimelines.has(name)) issues.push({ kind: PxTimelineIssueKind.idDuplicate, key: 'timelines', id: name });
+        seenTimelines.add(name);
+    }
+    const seenFlows = new Set<string>();
+    for (const f of flows) {
+        const id = idOf(f);
+        if (id === undefined) continue;
+        if (seenFlows.has(id)) issues.push({ kind: PxTimelineIssueKind.idDuplicate, key: 'flows', id });
+        seenFlows.add(id);
     }
 
-    const timelineIds = timelines.map(idOf);
-    const machineIds = machines.map(idOf);
-    const stateIds = states.map(idOf);
-    const timelineIndexOf = (ref: unknown): number => ref === undefined ? 0 : typeof ref === 'string' ? timelineIds.indexOf(ref) : -1;
+    const timelines = timelinesOf(doc);
+    const hasDefault = timelines.some(t => t.isDefault);
+    const timelineNames = new Set(timelines.map(t => t.name));
+    const flowIds = new Set<string>([PX_DEFAULT_ID, ...flows.map(idOf).filter((id): id is string => id !== undefined),
+        ...steps.map(s => (typeof s.flow === 'string' ? s.flow : undefined)).filter((id): id is string => id !== undefined)]);
+    const stepIds = new Set<string>([...steps.map(idOf).filter((id): id is string => id !== undefined), ...timelines.map(t => t.stepId)]);
+    const timelineKnown = (ref: unknown): boolean => ref === undefined ? hasDefault : typeof ref === 'string' && timelineNames.has(ref);
     const notFound = (key: string, id: string, at?: string): void => { issues.push({ kind: PxTimelineIssueKind.referenceNotFound, key, id, at }); };
 
-    // the states: their references, the scroll rule, one state machine per timeline (first wins — as `planUnits`)
-    const unitOfTimeline = new Map<number, string>();
-    for (const state of states) {
-        const at = idOf(state);
-        const timeline = state.timeline;
-        const index = timelineIndexOf(timeline);
-        if (typeof timeline === 'string' && index < 0) notFound('timeline', timeline, at);
-        const machine = typeof state.stateMachine === 'string' ? state.stateMachine : '';
-        if (machine && !machineIds.includes(machine)) notFound('stateMachine', machine, at);
-        if (index < 0) continue;
-        if (timelines[index]?.type === 'scroll') { issues.push({ kind: PxTimelineIssueKind.stateOnScrollTimeline, id: timelineIds[index] ?? '', at }); continue; }
-        const holder = unitOfTimeline.get(index);
-        if (holder === undefined) unitOfTimeline.set(index, 'm:' + machine);
-        else if (holder !== 'm:' + machine) issues.push({ kind: PxTimelineIssueKind.timelineShared, id: timelineIds[index] ?? '', at });
+    // the steps: their references and the scroll rule
+    for (const step of steps) {
+        const at = idOf(step);
+        if (!timelineKnown(step.timeline)) notFound('timeline', typeof step.timeline === 'string' ? step.timeline : PX_DEFAULT_TIMELINE, at);
+        const t = timelines.find(x => x.name === (typeof step.timeline === 'string' ? step.timeline : PX_DEFAULT_TIMELINE));
+        if (t?.scroll && (step.inTime !== undefined || step.outTime !== undefined)) issues.push({ kind: PxTimelineIssueKind.partOfScrollTimeline, id: t.name, at });
     }
-    // a timeline no state uses plays by itself: a unit of its own
-    timelines.forEach((_, index) => { if (!unitOfTimeline.has(index)) unitOfTimeline.set(index, 't:' + index); });
 
     // the rules' references
     for (const rule of listOf(animator.actionTriggers)) {
         const action = typeof rule.action === 'string' ? rule.action : undefined;
-        if (typeof rule.timeline === 'string' && !timelineIds.includes(rule.timeline)) notFound('timeline', rule.timeline, action);
-        if (typeof rule.stateMachine === 'string' && !machineIds.includes(rule.stateMachine)) notFound('stateMachine', rule.stateMachine, action);
-        // a go-to naming no state is PX1114
-        if (action !== PxStateAction.goTo && typeof rule.state === 'string' && !stateIds.includes(rule.state)) notFound('state', rule.state, action);
+        if (typeof rule.timeline === 'string' && !timelineNames.has(rule.timeline)) notFound('timeline', rule.timeline, action);
+        if (typeof rule.flow === 'string' && !flowIds.has(rule.flow)) notFound('flow', rule.flow, action);
+        // a go-to naming no step is PX1114
+        if (action !== PxFlowAction.goTo && typeof rule.flowStep === 'string' && !stepIds.has(rule.flowStep)) notFound('flowStep', rule.flowStep, action);
     }
 
-    // the attributes: their tracks' timelines, one unit each (a node's transform parts together)
+    // the tracks' references, and plain keyframes with no default timeline to be on
     const visit = (node: unknown): void => {
         if (!isRecord(node)) return;
         const element = typeof node.id === 'string' ? node.id : undefined;
         if (isRecord(node.animate)) {
-            const unitsOf = new Map<string, Set<string>>();
-            for (const [key, entry] of Object.entries(node.animate)) {
+            for (const [attribute, entry] of Object.entries(node.animate)) {
                 if (!isRecord(entry)) continue;
-                const tracks = listOf(entry.byTimeline);
-                const plain = Array.isArray(entry.keyframes) && entry.keyframes.length > 0;
-                // an authored entry (no `kind`) with both: `byTimeline` wins; a compiled one carries the first timeline's keyframes there
-                if (plain && tracks.length && entry.kind === undefined) issues.push({ kind: PxTimelineIssueKind.keyframesBesideTracks, at: element, attribute: key });
-                const units = unitsOf.get(attributeGroupOf(key)) ?? new Set<string>();
-                if (plain && (!tracks.length || entry.kind !== undefined)) units.add(unitOfTimeline.get(0) ?? 't:0');
-                for (const track of tracks) {
-                    const index = timelineIndexOf(track.timeline);
-                    if (index < 0) { if (typeof track.timeline === 'string') notFound('timeline', track.timeline, element); continue; }
-                    units.add(unitOfTimeline.get(index) ?? 't:' + index);
+                if (!hasDefault && entry.kind === undefined && Array.isArray(entry.keyframes) && entry.keyframes.length > 0) {
+                    issues.push({ kind: PxTimelineIssueKind.keyframesWithoutDefault, at: element, attribute });
                 }
-                unitsOf.set(attributeGroupOf(key), units);
-            }
-            for (const [attribute, units] of unitsOf) {
-                if (units.size > 1) issues.push({ kind: PxTimelineIssueKind.attributeSplit, at: element, attribute });
+                for (const track of listOf(entry.byTimeline)) {
+                    if (typeof track.timeline === 'string' && (track.timeline === PX_DEFAULT_TIMELINE || !timelineNames.has(track.timeline))) notFound('timeline', track.timeline, element);
+                }
             }
         }
         if (Array.isArray(node.children)) node.children.forEach(visit);
     };
     visit(doc);
+
+    // what the plan keeps first — a timeline two flows use, an attribute two flows move
+    const plan = planUnits(doc);
+    if (plan) {
+        for (const d of plan.droppedSteps) issues.push({ kind: PxTimelineIssueKind.timelineShared, id: plan.timelines[d.timeline].name, at: d.flowStep });
+        for (const claim of attributeOwnersOf(doc, plan)) {
+            if (claim.units.length < 2) continue;
+            issues.push({ kind: PxTimelineIssueKind.attributeSplit, at: typeof claim.node.id === 'string' ? claim.node.id : undefined, attribute: claim.attribute });
+        }
+    }
     return issues;
 }

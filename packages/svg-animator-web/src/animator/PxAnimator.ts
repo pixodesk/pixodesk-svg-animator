@@ -4,15 +4,15 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxTimelineControls, PxTriggerEvent, PxTriggerList, type PxActionTriggerRule } from '@pixodesk/svg-animator-core';
-import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, forwardStateControls, planUnits, timelineIssues, resolveControlMode, PxVariablesRuntime, withActionTriggers, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
-import { reportDocumentProblems, takeFollowedOut, validateDeprecatedTransformChannels, type PxStateLever } from '@pixodesk/svg-animator-core/internal';
+import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxTimelineControls, PxTriggerEvent, PxTriggerList, type PxActionTriggerRule, type PxRunListProps } from '@pixodesk/svg-animator-core';
+import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, forwardFlowControls, timelineIssues, type PxRunLists, resolveControlMode, PxVariablesRuntime, withActionTriggers, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { reportDocumentProblems, takeFollowedOut, validateDeprecatedTransformChannels, type PxFlowLever, type PxRunLever } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
-import { bindUnits } from '../engines/PxAnimatorUnits';
+import { bindPlanned } from '../engines/PxAnimatorUnits';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
@@ -23,12 +23,8 @@ export { generateNewIds };
 
 
 /**
- * Creates an animator instance from a normalized player config.
- * This is the internal implementation that both engines use.
- *
- * The engine choice plus the `resetOnFinish` handling live in
- * `PxAnimatorBind` so the pre-rendered builds share them verbatim — one code path, no
- * parallel pipeline. See dev-docs/plans/prerendered-player-builds.md.
+ * The engine api of a prepared document: planned into flows when it has any (`bindPlanned`), each one-timeline
+ * document bound by `bindWithEngineChoice` — shared with the pre-rendered builds (dev-docs/plans/prerendered-player-builds.md).
  */
 function createAnimatorFromConfig(
     doc: PxDocument,
@@ -37,18 +33,19 @@ function createAnimatorFromConfig(
     callbacks?: PxPlayerCallbacks,
     rootElement?: Element | null,
     followed?: Element,
+    run?: PxRunLists,
 ): PxPlayerEngineApi {
-    // several timelines (2026-11-20): a unit per free timeline and per state machine, side by side over this picture
-    const plan = planUnits(doc);
-    if (plan) return bindUnits(doc, plan, adapter, callbacks, rootElement, mode, followed);
-    return bindWithEngineChoice(doc, adapter, callbacks, rootElement, mode, followed);
+    return bindPlanned(doc, (d, cb, f, byFlow) => bindWithEngineChoice(d, adapter, cb, rootElement, mode, f, byFlow), callbacks, followed, run);
 }
 
-/** One build of the player: the engine api, the document as rendered (materialized, fresh ids) and its root. */
+/** One build of the player: the engine api, the document as rendered (materialized, fresh ids) and its root, and
+ *  the engines alone — what a changed list of what runs replaces, the picture staying (2026-11-22). */
 interface PxBuiltPlayer {
     readonly api: PxPlayerEngineApi;
     readonly doc: PxDocument;
     readonly root: Element | null;
+    /** Stops the engines and lets go of what they hold — the rendered picture stays. */
+    readonly unbind: () => void;
 }
 
 
@@ -80,6 +77,7 @@ function createAnimatorImpl(
     providedRoot?: Element,
     renderIntoProvidedRoot?: boolean,
     followed?: Element,
+    run?: PxRunLists,
 ): PxBuiltPlayer {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
@@ -162,8 +160,14 @@ function createAnimatorImpl(
         rootElement = providedRoot;
     }
 
-    const api = createAnimatorFromConfig(doc, mode, adapter, callbacks, rootElement, followed);
+    const bound = createAnimatorFromConfig(doc, mode, adapter, callbacks, rootElement, followed, run);
+    const unbind = bound.destroy.bind(bound);
+    const api = withContainerRemoval(bound, containerElement, rootElement);
+    return { api, doc, root: rootElement, unbind };
+}
 
+/** The player put the SVG into the container, so destroy() takes it out again. */
+function withContainerRemoval(api: PxPlayerEngineApi, containerElement: string | Element | undefined, rootElement: Element | null | undefined): PxPlayerEngineApi {
     // The player put the SVG into the container, so destroy() takes it out again —
     // otherwise a frozen last frame lingers after the animator is gone. Scoped to
     // the container path on purpose: a root the caller rendered (the React / Vue
@@ -176,8 +180,7 @@ function createAnimatorImpl(
             rendered.remove();
         };
     }
-
-    return { api, doc, root: rootElement };
+    return api;
 }
 
 // Re-exported so this module's public surface is unchanged; declared in
@@ -193,7 +196,7 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
  * element of the page — the same as `follows: 'pageDomElement'` with a selector.
  * @public
  */
-export type PxAnimationPlayerOptions = PxPlaybackOverride<Element> & PxCommonControlProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
+export type PxAnimationPlayerOptions = PxPlaybackOverride<Element> & PxCommonControlProps & PxRunListProps & PxVariablesOptions & PxAnimationPlayerCallbacks & {
     /** The animation document: a URL to fetch it from, or the document itself (see docs/format/README.md) — typed as a
      *  JSON import produces it ({@link PxDocumentJson}), so `import animation from './animation.json'` passes with no
      *  cast. A string is always a URL. (`src` / `doc` until 1.25 — two names for one thing.) */
@@ -240,8 +243,11 @@ export type PxInternalAnimationPlayerOptions = PxAnimationPlayerOptions & {
      */
     followedElement?: Element;
 
-    /** The components' `state` prop (2026-11-20): attached to every build, so the held state survives a rebuild. */
-    stateLever?: PxStateLever;
+    /** The components' `flowStep` prop (2026-11-22; `state` 11-20): attached to every build, so the held step survives a rebuild. */
+    flowLever?: PxFlowLever;
+
+    /** The components' `flows` / `timelines` props (2026-11-22): a change re-plans what runs over the same picture. */
+    runLever?: PxRunLever;
 };
 
 /** The one place `createSvgAnimationPlayer` reads past its public signature — see `PxInternalAnimationPlayerOptions`. */
@@ -249,7 +255,7 @@ function isInternalOptions(options: PxAnimationPlayerOptions): options is PxInte
     // ANY internal key. Testing `adapter` alone meant a caller passing only `rootElement` —
     // what the React and Vue components do — had it silently ignored.
     return 'adapter' in options || 'rootElement' in options || 'variablesRuntime' in options || 'followedElement' in options
-        || 'stateLever' in options;
+        || 'flowLever' in options || 'runLever' in options;
 }
 
 /** An element of the page — what `timelineOptions.follows` may hand over on the web (`Element` is absent outside a browser). */
@@ -334,7 +340,10 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const takenOut = takeFollowedOut(options.timelineOptions, isDomElement);
     const override: PxPlaybackOverrideInput = { timelineOptions: takenOut.timelineOptions, actions: options.actions, actionTriggers: options.actionTriggers };
     const followed = (isInternalOptions(options) ? options.followedElement : undefined) ?? takenOut.followed;
-    const stateLever = isInternalOptions(options) ? options.stateLever : undefined;
+    const flowLever = isInternalOptions(options) ? options.flowLever : undefined;
+    const runLever = isInternalOptions(options) ? options.runLever : undefined;
+    /** What runs (2026-11-22): the page's lists — a component's lever, else the options. */
+    const runLists = (): PxRunLists => runLever?.get() ?? { flows: options.flows, timelines: options.timelines };
     // The registry hears the playback events and the finish through the player callbacks, and names the PROXY
     // below — the object the caller holds — never the engine API behind it.
     let proxy: PxAnimationPlayerApi | undefined;
@@ -352,6 +361,8 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     }
 
     let animator: PxPlayerEngineApi | null = null;
+    /** The current build — what a changed list of what runs replaces the engines of. */
+    let built: PxBuiltPlayer | undefined;
     // Variables (docs/library/variables.md): the runtime holds the values, the web side draws them; created with the
     // document, so calls made before then wait — and land before the first paint
     const providedRuntime = isInternalOptions(options) ? options.variablesRuntime : undefined;
@@ -407,13 +418,15 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             rt.takeChanges();   // the first build reads them all
             // a component that rendered the document passes the document it rendered: resolved already
             const toBuild = providedRuntime || !rt.hasVariables() ? document : rt.resolvedDocument(true);
-            const first = createAnimatorImpl(toBuild, control.mode, adapter, engineCallbacks, container, override, providedRoot, false, followed);
+            const first = createAnimatorImpl(toBuild, control.mode, adapter, engineCallbacks, container, override, providedRoot, false, followed, runLists());
+            built = first;
             if (rt.hasVariables()) {
                 variables = new PxWebVariables(rt, { playback: () => animator?.timeline, rebuild });
                 variables.bind(first.doc, first.root);
             }
             ready(first.api);
-            stateLever?.attach(first.api.stateHolder);
+            flowLever?.attach(first.api.flowHolder);
+            runLever?.attach(rerun);
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
@@ -431,16 +444,34 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         try {
             const doc = withoutLoadTriggers(rt.resolvedDocument(true));
             const quiet: PxPlayerCallbacks = { ...engineCallbacks, onWarning: undefined, suppressWarnings: true };
-            const next = createAnimatorImpl(doc, control.mode, adapter, quiet, container, override, providedRoot, !container, followed);
+            const next = createAnimatorImpl(doc, control.mode, adapter, quiet, container, override, providedRoot, !container, followed, runLists());
             previous.destroy();
             animator = next.api;
+            built = next;
             restorePlayback(next.api.timeline, snapshot);
-            stateLever?.attach(next.api.stateHolder);
+            flowLever?.attach(next.api.flowHolder);
             variables?.bind(next.doc, next.root);
         } catch (e) {
             diag.error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, asThrownError(e));
         } finally {
             muted = false;
+        }
+    }
+
+    // A changed list of what runs (2026-11-22): the engines are replaced over the SAME rendered picture — the DOM stays.
+    function rerun(lists: PxRunLists): void {
+        const current = built;
+        if (!current || destroyed) return;
+        try {
+            current.unbind();
+            const engine = createAnimatorFromConfig(current.doc, control.mode, adapter, engineCallbacks, current.root, followed, lists);
+            const api = withContainerRemoval(engine, container, current.root);
+            built = { api, doc: current.doc, root: current.root, unbind: engine.destroy.bind(engine) };
+            animator = api;
+            flowLever?.attach(api.flowHolder);
+            variables?.bind(current.doc, current.root);
+        } catch (e) {
+            diag.error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, asThrownError(e));
         }
     }
 
@@ -473,9 +504,9 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             () => animator?.timeline,
             (call, run) => enqueue(call, api => { run(api.timeline); variables?.onPlaybackActivity(); }),
             () => destroyed ? PxPlaybackState.destroyed : PxPlaybackState.off),
-        "state": forwardStateControls(
-            () => animator?.state,
-            (call, run) => enqueue(call, api => { run(api.state); variables?.onPlaybackActivity(); })),
+        "flow": forwardFlowControls(
+            () => animator?.flow,
+            (call, run) => enqueue(call, api => { run(api.flow); variables?.onPlaybackActivity(); })),
         "getTimeline": (id) => animator?.getTimeline(id),
         "variables": variablesApi,
         "isReady": () => !!animator,
@@ -485,7 +516,8 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             pending = null; // drop any queued calls
             pendingVariables = [];
             variables?.destroy();
-            stateLever?.attach(undefined);
+            flowLever?.attach(undefined);
+            runLever?.attach(undefined);
             animator?.destroy();
         }
     };

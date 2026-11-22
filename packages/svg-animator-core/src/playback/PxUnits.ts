@@ -5,144 +5,329 @@
  *---------------------------------------------------------------------------------------*/
 
 // ============================================================================
-// UNITS (2026-11-20, kf app/docs/app-design/timelines-and-states.design.md) — a file with several timelines, as a
-// player plays it: one UNIT per free timeline (no state uses it) and one per state machine. Each unit is a document
-// with ONE timeline over the same picture — today's player plays it as it is; the units run side by side.
+// THE PLAN (2026-11-22; units 2026-11-20) — a file with flows, as a player plays it. ONE UNIT per flow that runs —
+// they run side by side; within a unit one STEP is current, and a step plays with the ordinary playback, on its own
+// timeline (kf app/docs/app-design/timelines-and-states.plan.md, P-1: no timelines glued together, no clock of our own).
 //
 // | piece | what it does |
 // |---|---|
-// | `planUnits` | the units; `undefined` when the file is one unit of its first timeline (today's path) |
-// | `unitDocumentOf` | a unit's one-timeline document: its tracks promoted to the plain keyframes — on the nodes and in the shared animations (`definitions.animations`, the pre-rendered path) — its states, its rules |
+// | `planUnits` | the units; `undefined` when the file is its default timeline alone (today's one-timeline path) |
+// | `stepDocumentOf` | one step's document: its timeline only (its part, its own settings), its tracks promoted to the plain keyframes — on the nodes and in the shared animations (`definitions.animations`, the pre-rendered path) — and only the attributes its unit owns |
+// | `unitConfigOf` | what a unit's triggers are wired from: its rules, its steps, the gate of its first step's timeline |
+// | `attributeOwnersOf` | which unit moves each attribute (the clash rule) |
 //
-// A state machine whose states are on SEVERAL timelines gets them LAID END TO END into one timeline (a gap between
-// them): each state's part moves with its timeline's offset, and an attribute with no track on a timeline holds the
-// node's own value across that timeline's stretch — so the state clock seeks one engine, and "not showing → the
-// node's own value" needs no engine to let go of anything.
+// The flow `default` (2026-11-22): the steps that name no flow, AND one step for every timeline no written step names —
+// the whole of it, called by the timeline's id (the default timeline's: `default`). In it, written steps keep their
+// order and such a step stands at its timeline's place. Only flows run side by side: two timelines alone are two steps.
+//
+// What runs: every flow, `default` first, then the flows in `animator.flows`' order, then those only steps name. The
+// page may say exactly what runs (`PxRunLists`): `flows` — those flows; `timelines` — each of those timelines whole, by
+// itself, side by side.
+//
+// The checks — the first wins: a step on a timeline the file lacks is not read; a step on a part of a scroll timeline is
+// not read; a timeline that steps of two running flows use stays with the first flow; an attribute that two running
+// units move stays with the first (a node's transform parts count as one attribute). `timelineIssues` reports them.
 //
 // The rules — what goes where:
 // | a rule | goes to |
 // |---|---|
-// | `timeline.*` with no `timeline` | every unit that a clock drives (the whole picture) |
-// | `timeline.*` with a `timeline` | that timeline's unit |
-// | `state.goTo` | the unit of the state's state machine |
-// | `state.next` / `state.previous` | the unit of its `stateMachine` — none: the one without an id, else the first |
-//
-// The checks the plan makes (first wins; `timelineIssues` reports them, PX1116): a state on a timeline the file does
-// not have, or on one another state machine uses, is not read; a state on a scroll timeline is not read; a timeline
-// whose id an earlier one has is not read.
+// | `timeline.*` with no `timeline` | every unit a clock drives (the whole picture) |
+// | `timeline.*` with a `timeline` | the unit that plays that timeline |
+// | `flow.goTo` | the unit that has the step |
+// | `flow.next` / `flow.previous` | the unit of its `flow` — none: `default`, else the first |
 // ============================================================================
 
-import { isCompiledAnimation, type PxActionTriggerRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxNode, type PxState } from '../format/PxAnimatorTypes';
-import { PxStateAction, PxWhenFinished, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
-import { firstTimelineIdOf, timelinesOf, timelineWindowsOf, trackedTimelineIds, type PxTimelineInfo } from './PxTimelineWindows';
+import { isCompiledAnimation, type PxActionTriggerRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStep, type PxNode } from '../format/PxAnimatorTypes';
+import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, PxWhenFinished, PxWhenIdle, PxWhenLeaving, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
+import { isFlowActionObject, isFlowStepEntry } from './PxFlows';
+import type { PxFlowSwitchStep } from './PxFlowSwitch';
+import { timelinesOf, timelineWindowsOf, type PxTimelineInfo } from './PxTimelineWindows';
 import { animatorOf } from '../format/PxDocStage';
-import { concatChannels, timelineTrackOf, type PxConcatRegion } from '../animation/PxRuntimeChannel';
-import { compileAnimationDefinition, compileStaticChannel, type PxCompileContext } from '../animation/PxDefinitions';
-import { staticTransformParts } from '../effects/shared/transformParts';
+import { timelineTrackOf } from '../animation/PxRuntimeChannel';
+import { compileAnimationDefinition, type PxCompileContext } from '../animation/PxDefinitions';
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/** The ms between two timelines laid end to end — never shown; it keeps their keyframes apart. */
-const GAP_MS = 1000;
+/** What the page says runs (2026-11-22) — the `flows` and `timelines` options and props. With neither, every flow
+ *  runs; with either, exactly what they name. The public face is `PxRunListProps`. @internal */
+export interface PxRunLists {
+    /** The flows that run, by id — `default` for the flow `default`. */
+    readonly flows?: ReadonlyArray<string>;
+    /** The timelines that run, each whole and by itself, by id — `default` for the timeline with no id. */
+    readonly timelines?: ReadonlyArray<string>;
+}
 
-/** The key the state machine without an id goes by inside the plan. */
-const UNNAMED_STATE_MACHINE = '';
+/** True when the page named what runs. */
+const hasRunLists = (run: PxRunLists | undefined): boolean => !!run && (run.flows !== undefined || run.timelines !== undefined);
 
-/** One unit: the timelines it plays (indexes into `timelines`), its state machine (`''` — the one without an id;
- *  absent — a free timeline), its states, and whether it holds the first timeline. @internal */
+/** One step as the player plays it: written, or the step a timeline no step names is. @internal */
+export interface PxPlannedStep {
+    readonly id: string;
+    /** Its timeline — an index into the plan's `timelines`. */
+    readonly timeline: number;
+    /** As written; for a timeline's own step `{ id }` (and its `timeline`). */
+    readonly step: PxFlowStep;
+    /** The step a timeline no written step names is — it plays as the timeline alone does. */
+    readonly implied: boolean;
+}
+
+/** One unit: a flow that runs, or a timeline the page runs by name. @internal */
 export interface PxUnit {
+    /** The flow's id — `default` for the flow `default`; absent: a timeline the page runs by name. */
+    readonly flow?: string;
+    /** Its steps, in order — one is current at a time. */
+    readonly steps: ReadonlyArray<PxPlannedStep>;
+    /** The timelines its steps are on, each once, in step order. */
     readonly timelines: ReadonlyArray<number>;
-    readonly stateMachine?: string;
-    readonly states: ReadonlyArray<PxState>;
-    readonly primary: boolean;
+    /** Every step is the whole of a scroll timeline: the scrolling moves it, no trigger is heard. */
     readonly scroll: boolean;
 }
 
-/** The units of a document, and every timeline of it. @internal */
+/** The units of a document, every timeline of it, and what the plan left out. @internal */
 export interface PxUnitPlan {
     readonly units: ReadonlyArray<PxUnit>;
     readonly timelines: ReadonlyArray<PxTimelineInfo>;
+    /** Steps of a later running flow on a timeline an earlier flow uses — not read: the first flow keeps the timeline. */
+    readonly droppedSteps: ReadonlyArray<{ readonly timeline: number; readonly flowStep: string }>;
 }
 
-/** The index of the timeline a state or a rule names — none: the first; an id the file lacks: -1. First id wins. */
+/** The index of the timeline a step or a rule names — none or `PX_DEFAULT_TIMELINE`: the default one; -1 when the file lacks it. */
 function indexOfTimeline(timelines: ReadonlyArray<PxTimelineInfo>, ref: unknown): number {
-    if (ref === undefined) return 0;
-    const at = timelines.findIndex(t => t.id === ref);
-    return at;
+    if (ref === undefined || ref === PX_DEFAULT_TIMELINE) return timelines.findIndex(t => t.isDefault);
+    return timelines.findIndex(t => t.id === ref);
+}
+
+/** The step a timeline is when no written step names it — the whole of it, called by its `stepId`. */
+function impliedStepOf(t: PxTimelineInfo): PxPlannedStep {
+    return { id: t.stepId, timeline: t.index, step: t.isDefault ? { id: t.stepId } : { id: t.stepId, timeline: t.id }, implied: true };
+}
+
+/** A step is a PART of its timeline when it says where it begins or ends. */
+const isPartOfTimeline = (step: PxFlowStep): boolean => step.inTime !== undefined || step.outTime !== undefined;
+
+/** A unit of `flow` (or of a timeline the page runs) over `steps`. */
+function unitOf(flow: string | undefined, steps: ReadonlyArray<PxPlannedStep>, timelines: ReadonlyArray<PxTimelineInfo>): PxUnit {
+    const used: Array<number> = [];
+    for (const s of steps) if (!used.includes(s.timeline)) used.push(s.timeline);
+    return { flow, steps, timelines: used, scroll: used.length > 0 && used.every(i => timelines[i].scroll) };
 }
 
 // @px-importance important
 /**
- * The units of `doc` — `undefined` when the file plays as one unit of its first timeline (today's player, the doc as
- * it is): one timeline, or states on the first timeline only and no other timeline. See the top of the file. @internal
+ * The units of `doc` — `undefined` when the file is its default timeline alone, with no step written and no list from
+ * the page (the one-timeline path: the document plays as it is). See the top of the file. @internal
  */
-export function planUnits(doc: PxDocument): PxUnitPlan | undefined {
+export function planUnits(doc: PxDocument, run?: PxRunLists): PxUnitPlan | undefined {
     const timelines = timelinesOf(doc);
     if (timelines.length === 0) return undefined;
     const animator = animatorOf(doc);
-    const rawStates = isRecord(animator) && Array.isArray(animator.states) ? animator.states : [];
-    const machines = new Map<string, { timelines: Array<number>; states: Array<PxState> }>();
-    const owner = new Map<number, string>();
-    const seenIds = new Set<string>();
-    for (const raw of rawStates) {
-        if (!isRecord(raw) || typeof raw.id !== 'string' || seenIds.has(raw.id)) continue;
-        const state = raw as PxState;
-        seenIds.add(state.id);
-        const at = indexOfTimeline(timelines, state.timeline);
-        if (at < 0 || timelines[at].scroll) continue;                 // a timeline the file lacks, or a scroll one: not read
-        const machine = typeof state.stateMachine === 'string' ? state.stateMachine : UNNAMED_STATE_MACHINE;
-        const holder = owner.get(at);
-        if (holder !== undefined && holder !== machine) continue;     // another state machine uses that timeline: first wins
-        owner.set(at, machine);
-        const entry = machines.get(machine) ?? { timelines: [], states: [] };
-        if (!entry.timelines.includes(at)) entry.timelines.push(at);
-        entry.states.push(state);
-        machines.set(machine, entry);
+    const rawSteps = isRecord(animator) && Array.isArray(animator.flowSteps) ? animator.flowSteps : [];
+
+    // the written steps — the first id wins; a timeline the file lacks, or a part of a scroll timeline: not read
+    const written: Array<PxPlannedStep & { flow: string }> = [];
+    const ids = new Set<string>();
+    for (const raw of rawSteps) {
+        if (!isFlowStepEntry(raw) || ids.has(raw.id)) continue;
+        const step = raw;
+        const at = indexOfTimeline(timelines, step.timeline);
+        if (at < 0 || (timelines[at].scroll && isPartOfTimeline(step))) continue;
+        ids.add(step.id);
+        written.push({ id: step.id, timeline: at, step, implied: false, flow: typeof step.flow === 'string' ? step.flow : PX_DEFAULT_ID });
     }
+    // a timeline no written step names is a step of `default` — unless a written step has its name
+    const named = new Set(written.map(s => s.timeline));
+    const implied: Array<PxPlannedStep> = timelines
+        .filter(t => !named.has(t.index) && !ids.has(t.stepId))
+        .map(t => impliedStepOf(t));
+
+    /** The steps of a flow in order; in `default` a timeline's own step stands at its timeline's place. */
+    const stepsOf = (flow: string): Array<PxPlannedStep> => {
+        const own: Array<PxPlannedStep> = written.filter(s => s.flow === flow);
+        if (flow !== PX_DEFAULT_ID) return own;
+        for (const step of implied) {
+            const at = own.findIndex(s => s.timeline > step.timeline);
+            if (at < 0) own.push(step); else own.splice(at, 0, step);
+        }
+        return own;
+    };
+    // the flows in order: `default`, the listed ones, then those only steps name
+    const flowIds: Array<string> = [];
+    const addFlow = (id: string): void => { if (!flowIds.includes(id) && stepsOf(id).length) flowIds.push(id); };
+    addFlow(PX_DEFAULT_ID);
+    if (isRecord(animator) && Array.isArray(animator.flows)) for (const f of animator.flows) if (isRecord(f) && typeof f.id === 'string') addFlow(f.id);
+    for (const s of written) addFlow(s.flow);
+
+    // what runs, in run order
+    const running: Array<{ flow?: string; steps: Array<PxPlannedStep> }> = [];
+    if (hasRunLists(run)) {
+        for (const flow of run?.flows ?? []) if (flowIds.includes(flow) && !running.some(u => u.flow === flow)) running.push({ flow, steps: stepsOf(flow) });
+        for (const name of run?.timelines ?? []) {
+            const t = timelines.find(x => x.name === name);
+            if (!t || running.some(u => u.flow === undefined && u.steps[0]?.timeline === t.index)) continue;
+            running.push({ steps: [impliedStepOf(t)] });
+        }
+    } else {
+        for (const flow of flowIds) running.push({ flow, steps: stepsOf(flow) });
+    }
+
+    // a timeline is the first running flow's: a later flow's steps on it are not read
+    const owner = new Map<number, number>();
+    const dropped: Array<{ timeline: number; flowStep: string }> = [];
     const units: Array<PxUnit> = [];
-    for (const [machine, entry] of machines) {
-        units.push({ timelines: entry.timelines, stateMachine: machine, states: entry.states, primary: entry.timelines.includes(0), scroll: false });
-    }
-    const ridden = trackedTimelineIds(doc);
-    for (const t of timelines) {
-        if (owner.has(t.index)) continue;
-        // a timeline whose id an earlier one has is not read — the first wins (PX1116 `idDuplicate`)
-        const repeated = t.id !== undefined && timelines.some(o => o.index < t.index && o.id === t.id);
-        // a free timeline nothing rides has nothing to play — no unit (the first keeps its own: it is the picture's clock)
-        const empty = t.index !== 0 && (t.id === undefined || !ridden.has(t.id));
-        if (!repeated && !empty) units.push({ timelines: [t.index], states: [], primary: t.index === 0, scroll: t.scroll });
-    }
-    units.sort((a, b) => Math.min(...a.timelines) - Math.min(...b.timelines));
-    if (units.length === 1 && units[0].timelines.length === 1 && units[0].timelines[0] === 0) return undefined;
-    return { units, timelines };
+    running.forEach((u, i) => {
+        const kept = u.flow === undefined ? u.steps : u.steps.filter(s => {
+            const o = owner.get(s.timeline);
+            if (o === undefined || o === i) { owner.set(s.timeline, i); return true; }
+            dropped.push({ timeline: s.timeline, flowStep: s.id });
+            return false;
+        });
+        if (kept.length) units.push(unitOf(u.flow, kept, timelines));
+    });
+
+    const only = units.length === 1 ? units[0] : undefined;
+    if (!hasRunLists(run) && only && only.flow === PX_DEFAULT_ID && only.steps.length === 1 && only.steps[0].implied
+        && timelines[only.steps[0].timeline].isDefault && timelines.length === 1) return undefined;
+    return { units, timelines, droppedSteps: dropped };
 }
 
-/** The rules a unit hears — see the table at the top of the file; `timeline` is dropped (the unit has one). */
+// ── the clash rule ─────────────────────────────────────────────────────────────────────────
+
+/** A node's transform parts — one attribute while playing. */
+const TRANSFORM_PARTS: ReadonlyArray<string> = ['transform', 'translate', 'rotate', 'scale', 'skew', 'transformOrigin'];
+
+/** The attribute a node's `animate` key counts as: a transform part → `transform`. @internal */
+export const attributeGroupOf = (key: string): string => TRANSFORM_PARTS.includes(key) ? 'transform' : key;
+
+/** The timelines (indexes) an `animate` entry moves the attribute on — authored or compiled: its plain keyframes on the
+ *  default timeline, each track on its own. */
+function timelinesOfEntry(entry: unknown, timelines: ReadonlyArray<PxTimelineInfo>): Array<number> {
+    if (!isRecord(entry)) return [];
+    const out: Array<number> = [];
+    const def = timelines.findIndex(t => t.isDefault);
+    if (def >= 0 && Array.isArray(entry.keyframes) && entry.keyframes.length > 0) out.push(def);
+    if (Array.isArray(entry.byTimeline)) {
+        for (const track of entry.byTimeline) {
+            if (!isRecord(track) || typeof track.timeline !== 'string' || !Array.isArray(track.keyframes) || !track.keyframes.length) continue;
+            const at = timelines.findIndex(t => t.id === track.timeline);
+            if (at >= 0 && !out.includes(at)) out.push(at);
+        }
+    }
+    return out;
+}
+
+/** Who moves one attribute: the units that do, in run order — the first owns it. @internal */
+export interface PxAttributeClaim {
+    readonly node: PxNode;
+    readonly attribute: string;
+    /** Indexes into the plan's `units`, in run order. */
+    readonly units: ReadonlyArray<number>;
+}
+
+// @px-importance important
+/** Every animated attribute of the tree (a node's transform parts as one) with the units that move it. The first unit
+ *  owns it; the others' keyframes for it are not played. @internal */
+export function attributeOwnersOf(doc: PxDocument, plan: PxUnitPlan): Array<PxAttributeClaim> {
+    const out: Array<PxAttributeClaim> = [];
+    const visit = (node: unknown): void => {
+        if (!isRecord(node)) return;
+        if (isRecord(node.animate)) {
+            const byGroup = new Map<string, Array<number>>();
+            for (const [key, entry] of Object.entries(node.animate)) {
+                const group = attributeGroupOf(key);
+                const units = byGroup.get(group) ?? [];
+                for (const t of timelinesOfEntry(entry, plan.timelines)) {
+                    plan.units.forEach((u, i) => { if (u.timelines.includes(t) && !units.includes(i)) units.push(i); });
+                }
+                byGroup.set(group, units);
+            }
+            for (const [attribute, units] of byGroup) if (units.length) out.push({ node: node as PxNode, attribute, units: [...units].sort((a, b) => a - b) });
+        }
+        if (Array.isArray(node.children)) node.children.forEach(visit);
+    };
+    visit(doc);
+    return out;
+}
+
+/** Whether unit `unit` may move `prop` of `node` — no other unit before it does. */
+function ownsOf(claims: ReadonlyArray<PxAttributeClaim>, unit: number): (node: PxNode | undefined, prop: string) => boolean {
+    const byNode = new Map<PxNode, Map<string, number>>();
+    for (const c of claims) {
+        const m = byNode.get(c.node) ?? new Map<string, number>();
+        m.set(c.attribute, c.units[0]);
+        byNode.set(c.node, m);
+    }
+    return (node, prop) => {
+        if (!node) return true;
+        const first = byNode.get(node)?.get(attributeGroupOf(prop));
+        return first === undefined || first === unit;
+    };
+}
+
+// ── what a unit hears ──────────────────────────────────────────────────────────────────────
+
+/** The rules a unit hears — see the table at the top of the file; `timeline` is dropped (a step has one). */
 function rulesForUnit(rules: ReadonlyArray<PxActionTriggerRule>, unit: PxUnit, plan: PxUnitPlan): Array<PxActionTriggerRule> {
-    const stateIds = new Set(unit.states.map(st => st.id));
-    const machineUnits = plan.units.filter(u => u.stateMachine !== undefined);
-    const defaultMachine = machineUnits.find(u => u.stateMachine === UNNAMED_STATE_MACHINE) ?? machineUnits[0];
+    const stepIds = new Set(unit.steps.map(s => s.id));
+    const flowUnits = plan.units.filter(u => u.flow !== undefined);
+    const defaultFlow = flowUnits.find(u => u.flow === PX_DEFAULT_ID) ?? flowUnits[0];
     const out: Array<PxActionTriggerRule> = [];
     for (const rule of rules) {
         let mine: boolean;
         if (isPlaybackAction(rule.action)) {
             mine = rule.timeline === undefined ? !unit.scroll : unit.timelines.includes(indexOfTimeline(plan.timelines, rule.timeline));
-        } else if (rule.action === PxStateAction.goTo) {
-            mine = rule.state !== undefined && stateIds.has(rule.state);
+        } else if (rule.action === PxFlowAction.goTo) {
+            mine = rule.flowStep !== undefined && stepIds.has(rule.flowStep);
         } else {
-            mine = rule.stateMachine !== undefined ? unit.stateMachine === rule.stateMachine : unit === defaultMachine;
+            mine = rule.flow !== undefined ? unit.flow === rule.flow : unit === defaultFlow;
         }
         if (!mine) continue;
-        const { timeline: _timeline, ...rest } = rule;
-        out.push(rest as PxActionTriggerRule);
+        out.push({ ...rule, timeline: undefined });
     }
     return out;
 }
 
-/** A timeline record as a unit's only timeline — its id and label go (nothing refers to them inside the unit). */
+/** What a unit's triggers are wired from (2026-11-22): its rules, its steps, and the gate — the in-view numbers and
+ *  `actions` of its first step's timeline. A one-timeline document whose triggers wire the picture. @internal */
+export function unitConfigOf(doc: PxDocument, unit: PxUnit, plan: PxUnitPlan): PxDocument {
+    const rules = rulesForUnit(getAnimatorConfig(doc)?.actionTriggers ?? [], unit, plan);
+    const first = plan.timelines[unit.steps[0]?.timeline ?? 0]?.timeline ?? {};
+    const timeline: Record<string, unknown> = {};
+    for (const key of ['actions', 'inViewThreshold', 'inViewDebounce']) if (first[key] !== undefined) timeline[key] = first[key];
+    const config: Record<string, unknown> = { timelines: [timeline], flowSteps: unit.steps.map(s => ({ id: s.id })) };
+    if (rules.length) config.actionTriggers = rules;
+    return { type: 'svg', animator: config } as PxDocument;
+}
+
+// ── a step's document ──────────────────────────────────────────────────────────────────────
+
+/** A timeline record as a step's only timeline — its id and label go (nothing refers to them inside). */
 function asOnlyTimeline(timeline: Record<string, unknown>): Record<string, unknown> {
     const { id: _id, name: _name, ...rest } = timeline;
     return rest;
+}
+
+/** A step of no length (`inTime` = `outTime`) holds the frame at its start — played as a part this long, ms. */
+const HELD_FRAME_MS = 1;
+
+const isPictureWord = (v: unknown): v is PxWhenFinished =>
+    v === PxWhenFinished.hold || v === PxWhenFinished.jumpToStart || v === PxWhenFinished.animateToStart;
+
+/** A written step's timeline: its part, and what it says over the timeline (repeats, direction, speed, its end —
+ *  an action at its end is the flow's: the playback holds). No delay; before anything plays, its first frame. */
+function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStep): Record<string, unknown> {
+    const out = asOnlyTimeline(timeline);
+    if (typeof step.inTime === 'number') out.inTime = step.inTime;
+    if (typeof step.outTime === 'number') out.outTime = step.outTime;
+    const start = typeof out.inTime === 'number' ? out.inTime : 0;
+    if (typeof out.outTime === 'number' && out.outTime <= start) { out.outTime = start + HELD_FRAME_MS; out.iterations = 1; }
+    if (step.iterations !== undefined) out.iterations = step.iterations;
+    if (step.iterationDirection !== undefined) out.iterationDirection = step.iterationDirection;
+    if (step.playbackSpeed !== undefined) out.playbackSpeed = step.playbackSpeed;
+    if (isPictureWord(step.whenFinished)) out.whenFinished = step.whenFinished;
+    else if (step.whenFinished !== undefined) out.whenFinished = PxWhenFinished.hold;
+    delete out.delay;
+    out.whenIdle = PxWhenIdle.firstFrame;
+    return out;
 }
 
 /** The node tree with every compiled entry of every node's `animate` replaced by `project(entry, node, prop)` — an
@@ -184,8 +369,7 @@ function nodesById(root: PxNode): Map<string, PxNode> {
 }
 
 /** The shared animations (`definitions.animations` — the pre-rendered path) with every compiled entry replaced by
- *  `project(entry, node, prop)`, `node` the element a binding plays it on (its own value is what is held), or none.
- *  `undefined` when there are none. */
+ *  `project(entry, node, prop)`, `node` the element a binding plays it on, or none. `undefined` when there are none. */
 function projectDefinitions(
     doc: PxDocument,
     animator: Record<string, unknown>,
@@ -204,17 +388,17 @@ function projectDefinitions(
     };
     // a plain document keeps its shared animations AUTHORED (`normalizeBindings` compiles them at bind time): they are
     // compiled here — every track against its own timeline's window, the engine as the player resolves it
-    const first = plan.timelines[0];
+    const def = plan.timelines.find(t => t.isDefault) ?? plan.timelines[0];
     const ctx: PxCompileContext = {
-        windowStart: first?.windowStart ?? 0, windowEnd: first?.windowEnd ?? 0, defs: defs as PxDefinitions,
-        engine: resolveTimelineEngine(getAnimatorConfig(doc)?.engine), timelineWindows: timelineWindowsOf(doc), firstTimelineId: firstTimelineIdOf(doc),
+        windowStart: def?.windowStart ?? 0, windowEnd: def?.windowEnd ?? 0, defs: defs as PxDefinitions,
+        engine: resolveTimelineEngine(getAnimatorConfig(doc)?.engine), timelineWindows: timelineWindowsOf(doc),
     };
     const out: Record<string, unknown> = {};
-    for (const [name, def] of Object.entries(animations)) {
-        if (!isRecord(def)) { out[name] = def; continue; }
+    for (const [name, animation] of Object.entries(animations)) {
+        if (!isRecord(animation)) { out[name] = animation; continue; }
         const node = nodeOf(name);
         const projected: Record<string, unknown> = {};
-        for (const [prop, entry] of Object.entries(def)) {
+        for (const [prop, entry] of Object.entries(animation)) {
             if (!isRecord(entry)) { projected[prop] = entry; continue; }
             const compiled: Record<string, PxCompiledAnimation> = isCompiledAnimation(entry as PxCompiledAnimation)
                 ? { [prop]: entry as PxCompiledAnimation }
@@ -229,81 +413,68 @@ function projectDefinitions(
     return { ...defs, animations: out };
 }
 
-/** What a state takes from its own timeline when it says nothing (as `withStateEngine` bakes for one timeline). */
-function stateWithItsTimeline(state: PxState, timeline: Record<string, unknown>): PxState {
-    const out: PxState = { ...state };
-    if (out.iterations === undefined && (typeof timeline.iterations === 'number' || timeline.iterations === 'infinite')) out.iterations = timeline.iterations;
-    if (out.iterationDirection === undefined && typeof timeline.iterationDirection === 'string') out.iterationDirection = state.iterationDirection ?? (timeline.iterationDirection as PxState['iterationDirection']);
-    if (out.playbackSpeed === undefined && typeof timeline.playbackSpeed === 'number') out.playbackSpeed = timeline.playbackSpeed;
-    if (out.whenFinished === undefined && (timeline.whenFinished === PxWhenFinished.hold || timeline.whenFinished === PxWhenFinished.jumpToStart
-        || timeline.whenFinished === PxWhenFinished.animateToStart)) out.whenFinished = timeline.whenFinished;
-    return out;
-}
-
-/** The node's own value of `prop`, compiled — what is held where it has no track. The transform: its static parts. */
-function heldValueOf(node: PxNode, prop: string): PxCompiledAnimation | undefined {
-    const own = (node as Record<string, unknown>)[prop];
-    if (prop === 'transform') return compileStaticChannel(prop, staticTransformParts(own) ?? {});
-    return own === undefined ? undefined : compileStaticChannel(prop, own);
-}
-
 // @px-importance important
-/** A unit's one-timeline document — see the top of the file. `doc` is the plain, rendered document. @internal */
-export function unitDocumentOf(doc: PxDocument, unit: PxUnit, plan: PxUnitPlan): PxDocument {
+/**
+ * One step's document — see the top of the file. `doc` is the plain, rendered document; `claims` from
+ * {@link attributeOwnersOf} on it (the clash rule). The step's timeline is its only one: a timeline's own step plays as
+ * the timeline alone does (its delay, its rest pose); a written step plays its part with its own settings. No rules: the
+ * flow wires them (`unitConfigOf`). @internal
+ */
+export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: number, stepIndex: number, claims: ReadonlyArray<PxAttributeClaim>): PxDocument {
+    const unit = plan.units[unitIndex];
+    const planned = unit.steps[stepIndex];
+    const t = plan.timelines[planned.timeline];
     const animator = animatorOf(doc);
     const base: Record<string, unknown> = isRecord(animator) ? { ...animator } : {};
-    delete base.timelines; delete base.states; delete base.stateMachines;
-    const rules = Array.isArray(base.actionTriggers) ? rulesForUnit(base.actionTriggers as Array<PxActionTriggerRule>, unit, plan) : [];
-    // no rule for this unit: no list (absent ≡ empty since 1.17 — and a scroll engine reads a list as triggers it ignores)
-    if (rules.length) base.actionTriggers = rules; else delete base.actionTriggers;
-    const parts = unit.timelines.map(i => plan.timelines[i]);
-    const trackId = (t: PxTimelineInfo): string | undefined => (t.index === 0 ? undefined : t.id);
-
-    if (parts.length === 1) {
-        const only = parts[0];
-        base.timelines = [asOnlyTimeline(only.timeline)];
-        if (unit.states.length) base.states = unit.states.map(st => { const { timeline: _t, ...rest } = st; return rest; });
-        const promote = (ch: PxCompiledAnimation): PxCompiledAnimation | undefined => timelineTrackOf(ch, trackId(only));
-        const tree = projectTree(doc as PxNode, promote);
-        const definitions = projectDefinitions(doc, base, plan, promote);
-        if (definitions) base.definitions = definitions;
-        return { ...tree, animator: base } as PxDocument;
-    }
-
-    // several timelines, one state machine: laid end to end
-    let cursor = 0;
-    const offsets = parts.map(p => { const at = cursor; cursor += (p.windowEnd - p.windowStart) + GAP_MS; return at; });
-    const total = cursor - GAP_MS;
-    const lead = asOnlyTimeline(parts[0].timeline);
-    for (const key of ['inTime', 'outTime', 'iterations', 'iterationDirection', 'playbackSpeed', 'delay', 'whenFinished']) delete lead[key];
-    lead.outTime = total;
-    base.timelines = [lead];
-    base.states = unit.states.map(st => {
-        const j = unit.timelines.indexOf(indexOfTimeline(plan.timelines, st.timeline));
-        const p = parts[j];
-        const baked = stateWithItsTimeline(st, p.timeline);
-        const { timeline: _t, ...rest } = baked;
-        const inTime = (typeof st.inTime === 'number' ? st.inTime : p.windowStart) - p.windowStart + offsets[j];
-        const outTime = (typeof st.outTime === 'number' ? st.outTime : p.windowEnd) - p.windowStart + offsets[j];
-        return { ...rest, inTime, outTime };
-    });
-    const layOut = (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string): PxCompiledAnimation | undefined => {
-        const tracks = parts.map(p => timelineTrackOf(ch, trackId(p)));
-        if (!tracks.some(Boolean)) return undefined;
-        const hold = node ? heldValueOf(node, prop) : undefined;
-        const regions: Array<PxConcatRegion> = parts.map((p, j) => ({
-            track: tracks[j], hold, from: offsets[j], to: offsets[j] + (p.windowEnd - p.windowStart), shift: offsets[j] - p.windowStart,
-        }));
-        const template = tracks.find((t): t is PxCompiledAnimation => !!t);
-        return template ? concatChannels(template, regions) : undefined;
-    };
-    const tree = projectTree(doc as PxNode, layOut);
-    const definitions = projectDefinitions(doc, base, plan, layOut);
+    delete base.timelines; delete base.flowSteps; delete base.flows; delete base.actionTriggers;
+    base.timelines = [planned.implied ? asOnlyTimeline(t.timeline) : stepTimeline(t.timeline, planned.step)];
+    const owns = ownsOf(claims, unitIndex);
+    const trackId = t.isDefault ? undefined : t.id;
+    const promote = (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string): PxCompiledAnimation | undefined =>
+        owns(node, prop) ? timelineTrackOf(ch, trackId) : undefined;
+    const tree = projectTree(doc as PxNode, promote);
+    const definitions = projectDefinitions(doc, base, plan, promote);
     if (definitions) base.definitions = definitions;
     return { ...tree, animator: base } as PxDocument;
 }
 
-/** The units' documents, in the plan's order. @internal */
-export function unitDocumentsOf(doc: PxDocument, plan: PxUnitPlan): Array<PxDocument> {
-    return plan.units.map(unit => unitDocumentOf(doc, unit, plan));
+const isLeaving = (v: unknown): v is PxWhenLeaving =>
+    v === PxWhenLeaving.jump || v === PxWhenLeaving.animateToEnd || v === PxWhenLeaving.animateToStart;
+
+/** A unit's steps as its flow switch reads them: where each goes at its end, how it is left, where the flow starts,
+ *  whether it repeats for ever (its own `iterations`, else its timeline's). @internal */
+export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan): Array<PxFlowSwitchStep> {
+    const ids = unit.steps.map(s => s.id);
+    return unit.steps.map((planned): PxFlowSwitchStep => {
+        const step = planned.implied ? undefined : planned.step;
+        const wf = step?.whenFinished;
+        const then: PxFlowSwitchStep['then'] = !isFlowActionObject(wf) ? undefined
+            : wf.action === PxFlowAction.next ? { step: 1 }
+            : wf.action === PxFlowAction.previous ? { step: -1 }
+            : wf.flowStep !== undefined && ids.includes(wf.flowStep) ? { flowStep: wf.flowStep } : undefined;
+        const iterations = step?.iterations ?? plan.timelines[planned.timeline].timeline.iterations;
+        return {
+            id: planned.id,
+            then,
+            whenLeaving: isLeaving(step?.whenLeaving) ? step.whenLeaving : PxWhenLeaving.jump,
+            initial: step?.initial === true,
+            endless: iterations === 'infinite',
+        };
+    });
+}
+
+/** The names in the page's lists the file does not have (2026-11-22) — each ignored, with a warning. @internal */
+export function unknownRunNames(doc: PxDocument, run: PxRunLists | undefined): Array<{ list: 'flows' | 'timelines'; name: string }> {
+    if (!hasRunLists(run)) return [];
+    const timelines = timelinesOf(doc);
+    const animator = animatorOf(doc);
+    const flows = new Set<string>([PX_DEFAULT_ID]);
+    if (isRecord(animator)) {
+        for (const f of Array.isArray(animator.flows) ? animator.flows : []) if (isRecord(f) && typeof f.id === 'string') flows.add(f.id);
+        for (const s of Array.isArray(animator.flowSteps) ? animator.flowSteps : []) if (isRecord(s) && typeof s.flow === 'string') flows.add(s.flow);
+    }
+    const out: Array<{ list: 'flows' | 'timelines'; name: string }> = [];
+    for (const name of run?.flows ?? []) if (!flows.has(name)) out.push({ list: 'flows', name });
+    for (const name of run?.timelines ?? []) if (!timelines.some(t => t.name === name)) out.push({ list: 'timelines', name });
+    return out;
 }

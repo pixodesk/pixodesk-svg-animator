@@ -3,12 +3,12 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Several timelines (2026-11-20) — a free timeline beside a state machine whose states are on two timelines, on the
-// web player's frame loop. The units: the shine (the first timeline, free) and the pointer (states on `grow` and `dip`).
+// Several timelines (2026-11-20; flows 2026-11-22) — the flow `default` (the shine: the default timeline, which no step
+// names) beside the flow `pointer` whose steps are on two timelines, on the web player's frame loop.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer as createPlayer } from '../index';
-import type { PxDocument } from '@pixodesk/svg-animator-core';
+import { PX_DEFAULT_TIMELINE, type PxDocument } from '@pixodesk/svg-animator-core';
 
 const made: Array<ReturnType<typeof createPlayer>> = [];
 const createSvgAnimationPlayer: typeof createPlayer = (options) => {
@@ -28,14 +28,16 @@ function buttonDoc(): PxDocument {
                 { id: 'grow', engine: 'js', outTime: 1000 },
                 { id: 'dip', engine: 'js', outTime: 1000 },
             ],
-            states: [
-                { id: 'idle', timeline: 'grow', inTime: 0, outTime: 0 },
-                { id: 'hover', timeline: 'grow' },
-                { id: 'press', timeline: 'dip', whenFinished: { action: 'state.goTo', state: 'hover' } },
+            // the pointer steps name their flow: only flows run side by side (2026-11-22)
+            flowSteps: [
+                { id: 'idle', flow: 'pointer', timeline: 'grow', inTime: 0, outTime: 0 },
+                { id: 'hover', flow: 'pointer', timeline: 'grow' },
+                { id: 'press', flow: 'pointer', timeline: 'dip', whenFinished: { action: 'flow.goTo', flowStep: 'hover' } },
             ],
+            flows: [{ id: 'pointer' }],
             actionTriggers: [
                 { action: 'timeline.start', event: 'load' },
-                { action: 'state.goTo', state: 'press', event: 'click', element: '#btn' },
+                { action: 'flow.goTo', flowStep: 'press', event: 'click', element: '#btn' },
             ],
         },
         children: [
@@ -67,21 +69,22 @@ describe('several timelines — units side by side (2026-11-20)', () => {
         vi.useRealTimers();
     });
 
-    it('the free timeline plays by itself while the state machine rests in its first state', () => {
+    it('the flow `default` plays the shine while the pointer flow rests in its first step', () => {
         const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box' });
         vi.advanceTimersByTime(1000);
         expect(shineX()).toBeGreaterThan(8);
         expect(shineX()).toBeLessThan(12);
-        expect(api.state.get()).toEqual(['idle']);
+        // each running flow's current step, in run order: `default` (the shine's own step), then the pointer's
+        expect(api.flow.get()).toEqual(['default', 'idle']);
         expect(opacity()).toBeCloseTo(0, 1);   // `idle` = the first frame of `grow`
         expect(width()).toBeCloseTo(5, 1);     // no track on `grow`: the node's own width
     });
 
-    it('a state on the other timeline plays its track; the first timeline\'s attribute holds the node\'s own value', () => {
+    it('a step on the other timeline plays its track; the first timeline\'s attribute holds the node\'s own value', () => {
         const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box' });
         vi.advanceTimersByTime(100);
-        api.state.goTo('press');
-        expect(api.state.get()).toEqual(['press']);
+        api.flow.goTo('press');
+        expect(api.flow.get('pointer')).toEqual(['press']);
         vi.advanceTimersByTime(500);
         expect(width()).toBeGreaterThan(13);
         expect(width()).toBeLessThan(17);
@@ -91,20 +94,20 @@ describe('several timelines — units side by side (2026-11-20)', () => {
 
     it('`whenFinished` goes to a state on another timeline; its track plays from 0', () => {
         const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box' });
-        api.state.goTo('press');
+        api.flow.goTo('press');
         vi.advanceTimersByTime(1200);
-        expect(api.state.get()).toEqual(['hover']);
+        expect(api.flow.get('pointer')).toEqual(['hover']);
         vi.advanceTimersByTime(400);
         expect(opacity()).toBeGreaterThan(0.2);
         expect(opacity()).toBeLessThan(0.8);
         expect(width()).toBeCloseTo(5, 1);       // `dip` is not showing any more
     });
 
-    it('a rule on an element of the picture moves the state machine; the free timeline is not touched', () => {
+    it('a rule on an element of the picture moves the flow; the free timeline is not touched', () => {
         const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box' });
         vi.advanceTimersByTime(100);
         button()?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        expect(api.state.get()).toEqual(['press']);
+        expect(api.flow.get('pointer')).toEqual(['press']);
         expect(api.timeline.getState()).toBe('playing');
     });
 
@@ -113,6 +116,34 @@ describe('several timelines — units side by side (2026-11-20)', () => {
         expect(api.getTimeline('grow')).toBeDefined();
         expect(api.getTimeline('dip')).toBe(api.getTimeline('grow'));   // one state machine: one unit
         expect(api.getTimeline('nope')).toBeUndefined();
-        expect(api.state.getAll()).toEqual(['idle', 'hover', 'press']);
+        // every step, flow by flow — the shine's own step first
+        expect(api.flow.getAll()).toEqual(['default', 'idle', 'hover', 'press']);
+    });
+
+    it('the page says what runs (2026-11-22): `flows` — only those; what does not run holds nothing', () => {
+        const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box', flows: ['pointer'] });
+        vi.advanceTimersByTime(1000);
+        expect(shineX()).toBeCloseTo(0, 1);                   // `default` does not run: the shine at its own x
+        expect(api.flow.get()).toEqual(['idle']);
+        button()?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(api.flow.get()).toEqual(['press']);            // the pointer's rules are heard
+    });
+
+    it('`timelines` — each named timeline whole and by itself; the flows do not run, their rules are not heard', () => {
+        // 2026-11-22: the page calls the timeline with no id PX_DEFAULT_TIMELINE ('')
+        const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box', timelines: [PX_DEFAULT_TIMELINE] });
+        api.timeline.start();
+        vi.advanceTimersByTime(1000);
+        expect(shineX()).toBeGreaterThan(8);
+        expect(api.flow.get()).toEqual([]);
+        button()?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(width()).toBeCloseTo(5, 1);                    // the pointer flow does not run: `press` never plays
+    });
+
+    it('a name the file does not have is ignored, with a warning (PX1507)', () => {
+        const warnings: Array<unknown> = [];
+        createSvgAnimationPlayer({ document: buttonDoc(), container: '#box', flows: ['pointer', 'nope'], onWarning: (w) => warnings.push(w) });
+        expect(JSON.stringify(warnings)).toContain('1507');
     });
 });
+

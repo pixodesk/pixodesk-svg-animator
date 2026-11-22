@@ -14,7 +14,7 @@ import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxHoldAt, PxPlaybackDirection,
     PxScrollAxis, PxScrollFollows, PxScrollLine, PxScrollMoment, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType,
-    PX_ALL_TRIGGER_EVENTS, PxPointerType, PxStateAction, PxWhenLeaving } from './PxAnimatorConstants';
+    PX_ALL_TRIGGER_EVENTS, PxPointerType, PxFlowAction, PxWhenLeaving } from './PxAnimatorConstants';
 import type { PxActionName, PxPlaybackState, PxScrollSettings, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
@@ -25,7 +25,7 @@ import { animatorOf } from './PxDocStage';
 // bindings themselves. These modules import only TYPES from here, so the edges create no cycle.
 import { isVariableName } from '../variables/PxFormula';
 import type { PxVariablesApi } from '../variables/PxVariablesRuntime';
-import type { PxStateControls, PxStateRuntime } from '../playback/PxStates';
+import type { PxFlowControls, PxFlowRuntime } from '../playback/PxFlows';
 import { collectBindingSites, firstKeyframeValue, isAnimatedVariableValue, nodeAtPath, predefinedVariableOf, resolveVariableBindings, variableDefaultFits, viewBoxCenterOf, type PxBindingSite } from '../variables/PxVariableBindings';
 // The diagnostics channel's payload, named by `PxEngineCallbacks` below (review §5).
 // `PxDiagnostics` imports nothing, so this edge creates no cycle either.
@@ -326,10 +326,10 @@ export interface _PxPropertyAnimation {
     alongPathMode?: 'sampled' | 'offsetPath';
 
     /**
-     * What the attribute does on the file's OTHER timelines (2026-11-20) — one entry per timeline, by its `id`. The
-     * plain `keyframes` above are on the first timeline. An entry holds a `value` while its timeline shows, or
-     * `keyframes` from that timeline's time 0. On a timeline that is not showing, the attribute has the node's own
-     * value. Beside a `byTimeline` the plain `keyframes` are not played (a warning) — `byTimeline` wins.
+     * What the attribute does on the file's NAMED timelines (2026-11-20) — one entry per timeline, by its `id`: its
+     * `keyframes`, from that timeline's time 0. The plain `keyframes` above are the default timeline's (the one with no
+     * id) and may stand beside it (2026-11-22). On a timeline with no keyframes for it, the attribute has the node's own
+     * value.
      */
     byTimeline?: Array<_PxTimelineTrack>;
 }
@@ -342,7 +342,6 @@ export interface _PxPropertyAnimation {
 export interface _PxTimelineTrack {
     /** The timeline's `id` — one of `animator.timelines`. */
     timeline: string;
-    value?: _PxKeyframeValue;
     keyframes?: Array<_PxKeyframe>;
     loop?: PxLoop | boolean;
     autoOrient?: boolean;
@@ -352,7 +351,6 @@ export interface _PxTimelineTrack {
 /** @public @advanced */
 export const PxTimelineTrackSchema = implementsInterface<_PxTimelineTrack>()(px.object({
     timeline: px.string(),
-    value: PxKeyframeValueSchema.optional(),
     keyframes: px.array(PxKeyframeSchema).optional(),
     loop: px.union([PxLoopSchema, px.boolean()]).optional(),
     autoOrient: px.boolean().optional(),
@@ -660,15 +658,15 @@ export interface _PxActionTriggerRule {
      *  - `timeline.resume` — resumes it (when paused). With no `timeline.resume` rule at all, it is DERIVED: the
      *    counterpart of each `timeline.pause` event (hover out resumes what hover in paused) plus the `timeline.start`
      *    events that do not stop it. Named, the rules are used as written ({@link triggerIssues} notes a difference);
-     *  - `state.goTo` — goes to `state`; `state.next` · `state.previous` — the next or previous state of a state machine
-     *    (`stateMachine`; none — the one without an id), after the last the first. */
+     *  - `flow.goTo` — goes to the step `flowStep`; `flow.next` · `flow.previous` — the next or previous step of a flow
+     *    (`flow`; none — `default`), after the last the first. */
     action: PxActionName;
     /** The timeline a `timeline.*` action acts on — an `id` of `animator.timelines`. None: the whole picture. */
     timeline?: string;
-    /** The state `state.goTo` goes to — an `id` of `animator.states`. */
-    state?: string;
-    /** The state machine `state.next` / `state.previous` steps through — an `id` of `animator.stateMachines`. */
-    stateMachine?: string;
+    /** The step `flow.goTo` goes to — an `id` of `animator.flowSteps`, or a timeline's id: the step a timeline no step uses is. */
+    flowStep?: string;
+    /** The flow `flow.next` / `flow.previous` steps through — an `id` of `animator.flows`, or `default`. */
+    flow?: string;
     /** The event that does it. */
     event: PxTriggerEvent;
     /** Where it is heard: one of this file's elements, `"#id"` — its fresh id is followed when the player renames ids. */
@@ -765,8 +763,8 @@ function ruleSchemaOf<A extends PxActionName>(action: A, events: ReadonlyArray<P
     return px.object({
         action: px.literal(action),
         timeline: px.string().optional(),
-        state: px.string().optional(),
-        stateMachine: px.string().optional(),
+        flowStep: px.string().optional(),
+        flow: px.string().optional(),
         event: px.enum(events),
         element: px.string().optional(),
         selector: px.string().optional(),
@@ -776,16 +774,16 @@ function ruleSchemaOf<A extends PxActionName>(action: A, events: ReadonlyArray<P
 
 /** One rule of `actionTriggers` — see {@link _PxActionTriggerRule}. A member per action, so the schema states the events
  *  each may name ({@link allowedTriggerEvents}): a playback action naming another fails strict validation, and the
- *  document repair drops the rule. A state action may name every event. @public @advanced */
+ *  document repair drops the rule. A flow action may name every event. @public @advanced */
 export const PxActionTriggerRuleSchema = implementsInterface<_PxActionTriggerRule>()(px.discriminatedUnion('action', [
     ruleSchemaOf(PxTriggerList.startPlayback, allowedTriggerEvents(PxTriggerList.startPlayback)),
     ruleSchemaOf(PxTriggerList.playPlayback, allowedTriggerEvents(PxTriggerList.playPlayback)),
     ruleSchemaOf(PxTriggerList.stopPlayback, allowedTriggerEvents(PxTriggerList.stopPlayback)),
     ruleSchemaOf(PxTriggerList.pausePlayback, allowedTriggerEvents(PxTriggerList.pausePlayback)),
     ruleSchemaOf(PxTriggerList.resumePlayback, allowedTriggerEvents(PxTriggerList.resumePlayback)),
-    ruleSchemaOf(PxStateAction.goTo, PX_ALL_TRIGGER_EVENTS),
-    ruleSchemaOf(PxStateAction.next, PX_ALL_TRIGGER_EVENTS),
-    ruleSchemaOf(PxStateAction.previous, PX_ALL_TRIGGER_EVENTS),
+    ruleSchemaOf(PxFlowAction.goTo, PX_ALL_TRIGGER_EVENTS),
+    ruleSchemaOf(PxFlowAction.next, PX_ALL_TRIGGER_EVENTS),
+    ruleSchemaOf(PxFlowAction.previous, PX_ALL_TRIGGER_EVENTS),
 ] as const));
 /** One rule of `actionTriggers`. @public */
 export type PxActionTriggerRule = _PxActionTriggerRule;
@@ -803,24 +801,24 @@ export type PxActionTriggers = PxInfer<typeof PxActionTriggersSchema>;
 export type PxActionTriggersInput = PxActionTriggers;
 
 /**
- * An action written as a value (2026-11-20) — a `whenFinished` that goes somewhere: `{ "action": "state.goTo",
- * "state": "hover" }`, `{ "action": "state.next" }`. The same object, and the same names, as a rule of `actionTriggers`,
+ * An action written as a value (2026-11-20) — a `whenFinished` that goes somewhere: `{ "action": "flow.goTo",
+ * "flowStep": "hover" }`, `{ "action": "flow.next" }`. The same object, and the same names, as a rule of `actionTriggers`,
  * without its event.
  * @public
  */
 export interface _PxActionObject {
-    action: PxStateAction;
-    /** The state `state.goTo` goes to. */
-    state?: string;
-    /** The state machine `state.next` / `state.previous` steps through; none — the state's own. */
-    stateMachine?: string;
+    action: PxFlowAction;
+    /** The step `flow.goTo` goes to. */
+    flowStep?: string;
+    /** The flow `flow.next` / `flow.previous` steps through; none — the step's own. */
+    flow?: string;
 }
 
 /** @public @advanced */
 export const PxActionObjectSchema = implementsInterface<_PxActionObject>()(px.object({
-    action: px.enum([PxStateAction.goTo, PxStateAction.next, PxStateAction.previous] as const),
-    state: px.string().optional(),
-    stateMachine: px.string().optional(),
+    action: px.enum([PxFlowAction.goTo, PxFlowAction.next, PxFlowAction.previous] as const),
+    flowStep: px.string().optional(),
+    flow: px.string().optional(),
 }));
 /** @public */
 export type PxActionObject = PxInfer<typeof PxActionObjectSchema>;
@@ -1064,45 +1062,46 @@ export type PxHoldOnScreen = PxInfer<typeof PxHoldOnScreenSchema>;
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const, PxTimelineEngineSetting.auto).optional();
 
 /**
- * A STATE (2026-11-20; a "segment", nested in its timeline, until then) — a named situation of the picture, given as a
- * part of ONE timeline: `timeline` (none — the first) and `inTime` – `outTime` on it (none — the whole of it). Of the
- * states of one state machine exactly one is current; while it is current, its part plays. It OVERRIDES its timeline —
- * how it repeats, its direction, its speed, what happens at its end (`whenFinished`) and how it is left when another is
- * asked for (`whenLeaving`); what it does not say, it takes from its timeline.
+ * A FLOW STEP (2026-11-22; a "state" 11-20, a "segment" nested in its timeline 11-15) — a named piece of animation,
+ * given as a part of ONE timeline: `timeline` (none — the default timeline, the one with no id) and `inTime` – `outTime`
+ * on it (none — the whole of it). Of the steps of one flow exactly one is current; while it is current, its part plays
+ * with the ordinary playback. It OVERRIDES its timeline — how it repeats, its direction, its speed, what happens at its
+ * end (`whenFinished`) and how it is left when another is asked for (`whenLeaving`); what it does not say, it takes
+ * from its timeline. A timeline no step names is a step of the flow `default` by itself — the whole of it.
  * @public
  */
-export interface _PxState {
-    /** What the rules, `whenFinished` and the page call it (`state.goTo`, `player.state.goTo('‹id›')`). Unique in the
-     *  list: a later state with an id already used is ignored, with a warning (PX1115). */
+export interface _PxFlowStep {
+    /** What the rules, `whenFinished` and the page call it (`flow.goTo`, `player.flow.goTo('‹id›')`). Unique in the
+     *  list: a later step with an id already used is ignored, with a warning (PX1115). */
     id: string;
     /** A label for people — the editor shows it; nothing refers to it. */
     name?: string;
-    /** The state machine it belongs to — an `id` of `animator.stateMachines`. None: the state machine without an id. */
-    stateMachine?: string;
-    /** The timeline it is a part of — an `id` of `animator.timelines`. None: the first. */
+    /** The flow it belongs to — an `id` of `animator.flows`. None: the flow `default`. */
+    flow?: string;
+    /** The timeline it is a part of — an `id` of `animator.timelines`. None: the default timeline. */
     timeline?: string;
     /** CONTENT ms on its timeline where it begins. Default: the timeline's `inTime`. */
     inTime?: number;
     /** CONTENT ms on its timeline where it ends. Default: the timeline's `outTime`. */
     outTime?: number;
-    /** Where its state machine starts. None says so: the first of the state machine's states in the list. */
+    /** Where its flow starts. None says so: the first of the flow's steps. */
     initial?: boolean;
     iterations?: number | 'infinite';
     iterationDirection?: PxPlaybackDirection;
     playbackSpeed?: number;
     /** At its end: `hold` (default) · `jumpToStart` · `animateToStart` — what the picture shows, the playback is then
-     *  finished — or an action: `{ "action": "state.goTo", "state": "‹id›" }`, `{ "action": "state.next" }` — it goes
+     *  finished — or an action: `{ "action": "flow.goTo", "flowStep": "‹id›" }`, `{ "action": "flow.next" }` — it goes
      *  on there. */
     whenFinished?: PxWhenFinished | _PxActionObject;
-    /** How it is left when another state is asked for: `jump` (default) · `animateToEnd` · `animateToStart`. */
+    /** How it is left when another step is asked for: `jump` (default) · `animateToEnd` · `animateToStart`. */
     whenLeaving?: PxWhenLeaving;
 }
 
 /** @public @advanced */
-export const PxStateSchema = implementsInterface<_PxState>()(px.object({
+export const PxFlowStepSchema = implementsInterface<_PxFlowStep>()(px.object({
     id: px.string(),
     name: px.string().optional(),
-    stateMachine: px.string().optional(),
+    flow: px.string().optional(),
     timeline: px.string().optional(),
     inTime: px.number().optional(),
     outTime: px.number().optional(),
@@ -1114,29 +1113,30 @@ export const PxStateSchema = implementsInterface<_PxState>()(px.object({
     whenLeaving: px.enum([PxWhenLeaving.jump, PxWhenLeaving.animateToEnd, PxWhenLeaving.animateToStart] as const, PxWhenLeaving.jump).optional(),
 }));
 /** @public */
-export type PxState = PxInfer<typeof PxStateSchema>;
-const _ck_PxState: KeysMatch<PxState, _PxState> = true;
+export type PxFlowStep = PxInfer<typeof PxFlowStepSchema>;
+const _ck_PxFlowStep: KeysMatch<PxFlowStep, _PxFlowStep> = true;
 
 /**
- * A STATE MACHINE (2026-11-20) — of its states exactly one is current, and events move it. State machines run at the
- * same time and do not know of each other. States that name none form one state machine without an id.
+ * A FLOW (2026-11-22; a "state machine" 11-20) — of its steps exactly one is current, and events move it. Flows run at
+ * the same time and do not know of each other. Steps that name none — and every timeline no step names — form the
+ * flow `default`, which needs no entry here (one with the id `default` only gives it a label).
  * @public
  */
-export interface _PxStateMachine {
-    /** What a state's `stateMachine` and a rule call it. Unique in the list. */
+export interface _PxFlow {
+    /** What a step's `flow`, a rule and the page call it. Unique in the list. */
     id: string;
     /** A label for people — the editor shows it; nothing refers to it. */
     name?: string;
 }
 
 /** @public @advanced */
-export const PxStateMachineSchema = implementsInterface<_PxStateMachine>()(px.object({
+export const PxFlowSchema = implementsInterface<_PxFlow>()(px.object({
     id: px.string(),
     name: px.string().optional(),
 }));
 /** @public */
-export type PxStateMachine = PxInfer<typeof PxStateMachineSchema>;
-const _ck_PxStateMachine: KeysMatch<PxStateMachine, _PxStateMachine> = true;
+export type PxFlow = PxInfer<typeof PxFlowSchema>;
+const _ck_PxFlow: KeysMatch<PxFlow, _PxFlow> = true;
 
 /**
  * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
@@ -1144,7 +1144,7 @@ const _ck_PxStateMachine: KeysMatch<PxStateMachine, _PxStateMachine> = true;
  * timeline through `any`, so without this lock nothing else in the repo would notice.
  */
 export interface _PxTimeTimeline {
-    /** What states, tracks (`byTimeline`) and rules call it — unique in `timelines`. The first needs none. */
+    /** What steps, tracks (`byTimeline`) and rules call it — unique in `timelines`. None: the default timeline (at most one). */
     id?: string;
     /** A label for people — the editor shows it; nothing refers to it. */
     name?: string;
@@ -1231,7 +1231,7 @@ const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTim
 
 /** The scroll timeline. Locked by an interface, like the time member. */
 export interface _PxScrollTimeline {
-    /** What tracks (`byTimeline`) and rules call it — unique in `timelines`. The first needs none. */
+    /** What tracks (`byTimeline`) and rules call it — unique in `timelines`. None: the default timeline (at most one). */
     id?: string;
     /** A label for people. */
     name?: string;
@@ -1364,11 +1364,10 @@ export interface _PxAnimatorConfig {
     whenIdle?: PxWhenIdle;
     /** The wire's `whenFinished`, carried through (the executor reads it; the engines read `fill` / `resetOnFinish`). */
     whenFinished?: PxWhenFinished;
-    /** The states, as written (wire AND view, 2026-11-20) — a writer round-trips them; the player plays the first
-     *  timeline's (`PxStates`). */
-    states?: Array<PxState>;
-    /** The state machines, as written (wire AND view, 2026-11-20). */
-    stateMachines?: Array<PxStateMachine>;
+    /** The flow steps, as written (wire AND view; `states` 11-20) — a writer round-trips them; the player plans them (`PxUnits`). */
+    flowSteps?: Array<PxFlowStep>;
+    /** The flows, as written (wire AND view; `stateMachines` 11-20). */
+    flows?: Array<PxFlow>;
     inViewThreshold?: number;
     inViewDebounce?: number;
 
@@ -1471,8 +1470,8 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     // at this level only on the runtime view, like the rest of the playback dynamics.)
     // THE spelling of "what advances progress" — the clock or the scrolling (review §2.1); several since 2026-11-20.
     timelines: px.array(PxTimelineSchema).optional(),
-    states: px.array(PxStateSchema).optional(),
-    stateMachines: px.array(PxStateMachineSchema).optional(),
+    flowSteps: px.array(PxFlowStepSchema).optional(),
+    flows: px.array(PxFlowSchema).optional(),
     actionTriggers: PxActionTriggersSchema.optional(),
     definitions: PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
@@ -2717,6 +2716,14 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
      *  `setupAnimationTriggers`, never fired by the engine: a `load` trigger presses `timeline.start` inside the engine's
      *  constructor, before the public api is composed, so the listeners must already be attached there. */
     playbackListeners?: PxPlaybackListeners;
+
+    /** A flow's step (2026-11-22): the flow above wires the triggers and the gate once — the engine wires none. */
+    triggersByFlow?: boolean;
+}
+
+/** Whether an engine wires its document's triggers and gate itself — not for a flow's step, whose flow does. @public @advanced */
+export function shouldWireOwnTriggers(callbacks: Pick<PxEngineCallbacks, 'triggersByFlow'> | undefined): boolean {
+    return !callbacks?.triggersByFlow;
 }
 
 // @px-area entry
@@ -2754,20 +2761,30 @@ export interface PxAnimationPlayerCallbacks extends PxDiagnosticsConfig {
      *  `whenFinished` then shows. Not for a stop that goes to the end (that is `onPlaybackStop`), never for a loop without
      *  end. WHY `finish`: one pair with the `finished` state — WAAPI's word. (`onFinish` until 1.25.) */
     onPlaybackFinish?: () => void;
-    /** A state machine went to another state (2026-11-20; `onSegmentChange` until then): `state` is the new one,
-     *  `previous` the one it left, `stateMachine` the state machine's id (none — the one without an id). */
-    onStateChange?: (state: string, previous: string, stateMachine?: string) => void;
+    /** A flow went to another step (2026-11-22; `onStateChange` 11-20, `onSegmentChange` 11-15): `flowStep` is the new
+     *  one, `previous` the one it left, `flow` the flow's id (`default` for the flow `default`). */
+    onFlowStepChange?: (flowStep: string, previous: string, flow: string) => void;
     /** `destroy()`'s pair (review §11): the player was torn down — an unmount, a document swap, or an explicit
      *  `destroy()` call. */
     onDestroy?: () => void;
 }
 
-/** The components' `state` prop (React, Vue; 2026-11-20 — `segment` until then): the state the page holds, or one per
- *  state machine — a lever, so the file's rules for that state machine are not read while it is set. At mount a state
- *  that ends is shown at its end without playing, one that repeats plays; a change plays the way there (its
- *  `whenLeaving` honoured). An id the file lacks is ignored. @public */
-export interface PxStateProps {
-    state?: string | Array<string>;
+/** The components' `flowStep` prop (React, Vue; 2026-11-22 — `state` 11-20, `segment` 11-15): the step the page holds,
+ *  or one per flow — a lever, so the file's rules for that flow are not read while it is set. At mount a step that
+ *  ends is shown at its end without playing, one that repeats plays; a change plays the way there (its `whenLeaving`
+ *  honoured). An id the file lacks is ignored. @public */
+export interface PxFlowStepProps {
+    flowStep?: string | Array<string>;
+}
+
+/** What runs, said by the page (2026-11-22) — the `flows` and `timelines` options and props of every surface. With
+ *  neither, every flow of the file runs, side by side. With either, exactly what they name runs: `flows` — those flows
+ *  (`"default"` for the flow `default`); `timelines` — each of those timelines whole, by itself (`"default"` for the
+ *  timeline with no id). What does not run holds nothing: its attributes show the elements' own values and its rules are
+ *  not heard. A changed list rebuilds the player's runners; the picture stays. @public */
+export interface PxRunListProps {
+    flows?: Array<string>;
+    timelines?: Array<string>;
 }
 
 
@@ -2952,11 +2969,11 @@ export interface PxAnimationPlayerApi<TRoot = unknown> {
     /** The timeline: the buttons, the state, the seeks, both clocks and the speed — see {@link PxTimelineControls}. With
      *  several timelines its buttons and speed act on the whole picture; its reads and seeks are of the first. */
     readonly timeline: PxTimelineControls;
-    /** The states (2026-11-20) — `goTo(id)` · `next()` · `previous()` · `get()` · `getAll()`; see {@link PxStateControls}.
-     *  While a state machine is in a state, every read and seek of its timeline is of that state. */
-    readonly state: PxStateControls;
-    /** One timeline by its `id` (2026-11-20) — the same kind of handle as `timeline`, acting on that timeline alone (on
-     *  its state machine, when states use it); `undefined` for an id the file does not have. */
+    /** The flows (2026-11-22; `state` 11-20) — `goTo(id)` · `next()` · `previous()` · `get()` · `getAll()`; see
+     *  {@link PxFlowControls}. While a flow is at a step, `timeline` is that step's playback. */
+    readonly flow: PxFlowControls;
+    /** One timeline by its `id` — `"default"` for the timeline with no id (2026-11-20) — the same kind of handle as
+     *  `timeline`, acting on that timeline alone; `undefined` for an id the file does not have or that does not run. */
     getTimeline(id: string): PxTimelineControls | undefined;
     /** The document's variables — read them, give them values, pick a variant (schema 1.27). */
     readonly variables: PxVariablesApi;
@@ -2981,7 +2998,7 @@ export type PxAnimationPlayerHandle = Omit<PxAnimationPlayerApi, 'isReady' | 'ge
 
 
 /** The playback events the executor tells — the public callbacks' playback subset, told when the act is PERFORMED. @public @advanced */
-export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onPlaybackFinish' | 'onStateChange'>;
+export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackStart' | 'onPlaybackStop' | 'onPlaybackPause' | 'onPlaybackResume' | 'onPlaybackFinish' | 'onFlowStepChange'>;
 
 /**
  * The player's ONE executor of the buttons (dev-docs/plans/playback-layers.md, animation-state.brainstorm.md) — what
@@ -3016,7 +3033,7 @@ export interface PxPlayExecutor {
     /** The engine's clock reached an end (its `onFinish`): the playback's natural end (`finished`, `onPlaybackFinish`, then
      *  `whenFinished`), or the end of a return leg (rest there). The engines' `onFinish` hook calls this. */
     onNaturalFinish(): void;
-    /** A stop is on its way to the end of the pass, or a return leg is running — the segment clock asks before it hops on. */
+    /** A stop is on its way to the end of the pass, or a return leg is running — a flow asks before it hops on. */
     hasPendingMove?(): boolean;
     dispose(): void;
 }
@@ -3045,8 +3062,8 @@ export interface PxEngineAnimationPlayerApi<TRoot = unknown> {
     destroy(): void;
     /** The player's one executor (D5), attached by the engine so triggers wired inside it and the composed api share one state. */
     playExecutor?: PxPlayExecutor;
-    /** A timeline with states (2026-11-20): the state clock that took the primitives over. */
-    stateRuntime?: PxStateRuntime;
+    /** A flow over this playback (2026-11-22): what goes from step to step. */
+    flowRuntime?: PxFlowRuntime;
 }
 
 

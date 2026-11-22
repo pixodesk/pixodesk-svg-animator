@@ -88,8 +88,10 @@ player.destroy();             // cleanup
 | ----------- | ------------------------- | -------------------------------------------------- |
 | `document`  | `string \| PxDocumentJson` | Required: a URL to fetch the animation document from (a string is always a URL), or the document object itself (a `.json` import passes as-is). `src` / `doc` until 1.25 |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
+| `flows` | `Array<string>` | what runs: those [flows](../../docs/library/playback-and-triggers.md#what-runs--the-pages-lists) (`default` for the flow `default`); with neither list, every flow |
+| `timelines` | `Array<string>` | …or those timelines, each whole and by itself, side by side |
 | `onReady` · `onPlaybackStart` · `onPlaybackStop` · `onPlaybackPause` · `onPlaybackResume` · `onPlaybackFinish` · `onDestroy` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`; the `onPlayback…` callbacks are the playback's events, told when the act is performed; `onPlaybackFinish` only when the last pass ends by playing); plus `onWarning`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlaybackStart,onPlaybackStop,onPlaybackPause,onPlaybackResume,onPlaybackFinish,onDestroy,onWarning,onError,suppressWarnings,suppressErrors -->
-| `onStateChange` | `(state: string, previous: string, stateMachine?: string) => void` | a state machine went to another [state](../../docs/library/playback-and-triggers.md#states--named-parts-of-a-timeline); `stateMachine` is its id, none for the one without an id |
+| `onFlowStepChange` | `(flowStep: string, previous: string, flow: string) => void` | a flow went to another [step](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation); `flow` is its id, `default` for the flow `default` |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says: no triggers, no scroll; every playback call is ignored with a warning (PX1506). Beats every other option |
 | `disableActionTriggers` | `boolean` | manual: the file's triggers are switched off — nothing starts by itself, the returned api drives playback |
 | `actionTriggers` | `PxActionTriggersInput \| null` | the rules to use instead of the file's — the whole list, `[{ action: 'timeline.start', event: 'load' }]` (a rule left out is not there); `null` or `[]`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
@@ -113,13 +115,13 @@ const player = createSvgAnimationPlayer({
 player.timeline.start();
 ```
 
-It returns a `PxAnimationPlayerApi` — the player's lifecycle, `timeline` and `state`:
+It returns a `PxAnimationPlayerApi` — the player's lifecycle, `timeline` and `flow`:
 
 <!-- px-check props PxAnimationPlayerApi pkg=web -->
 | Member                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `timeline`              | Everything a page does to the animation — a `PxTimelineControls`, below. One object per player, made of closures (`const { start } = player.timeline` works) |
-| `state`                 | The file's [states](../../docs/library/playback-and-triggers.md#states--named-parts-of-a-timeline) — a `PxStateControls`: `goTo(id)` · `next(stateMachine?)` · `previous(stateMachine?)` · `get(stateMachine?)` (one id per state machine) · `getAll()` |
+| `flow`                 | The file's [flows](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation) — a `PxFlowControls`: `goTo(id)` · `next(flow?)` · `previous(flow?)` · `get(flow?)` (one id per flow) · `getAll()` |
 | `getTimeline(id)`       | One timeline of the file by its `id` — the same controls as `timeline`, on that timeline alone; `undefined` for an id the file does not have |
 | `variables`             | The document's variables — `get` / `set` / `setVariables` / `reset`, `setVariant` … (a `PxVariablesApi`); a change is drawn on the next frame and never touches the playback. See [Variables](../../docs/library/variables.md) |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) — calls made before are queued |

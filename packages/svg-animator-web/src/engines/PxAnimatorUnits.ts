@@ -5,91 +5,158 @@
  *---------------------------------------------------------------------------------------*/
 
 // ============================================================================
-// SEVERAL TIMELINES ON THE WEB (2026-11-20) — the units of core's `planUnits`, each bound like a one-timeline file
-// (`bindWithEngineChoice`) to the same rendered picture, and composed into ONE player:
+// FLOWS ON THE WEB (2026-11-22; units 2026-11-20) — the units of core's `planUnits`, side by side over the same rendered
+// picture. Each unit is ONE flow switch (core `createFlowSwitch`): its current step is bound like a one-timeline file
+// (`bindWithEngineChoice`, its own triggers off), and the flow wires the unit's triggers and gate ONCE over the switch.
 //
 // | the player's | does |
 // |---|---|
 // | `timeline` buttons and speed | every unit a clock drives — the whole picture |
-// | `timeline` reads and seeks | the PRIMARY unit (the one with the first timeline) |
-// | `getTimeline(id)` | that timeline's unit |
-// | `state` | `goTo` — the state's unit; `next` / `previous` — its state machine's; `get` — each state machine's current |
-// | playback events | the primary's only; every unit tells `onStateChange` |
+// | `timeline` reads and seeks | the FIRST unit (in run order) — its current step's playback |
+// | `getTimeline(id)` | the unit that plays that timeline (`PX_DEFAULT_TIMELINE`, "": the timeline with no id) |
+// | `flow` | `goTo` — the step's unit; `next` / `previous` — its flow's (none: `default`, else the first); `get` — each flow's current |
+// | playback events | the first unit's only; every unit tells `onFlowStepChange` |
 // ============================================================================
 
-import type { PxDocument, PxTimelineControls } from '@pixodesk/svg-animator-core';
-import { unitDocumentsOf, type PxControlMode, type PxPlatformAdapter, type PxUnitPlan } from '@pixodesk/svg-animator-core/engine';
-import type { PxStateControls } from '@pixodesk/svg-animator-core';
+import { PX_DEFAULT_ID, PxDiagnosticCode, PxDiagnosticKind, getAnimatorConfig, type PxDocument, type PxFlowControls, type PxTimelineControls } from '@pixodesk/svg-animator-core';
+import {
+    attributeOwnersOf, createFlowSwitch, duplicateFlowStepIds, flowStepReferenceIssues, forwardPlaybackControls, planUnits, stepDocumentOf, switchStepsOf, unitConfigOf, unknownRunNames,
+    type PxAttributeClaim, type PxFlowSwitch, type PxRunLists, type PxUnitPlan,
+} from '@pixodesk/svg-animator-core/engine';
+import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
-import type { PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
-import { bindWithEngineChoice } from './PxAnimatorBind';
+import type { PxBoundPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
+import { reportTriggerProblems, wireTriggers } from '../triggers/PxAnimatorTriggers';
+import { webRaf } from '../shared/PxWebRaf';
 
-/** The callbacks a unit other than the primary gets: its diagnostics and its changes of state, no playback events. */
+/** Binds one document — a step's, or a whole one-timeline file — to an engine: the full player's choice of engine, or
+ *  a pre-rendered build's own. `followed`: what a scroll timeline follows; `triggersByFlow`: a flow wires its triggers. */
+export type PxStepBinder = (doc: PxDocument, callbacks: PxPlayerCallbacks | undefined, followed: Element | undefined, triggersByFlow: boolean) => PxBoundPlayerApi;
+
+// @px-importance important
+/** The player of a document as the page runs it (2026-11-22): the document as it is when it is its default timeline
+ *  alone, else its units side by side (`planUnits`). The full player and the pre-rendered builds both bind here. */
+export function bindPlanned(doc: PxDocument, binder: PxStepBinder, callbacks: PxPlayerCallbacks | undefined, followed: Element | undefined, run?: PxRunLists): PxPlayerEngineApi {
+    const plan = planUnits(doc, run);
+    const diag = createDiagnostics(callbacks, '[PxAnimator]');
+    for (const unknown of unknownRunNames(doc, run)) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.runListNameUnknown, unknown.list, unknown.name);
+    if (!plan) return binder(doc, callbacks, followed, false);
+    // the step checks, once for the whole file — a unit wires only its own steps and rules
+    const config = getAnimatorConfig(doc);
+    for (const id of duplicateFlowStepIds(config?.flowSteps)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepIdDuplicate, id);
+    if (config) for (const issue of flowStepReferenceIssues(config, plan.timelines.map(t => t.stepId))) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepNotFound, issue);
+    return bindUnits(doc, plan, binder, callbacks, followed);
+}
+
+/** The callbacks a unit other than the first gets: its diagnostics and its changes of step, no playback events. */
 function secondaryCallbacks(callbacks: PxPlayerCallbacks | undefined): PxPlayerCallbacks | undefined {
     if (!callbacks) return undefined;
-    const { onWarning, onError, suppressWarnings, suppressErrors, onStateChange } = callbacks;
-    return { onWarning, onError, suppressWarnings, suppressErrors, onStateChange };
+    const { onWarning, onError, suppressWarnings, suppressErrors, onFlowStepChange } = callbacks;
+    return { onWarning, onError, suppressWarnings, suppressErrors, onFlowStepChange };
+}
+
+/** One unit at work: its switch, and what the flow wired. */
+interface PxBoundUnit {
+    readonly flowSwitch: PxFlowSwitch<PxBoundPlayerApi>;
+    readonly scroll: boolean;
+    destroy(): void;
+}
+
+/** One unit's flow switch — every step's playback bound on demand, the unit's triggers wired once over it. */
+function bindUnit(
+    doc: PxDocument,
+    plan: PxUnitPlan,
+    unitIndex: number,
+    claims: ReadonlyArray<PxAttributeClaim>,
+    binder: PxStepBinder,
+    callbacks: PxPlayerCallbacks | undefined,
+    followed: Element | undefined,
+): PxBoundUnit {
+    const unit = plan.units[unitIndex];
+    const { onPlaybackFinish, onFlowStepChange, ...stepCallbacks } = callbacks ?? {};
+    const flowSwitch = createFlowSwitch<PxBoundPlayerApi>({
+        flow: unit.flow ?? plan.timelines[unit.steps[0].timeline].name,
+        steps: switchStepsOf(unit, plan),
+        raf: webRaf,
+        onChange: (flowStep, previous, flow) => onFlowStepChange?.(flowStep, previous, flow),
+        onPlaybackFinish: () => onPlaybackFinish?.(),
+        bind: (stepIndex, events) => {
+            const stepDoc = stepDocumentOf(doc, plan, unitIndex, stepIndex, claims);
+            const scroll = plan.timelines[unit.steps[stepIndex].timeline].scroll;
+            return binder(stepDoc, { ...stepCallbacks, onPlaybackFinish: events.onPlaybackFinish }, scroll ? followed : undefined, true);
+        },
+    });
+    // the unit's triggers and gate, once — over the switch's executor (the current step's playback)
+    let detach = (): void => {};
+    const root = flowSwitch.currentPlayer().getRootElement();
+    if (!unit.scroll && root) {
+        const config = getAnimatorConfig(unitConfigOf(doc, unit, plan)) ?? {};
+        const report = createDiagnostics(callbacks, '[PxAnimator]');
+        reportTriggerProblems(config, report);
+        detach = wireTriggers(root, flowSwitch.executor, unit.flow !== undefined ? flowSwitch : undefined, config, report);
+    }
+    return {
+        flowSwitch,
+        scroll: unit.scroll,
+        destroy: () => { detach(); flowSwitch.dispose(); },
+    };
 }
 
 /** One player over the units of `plan` — see the top of the file. `doc` is the plain document the picture was
  *  rendered from. */
-export function bindUnits(
+function bindUnits(
     doc: PxDocument,
     plan: PxUnitPlan,
-    adapter: PxPlatformAdapter | undefined,
+    binder: PxStepBinder,
     callbacks: PxPlayerCallbacks | undefined,
-    rootElement: Element | null | undefined,
-    mode: PxControlMode,
-    followed?: Element,
+    followed: Element | undefined,
 ): PxPlayerEngineApi {
-    const docs = unitDocumentsOf(doc, plan);
-    const apis = plan.units.map((unit, i) => bindWithEngineChoice(docs[i], adapter, unit.primary ? callbacks : secondaryCallbacks(callbacks),
-        rootElement, mode, unit.scroll ? followed : undefined));
-    const primaryAt = Math.max(0, plan.units.findIndex(u => u.primary));
-    const primary = apis[primaryAt];
-    const clocks = apis.filter((_, i) => !plan.units[i].scroll);
-    const each = (run: (t: PxTimelineControls) => void) => (): void => { for (const api of clocks) run(api.timeline); };
+    const claims = attributeOwnersOf(doc, plan);
+    const units = plan.units.map((_, i) => bindUnit(doc, plan, i, claims, binder, i === 0 ? callbacks : secondaryCallbacks(callbacks), followed));
+    const first = units[0];
+    const clocks = units.filter(u => !u.scroll);
+    const each = (run: (t: PxTimelineControls) => void) => (): void => { for (const u of clocks) run(u.flowSwitch.timeline); };
 
     const timeline: PxTimelineControls = {
-        ...primary.timeline,
+        ...(first?.flowSwitch.timeline ?? forwardPlaybackControls(() => undefined, () => {})),
         "start": each(t => t.start()),
         "play": each(t => t.play()),
         "stop": each(t => t.stop()),
         "pause": each(t => t.pause()),
         "resume": each(t => t.resume()),
-        "setSpeed": (speed) => { for (const api of clocks) api.timeline.setSpeed(speed); },
+        "setSpeed": (speed) => { for (const u of clocks) u.flowSwitch.timeline.setSpeed(speed); },
     };
 
-    const machines = plan.units.map((unit, i) => ({ unit, api: apis[i] })).filter(x => x.unit.stateMachine !== undefined);
-    const machineOf = (stateMachine: string | undefined) => stateMachine === undefined
-        ? machines.find(x => x.unit.stateMachine === '') ?? machines[0]
-        : machines.find(x => x.unit.stateMachine === stateMachine);
-    const ownerOf = (state: string) => machines.find(x => x.unit.states.some(st => st.id === state));
-    const state: PxStateControls = {
-        "goTo": (id) => ownerOf(id)?.api.state.goTo(id),
-        "next": (stateMachine) => machineOf(stateMachine)?.api.state.next(),
-        "previous": (stateMachine) => machineOf(stateMachine)?.api.state.previous(),
-        "get": (stateMachine) => stateMachine === undefined ? machines.flatMap(x => x.api.state.get()) : machineOf(stateMachine)?.api.state.get() ?? [],
-        "getAll": () => machines.flatMap(x => x.api.state.getAll()),
+    const flows = plan.units.map((unit, i) => ({ unit, bound: units[i] })).filter(x => x.unit.flow !== undefined);
+    const flowOf = (flow: string | undefined) => flow === undefined
+        ? flows.find(x => x.unit.flow === PX_DEFAULT_ID) ?? flows[0]
+        : flows.find(x => x.unit.flow === flow);
+    const ownerOf = (flowStep: string) => flows.find(x => x.unit.steps.some(s => s.id === flowStep));
+    const flow: PxFlowControls = {
+        "goTo": (id) => ownerOf(id)?.bound.flowSwitch.controls.goTo(id),
+        "next": (name) => flowOf(name)?.bound.flowSwitch.controls.next(),
+        "previous": (name) => flowOf(name)?.bound.flowSwitch.controls.previous(),
+        "get": (name) => name === undefined ? flows.flatMap(x => x.bound.flowSwitch.controls.get()) : flowOf(name)?.bound.flowSwitch.controls.get() ?? [],
+        "getAll": () => flows.flatMap(x => x.bound.flowSwitch.controls.getAll()),
     };
 
-    const unitOfTimeline = (id: string): PxPlayerEngineApi | undefined => {
-        const at = plan.timelines.findIndex(t => t.id === id);
+    const unitOfTimeline = (name: string): PxBoundUnit | undefined => {
+        const at = plan.timelines.findIndex(t => t.name === name);
         if (at < 0) return undefined;
-        const unit = plan.units.findIndex(u => u.timelines.includes(at));
-        return unit < 0 ? undefined : apis[unit];
+        const index = plan.units.findIndex(u => u.timelines.includes(at));
+        return index < 0 ? undefined : units[index];
     };
 
     return {
         timeline,
-        state,
-        getTimeline: (id) => unitOfTimeline(id)?.timeline,
-        stateHolder: {
-            hold: (id, mount) => ownerOf(id)?.api.stateHolder?.hold(id, mount),
-            release: () => { for (const x of machines) x.api.stateHolder?.release(); },
+        flow,
+        getTimeline: (name) => unitOfTimeline(name)?.flowSwitch.timeline,
+        flowHolder: {
+            hold: (id, mount) => ownerOf(id)?.bound.flowSwitch.hold(id, mount),
+            release: () => { for (const x of flows) x.bound.flowSwitch.release(); },
         },
-        isReady: () => apis.every(api => api.isReady()),
-        getRootElement: () => primary.getRootElement(),
-        destroy: () => { for (const api of apis) api.destroy(); },
+        isReady: () => units.every(u => u.flowSwitch.currentPlayer().isReady()),
+        getRootElement: () => first?.flowSwitch.currentPlayer().getRootElement() ?? null,
+        destroy: () => { for (const u of units) u.destroy(); },
     };
 }

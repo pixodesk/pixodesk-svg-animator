@@ -23,7 +23,7 @@
 import type { PxActions, PxAnimationPlayerApi, PxEngineAnimationPlayerApi, PxPlayExecutor, PxTimelineControls, PxPlaybackListeners } from '../format/PxAnimatorTypes';
 import { PxWhenFinished, PxStopPlaybackBehavior, PxOutOfViewBehavior, PxPlaybackState, PxPlayback, type PxPlaybackDirection, resolveActions } from '../format/PxAnimatorConstants';
 import { iterationIndexOf, iterationTimeOf, isReversedIteration, runMsOf, totalDurationMs, type PxRunGeometry } from './PxPlaybackTime';
-import { installStateClock, NO_STATE_CONTROLS, resolveStates, type PxStateControls, type PxStateRuntime } from './PxStates';
+import { NO_FLOW_CONTROLS, type PxFlowControls, type PxFlowRuntime } from './PxFlows';
 import type { PxAnimatorRuntimeConfig } from '../format/PxAnimatorTypes';
 
 /** What a playback is on this document: a POSE (one-shot — it plays to its end and rests) or a PLAYBACK that loops. @public @advanced */
@@ -54,9 +54,6 @@ export interface PxPlayExecutorConfig {
     direction?: PxPlaybackDirection;
     actions?: PxActions;
     whenFinished?: PxWhenFinished;
-    /** The geometry and `whenFinished` read LIVE — a timeline with segments changes them with the segment; absent, the
-     *  fields above are fixed for the player's life. */
-    live?: () => Pick<PxPlayExecutorConfig, 'passMs' | 'totalMs' | 'direction' | 'whenFinished'>;
 }
 
 const SNAP_EPSILON_MS = 1;
@@ -71,8 +68,8 @@ const SNAP_EPSILON_MS = 1;
  */
 export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig, raf: (cb: () => void) => void): PxPlayExecutor {
     const raw = { play: api.play.bind(api), pause: api.pause.bind(api), jumpToStart: api.jumpToStart.bind(api) };
-    /** The geometry now — fixed, or the current segment's (`cfg.live`). */
-    const geo = (): Pick<PxPlayExecutorConfig, 'passMs' | 'totalMs' | 'direction' | 'whenFinished'> => cfg.live ? cfg.live() : cfg;
+    /** The geometry — fixed for the player's life. */
+    const geo = (): Pick<PxPlayExecutorConfig, 'passMs' | 'totalMs' | 'direction' | 'whenFinished'> => cfg;
     const world = (): PxPlaybackWorld => { const g = geo(); return resolvePlaybackWorld(g.totalMs === Infinity ? 'infinite' : g.passMs > 0 ? g.totalMs / g.passMs : 1); };
     const passMsOf = (): number => Math.max(geo().passMs, 1);
     const iterationsOf = (): number => { const g = geo(); return g.passMs > 0 ? g.totalMs / g.passMs : 1; };
@@ -410,7 +407,7 @@ export function applyDeclarativeAction(api: PxDeclarativeTarget, action: PxDecla
 // ── the composed api ───────────────────────────────────────────────────────────────────────
 
 /** The slice of the runtime view {@link composeApiExtras} reads. @public @advanced */
-export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions' | 'whenFinished'>, Pick<PxAnimatorRuntimeConfig, 'states' | 'inTime' | 'timelineSource'> {
+export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions' | 'whenFinished'>, Pick<PxAnimatorRuntimeConfig, 'inTime' | 'timelineSource'> {
     /** One pass of the content window, ms. */
     duration?: number;
     iterations?: number | 'infinite';
@@ -435,25 +432,15 @@ export function executorConfigOf(cfg: PxApiExtrasConfig): PxPlayExecutorConfig {
  *  through it), or a new one attached now. @public @advanced */
 export function ensurePlayExecutor(api: PxApiExtrasTarget, cfg: PxApiExtrasConfig, raf: (cb: () => void) => void): PxPlayExecutor {
     if (api.playExecutor) return api.playExecutor;
-    // a timeline with states (2026-11-20; segments 2026-11-15): the state clock takes the engine's primitives over first,
-    // so the executor — and every read and seek — sees the CURRENT state as the whole playback
-    const states = resolveStates(cfg);
-    const stateMachine = cfg.states?.find(st => st.stateMachine !== undefined)?.stateMachine;
-    const runtime = states.length ? installStateClock(api, states, raf, undefined, stateMachine) : undefined;
-    const executor = createPlayExecutor(api, runtime ? { ...executorConfigOf(cfg), live: runtime.geometry } : executorConfigOf(cfg), raf);
-    if (runtime) {
-        runtime.attach(executor);
-        const setListeners = executor.setListeners.bind(executor);
-        executor.setListeners = (listeners) => { setListeners(listeners); runtime.setListeners(listeners); };
-        api.stateRuntime = runtime;
-    }
+    // a flow's step is an ordinary playback (2026-11-22): the flow switch above it builds one per step
+    const executor = createPlayExecutor(api, executorConfigOf(cfg), raf);
     api.playExecutor = executor;
     return executor;
 }
 
 /** The slice of the api `composeApiExtras` drives — structural, so the components' HANDLE
  *  (which has no `destroy`) qualifies as well as a full engine api. @public @advanced */
-export type PxApiExtrasTarget = PxPlayTarget & { destroy?: () => void; playExecutor?: PxPlayExecutor; jumpToEnd?: () => void; stateRuntime?: PxStateRuntime };
+export type PxApiExtrasTarget = PxPlayTarget & { destroy?: () => void; playExecutor?: PxPlayExecutor; jumpToEnd?: () => void; flowRuntime?: PxFlowRuntime };
 
 /** What `composeApiExtras` adds. @public @advanced */
 export interface PxApiExtras {
@@ -461,8 +448,8 @@ export interface PxApiExtras {
     timeline: PxTimelineControls;
     /** The executor every driver shares — the triggers and the components use it, never a second one. */
     playExecutor: PxPlayExecutor;
-    /** The states — the public `player.state` ({@link PxStateControls}); nothing to go to without states. */
-    state: PxStateControls;
+    /** The flows — the public `player.flow` ({@link PxFlowControls}); nothing to go to without steps. */
+    flow: PxFlowControls;
 }
 
 /** An engine's primitives with `playback` composed on top — what `composeApiExtras` returns and the frame-loop
@@ -480,11 +467,9 @@ export type PxComposedAnimationPlayerApi<TRoot = unknown> = PxEngineAnimationPla
  */
 export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApiExtrasConfig, raf: (cb: () => void) => void): T & PxApiExtras {
     const executor = ensurePlayExecutor(api, cfg, raf);
-    // after the executor: with states, the clock has taken the primitives over and the geometry is the state's
     const raw = { getTotalTime: api.getTotalTime.bind(api), setTotalTime: api.setTotalTime.bind(api) };
-    const stateRuntime = api.stateRuntime;
     const fixed = executorConfigOf(cfg);
-    const geo = (): { passMs: number; totalMs: number; direction?: PxPlaybackDirection } => stateRuntime ? stateRuntime.geometry() : fixed;
+    const geo = (): { passMs: number; totalMs: number; direction?: PxPlaybackDirection } => fixed;
     const passMsOf = (): number => geo().passMs;
     const iterationsOf = (): number => { const g = geo(); return g.passMs > 0 ? g.totalMs / g.passMs : 1; };
     const geometryOf = (): PxRunGeometry => ({ durationMs: passMsOf(), iterations: iterationsOf(), direction: geo().direction });
@@ -514,7 +499,7 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
             return s === PxPlaybackState.playing || s === PxPlaybackState.paused || s === PxPlaybackState.finished;
         },
         "isPlaying": () => getState() === PxPlaybackState.playing,
-        "getDuration": () => stateRuntime ? passMsOf() : cfg.duration ?? null,
+        "getDuration": () => cfg.duration ?? null,
         "getCurrentTime": getCurrentTime,
         "setCurrentTime": setCurrentTime,
         "getCurrentProgress": () => { const t = raw.getTotalTime(); const passMs = passMsOf(); return t === null ? null : (passMs > 0 ? Math.max(t, 0) / passMs : 0); },
@@ -540,11 +525,11 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
     const full = api as T & PxApiExtras;
     full.playExecutor = executor;
     full.timeline = playback;
-    full.state = stateRuntime ? stateRuntime.controls : NO_STATE_CONTROLS;
+    full.flow = api.flowRuntime ? api.flowRuntime.controls : NO_FLOW_CONTROLS;
     // destroy() invalidates a pending watcher — otherwise it rAF-loops forever on a dead animator
     if (full.destroy) {
         const destroyEngine = full.destroy.bind(full);
-        full.destroy = () => { destroyed = true; executor.dispose(); stateRuntime?.dispose(); destroyEngine(); };
+        full.destroy = () => { destroyed = true; executor.dispose(); destroyEngine(); };
     }
     return full;
 }
@@ -555,7 +540,7 @@ export const PxPlaybackWrite = {
     start: 'timeline.start()', play: 'timeline.play()', stop: 'timeline.stop()', pause: 'timeline.pause()', resume: 'timeline.resume()',
     setCurrentTime: 'timeline.setCurrentTime()', setCurrentProgress: 'timeline.setCurrentProgress()',
     setTotalTime: 'timeline.setTotalTime()', setSpeed: 'timeline.setSpeed()', setDurationAtSpeed: 'timeline.setDurationAtSpeed()',
-    stateNext: 'state.next()', statePrevious: 'state.previous()', stateGoTo: 'state.goTo()',
+    flowNext: 'flow.next()', flowPrevious: 'flow.previous()', flowGoTo: 'flow.goTo()',
 } as const;
 export type PxPlaybackWrite = typeof PxPlaybackWrite[keyof typeof PxPlaybackWrite];
 
@@ -602,15 +587,15 @@ export function forwardPlaybackControls(
 
 /** A `state` object that FORWARDS to another one (2026-11-20) — the twin of {@link forwardPlaybackControls} for every
  *  wrapper: reads from the live object, writes through `write`. @public @advanced */
-export function forwardStateControls(
-    target: () => PxStateControls | undefined,
-    write: (call: PxPlaybackWrite, run: (state: PxStateControls) => void) => void,
-): PxStateControls {
+export function forwardFlowControls(
+    target: () => PxFlowControls | undefined,
+    write: (call: PxPlaybackWrite, run: (state: PxFlowControls) => void) => void,
+): PxFlowControls {
     return {
-        "next": (stateMachine) => write(PxPlaybackWrite.stateNext, st => st.next(stateMachine)),
-        "previous": (stateMachine) => write(PxPlaybackWrite.statePrevious, st => st.previous(stateMachine)),
-        "goTo": (state) => write(PxPlaybackWrite.stateGoTo, st => st.goTo(state)),
-        "get": (stateMachine) => target()?.get(stateMachine) ?? [],
+        "next": (flow) => write(PxPlaybackWrite.flowNext, st => st.next(flow)),
+        "previous": (flow) => write(PxPlaybackWrite.flowPrevious, st => st.previous(flow)),
+        "goTo": (state) => write(PxPlaybackWrite.flowGoTo, st => st.goTo(state)),
+        "get": (flow) => target()?.get(flow) ?? [],
         "getAll": () => target()?.getAll() ?? [],
     };
 }

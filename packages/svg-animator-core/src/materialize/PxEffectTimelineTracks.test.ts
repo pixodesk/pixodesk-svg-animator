@@ -14,7 +14,7 @@ import { effectTrackTimelines } from './PxEffectTimelineTracks';
 
 const doc = (child: PxNode): PxDocument => ({
     type: 'svg',
-    animator: { timelines: [{ outTime: 2000 }, { id: 'dip', outTime: 500 }], states: [{ id: 'pressed', timeline: 'dip' }] },
+    animator: { timelines: [{ outTime: 2000 }, { id: 'dip', outTime: 500 }], flowSteps: [{ id: 'pressed', timeline: 'dip' }] },
     children: [child],
 });
 
@@ -28,7 +28,7 @@ const pathOf = (input: PxDocument): PxNode => collectByType(materializeAllInTree
 
 describe('effect parameters on several timelines', () => {
     it('the timelines the parameters name', () => {
-        expect(effectTrackTimelines(doc(trimmed({ value: 0, byTimeline: [{ timeline: 'dip', value: -1 }] })))).toEqual(['dip']);
+        expect(effectTrackTimelines(doc(trimmed({ value: 0, byTimeline: [{ timeline: 'dip', keyframes: [{ time: 0, value: -1 }] }] })))).toEqual(['dip']);
         expect(effectTrackTimelines(doc(trimmed({ keyframes: [{ time: 0, value: 0 }] })))).toEqual([]);
     });
 

@@ -5,7 +5,7 @@
 Change how an animation plays — its length, loops, direction, what starts and stops it, what the
 end leaves behind — without going back to the editor. Everything about *when* and *how* it plays
 lives in the document's `animator` block — its `timelines`, its `actionTriggers` and, for a picture with
-named situations, its [`states`](#states--named-parts-of-a-timeline) — and every player lets you
+named steps, its [`flowSteps`](#flows--named-steps-of-the-animation) — and every player lets you
 **override it at runtime** from component props or the player options. This page is the
 reference for those fields and the overrides.
 
@@ -73,8 +73,8 @@ blocks are not mirror images of each other:
 
 - `actionTriggers` rules name the **requests** a page event can make, in their `action` — `timeline.start`,
   `timeline.play`, `timeline.stop`, `timeline.pause` (`timeline.resume` is derived unless the file names it) —
-  and the state actions `state.goTo`, `state.next`, `state.previous`
-  ([States](#states--named-parts-of-a-timeline)).
+  and the flow actions `flow.goTo`, `flow.next`, `flow.previous`
+  ([Flows](#flows--named-steps-of-the-animation)).
 - `actions` keys are the **moments** whose outcome is configurable — `timeline.stop` and `outOfView`.
 - `timeline.stop` is in both because it is both a request and a moment. The other buttons have one behaviour
   each — a start always plays from the start, a pause freezes — so there is no `actions["timeline.start"]` (until
@@ -141,13 +141,13 @@ Each type carries only the fields that mean something for it — a scroll timeli
 
 Timing, the playback dynamics, how the animated attributes get updated and at what rate ALL live
 in a timeline — each entry of `timelines` has its own. Beside the timelines, `animator` keeps the rules
-(`actionTriggers`), the [states](#states--named-parts-of-a-timeline) and the lookup tables (`definitions`,
+(`actionTriggers`), the [flows](#flows--named-steps-of-the-animation) and the lookup tables (`definitions`,
 `bindings`). The keys of a clock timeline:
 
 <!-- px-check schema PxTimeTimelineSchema partial -->
 | Key | Values | Default | Meaning |
 |---|---|---|---|
-| `id` | text | — | what states, rules and `byTimeline` tracks call it — unique in `timelines`; the first needs none |
+| `id` | text | — | what steps, rules and `byTimeline` tracks call it — unique in `timelines`; none: the default timeline (at most one) |
 | `name` | text | — | a label for people; nothing refers to it |
 | `inTime` | ms | `0` | where the content WINDOW begins. Keyframe times are absolute content ms |
 | `outTime` | ms | max keyframe time | …and where it ends — one pass plays `inTime` → `outTime`. The editor always writes it |
@@ -235,9 +235,9 @@ was a map by action, `{ "timeline.start": "load" }`; older files are converted o
 |---|---|
 | `action` | what to do — the table below |
 | `event` | the event that does it — `load` · `hoverIn` · `hoverOut` · `click` · `pointerDown` · `pointerUp` · `keyDown` · `keyUp` |
-| `timeline` | the timeline a `timeline.*` action acts on, by its `id`. None: the whole picture — every timeline and every state machine |
-| `state` | the state `state.goTo` goes to, by its `id` |
-| `stateMachine` | the state machine `state.next` / `state.previous` steps through, by its `id`. None: the one without an id |
+| `timeline` | the timeline a `timeline.*` action acts on, by its `id`. None: the whole picture — every timeline and every flow |
+| `flowStep` | the step `flow.goTo` goes to, by its `id` — or a timeline's id: the step a timeline no step names is |
+| `flow` | the flow `flow.next` / `flow.previous` steps through, by its `id`. None: `default` |
 | `element` | heard on one element of the picture, `"#id"` — [below](#an-event-on-one-element-a-page-element-or-a-key) |
 | `selector` | heard on an element of the page, a CSS selector |
 | `with` | fields the event must have — a key, a pointer button |
@@ -250,9 +250,9 @@ was a map by action, `{ "timeline.start": "load" }`; older files are converted o
 | `timeline.stop` | a stop, per `actions["timeline.stop"]` | **playing, paused or finished** | *Stop playback on* |
 | `timeline.pause` | freezes the current frame | **playing** | *Pause playback on* |
 | `timeline.resume` | carries on from there. **Derived unless the file has such a rule** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume playback on* (shown, not edited) |
-| `state.goTo` | goes to `state` and plays it ([States](#states--named-parts-of-a-timeline)) | **any state** — read before the actions above | *Add trigger* |
-| `state.next` | the next state of a state machine, in list order; after the last, the first | **any state** | *Add trigger* |
-| `state.previous` | the previous state; before the first, the last | **any state** | *Add trigger* |
+| `flow.goTo` | goes to `flowStep` and plays it ([Flows](#flows--named-steps-of-the-animation)) | **any state** — read before the actions above | *Add trigger* |
+| `flow.next` | the next step of a flow; after the last, the first | **any state** | *Add trigger* |
+| `flow.previous` | the previous step; before the first, the last | **any state** | *Add trigger* |
 
 `timeline.start` and `timeline.play` differ only when something is already going: a start always plays from the
 start, a play carries on. A hover animation that should not jump back when the pointer returns mid-way uses
@@ -474,7 +474,7 @@ trigger rule: a click listed under both `timeline.start` and `timeline.stop` und
 last frame is held, and plays it again once `whenFinished` took the picture back
 ([One event, several lists](#one-event-several-lists)).
 
-In a file: `"timelines": [{ "whenFinished": "hold" }]` (a state has its own — [States](#states--named-parts-of-a-timeline)); per mount, the same key inside `timelineOptions`
+In a file: `"timelines": [{ "whenFinished": "hold" }]` (a step has its own — [Flows](#flows--named-steps-of-the-animation)); per mount, the same key inside `timelineOptions`
 (`timelineOptions={{ whenFinished: 'jumpToStart' }}`). The schema of the key is `PxWhenFinishedSchema`.
 
 ### What shows while off — `whenIdle`
@@ -576,8 +576,8 @@ A rule's event can be heard somewhere else than the whole picture, or narrowed (
 "actionTriggers": [
   { "action": "timeline.start", "event": "load" },
   { "action": "timeline.start", "event": "click", "element": "#lens" },
-  { "action": "state.next",     "event": "click", "selector": ".next-step" },
-  { "action": "state.next",     "event": "keyDown", "with": { "key": "ArrowRight" } },
+  { "action": "flow.next",     "event": "click", "selector": ".next-step" },
+  { "action": "flow.next",     "event": "keyDown", "with": { "key": "ArrowRight" } },
   { "action": "timeline.pause", "event": "pointerDown", "with": { "button": 2 } }
 ]
 ```
@@ -612,96 +612,121 @@ word (the whole picture) or a `PxTriggerEventObject`; `with` is a `PxTriggerEven
 A key event is heard on the page — the animation has no focus of its own — while the animation is in view and no text
 field has the focus. React Native hears `click` and `pointerDown` / `pointerUp` on the whole picture only.
 
-## States — named parts of a timeline
+## Flows — named steps of the animation
 
-A **state** is a named situation of the picture — idle, hover, loading, success — given as **a part of one
-timeline**. States are grouped into **state machines**: of one state machine's states exactly one is current,
-and while it is current its part plays. Several state machines run at the same time. The page, or the file's own
-rules, moves between states.
+A **flow step** is a named piece of the animation — idle, hover, loading, success — given as **a part of one
+timeline**, or the whole of it. The steps of a **flow** play one at a time: exactly one is current, and while it is
+current it plays with the ordinary playback — off · playing · paused · finished — on its own timeline. Several flows
+run at the same time. The page, or the file's own rules, moves from step to step.
 
 ```json
 "animator": {
   "timelines": [ { "outTime": 3000 } ],
-  "states": [
-    { "id": "intro",   "inTime": 0,    "outTime": 1000, "whenFinished": { "action": "state.next" } },
+  "flowSteps": [
+    { "id": "intro",   "inTime": 0,    "outTime": 1000, "whenFinished": { "action": "flow.next" } },
     { "id": "loading", "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" },
     { "id": "success", "inTime": 2000, "outTime": 3000 }
   ],
   "actionTriggers": [
     { "action": "timeline.start", "event": "load" },
-    { "action": "state.goTo", "state": "success", "event": "click", "selector": "#save" }
+    { "action": "flow.goTo", "flowStep": "success", "event": "click", "selector": "#save" }
   ]
 }
 ```
 
 Read cold: the intro plays once and goes on to the loading loop by itself; a click on the page's *Save* button asks
 for the success — the loop first finishes its pass, then the success plays and holds its last frame. The three
-states name no `stateMachine`, so they form the one state machine without an id, and no `timeline`, so they are
-parts of the first timeline. (Until 2026-11-20 these were the timeline's `segments`, named by `name`; older files
-are converted on read.)
+steps name no `flow`, so they are the flow `default`, and no `timeline`, so they are parts of the default timeline.
+(Until 2026-11-22 these were `states` in `stateMachines`, until 2026-11-20 the timeline's `segments`; older files are
+converted on read.)
 
-**A state overrides its timeline** while it is current: its part, its repeats, direction, speed and end. What it
-does not say, it takes from the timeline. While a state machine is in a state, **the playback is that state**:
-`timeline.start()` plays it, `getDuration()` is its pass, a seek lands inside it.
+**A step overrides its timeline** while it is current: its part, its repeats, direction, speed and end. What it does
+not say, it takes from the timeline. While a flow is at a step, **the playback is that step's**: `timeline.start()`
+plays it, `getDuration()` is its pass, a seek lands inside it. A step of no length (`inTime` = `outTime`) holds that
+frame.
 
-<!-- px-check schema PxStateSchema -->
+<!-- px-check schema PxFlowStepSchema -->
 | Field | Means |
 |---|---|
-| `id` | what rules, `whenFinished` and the page call it — unique in `states`: a later state with an id already used is ignored, with a warning ([PX1115](../diagnostics.md#what-the-document-says)) |
-| `name` | a label for people; nothing refers to it — two states can both be called "Open" |
-| `stateMachine` | the state machine it belongs to, by its `id`. None: the state machine without an id |
-| `timeline` | the timeline it is a part of, by its `id`. None: the first |
+| `id` | what rules, `whenFinished` and the page call it — unique in `flowSteps`: a later step with an id already used is ignored, with a warning ([PX1115](../diagnostics.md#what-the-document-says)) |
+| `name` | a label for people; nothing refers to it — two steps can both be called "Open" |
+| `flow` | the flow it belongs to, by its `id`. None: the flow `default` |
+| `timeline` | the timeline it is a part of, by its `id`. None (or `""`): the default timeline |
 | `inTime` | where its part of that timeline starts, ms (default: the timeline's window) |
 | `outTime` | …and ends |
-| `initial` | where its state machine starts; none says so: the first of its states in the list |
+| `initial` | where its flow starts; none says so: the first of its steps |
 | `iterations` | passes, or `"infinite"` (default: the timeline's) |
 | `iterationDirection` | as the timeline's |
 | `playbackSpeed` | as the timeline's, on top of the player's speed |
 | `whenFinished` | after its last pass: a picture word (`hold` · `jumpToStart` · `animateToStart`; default: the timeline's, else `hold`), or an action — it goes on there |
-| `whenLeaving` | how it is left when another state is asked for (`PxWhenLeaving`): `jump` (default) at once · `animateToEnd` this pass first · `animateToStart` played back to its start |
+| `whenLeaving` | how it is left when another step is asked for (`PxWhenLeaving`): `jump` (default) at once · `animateToEnd` this pass first · `animateToStart` played back to its start |
 
 A `whenFinished` that goes somewhere is **the same small object as a rule**, without its event (`PxActionObject`):
 
-<!-- px-check values PxStateAction pkg=core -->
+<!-- px-check values PxFlowAction pkg=core -->
 | Action | `whenFinished` | Goes to |
 |---|---|---|
-| `state.goTo` | `{ "action": "state.goTo", "state": "hover" }` | that state |
-| `state.next` | `{ "action": "state.next" }` | the next state of its state machine, in list order — after the last, the first |
-| `state.previous` | `{ "action": "state.previous" }` | the previous one — before the first, the last |
+| `flow.goTo` | `{ "action": "flow.goTo", "flowStep": "hover" }` | that step |
+| `flow.next` | `{ "action": "flow.next" }` | the next step of its flow — after the last, the first |
+| `flow.previous` | `{ "action": "flow.previous" }` | the previous one — before the first, the last |
 
-### State machines
+### The flow `default` and the default timeline
 
-`animator.stateMachines` lists the state machines that have an id. States with no `stateMachine` form one more,
-without an id — enough for most files. State machines do not know of each other: a button's pointer states and its
-notification badge can each have their own, and both play at once.
+**The default timeline** is the timeline with no `id` — wherever it stands in `timelines`; a file has at most one (a
+second one with no id is not read). Keyframes that name no timeline are its. From outside it is called `""` — the
+constant `PX_DEFAULT_TIMELINE`; `default` is an ordinary timeline id.
 
-<!-- px-check schema PxStateMachineSchema -->
+**The flow `default`** holds the steps that name no flow, **and one step for every timeline no step names** — the
+whole of that timeline, called by the timeline's id (the default timeline's step: `default`). Such a step plays exactly as
+the timeline alone does: its `delay`, its `whenIdle`. In the flow, written steps keep their order and a timeline's own
+step stands at its timeline's place; the flow starts at the first unless a step says `initial`. So a file with one
+timeline is a flow of one step, and plays as it always did — and **two timelines with nothing else are one flow of two
+steps**, one at a time: only flows run side by side.
+
+```json
+"timelines": [ { "outTime": 2000, "iterations": "infinite" }, { "id": "hover", "outTime": 150 }, { "id": "press", "outTime": 200 } ],
+"actionTriggers": [
+  { "action": "timeline.start", "event": "load" },
+  { "action": "flow.goTo", "flowStep": "hover", "event": "hoverIn" },
+  { "action": "flow.goTo", "flowStep": "press", "event": "pointerDown" }
+]
+```
+
+A button with no step written: the flow `default` is `default` (the idle loop) · `hover` · `press`.
+
+### Several flows
+
+`animator.flows` lists flows by id; a flow that only steps name is a flow too. Flows do not know of each other: a
+button's pointer steps and its notification badge each have their own, and both play at once.
+
+<!-- px-check schema PxFlowSchema -->
 | Field | Means |
 |---|---|
-| `id` | what a state's `stateMachine` and a rule's `stateMachine` call it — unique in the list |
+| `id` | what a step's `flow`, a rule's `flow` and the page call it — unique in the list. `default` only labels the flow `default` |
 | `name` | a label for people |
 
 ```json
-"states": [
-  { "id": "idle",    "timeline": "grow", "inTime": 0, "outTime": 0 },
-  { "id": "hover",   "timeline": "grow", "whenLeaving": "animateToStart" },
-  { "id": "calm",    "stateMachine": "notice", "timeline": "ring", "inTime": 0, "outTime": 0 },
-  { "id": "ringing", "stateMachine": "notice", "timeline": "ring", "inTime": 0, "outTime": 600, "iterations": 3,
-    "whenFinished": { "action": "state.next" } },
-  { "id": "unread",  "stateMachine": "notice", "timeline": "ring", "inTime": 600, "outTime": 1400 }
+"flowSteps": [
+  { "id": "idle",    "flow": "pointer", "timeline": "grow", "inTime": 0, "outTime": 0 },
+  { "id": "hover",   "flow": "pointer", "timeline": "grow", "whenLeaving": "animateToStart" },
+  { "id": "calm",    "flow": "notice",  "timeline": "ring", "inTime": 0, "outTime": 0 },
+  { "id": "ringing", "flow": "notice",  "timeline": "ring", "inTime": 0, "outTime": 600, "iterations": 3,
+    "whenFinished": { "action": "flow.next" } },
+  { "id": "unread",  "flow": "notice",  "timeline": "ring", "inTime": 600, "outTime": 1400 }
 ],
-"stateMachines": [ { "id": "notice", "name": "Notification" } ]
+"flows": [ { "id": "pointer" }, { "id": "notice", "name": "Notification" } ]
 ```
 
-`idle` and `hover` are the state machine without an id; `calm`, `ringing` and `unread` are `notice`, three parts of
-one timeline, `ring`.
+`idle` and `hover` are `pointer`; `calm`, `ringing` and `unread` are `notice`, three parts of one timeline, `ring`. The
+default timeline, which no step names, is the flow `default` — it plays beside both.
 
 ### Several timelines and `byTimeline`
 
-A file can hold several timelines. The first carries the plain keyframes; any other is named by its `id`, and an
-attribute that moves on it says what it does there in **`byTimeline`** — a held `value`, or `keyframes` counted from
-that timeline's time 0. On a timeline that is not showing, the attribute has the node's own value. A node names
-timelines only, never a state — so cutting or regrouping states touches no node.
+A file can hold several timelines. The default timeline carries the plain keyframes; any other is named by its `id`,
+and an attribute that moves on it says what it does there in **`byTimeline`** — its `keyframes`, counted from that
+timeline's time 0. Plain `keyframes` and `byTimeline` can stand side by side. On a timeline with no keyframes for it,
+the attribute has the node's own value. A node names timelines only, never a step — so cutting or regrouping steps
+touches no node.
 
 ```json
 "timelines": [
@@ -714,79 +739,90 @@ timelines only, never a state — so cutting or regrouping states touches no nod
     "animate": {
       "scale": { "byTimeline": [
         { "timeline": "grow", "keyframes": [ { "time": 0, "value": 1 }, { "time": 150, "value": 1.08 } ] },
-        { "timeline": "dip",  "keyframes": [ { "time": 0, "value": 1.08 }, { "time": 100, "value": 0.96 }, { "time": 200, "value": 1.08 } ] } ] },
-      "fill": { "byTimeline": [ { "timeline": "dip", "value": "#1f5fbf" } ] } } }
+        { "timeline": "dip",  "keyframes": [ { "time": 0, "value": 1.08 }, { "time": 100, "value": 0.96 }, { "time": 200, "value": 1.08 } ] } ] } } }
 ]
 ```
 
 `byTimeline` works wherever an animated value does — a node's `animate`, a shared animation in
-`definitions.animations`, and the animatable parameters of effects. Plain `keyframes` beside a `byTimeline`
-are not played: `byTimeline` wins, with a finding. One entry is a `PxTimelineTrack`; the full shape is on the
-[JSON format page](../format/README.md#timelines-states-and-state-machines).
+`definitions.animations`, and the animatable parameters of effects. One entry is a `PxTimelineTrack`; the full shape
+is on the [JSON format page](../format/README.md#timelines-flows-and-flow-steps).
 
-### Moving between states
+### Moving between steps
 
-<!-- px-check off the four ways to move a state, prose -->
+<!-- px-check off the four ways to move a step, prose -->
 | From | How |
 |---|---|
-| a rule of the file | `{ "action": "state.goTo", "state": "success", "event": "click" }`; `state.next` / `state.previous` with an optional `stateMachine` — any event, read before the playback actions ([Triggers](#triggers--when-it-plays)) |
-| a state's end | its `whenFinished` action |
-| page code | `player.state.goTo('success')`, `.next(stateMachine?)`, `.previous(stateMachine?)`; `.get(stateMachine?)` is the current state of each state machine, a list; `.getAll()` every id — [the web player](./web-player.md#the-playback-api) |
-| a component | the `state` prop — one id, or a list with one id per state machine: `<SvgAnimationPlayer document={saveIcon} state={status} />` (React, Vue) |
+| a rule of the file | `{ "action": "flow.goTo", "flowStep": "success", "event": "click" }`; `flow.next` / `flow.previous` with an optional `flow` — any event, read before the playback actions ([Triggers](#triggers--when-it-plays)) |
+| a step's end | its `whenFinished` action |
+| page code | `player.flow.goTo('success')`, `.next(flow?)`, `.previous(flow?)`; `.get(flow?)` is the current step of each running flow, a list; `.getAll()` every id — [the web player](./web-player.md#the-playback-api) |
+| a component | the `flowStep` prop — one id, or a list with one id per flow: `<SvgAnimationPlayer document={saveIcon} flowStep={status} />` (React, Vue) |
 
-`onStateChange(state, previous, stateMachine?)` tells the page — the Vue event is `stateChange`. Going to the
-current state does nothing; an id the file does not have is ignored and reported
-([PX1114](../diagnostics.md#what-the-document-says)); a request while a state is leaving replaces the earlier one
-— the newest wins. While the `state` prop is set, the page holds that state machine and the file's rules for it
-rest; at mount a state that ends is shown at its end without playing, one that repeats plays. The prop's type is
-`PxStateProps`, the handle's `PxStateControls`, the wire types `PxState` and `PxStateMachine`.
+`onFlowStepChange(flowStep, previous, flow)` tells the page (`flow` is `default` for the flow `default`) — the Vue event
+is `flowStepChange`. Going to the current step does nothing; an id the file does not have is ignored and reported
+([PX1114](../diagnostics.md#what-the-document-says)); a request while a step is leaving replaces the earlier one — the
+newest wins. While the `flowStep` prop is set, the page holds that flow and the file's rules for it rest; at mount a
+step that ends is shown at its end without playing, one that repeats plays. The prop's type is `PxFlowStepProps`, the
+handle's `PxFlowControls`, the wire types `PxFlowStep` and `PxFlow`.
+
+### What runs — the page's lists
+
+With no word from the page every flow runs. The `flows` and `timelines` options and props (`PxRunListProps`) say
+exactly what runs instead: `flows` — those flows; `timelines` — each of those timelines whole, by itself, side by side.
+`default` names the flow `default`; `""` (`PX_DEFAULT_TIMELINE`) names the default timeline. What does not run holds nothing: its attributes show the
+elements' own values and its rules are not heard. A changed list plans again over the same picture — the element stays.
+A name the file does not have is ignored, with a warning ([PX1507](../diagnostics.md#the-props-a-component-was-given)).
+
+```tsx
+<SvgAnimationPlayer document={bell} flows={['notice']} />                 // only the notification
+<SvgAnimationPlayer document={bird} timelines={['flap', 'glide']} />      // two timelines at once, no flow
+```
 
 ### How it plays
 
-<!-- px-check off how several timelines and states play, prose -->
+<!-- px-check off how flows play, prose -->
 | | |
 |---|---|
-| A timeline that no state uses | plays by itself, as a single timeline does: its own playback state, `whenFinished`, `whenIdle`, `actions` |
-| A timeline that states use | is always in the current state of its state machine, or not showing. Being in a state is not playing: `timeline.start` starts it; going to a state plays it from its start, also when paused or off |
-| `timeline.*` with no `timeline` | acts on the whole picture — every timeline, every state machine. With a `timeline`: on that one |
-| `player.timeline` | its buttons and speed act on the whole picture; its reads and seeks are of the first timeline. `player.getTimeline(id)` is the same kind of handle for one timeline (`undefined` for an id the file lacks) |
-| The callbacks | `onPlaybackStart` … `onPlaybackFinish` report the first timeline; `onStateChange` reports every state machine |
+| A step | plays with the ordinary playback on its own timeline. Going to another step stops it — it lets go of what it holds — and the next plays from its start, also when the playback was paused or off |
+| `timeline.*` with no `timeline` | acts on the whole picture — every flow. With a `timeline`: on the flow that plays it |
+| `player.timeline` | its buttons and speed act on the whole picture; its reads and seeks are of the first flow that runs — its current step. `player.getTimeline(id)` is the same kind of handle for the flow that plays that timeline (`""`, `PX_DEFAULT_TIMELINE`: the default timeline; `undefined` for an id the file lacks or that does not run) |
+| The callbacks | `onPlaybackStart` … `onPlaybackFinish` report the first flow; `onFlowStepChange` reports every flow. A step that goes on at its end reports no finish |
 | Key events | heard on the page, only while the picture is in view and not while typing in a field |
-| What shows before anything plays | a timeline that plays by itself: its `whenIdle`; a state machine: the first frame of its starting state; an attribute on a timeline that is not showing: the node's own value |
-| A scroll timeline | an entry with `"type": "scroll"` — alone in the file, or beside other timelines. It plays by itself, moved by the scrolling, while the others go on. States cannot cut it |
+| What shows before anything plays | a timeline's own step: its `whenIdle`; a written step: its first frame; an attribute no running step moves: the node's own value |
+| A timeline's `delay` | waited only by a timeline's own step — a written step plays at once |
+| A scroll timeline | an entry with `"type": "scroll"`. The whole of it is a step, moved by the scrolling while the others go on; a part of it is not read |
+| Two flows on one attribute | the first that runs keeps it (a node's transform parts count as one attribute) — the page's order decides |
 
 ### Checks
 
 Each is a finding of the file check; none stops a file from playing — the player keeps the first and goes on.
-Repeated state ids are [PX1115](../diagnostics.md#what-the-document-says), a `state.goTo` naming no state
+Repeated step ids are [PX1115](../diagnostics.md#what-the-document-says), a `flow.goTo` naming no step
 [PX1114](../diagnostics.md#what-the-document-says); every other finding is
 [PX1116](../diagnostics.md#what-the-document-says), with its `kind`:
 
 <!-- px-check values PxTimelineIssueKind pkg=core -->
 | `kind` | When | What the player does |
 |---|---|---|
-| `idDuplicate` | two timelines, or two state machines, share an id | the first wins |
-| `referenceNotFound` | a `timeline`, `state` or `stateMachine` names nothing — on a state, a rule or a `byTimeline` entry | it is not read |
-| `timelineShared` | states of two state machines are on one timeline | it has one playhead: the first state machine keeps it |
-| `stateOnScrollTimeline` | a state on a scroll timeline | not read |
-| `attributeSplit` | one attribute rides timelines of two state machines — or of a state machine and a timeline that plays by itself. A node's transform parts (translate, rotate, scale, skew, origin) count as one attribute | the first entry wins |
-| `keyframesBesideTracks` | plain `keyframes` beside `byTimeline` | `byTimeline` wins |
+| `idDuplicate` | two timelines (also two with no id), or two flows, share an id | the first wins |
+| `referenceNotFound` | a `timeline`, `flowStep` or `flow` names nothing — on a step, a rule or a `byTimeline` entry | it is not read |
+| `timelineShared` | steps of two flows are on one timeline | the first flow keeps it |
+| `partOfScrollTimeline` | a step on a part of a scroll timeline | not read |
+| `attributeSplit` | one attribute is moved by two flows. A node's transform parts (translate, rotate, scale, skew, origin) count as one attribute | the first wins |
+| `keyframesWithoutDefault` | plain `keyframes` in a file whose timelines all have an id | they are no timeline's: not played |
 
 ### Accepted limits
 
 <!-- px-check off accepted limits, prose -->
 | Limit | The way round |
 |---|---|
-| One state — one timeline: two clocks of different length in one state cannot be said | two state machines moved by the same event — or one timeline and a per-property `loop` |
-| No blend between two timelines, no crossfade between two states | two states on one timeline: it plays from one part to the other — `whenLeaving` |
-| An id is unique in its whole list — two states cannot both be `open` | `eyesOpen`, `mouthOpen`; a `name` beside the id can still say "Open" |
-| The transform parts of one node are one attribute — `scale` on one timeline and `rotate` on another overwrite each other | a group around the node takes the second move, as in SVG itself |
-| A rule applies in every state of its state machine | — |
-| A timeline's `delay` is not waited when states use it | a state plays at once |
-| `getState()` naming the state | `state.get()` beside it |
-| `timelineOptions` changing one state | `timelineOptions` patches the first timeline only; states are the file's |
-| Exports other than the players — SVG + CSS with no script, Lottie, video | the first timeline, whole |
-| React Native | the first timeline only — `getTimeline()` answers `undefined`, no `state` prop yet |
+| One step — one timeline: two clocks of different length in one step cannot be said | two flows moved by the same event — or one timeline and a per-property `loop` |
+| No blend between two timelines, no crossfade between two steps | two steps on one timeline: it plays from one part to the other — `whenLeaving` |
+| An id is unique in its whole list — two steps cannot both be `open` | `eyesOpen`, `mouthOpen`; a `name` beside the id can still say "Open" |
+| The transform parts of one node are one attribute — `scale` in one flow and `rotate` in another: the first flow keeps both | a group around the node takes the second move, as in SVG itself |
+| A rule applies in every step of its flow | — |
+| `getState()` naming the step | `flow.get()` beside it |
+| `timelineOptions` changing one step | `timelineOptions` patches the default timeline only; steps are the file's |
+| Exports other than the players — SVG + CSS with no script, Lottie, video | one timeline, whole |
+| React Native | one flow — the first that runs ([PX1605](../diagnostics.md#react-native)); its steps change at once (no `whenLeaving`); no `flowStep` prop yet |
 
 ## Overriding from a player
 
@@ -952,7 +988,7 @@ write yourself cannot drift from the four shipped ones:
 - **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means
   (`stopPlaybackBehavior: 'jumpToStart'` · `whenFinished: 'hold'` · `outOfViewBehavior: 'pause'`,
   `whenIdle: 'static'`, 0.5, 150 ms — and no `timeline.start`: an absent trigger block names no event).
-  `resolveTriggers(rules, stateIds?)` returns a `PxResolvedTriggers` —
+  `resolveTriggers(rules, stepIds?)` returns a `PxResolvedTriggers` —
   the rules grouped by playback action, each an array of the events it may name (`triggerEventList` normalises
   one), `timeline.resume` derived unless a rule names it, an absent list and an empty one both nothing.
   `resolveActions(actions, whenFinished?)` returns a
@@ -960,31 +996,31 @@ write yourself cannot drift from the four shipped ones:
   is written (the word `'animateToStart'` is exactly `{ behavior: 'animateToStart' }`). `resolveGate(view)` returns a `PxResolvedGate`:
   the `outOfView` behavior and the two sensor numbers, defaulted.
 - **Rules.** `PX_ACTION_NAMES` lists every action a rule may name (a `PxActionName`), `isPlaybackAction(action)`
-  tells the five playback actions from the three state actions (`PxStateAction`). `ruleEntriesOf(rules, action)`
+  tells the five playback actions from the three flow actions (`PxFlowAction`). `ruleEntriesOf(rules, action)`
   gives the events of the rules that name an action, `ruleEventEntry(rule)` one rule's event as an entry (a bare word,
   or a `PxTriggerEventObject`), and `rulesOfEntries(action, entries, refs?)` turns entries back into rules —
   `PxTriggerEvents` is one entry or several, as those helpers take them.
   `resolveTriggers` keys every entry — `triggerKeys(resolved)`, `triggerKeyOf(entry)`, `triggerSpecOf(entry)` → a
-  `PxTriggerEventSpec` (`triggerEventOf` gives its event) — and lists the state rules (`states`, each a
-  `PxStateTrigger`); `isTriggerEvents(value)` guards an open value; `PX_ALL_TRIGGER_EVENTS` is every event.
-- **States.** `hasStates(doc)` asks whether the first timeline has states; `resolveStates(view)` returns them in list
-  order as `PxStateSettings`, every default applied; `withStateEngine(doc)` is the document the engine plays — one
-  plain pass the state clock seeks. `isStateActionObject(value)` recognises a `whenFinished` that is an action.
-  `stateReferenceIssues(view)` lists the `state.goTo` that name nothing (`PxStateReferenceIssue`, PX1114),
-  `duplicateStateIds(states)` the ids used twice (PX1115). `firstTimelineOf(view)` is the default timeline and
-  `isOnFirstTimeline(state, first)` says whether a state is a part of it. `forwardStateControls(target, write)` builds
-  the forwarding `state` every wrapper hands out — the twin of `forwardPlaybackControls`.
+  `PxTriggerEventSpec` (`triggerEventOf` gives its event) — and lists the flow rules (`flows`, each a
+  `PxFlowTrigger`); `isTriggerEvents(value)` guards an open value; `PX_ALL_TRIGGER_EVENTS` is every event.
+- **Flows.** `isFlowActionObject(value)` recognises a `whenFinished` that is an action, `isFlowStepEntry(value)` a
+  list entry that can be a step. `flowStepReferenceIssues(view, extraIds?)` lists the `flow.goTo` that name nothing
+  (`PxFlowStepReferenceIssue`, PX1114), `duplicateFlowStepIds(steps)` the ids used twice (PX1115). `PX_DEFAULT_ID` is
+  `default` (the default flow), `PX_DEFAULT_TIMELINE` is `""` (the default timeline); `defaultTimelineOf(view)` is the default timeline and `isOnDefaultTimeline(step)` says whether a step is a
+  part of it. `forwardFlowControls(target, write)` builds the forwarding `flow` every wrapper hands out — the twin of
+  `forwardPlaybackControls`. `shouldWireOwnTriggers(callbacks)` tells an engine whether to wire its document's triggers
+  itself — not for a flow's step, whose flow wires them once.
 - **Several timelines.** `timelineIssues(doc)` returns every finding of [Checks](#checks) as a `PxTimelineIssue` —
   `{ kind, key?, id?, at?, attribute? }`, its `kind` a `PxTimelineIssueKind`; the web player reports them as PX1116.
-  The players split a file into units — one per timeline that plays by itself and one per state machine — and play
-  them side by side (`planUnits`, internal).
+  The players plan a file into units — one per flow that runs — and play them side by side, one step's ordinary
+  playback live in each (`planUnits`, `createFlowSwitch`, internal).
 - **The playback actions.** `PxTriggerList` names them (`timeline.start` · `timeline.play` · `timeline.stop` · `timeline.pause` · `timeline.resume`);
   `allowedTriggerEvents(list)` is the table of events each may name (the schema is built from it);
   `counterpartTriggerEvent(event)` is the event that undoes another (`hoverIn` ↔ `hoverOut`,
   `click` → `click`, none for `load`); `derivedResume(startPlayback, stopPlayback, pausePlayback)` is the derived resume.
 - **Schemas.** `PxActionTriggersSchema` is the list of rules — `PxActionTriggerRuleSchema` one rule, a member per action,
   each limited to the events it may name, so a rule that does not fit is dropped whole; `PxActionObjectSchema` is a
-  `whenFinished` action, `PxStateSchema` · `PxStateMachineSchema` a state and a state machine, `PxTimelineTrackSchema`
+  `whenFinished` action, `PxFlowStepSchema` · `PxFlowSchema` a step and a flow, `PxTimelineTrackSchema`
   one `byTimeline` entry. `PxActionsSchema` has one fixed sub-schema per
   slot — `PxStopPlaybackActionSchema`, `PxOutOfViewActionSchema` — each stating its
   defaults; `PxWhenFinishedSchema` is the `whenFinished` enum on the timeline (`hold` · `jumpToStart` · `animateToStart`, default `hold`).
@@ -1008,7 +1044,7 @@ write yourself cannot drift from the four shipped ones:
   finish (`finished`, `onPlaybackFinish`, then `whenFinished`), or the end of a return leg. It owns the states
   engines cannot report — paused versus off, finished, returning — and tells the playback events
   (`setListeners(PxPlaybackListeners)`: `onPlaybackStart` · `onPlaybackStop` · `onPlaybackPause` · `onPlaybackResume` ·
-  `onPlaybackFinish` · `onStateChange`, the playback subset of `PxAnimationPlayerCallbacks`); an engine's own raw end never reaches a page.
+  `onPlaybackFinish` · `onFlowStepChange`, the playback subset of `PxAnimationPlayerCallbacks`); an engine's own raw end never reaches a page.
   `resolveDeclarativePlayback(args)` (`/engine`) turns a change of the `playback` prop (`PxDeclarativeProps`) into
   the buttons to press — `PxDeclarativeAction`: `startPlayback` · `stopPlayback` · `pausePlayback` · `resumePlayback` — so every
   framework component resolves `playback` the same way (a mount with `"off"` presses nothing; no position pair is
@@ -1329,7 +1365,7 @@ from the start edge: `top` / `left` 0, `center` 0.5, `bottom` / `right` 1, a num
 | A seek from page code | make it a clock timeline |
 | A held element that follows something else | stick it with the page's CSS and follow `pageScroll` |
 | A stretch that begins before the element appears — a share outside 0–1 | `inTime` starts the animation at a later frame |
-| States on a scroll timeline | — : a state on it is not read; it plays by itself |
+| Steps on a scroll timeline | — : a step on a part of it is not read; the whole of it may be a step |
 | An `axis` across the page's writing direction (vertical lines of text) | `horizontal` on an ordinary page |
 
 ## Engine

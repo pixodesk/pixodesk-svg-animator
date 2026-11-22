@@ -160,7 +160,7 @@ const playerRef = useRef<PxAnimationPlayerHandle>(null);
 <Button title="Restart" onPress={() => playerRef.current?.timeline.start()} />
 ```
 
-`PxAnimationPlayerHandle` is `{ timeline, state, getTimeline, variables }` — `variables` is the document's variables ([Variables](#variables)); `state` the file's states and `getTimeline(id)` one timeline (React Native plays the first timeline only, so it answers `undefined`); `timeline` the same `PxTimelineControls` as the web player: the five buttons
+`PxAnimationPlayerHandle` is `{ timeline, flow, getTimeline, variables }` — `variables` is the document's variables ([Variables](#variables)); `flow` the file's flows and `getTimeline(id)` one timeline (React Native plays the first timeline only, so it answers `undefined`); `timeline` the same `PxTimelineControls` as the web player: the five buttons
 `timeline.start()` (always from the start, in every state), `timeline.play()` (start, or carry on — a paused
 playback resumes, a picture on its way back turns around, nothing while playing), `timeline.stop()` (the configured
 stop, `actions["timeline.stop"]` — `animateToEnd` stops after the current pass), `timeline.pause()`,
@@ -204,7 +204,7 @@ variables. See [Variables](../../docs/library/variables.md#react-native).
 
 ## Props
 
-<!-- px-check props SvgAnimationPlayerProps pkg=rn omit=onStateChange -->
+<!-- px-check props SvgAnimationPlayerProps pkg=rn omit=onFlowStepChange -->
 | Prop | Type | Description |
 |---|---|---|
 | `document` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is (inline only, no URL form yet) |
@@ -217,6 +217,8 @@ variables. See [Variables](../../docs/library/variables.md#react-native).
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `timeline.getDuration()`) |
 | `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline, minus `actionTriggers` and `actions`, merged over it — same shape as the file; a key left out keeps the file's value. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'timeline.stop': 'animateToStart' }`, and `outOfView`; a setting left out reads its default (what shows once finished, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `flows` | `Array<string>` | what runs — React Native plays ONE flow: the first of them that runs ([Flows](../../docs/library/playback-and-triggers.md#what-runs--the-pages-lists), PX1605) |
+| `timelines` | `Array<string>` | …or those timelines, each whole and by itself — React Native plays the first |
 | `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; a name that leaves the prop goes back to the file's value. A change compiles the document again; the playback keeps running. See [Variables](../../docs/library/variables.md#react-native) |
 | `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
 | `onReady` | `() => void` | The player exists and the tree is rendered — once, async |
@@ -373,7 +375,7 @@ player sees plain nodes. **All are supported:**
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent — use `click`, or drive `playback` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
-| Timelines after the first and their `byTimeline` tracks; the `state` prop, `onStateChange` | ❌ | the first timeline only — `playerRef.current.getTimeline()` answers `undefined`; `onStateChange` is typed but not called yet |
+| Timelines after the first and their `byTimeline` tracks; the `flowStep` prop, `onFlowStepChange` | ❌ | the first timeline only — `playerRef.current.getTimeline()` answers `undefined`; `onFlowStepChange` is typed but not called yet |
 
 ### Known limitations
 

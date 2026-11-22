@@ -97,18 +97,18 @@ replaces — see [Playback overrides](#playback-overrides).
 </template>
 ```
 
-### States (`state`)
+### Flows (`flowStep`)
 
-A file with [states](./playback-and-triggers.md#states--named-parts-of-a-timeline) — named parts of its
+A file with [flow steps](./playback-and-triggers.md#flows--named-steps-of-the-animation) — named parts of its
 timelines, an intro, a loop, a success — is moved between them by its own rules, by the template ref
-(`player.value?.state.goTo('success')`), or by the `state` prop. The prop is a lever: while it is set, your app
-holds that state machine and the file's rules for it rest. A list holds one state per state machine; the
-`stateChange` event says where it went.
+(`player.value?.flow.goTo('success')`), or by the `flowStep` prop. The prop is a lever: while it is set, your app
+holds that flow and the file's rules for it rest. A list holds one step per flow; the
+`flowStepChange` event says where it went.
 
 ```vue
 <template>
-  <!-- the save icon follows your app: 'idle' · 'saving' · 'success' are states of the file -->
-  <SvgAnimationPlayer :document="saveIcon" :state="status" @state-change="(state, previous) => console.log(previous, '→', state)" />
+  <!-- the save icon follows your app: 'idle' · 'saving' · 'success' are steps of the file -->
+  <SvgAnimationPlayer :document="saveIcon" :flow-step="status" @flow-step-change="(step, previous) => console.log(previous, '→', step)" />
 </template>
 ```
 
@@ -234,7 +234,7 @@ const player = ref<PxAnimationPlayerHandle | null>(null);
 
 The ref holds core's `PxAnimationPlayerHandle` — the one handle name every framework package
 exports, so the three cannot drift apart: `timeline`, everything a page does to the animation, the same
-`PxTimelineControls` the web player hands out, `state` for the file's states and `getTimeline(id)` for one
+`PxTimelineControls` the web player hands out, `flow` for the file's flows and `getTimeline(id)` for one
 timeline — [every member is listed there](./web-player.md#the-playback-api).
 The five buttons take no arguments: `timeline.start()` always plays from the start, `timeline.play()` starts or
 carries on (a Play button), `timeline.stop()`, `timeline.pause()` and `timeline.resume()`. How a stop looks is the
@@ -242,7 +242,7 @@ file's `actions`, and the handle follows it exactly as the triggers and the `pla
 act (until 1.25 the methods sat flat on the handle, and `playOnce()`, `jumpToStart()` and `jumpToEnd()` existed —
 a one-iteration timeline and `start()`, `stop()` and `setCurrentProgress()` say the same).
 
-<!-- px-check signature pkg=vue loose=PxAnimationPlayerHandle.timeline,PxAnimationPlayerHandle.variables,PxAnimationPlayerHandle.state,PxAnimationPlayerHandle.getTimeline -->
+<!-- px-check signature pkg=vue loose=PxAnimationPlayerHandle.timeline,PxAnimationPlayerHandle.variables,PxAnimationPlayerHandle.flow,PxAnimationPlayerHandle.getTimeline -->
 ```typescript
 interface PxAnimationPlayerHandle {
     readonly timeline: PxTimelineControls; // start · play · stop · pause · resume — the buttons (each emits
@@ -251,8 +251,8 @@ interface PxAnimationPlayerHandle {
                                            //   seeks; getDuration · getCurrentTime · … ·
                                            //   getTotalProgress — content time; getSpeed / setSpeed and the
                                            //   …AtSpeed reads — the speed
-    readonly state: PxStateControls;       // the file's states — goTo(id) · next() · previous() · get() ·
-                                           //   getAll() (each move emits `stateChange`)
+    readonly flow: PxFlowControls;        // the file's flows — goTo(id) · next() · previous() · get() ·
+                                           //   getAll() (each move emits `flowStepChange`)
     getTimeline(id: string): PxTimelineControls | undefined;  // one timeline of the file by its `id`
     readonly variables: PxVariablesApi;    // the document's variables — get · set · setVariables · reset ·
                                            //   setVariant …, the same as the web player's (Variables below)
@@ -405,9 +405,11 @@ const SvgAnimationPlayer: DefineComponent<{
                                           //   how each looks is the file's `actions`; a mount with 'off' presses nothing
     showAtProgress?: number;              // a frame, counted in iterations — 1.2 = 20 % into the second
     showAtTime?: number;                  // a frame at this ms inside one iteration, 0..getDuration()
-    state?: string | Array<string>;       // holds that state of the file — one id, or one per state machine; a lever
-                                          //   beside the others: the file's rules for that state machine rest while it
-                                          //   is set (`segment` until 2026-11-20)
+    flowStep?: string | Array<string>;    // holds that step of the file — one id, or one per flow; a lever
+                                          //   beside the others: the file's rules for that flow rest while it
+                                          //   is set (`state` until 2026-11-22)
+    flows?: Array<string>;                // what runs: those flows (`default` too); a change re-plans, no remount
+    timelines?: Array<string>;            // …or those timelines, each whole and by itself
 
     // Variables — `PxVariablesOptions` (Variables above); a change never builds a new player
     variables?: Readonly<Record<string, PxVariableValue>>;   // values by name — they win over the file; a name that
@@ -442,7 +444,7 @@ dimensions to the element that contains it — the SVG keeps its proportions eit
 | `playbackFinish` | the last pass ended by playing — the state is `finished`, whatever `whenFinished` then shows. Never for a stop that goes to the end (that emits `playbackStop`), never for a loop without end (`finish` until 1.25) |
 | `destroy` | the player was thrown away: the component unmounted, or you passed a different `document` and a new player was built for it |
 | `playbackStop` | the playback was stopped — a `timeline.stop` trigger, `playback` `'off'`, `timeline.stop()` or the visibility gate's `stop`; at once, or on arrival for the stops that finish the pass first. A pause is `playbackPause`, the end `playbackFinish`; a seek emits nothing |
-| `stateChange` | a state machine went to another state — `(state, previous, stateMachine?)`: a rule, a state's `whenFinished`, `state.goTo()` on the ref or the `state` prop; `stateMachine` is its id, none for the one without an id (`segmentChange` until 2026-11-20) |
+| `flowStepChange` | a flow went to another step — `(flowStep, previous, flow)`: a rule, a step's `whenFinished`, `flow.goTo()` on the ref or the `flowStep` prop; `flow` is its id, `default` for the flow `default` (`stateChange` until 2026-11-22) |
 
 `onWarning` and `onError` are **props**, not events. With an event, Vue would treat the message as
 handled even when nobody listens, so it would never reach the console. As props, leaving them

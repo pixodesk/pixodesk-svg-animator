@@ -161,23 +161,23 @@ export enum PxDiagnosticCode {
     triggerElementNotFound = 1113,
 
     /**
-     * A `state.goTo` names a state the file does not have (2026-11-20; segments 2026-11-15) — in a rule of
-     * `actionTriggers`, or in a state's `whenFinished`. It is ignored.
-     * @data the state it names, the state whose `whenFinished` holds it, and the ids the file has
+     * A `flow.goTo` names a flow step the file does not have (flows 2026-11-22; states 11-20, segments 11-15) — in a rule
+     * of `actionTriggers`, or in a step's `whenFinished`. It is ignored.
+     * @data the step it names, the step whose `whenFinished` holds it, and the ids the file has
      */
-    stateNotFound = 1114,
+    flowStepNotFound = 1114,
 
     /**
-     * Two states have the same id (2026-11-20; segments 2026-11-15) — the first in the list is played, the later one is
-     * ignored: a rule or a go-to cannot tell them apart.
+     * Two flow steps have the same id (flows 2026-11-22; states 11-20, segments 11-15) — the first in the list is played,
+     * the later one is ignored: a rule or a go-to cannot tell them apart.
      * @data the id
      */
-    stateIdDuplicate = 1115,
+    flowStepIdDuplicate = 1115,
 
     /**
-     * A finding about several timelines and states (2026-11-20): a repeated timeline or state machine id, a reference
-     * that names nothing, one timeline in two state machines, a state on a scroll-driven timeline, an attribute on
-     * timelines of two state machines, plain keyframes beside `byTimeline`. The file plays — the first one wins.
+     * A finding about timelines, flows and flow steps (2026-11-20; flows 2026-11-22): a repeated timeline or flow id, a
+     * reference that names nothing, one timeline in two flows, a step on a part of a scroll-driven timeline, an attribute
+     * two flows move, plain keyframes in a file with no default timeline. The file plays — the first one wins.
      * @data the finding: `{ kind, key?, id?, at?, attribute? }` (`timelineIssues`)
      */
     timelineIssue = 1116,
@@ -302,6 +302,13 @@ export enum PxDiagnosticCode {
      */
     showAsStaticIgnoresCall = 1506,
 
+    /**
+     * A name in the `flows` or `timelines` option or prop that the file does not have (2026-11-22) — ignored. `default`
+     * names the flow `default` and the timeline with no id.
+     * @data the list (`flows` or `timelines`) · the name
+     */
+    runListNameUnknown = 1507,
+
     // ── 1600 · React Native ──────────────────────────────────────────────────────────────────
 
     /**
@@ -327,6 +334,13 @@ export enum PxDiagnosticCode {
      * @data what was left out
      */
     rnUnsupported = 1604,
+
+    /**
+     * React Native plays ONE flow (2026-11-22): the first that runs; the others are not played. Its steps go one to the
+     * next at once — a step's `whenLeaving` is not played on React Native.
+     * @data the flows not played
+     */
+    rnPlaysOneFlow = 1605,
 
     // ── 1700 · variables ─────────────────────────────────────────────────────────────────────
 

@@ -49,6 +49,10 @@ export interface PxPlatformAdapter {
 
     /** Set an attribute on an element by id */
     setAttribute(id: string, attrName: string, value: string): void;
+
+    /** Puts back every attribute it set, as it found it (2026-11-22) — a player that stops lets go of what it holds:
+     *  a flow's step that is left, a player that is destroyed. */
+    release?(): void;
 }
 
 /**
@@ -492,6 +496,8 @@ export function createAdapterSvgAnimationPlayer(
 
         "destroy": () => {
             api.jumpToStart();
+            // a player that stops lets go of what it holds (2026-11-22): the attributes as it found them
+            adapter.release?.();
             callbacks?.onDestroy?.();
         }
     };

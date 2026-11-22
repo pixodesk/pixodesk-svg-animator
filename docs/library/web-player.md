@@ -119,6 +119,10 @@ function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxAnimatio
 interface PxAnimationPlayerOptions {
     document: string | PxDocumentJson;     // a URL to fetch the JSON document from, or the document
                                            //   itself (a .json import passes as-is). `src` / `doc` until 1.25
+    flows?: Array<string>;                 // what runs: those flows (`default` for the flow `default`); with
+                                           //   neither list, every flow — Flows in Playback and triggers
+    timelines?: Array<string>;             // …or those timelines, each whole and by itself, side by side
+                                           //   ("" — PX_DEFAULT_TIMELINE — for the timeline with no id)
     container?: string | Element;          // CSS selector or element to render into (its content is
                                            //   replaced). Omit it to animate an SVG already in the
                                            //   page, found by the document's `id`
@@ -130,8 +134,8 @@ interface PxAnimationPlayerOptions {
     onPlaybackStart?: () => void;  onPlaybackStop?: () => void;     // the playback's two buttons, when performed
     onPlaybackPause?: () => void;  onPlaybackResume?: () => void;   // the freeze inside it (the gate's too)
     onPlaybackFinish?: () => void;  onDestroy?: () => void;
-    onStateChange?: (state: string, previous: string, stateMachine?: string) => void;   // a state machine went to
-                                           //   another state; `stateMachine` is its id (none: the one without an id)
+    onFlowStepChange?: (flowStep: string, previous: string, flow: string) => void;   // a flow went to
+                                           //   another step; `flow` is its id (`default` for the flow `default`)
     onWarning?: (d: PxDiagnostic) => void;
     onError?: (d: PxDiagnostic) => void;
     suppressWarnings?: boolean;  suppressErrors?: boolean;
@@ -235,14 +239,14 @@ The keys, the seven moments and what page code can still do:
 ## The playback API
 
 `createSvgAnimationPlayer` returns a `PxAnimationPlayerApi`: the player's own lifecycle, `timeline` — a
-`PxTimelineControls`, everything a page does to the animation — and `state`, the file's
-[states](./playback-and-triggers.md#states--named-parts-of-a-timeline). One interface on every player (web, React,
+`PxTimelineControls`, everything a page does to the animation — and `flow`, the file's
+[flows](./playback-and-triggers.md#flows--named-steps-of-the-animation). One interface on every player (web, React,
 Vue, React Native and `bind`), one time contract over two clocks: **plain names are content ms inside
 the iteration, `total…` names span the whole playback, `…AtSpeed` names the same values at the current speed —
 content time ÷ the speed**; a seek clamps; a speed of `0` is rejected ([Two clocks](./playback-and-triggers.md#two-clocks)).
 Every act has one spelling: `player.timeline.start()` presses the button a file's `"timeline.start"` rule
-presses, `player.timeline.play()` the one a `"timeline.play"` rule presses, `player.state.goTo('hover')` what a
-`"state.goTo"` rule does (until 1.25 the methods sat flat on
+presses, `player.timeline.play()` the one a `"timeline.play"` rule presses, `player.flow.goTo('hover')` what a
+`"flow.goTo"` rule does (until 1.25 the methods sat flat on
 the player; `playOnce()`, `jumpToStart()` and `jumpToEnd()` until 1.25 — `start()` on a one-iteration timeline,
 `stop()` and `setCurrentProgress()` say the same).
 
@@ -251,13 +255,13 @@ the player; `playOnce()`, `jumpToStart()` and `jumpToEnd()` until 1.25 — `star
 // What `createSvgAnimationPlayer` returns — core's `PxAnimationPlayerApi<Element>`.
 interface PxAnimationPlayerApi {
     readonly timeline: PxTimelineControls; // everything a page does to the animation — below. With several
-                                           //   timelines its buttons and speed act on the whole picture, its
-                                           //   reads and seeks on the first timeline
-    readonly state: PxStateControls;       // the file's states — below; while a state machine is in a state,
-                                           //   the reads and seeks of its timeline are of that state
-    getTimeline(id: string): PxTimelineControls | undefined;  // one timeline by its `id`: the same controls,
-                                           //   on that timeline alone (on its state machine, when states use
-                                           //   it); undefined for an id the file does not have
+                                           //   flows its buttons and speed act on the whole picture, its
+                                           //   reads and seeks on the first flow that runs — its current step
+    readonly flow: PxFlowControls;         // the file's flows — below; while a flow is at a step, `timeline`
+                                           //   is that step's playback
+    getTimeline(id: string): PxTimelineControls | undefined;  // the flow that plays that timeline ("":
+                                           //   the timeline with no id); undefined for an id the file does not
+                                           //   have, or that does not run
     readonly variables: PxVariablesApi;    // the document's variables: get / set / setVariables / reset,
                                            //   variants — see Variables
     isReady(): boolean;                    // true once a document from a URL has loaded and rendered
@@ -330,19 +334,18 @@ interface PxTimelineControls {
     getTotalTimeAtSpeed(): number | null;  // the playhead on the whole playback at the current speed: getTotalTime() / |speed|
 }
 
-// `player.state` — the file's states (`player.timeline.segment` until 2026-11-20). The same names as the
-// file's actions: `state.goTo` ↔ goTo(), `state.next` ↔ next(). No states: get() and getAll() are [], the
-// moves do nothing.
-interface PxStateControls {
-    goTo(state: string): void;             // go to that state and play it (an id the file lacks is ignored; the
-                                           //   current one does nothing); the state being left leaves per its
+// `player.flow` — the file's flows (`player.state` until 2026-11-22, `player.timeline.segment` until 2026-11-20). The
+// same names as the file's actions: `flow.goTo` ↔ goTo(), `flow.next` ↔ next().
+interface PxFlowControls {
+    goTo(flowStep: string): void;          // go to that step and play it (an id the file lacks is ignored; the
+                                           //   current one does nothing); the step being left leaves per its
                                            //   `whenLeaving`, and while it leaves the newest request wins
-    next(stateMachine?: string): void;     // the next state of a state machine, in list order; after the last, the
-                                           //   first. No id: the state machine without an id, else the first
-    previous(stateMachine?: string): void; // the previous one; before the first, the last
-    get(stateMachine?: string): Array<string>;  // the current state of each state machine, one id each — the one
-                                           //   without an id first; with an id, of that one: ['hover']
-    getAll(): Array<string>;               // every state's id, in list order
+    next(flow?: string): void;             // the next step of a flow; after the last, the first. No id: the
+                                           //   flow `default` when it runs, else the first
+    previous(flow?: string): void;         // the previous one; before the first, the last
+    get(flow?: string): Array<string>;     // the current step of each running flow, in run order — a plain file
+                                           //   answers ['default']; with an id, of that one: ['hover']
+    getAll(): Array<string>;               // every step's id, flow by flow
 }
 ```
 
@@ -492,8 +495,8 @@ timeline's `actions` block. A `load` listing starts it as soon as enough of it i
 of view — a real pause: `timeline.getState()` reads `paused` and `onPlaybackPause` / `onPlaybackResume` report it.
 An absent list and an empty one (`[]`) both name nothing: nothing happens until you
 call `timeline.start()` — a file that plays by itself says `{ "action": "timeline.start", "event": "load" }`.
-`disableActionTriggers` and `showAsStatic` empty the list: no event starts it. Rules with `state.goTo`,
-`state.next` and `state.previous` move the [states](./playback-and-triggers.md#states--named-parts-of-a-timeline). The lists, the events and the rule are on
+`disableActionTriggers` and `showAsStatic` empty the list: no event starts it. Rules with `flow.goTo`,
+`flow.next` and `flow.previous` move the [flows](./playback-and-triggers.md#flows--named-steps-of-the-animation). The lists, the events and the rule are on
 [Playback settings & triggers → Triggers](./playback-and-triggers.md#triggers--when-it-plays).
 
 `setupAnimationTriggers(api, config)` is exported for one rare case: you have replaced the
@@ -664,11 +667,11 @@ function setupAnimationTriggers(api: PxEngineAnimationPlayerApi, config: PxAnima
 // dropped whole (PX1110)
 interface PxActionTriggerRule {
     action: PxActionName;                  // timeline.start · timeline.play · timeline.stop · timeline.pause ·
-                                           //   timeline.resume (DERIVED when no rule names it) · state.goTo ·
-                                           //   state.next · state.previous
+                                           //   timeline.resume (DERIVED when no rule names it) · flow.goTo ·
+                                           //   flow.next · flow.previous
     timeline?: string;                     // the timeline a timeline.* action acts on; none: the whole picture
-    state?: string;                        // the state state.goTo goes to
-    stateMachine?: string;                 // the state machine state.next / state.previous steps through
+    flowStep?: string;                     // the step flow.goTo goes to
+    flow?: string;                         // the flow flow.next / flow.previous steps through
     event: PxTriggerEvent;                 // load · hoverIn · hoverOut · click · pointerDown · pointerUp · keyDown · keyUp
     element?: string;                      // heard on one element of the picture, '#id'
     selector?: string;                     // heard on an element of the page, a CSS selector

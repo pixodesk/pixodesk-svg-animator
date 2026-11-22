@@ -97,8 +97,8 @@ interface PxAnimationPlayerHandle {
                                            //   seeks; getDuration · getCurrentTime · … ·
                                            //   getTotalProgress — content time; getSpeed / setSpeed and the
                                            //   …AtSpeed reads — the speed
-    readonly state: PxStateControls;       // the file's states — goTo(id) · next() · previous() · get() ·
-                                           //   getAll(), the same as the web player's (States, below)
+    readonly flow: PxFlowControls;        // the file's flows — goTo(id) · next() · previous() · get() ·
+                                           //   getAll(), the same as the web player's (Flows, below)
     getTimeline(id: string): PxTimelineControls | undefined;  // one timeline of the file by its `id`, the
                                            //   same controls on that timeline alone; undefined for an id it lacks
     readonly variables: PxVariablesApi;    // the document's variables — get · set · setVariables · reset ·
@@ -164,19 +164,20 @@ replaces — see [Playback overrides](#playback-overrides).
 <SvgAnimationPlayer document={animation} actionTriggers={[{ action: 'timeline.start', event: 'click' }]} />
 ```
 
-### States (`state`)
+### Flows (`flowStep`)
 
-A file with [states](./playback-and-triggers.md#states--named-parts-of-a-timeline) — named parts of its
+A file with [flow steps](./playback-and-triggers.md#flows--named-steps-of-the-animation) — named parts of its
 timelines, an intro, a loop, a success — is moved between them by its own rules, by `playerRef`
-(`playerRef.current?.state.goTo('success')`), or by the `state` prop. The prop is a lever: while it is set,
-your app holds that state machine and the file's rules for it rest. A list holds one state per state machine.
+(`playerRef.current?.flow.goTo('success')`), or by the `flowStep` prop. The prop is a lever: while it is set,
+your app holds that flow and the file's rules for it rest. A list holds one step per flow. The `flows` and `timelines`
+props say what runs — a change plans again over the same picture, with no remount.
 
 ```tsx
-// the save icon follows your app: 'idle' · 'saving' · 'success' are states of the file
-<SvgAnimationPlayer document={saveIcon} state={status} onStateChange={(state, previous) => console.log(previous, '→', state)} />
+// the save icon follows your app: 'idle' · 'saving' · 'success' are steps of the file
+<SvgAnimationPlayer document={saveIcon} flowStep={status} onFlowStepChange={(step, previous) => console.log(previous, '→', step)} />
 
-// two state machines at once — a pointer one and a notification one
-<SvgAnimationPlayer document={bell} state={[hovered ? 'hover' : 'idle', unread ? 'unread' : 'calm']} />
+// two flows at once — a pointer one and a notification one
+<SvgAnimationPlayer document={bell} flowStep={[hovered ? 'hover' : 'idle', unread ? 'unread' : 'calm']} />
 ```
 
 ### The picture as drawn (`showAsStatic`)
@@ -415,9 +416,11 @@ interface SvgAnimationPlayerProps {
                                           //   handle are ignored (PX1506). Beats every other control prop
     showAtProgress?: number;              // controlled: a position counted in iterations — 1.2 = 20 % into the second
     showAtTime?: number;                  // controlled: ms inside one iteration, 0..getDuration()
-    state?: string | Array<string>;       // holds that state of the file — one id, or one per state machine; a lever
-                                          //   beside the others: the file's rules for that state machine rest while it is
-                                          //   set. See States in Playback and triggers (`segment` until 2026-11-20)
+    flowStep?: string | Array<string>;    // holds that step of the file — one id, or one per flow; a lever
+                                          //   beside the others: the file's rules for that flow rest while it is
+                                          //   set. See Flows in Playback and triggers (`state` until 2026-11-22)
+    flows?: Array<string>;                // what runs: those flows (`default` too); a change re-plans, no remount
+    timelines?: Array<string>;            // …or those timelines, each whole and by itself
     playback?: 'off' | 'on' | 'paused';    // a LEVER (`PxPlayback`): its position is held, a change presses one
                                           //   button — off → on timeline.start(), on → paused timeline.pause(), paused → on
                                           //   timeline.resume(), → off timeline.stop() — how each looks is the file's `actions`
@@ -447,8 +450,8 @@ interface SvgAnimationPlayerProps {
     onPlaybackStop?: () => void;  // the playback was stopped — a `timeline.stop` trigger, playback="off", timeline.stop(), the
                              //   gate's `stop`; at once, or on arrival for the stops that finish the pass first. A pause
                              //   is onPlaybackPause, the end onPlaybackFinish, a removal onDestroy; a seek reports nothing
-    onStateChange?: (state: string, previous: string, stateMachine?: string) => void;  // a state machine went to another
-                             //   state; `stateMachine` is its id, none for the one without an id
+    onFlowStepChange?: (flowStep: string, previous: string, flow: string) => void;  // a flow went to another
+                             //   step; `flow` is its id, `default` for the flow `default`
 
     // Diagnostics — the shared channel (the API at a glance): onWarning = it plays, but something was
     // ignored, degraded or misspelled; onError = this instance will not play, `playerRef` stays empty

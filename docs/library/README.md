@@ -82,7 +82,9 @@ a number when it differs — the note with that number, under the table, says ho
 | `playback` | — | — | — | ✓ | ✓ | ✓ |
 | `showAtProgress` | — | — | — | ✓ | ✓ | ✓ |
 | `showAtTime` | — | — | — | ✓ | ✓ | ✓ |
-| `state` | — | — | — | ✓ | ✓ | — |
+| `flowStep` | — | — | — | ✓ | ✓ | — |
+| `flows` | ✓ | — | ✓ | ✓ | ✓ | 13 |
+| `timelines` | ✓ | — | ✓ | ✓ | ✓ | 13 |
 | **Variables** | | | | | | |
 | `variables` | ✓ | 12 | — | ✓ | ✓ | ✓ |
 | `variant` | ✓ | 12 | — | ✓ | ✓ | ✓ |
@@ -97,7 +99,7 @@ a number when it differs — the note with that number, under the table, says ho
 | `onReady` | ✓ | — | ✓ | ✓ | `@ready` | ✓ |
 | `onDestroy` | ✓ | — | ✓ | ✓ | `@destroy` | ✓ |
 | `onPlaybackStop` | ✓ | — | ✓ | ✓ | `@playbackStop` | ✓ |
-| `onStateChange` | ✓ | — | ✓ | ✓ | `@stateChange` | 13 |
+| `onFlowStepChange` | ✓ | — | ✓ | ✓ | `@flowStepChange` | 13 |
 | `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `onWarning` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `suppressWarnings` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
@@ -126,8 +128,8 @@ a number when it differs — the note with that number, under the table, says ho
 12. The tag has no attribute for it: the call that reads the tags takes the option for every player it creates —
     `createSvgAnimationPlayersFromPage({ variant: 'dark' })`. With `cssVariables`, a tag's own
     `style="--bg: #111827"` gives that player its value.
-13. Typed, not told yet: React Native plays the first timeline only (`getTimeline()` answers `undefined`) and does not
-    call `onStateChange` yet. States run in full on the web players, React and Vue included.
+13. React Native plays ONE flow — the first that runs (PX1605); its steps change at once, and it has no `flowStep`
+    prop yet (`getTimeline()` answers `undefined`). Flows run in full on the web players, React and Vue included.
 
 What some of the names mean:
 
@@ -169,10 +171,12 @@ What some of the names mean:
 - **`showAtProgress`** shows the frame at a position counted in iterations — `0.5` half-way through the first,
   `1.2` 20 % into the second ([Moving the playhead](./playback-and-triggers.md#moving-the-playhead));
   **`showAtTime`** shows the frame at that many ms inside the iteration, `0` to `timeline.getDuration()`.
-- **`state`** holds a [state](./playback-and-triggers.md#states--named-parts-of-a-timeline) of the file — a lever
-  beside the others: `state={status}`, or a list of ids, one per state machine. While set, the file's rules for that
-  state machine rest; a change goes there the way the state being left says (`whenLeaving`). It combines with any
-  control prop.
+- **`flowStep`** holds a [flow step](./playback-and-triggers.md#flows--named-steps-of-the-animation) of the file — a
+  lever beside the others: `flowStep={status}`, or a list of ids, one per flow. While set, the file's rules for that
+  flow rest; a change goes there the way the step being left says (`whenLeaving`). It combines with any control prop.
+- **`flows`** · **`timelines`** say what runs ([What runs](./playback-and-triggers.md#what-runs--the-pages-lists)):
+  those flows, or those timelines whole and by themselves; with neither, every flow. A change plans again over the
+  same picture — no remount.
 - **`variables`** gives the file's [variables](./variables.md) values by name — `{ bg: '#111827', title: 'Hi' }`;
   they win over the file, and a name that leaves the prop goes back to the file's value. A change is drawn on the
   next frame and never restarts the animation. **`variant`** picks a named set of defaults from the file;
@@ -283,9 +287,9 @@ interface PxAnimationPlayerCallbacks {
     onDestroy?: () => void;  // destroy() was called, the component unmounted, or a new `document` arrived
     onPlaybackStop?: () => void;   // the playback was stopped — at once, or on arrival for the stops that finish the
                               //   pass first; the gate's stop too. A seek reports nothing
-    onStateChange?: (state: string, previous: string, stateMachine?: string) => void;  // a state machine went to another
-                              //   state — a rule, a state's whenFinished, state.goTo(), the `state` prop; `stateMachine`
-                              //   is its id, none for the one without an id (`onSegmentChange` until 2026-11-20)
+    onFlowStepChange?: (flowStep: string, previous: string, flow: string) => void;  // a flow went to another
+                              //   step — a rule, a step's whenFinished, flow.goTo(), the `flowStep` prop; `flow`
+                              //   is its id, `default` for the flow `default` (`onStateChange` until 2026-11-22)
 
     // Diagnostics — two severities, one meaning each, on every player. Neither ever throws at
     // the caller. Give a handler and it takes over from the console; give none and the console
@@ -391,16 +395,16 @@ these are the props and calls of the players:
 | `disableActionTriggers` | manual gets its own flag: `actionTriggers={[]}` says the same, but alone it reads as a mistake. It names what it does to the file — the triggers are switched off — and code presses the buttons |
 | `showAsStatic` | `show…` like `showAtProgress` / `showAtTime`: it shows a picture and never plays; `static` is the SVG as drawn, `whenIdle`'s word. A pure still, not manual by another name — manual has its own spelling — so a playback call on it warns instead of moving it |
 | `playback` | one lever, three positions — `off` · `on` · `paused` (`PxPlayback`): a prop holds a position, and each change of position is exactly one button (`timeline.start` · `timeline.pause` · `timeline.resume` · `timeline.stop`). It is the media word for what it switches; `playRun` in 1.24, where "run" read as a verb. `play` / `pause` / `playState` until 1.23: two booleans had an impossible pair (`pause` without `play`), and the one word mixed the request with the readout |
-| `player.timeline` | ONE home for everything a page does to the animation, so every act has one spelling: the media verbs under the noun they act on (`timeline.start()`), no `…Playback` suffix on thirteen methods, and the content / at-speed pairs explain themselves (`timeline.getDuration()` vs `timeline.getDurationAtSpeed()`). The noun is the one media players use — "start / stop / pause / resume playback" — and `timeline.state.timeline` of the layered design; `player.state.*` follows the same shape. Flat until 1.25 (`startPlayback()`; `startRun()` in 1.24) |
+| `player.timeline` | ONE home for everything a page does to the animation, so every act has one spelling: the media verbs under the noun they act on (`timeline.start()`), no `…Playback` suffix on thirteen methods, and the content / at-speed pairs explain themselves (`timeline.getDuration()` vs `timeline.getDurationAtSpeed()`). The noun is the one media players use — "start / stop / pause / resume playback" — and `timeline.state.timeline` of the layered design; `player.flow.*` follows the same shape. Flat until 1.25 (`startPlayback()`; `startRun()` in 1.24) |
 | `timeline.start()` · `timeline.stop()` · `timeline.pause()` · `timeline.resume()` | the buttons — two for the playback, two for the freeze inside it; one family, so `resume` cannot be read as "start again". One job each: `start()` always plays from the start (until 1.25 it carried on by default), `resume()` continues a pause |
 | `timeline.play()` | start, or carry on — what a Play button wants, and the media word for it: nothing while playing, a resume while paused, a turn-around while the picture goes back, a start otherwise. Not an alias: no other button does that. The file's `"timeline.play"` list is the same act (since 1.26) |
-| `"timeline.start"` … in `actionTriggers` / `actions` | the file names the same act the way the handle does: `{ "action": "timeline.start" }` ↔ `player.timeline.start()`, `{ "action": "state.goTo", "state": "hover" }` ↔ `player.state.goTo('hover')`. They are ACTION NAMES — the `action` of a rule, a key of `actions` — not fields of a structure, the VS Code settings pattern (`"editor.fontSize"`); the dot marks a built-in (`<noun>.<verb>`), which a custom action name (layer 2) never has: the two can never collide. `start` until 1.23, `startRun` in 1.24 |
-| `state` · `player.state` · `onStateChange` | one word wherever a state is meant: `states` in the file, `state.goTo` the action, `player.state.goTo()` the call, `state` the prop. A state machine is every tool's name for "of these states exactly one is current". `segment` until 2026-11-20 |
+| `"timeline.start"` … in `actionTriggers` / `actions` | the file names the same act the way the handle does: `{ "action": "timeline.start" }` ↔ `player.timeline.start()`, `{ "action": "flow.goTo", "flowStep": "hover" }` ↔ `player.flow.goTo('hover')`. They are ACTION NAMES — the `action` of a rule, a key of `actions` — not fields of a structure, the VS Code settings pattern (`"editor.fontSize"`); the dot marks a built-in (`<noun>.<verb>`), which a custom action name (layer 2) never has: the two can never collide. `start` until 1.23, `startRun` in 1.24 |
+| `flowStep` · `player.flow` · `onFlowStepChange` | one family wherever a step is meant: `flowSteps` in the file, `flow.goTo` the action, `player.flow.goTo()` the call, `flowStep` the prop — plain words for a person who never heard of a state machine. `state` until 2026-11-22, `segment` until 2026-11-20 |
 | `whenFinished` | nobody presses the end of the playback — the clock gets there — so its rule is a timeline key beside `whenIdle`, not an `actions` slot; it names the state it governs and moves only the picture: the playback stays `finished`. `atEnd` until 1.25, `actions.finish` until 1.23 |
 | `showAtProgress` / `showAtTime` | `show…` because they show a frame and never play; ms as every time on this API (WAAPI's unit), so not `showAtMs` |
 | `timelineOptions` | not `timeline`: it is not a timeline of the file — the rules and `actions` live on other props, and it patches the first timeline only — and a prop sharing a file key's name would promise the same shape; "options" also says it MERGES. `actions` and `actionTriggers` keep the file's names because each IS that block, and replaces it — one action changed against the file's others can make no sense (`actions` merged until 1.25) |
 | `suppressWarnings` / `suppressErrors` | React's own `suppressHydrationWarning` / `suppressContentEditableWarning` set the word; `muteWarn` / `muteError` until 1.15 |
-| `onPlaybackFinish` | WAAPI's word (`finish()`, `onfinish`, `playState: 'finished'`), one pair with the `finished` state; `ended` is `<video>`'s, `complete` Lottie's. The `Playback` prefix like its four siblings — a playback event; a state machine's move is `onStateChange`. `onFinish` until 1.25 |
+| `onPlaybackFinish` | WAAPI's word (`finish()`, `onfinish`, `playState: 'finished'`), one pair with the `finished` state; `ended` is `<video>`'s, `complete` Lottie's. The `Playback` prefix like its four siblings — a playback event; a flow's move is `onFlowStepChange`. `onFinish` until 1.25 |
 | `onPlaybackStart` · `onPlaybackStop` · `onPlaybackPause` · `onPlaybackResume` | one event per button, told when the act is performed (MediaRecorder's set); noun first for events, verb first for methods. `onPlay` (until 1.23) fired for a start AND a resume. The visibility gate presses the same buttons, so its pause and stop report too (since 1.26). `onPlaybackStop` says "the stop was performed" — at once, or on arrival for the stops that finish the pass first; no `onReset` (until 1.22): it fired for a mix no page could act on; the state is `timeline.getState() === 'off'` |
 | `timeline.getDuration()` | one iteration, as WAAPI's `duration`, CSS `animation-duration` and lottie-web's `getDuration()` are; `getTotalDuration()` for the whole playback — `null` when infinite, the honest slider maximum |
 | `timeline.getCurrentTime()` / `getTotalTime()`, `getCurrentProgress()` / `getTotalProgress()` | plain time names are model ms INSIDE the iteration, `total…` the playback, including repeats — GSAP's `time` / `totalTime`, `duration` / `totalDuration`, `progress` / `totalProgress`; lottie-web's `currentFrame` and Three.js `action.time` are per iteration too. Progress counts iterations (1.26): one number says the pass and the place in it, so a value read can be written back, and nothing wraps (`0 … 1` of the iteration until 1.25); until 1.21 `getCurrentTime()` was run ms on the web and iteration ms on React Native |

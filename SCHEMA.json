@@ -372,56 +372,6 @@
               "timeline": {
                 "type": "string"
               },
-              "value": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "array",
-                    "items": {
-                      "type": "number"
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "pathData": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "pathData"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "offset": {
-                          "type": "number"
-                        },
-                        "color": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "offset",
-                        "color"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  {
-                    "$ref": "#/$defs/TransformParts"
-                  }
-                ]
-              },
               "keyframes": {
                 "type": "array",
                 "items": {
@@ -3532,7 +3482,7 @@
             "$ref": "#/$defs/Timeline"
           }
         },
-        "states": {
+        "flowSteps": {
           "type": "array",
           "items": {
             "type": "object",
@@ -3543,7 +3493,7 @@
               "name": {
                 "type": "string"
               },
-              "stateMachine": {
+              "flow": {
                 "type": "string"
               },
               "timeline": {
@@ -3593,15 +3543,15 @@
                     "properties": {
                       "action": {
                         "enum": [
-                          "state.goTo",
-                          "state.next",
-                          "state.previous"
+                          "flow.goTo",
+                          "flow.next",
+                          "flow.previous"
                         ]
                       },
-                      "state": {
+                      "flowStep": {
                         "type": "string"
                       },
-                      "stateMachine": {
+                      "flow": {
                         "type": "string"
                       }
                     },
@@ -3626,7 +3576,7 @@
             "additionalProperties": false
           }
         },
-        "stateMachines": {
+        "flows": {
           "type": "array",
           "items": {
             "type": "object",
@@ -3657,10 +3607,10 @@
                   "timeline": {
                     "type": "string"
                   },
-                  "state": {
+                  "flowStep": {
                     "type": "string"
                   },
-                  "stateMachine": {
+                  "flow": {
                     "type": "string"
                   },
                   "event": {
@@ -3733,10 +3683,10 @@
                   "timeline": {
                     "type": "string"
                   },
-                  "state": {
+                  "flowStep": {
                     "type": "string"
                   },
-                  "stateMachine": {
+                  "flow": {
                     "type": "string"
                   },
                   "event": {
@@ -3809,10 +3759,10 @@
                   "timeline": {
                     "type": "string"
                   },
-                  "state": {
+                  "flowStep": {
                     "type": "string"
                   },
-                  "stateMachine": {
+                  "flow": {
                     "type": "string"
                   },
                   "event": {
@@ -3884,10 +3834,10 @@
                   "timeline": {
                     "type": "string"
                   },
-                  "state": {
+                  "flowStep": {
                     "type": "string"
                   },
-                  "stateMachine": {
+                  "flow": {
                     "type": "string"
                   },
                   "event": {
@@ -3960,10 +3910,10 @@
                   "timeline": {
                     "type": "string"
                   },
-                  "state": {
+                  "flowStep": {
                     "type": "string"
                   },
-                  "stateMachine": {
+                  "flow": {
                     "type": "string"
                   },
                   "event": {
@@ -4031,92 +3981,15 @@
                 "type": "object",
                 "properties": {
                   "action": {
-                    "const": "state.goTo"
+                    "const": "flow.goTo"
                   },
                   "timeline": {
                     "type": "string"
                   },
-                  "state": {
+                  "flowStep": {
                     "type": "string"
                   },
-                  "stateMachine": {
-                    "type": "string"
-                  },
-                  "event": {
-                    "enum": [
-                      "load",
-                      "hoverIn",
-                      "hoverOut",
-                      "click",
-                      "pointerDown",
-                      "pointerUp",
-                      "keyDown",
-                      "keyUp"
-                    ]
-                  },
-                  "element": {
-                    "type": "string"
-                  },
-                  "selector": {
-                    "type": "string"
-                  },
-                  "with": {
-                    "type": "object",
-                    "properties": {
-                      "key": {
-                        "type": "string"
-                      },
-                      "code": {
-                        "type": "string"
-                      },
-                      "ctrlKey": {
-                        "type": "boolean"
-                      },
-                      "shiftKey": {
-                        "type": "boolean"
-                      },
-                      "altKey": {
-                        "type": "boolean"
-                      },
-                      "metaKey": {
-                        "type": "boolean"
-                      },
-                      "metaOrCtrlKey": {
-                        "type": "boolean"
-                      },
-                      "button": {
-                        "type": "number"
-                      },
-                      "pointerType": {
-                        "enum": [
-                          "mouse",
-                          "touch",
-                          "pen"
-                        ]
-                      }
-                    },
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "action",
-                  "event"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "action": {
-                    "const": "state.next"
-                  },
-                  "timeline": {
-                    "type": "string"
-                  },
-                  "state": {
-                    "type": "string"
-                  },
-                  "stateMachine": {
+                  "flow": {
                     "type": "string"
                   },
                   "event": {
@@ -4185,15 +4058,92 @@
                 "type": "object",
                 "properties": {
                   "action": {
-                    "const": "state.previous"
+                    "const": "flow.next"
                   },
                   "timeline": {
                     "type": "string"
                   },
-                  "state": {
+                  "flowStep": {
                     "type": "string"
                   },
-                  "stateMachine": {
+                  "flow": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "enum": [
+                      "load",
+                      "hoverIn",
+                      "hoverOut",
+                      "click",
+                      "pointerDown",
+                      "pointerUp",
+                      "keyDown",
+                      "keyUp"
+                    ]
+                  },
+                  "element": {
+                    "type": "string"
+                  },
+                  "selector": {
+                    "type": "string"
+                  },
+                  "with": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "code": {
+                        "type": "string"
+                      },
+                      "ctrlKey": {
+                        "type": "boolean"
+                      },
+                      "shiftKey": {
+                        "type": "boolean"
+                      },
+                      "altKey": {
+                        "type": "boolean"
+                      },
+                      "metaKey": {
+                        "type": "boolean"
+                      },
+                      "metaOrCtrlKey": {
+                        "type": "boolean"
+                      },
+                      "button": {
+                        "type": "number"
+                      },
+                      "pointerType": {
+                        "enum": [
+                          "mouse",
+                          "touch",
+                          "pen"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "action",
+                  "event"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "flow.previous"
+                  },
+                  "timeline": {
+                    "type": "string"
+                  },
+                  "flowStep": {
+                    "type": "string"
+                  },
+                  "flow": {
                     "type": "string"
                   },
                   "event": {

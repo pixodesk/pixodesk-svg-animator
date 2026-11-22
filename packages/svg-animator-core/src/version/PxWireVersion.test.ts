@@ -12,7 +12,7 @@ import { PxSchemaChangeCode, schemaChangeRef } from './PxSchemaChangeCode';
 import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
-    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep,
+    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords,
 } from './PxWireVersion';
 import { isRecord } from '../schema/PxSchema';
 
@@ -350,5 +350,56 @@ describe('T3 — conversion is idempotent', () => {
         expect(twice.applied).toEqual([]);                       // nothing left to do
         expect(twice.doc).toBe(once.doc);                        // not even a copy
         expect(JSON.stringify(twice.doc)).toBe(JSON.stringify(once.doc));
+    });
+});
+
+describe('1.28 amended a third time (2026-11-22) — the flow words', () => {
+    /** A 1.27 file with segments, a goTo key and a segment that goes on to the next. */
+    const old = (): Record<string, unknown> => ({
+        type: 'svg',
+        animator: {
+            version: '1.27.0',
+            timeline: {
+                outTime: 3000,
+                segments: [
+                    { name: 'intro', inTime: 0, outTime: 1000, whenFinished: 'timeline.segment.next' },
+                    { name: 'loop', inTime: 1000, outTime: 3000 },
+                ],
+            },
+            actionTriggers: { 'timeline.segment.goTo(loop)': 'click', 'timeline.start': 'load' },
+        },
+    });
+
+    it('a 1.27 file with segments arrives as flow steps and flow actions', () => {
+        const r = convertWireDocument(old());
+        const animator = isRecord(r.doc) && isRecord(r.doc.animator) ? r.doc.animator : {};
+        expect(animator.states).toBeUndefined();
+        expect(animator.flowSteps).toEqual([
+            { id: 'intro', inTime: 0, outTime: 1000, whenFinished: { action: 'flow.next' } },
+            { id: 'loop', inTime: 1000, outTime: 3000 },
+        ]);
+        expect(animator.actionTriggers).toEqual([
+            { action: 'flow.goTo', flowStep: 'loop', event: 'click' },
+            { action: 'timeline.start', event: 'load' },
+        ]);
+    });
+
+    it('upFlowWords brings a file of the 11-20 words over; twice is the same as once', () => {
+        const d: Record<string, unknown> = { type: 'svg', animator: {
+            timelines: [{ outTime: 1000 }],
+            states: [{ id: 'a', stateMachine: 'm', whenFinished: { action: 'state.goTo', state: 'b' } }, { id: 'b', stateMachine: 'm' }],
+            stateMachines: [{ id: 'm' }],
+            actionTriggers: [{ action: 'state.next', stateMachine: 'm', event: 'click' }],
+        } };
+        upFlowWords(d);
+        const once = JSON.stringify(d);
+        expect(d.animator).toEqual({
+            timelines: [{ outTime: 1000 }],
+            flowSteps: [{ id: 'a', flow: 'm', whenFinished: { action: 'flow.goTo', flowStep: 'b' } }, { id: 'b', flow: 'm' }],
+            flows: [{ id: 'm' }],
+            actionTriggers: [{ action: 'flow.next', flow: 'm', event: 'click' }],
+        });
+        upFlowWords(d);
+        expect(JSON.stringify(d)).toBe(once);
     });
 });

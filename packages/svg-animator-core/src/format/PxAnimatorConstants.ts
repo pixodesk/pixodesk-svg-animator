@@ -21,7 +21,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActionTriggers, PxActionTriggerRule, PxActionTriggersInput, PxActions, PxState, PxTriggerEventObject, PxTriggerEventFilter, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActionTriggers, PxActionTriggerRule, PxActionTriggersInput, PxActions, PxFlowStep, PxTriggerEventObject, PxTriggerEventFilter, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
 // (TYPES only from PxAnimatorTypes: it reads this module's constants while it loads.)
 import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
@@ -114,16 +114,16 @@ export const PxPointerType = {
 } as const;
 export type PxPointerType = typeof PxPointerType[keyof typeof PxPointerType];
 
-/** The state actions (2026-11-20; the segment actions `timeline.segment.*` until then): go to a state (`state.goTo`
+/** The state actions (2026-11-20; the segment actions `timeline.segment.*` until then): go to a state (`flow.goTo`
  *  with a `state`), to the next state of a state machine (after the last, the first) or the previous one. The `action`
  *  of a rule of `actionTriggers` and of a `whenFinished` object; the same name is the page's call
  *  (`player.state.goTo('hover')`, `player.state.next()`). @public */
-export const PxStateAction = {
-    goTo:     'state.goTo',
-    next:     'state.next',
-    previous: 'state.previous',
+export const PxFlowAction = {
+    goTo:     'flow.goTo',
+    next:     'flow.next',
+    previous: 'flow.previous',
 } as const;
-export type PxStateAction = typeof PxStateAction[keyof typeof PxStateAction];
+export type PxFlowAction = typeof PxFlowAction[keyof typeof PxFlowAction];
 
 /** How a state is LEFT when another is asked for (2026-11-15): `jump` (default) — a cut; `animateToEnd` — this pass
  *  plays to its end first; `animateToStart` — it plays back to its start first. @public */
@@ -153,12 +153,12 @@ export const PxTriggerList = {
 export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
 
 /** Every action a rule of `actionTriggers` may name — the playback's five and the three state actions. @public */
-export type PxActionName = PxTriggerList | PxStateAction;
+export type PxActionName = PxTriggerList | PxFlowAction;
 
 /** The action names, in their order — the schema's list. @public @advanced */
 export const PX_ACTION_NAMES: ReadonlyArray<PxActionName> = [PxTriggerList.startPlayback, PxTriggerList.playPlayback,
     PxTriggerList.stopPlayback, PxTriggerList.pausePlayback, PxTriggerList.resumePlayback,
-    PxStateAction.goTo, PxStateAction.next, PxStateAction.previous];
+    PxFlowAction.goTo, PxFlowAction.next, PxFlowAction.previous];
 
 /** True for the five playback actions. @public @advanced */
 export function isPlaybackAction(action: PxActionName): action is PxTriggerList {
@@ -593,8 +593,8 @@ export interface PxResolvedTriggers {
     readonly stopPlayback: ReadonlyArray<string>;
     readonly pausePlayback: ReadonlyArray<string>;
     readonly resumePlayback: ReadonlyArray<string>;
-    /** The state actions' entries — `next`, `previous` and one `goTo` per state (2026-11-20). */
-    readonly states: ReadonlyArray<PxStateTrigger>;
+    /** The flow actions' entries — `next`, `previous` and one `goTo` per step (2026-11-20). */
+    readonly flows: ReadonlyArray<PxFlowTrigger>;
     /** Every key in the lists above → the entry in its settings form — what the wiring listens for. */
     readonly specs: ReadonlyMap<string, PxTriggerEventSpec>;
 }
@@ -612,13 +612,13 @@ export interface PxTriggerEventSpec {
     readonly filter?: PxTriggerEventFilter;
 }
 
-/** One state action and the entries that press it (2026-11-20). @public @advanced */
-export interface PxStateTrigger {
-    readonly action: PxStateAction;
-    /** The state `state.goTo` goes to. */
-    readonly state?: string;
-    /** The state machine `state.next` / `state.previous` steps through, as the rule names it. */
-    readonly stateMachine?: string;
+/** One flow action and the entries that press it (2026-11-20). @public @advanced */
+export interface PxFlowTrigger {
+    readonly action: PxFlowAction;
+    /** The step `flow.goTo` goes to. */
+    readonly flowStep?: string;
+    /** The flow `flow.next` / `flow.previous` steps through, as the rule names it. */
+    readonly flow?: string;
     readonly keys: ReadonlyArray<string>;
 }
 
@@ -931,12 +931,12 @@ export function ruleEntriesOf(rules: ReadonlyArray<PxActionTriggerRule> | undefi
 
 /** The rules as an `actionTriggers` list again, one per entry — the inverse of {@link ruleEntriesOf} for a playback
  *  action. @public @advanced */
-export function rulesOfEntries(action: PxActionName, entries: PxTriggerEvents | undefined, refs?: { timeline?: string; state?: string; stateMachine?: string }): Array<PxActionTriggerRule> {
+export function rulesOfEntries(action: PxActionName, entries: PxTriggerEvents | undefined, refs?: { timeline?: string; flowStep?: string; flow?: string }): Array<PxActionTriggerRule> {
     return triggerEventList(entries).map((entry): PxActionTriggerRule => {
         const rule: PxActionTriggerRule = typeof entry === 'string' ? { action, event: entry } : { action, event: entry.event };
         if (refs?.timeline !== undefined) rule.timeline = refs.timeline;
-        if (refs?.state !== undefined) rule.state = refs.state;
-        if (refs?.stateMachine !== undefined) rule.stateMachine = refs.stateMachine;
+        if (refs?.flowStep !== undefined) rule.flowStep = refs.flowStep;
+        if (refs?.flow !== undefined) rule.flow = refs.flow;
         if (typeof entry !== 'string') {
             if (entry.element !== undefined) rule.element = entry.element;
             if (entry.selector !== undefined) rule.selector = entry.selector;
@@ -949,11 +949,11 @@ export function rulesOfEntries(action: PxActionName, entries: PxTriggerEvents | 
 // @px-area control
 /** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. Entries a playback action may not
  *  name are dropped ({@link triggerIssues} says which). `timeline.resume` is {@link derivedResume} unless a rule names
- *  it — then the rules are used as written. `stateIds`: the states this player plays — a `state.goTo` naming another
+ *  it — then the rules are used as written. `stepIds`: the steps this player plays — a `flow.goTo` naming another
  *  is not read (`validateDocument` warns). @public @advanced */
-export function resolveTriggers(rules: PxActionTriggers | undefined, stateIds: ReadonlyArray<string> = []): PxResolvedTriggers {
+export function resolveTriggers(rules: PxActionTriggers | undefined, stepIds: ReadonlyArray<string> = []): PxResolvedTriggers {
     const specs = new Map<string, PxTriggerEventSpec>();
-    if (!Array.isArray(rules)) return { startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [], states: [], specs };
+    if (!Array.isArray(rules)) return { startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [], flows: [], specs };
     const listOf = (list: PxTriggerList): ReadonlyArray<string> => allowedKeysOf(allowedTriggerEvents(list), ruleEntriesOf(rules, list), specs);
     const startPlayback = listOf(PxTriggerList.startPlayback);
     const playPlayback = listOf(PxTriggerList.playPlayback);
@@ -961,22 +961,22 @@ export function resolveTriggers(rules: PxActionTriggers | undefined, stateIds: R
     const pausePlayback = listOf(PxTriggerList.pausePlayback);
     const resumePlayback = rules.some(r => r.action === PxTriggerList.resumePlayback) ? listOf(PxTriggerList.resumePlayback)
         : derivedResume(startPlayback, stopPlayback, pausePlayback, specs);
-    const states: Array<{ action: PxStateAction; state?: string; stateMachine?: string; keys: Array<string> }> = [];
-    if (stateIds.length) {
+    const flows: Array<{ action: PxFlowAction; flowStep?: string; flow?: string; keys: Array<string> }> = [];
+    if (stepIds.length) {
         for (const rule of rules) {
-            if (rule.action !== PxStateAction.goTo && rule.action !== PxStateAction.next && rule.action !== PxStateAction.previous) continue;
-            if (rule.action === PxStateAction.goTo && (rule.state === undefined || !stateIds.includes(rule.state))) continue;
+            if (rule.action !== PxFlowAction.goTo && rule.action !== PxFlowAction.next && rule.action !== PxFlowAction.previous) continue;
+            if (rule.action === PxFlowAction.goTo && (rule.flowStep === undefined || !stepIds.includes(rule.flowStep))) continue;
             const spec = triggerSpecOf(ruleEventEntry(rule));
             specs.set(spec.key, spec);
-            const same = states.find(t => t.action === rule.action && t.state === rule.state && t.stateMachine === rule.stateMachine);
+            const same = flows.find(t => t.action === rule.action && t.flowStep === rule.flowStep && t.flow === rule.flow);
             if (same) { if (!same.keys.includes(spec.key)) same.keys.push(spec.key); continue; }
-            const trigger: { action: PxStateAction; state?: string; stateMachine?: string; keys: Array<string> } = { action: rule.action, keys: [spec.key] };
-            if (rule.state !== undefined && rule.action === PxStateAction.goTo) trigger.state = rule.state;
-            if (rule.stateMachine !== undefined && rule.action !== PxStateAction.goTo) trigger.stateMachine = rule.stateMachine;
-            states.push(trigger);
+            const trigger: { action: PxFlowAction; flowStep?: string; flow?: string; keys: Array<string> } = { action: rule.action, keys: [spec.key] };
+            if (rule.flowStep !== undefined && rule.action === PxFlowAction.goTo) trigger.flowStep = rule.flowStep;
+            if (rule.flow !== undefined && rule.action !== PxFlowAction.goTo) trigger.flow = rule.flow;
+            flows.push(trigger);
         }
     }
-    return { startPlayback, playPlayback, stopPlayback, pausePlayback, resumePlayback, states, specs };
+    return { startPlayback, playPlayback, stopPlayback, pausePlayback, resumePlayback, flows, specs };
 }
 
 /** What {@link triggerIssues} reports. @public @advanced */
@@ -1120,7 +1120,7 @@ export type PxTriggerAction = typeof PxTriggerAction[keyof typeof PxTriggerActio
 export function triggerListsEvent(triggers: PxResolvedTriggers, event: string): boolean {
     return triggers.startPlayback.includes(event) || triggers.playPlayback.includes(event) || triggers.stopPlayback.includes(event)
         || triggers.pausePlayback.includes(event) || triggers.resumePlayback.includes(event)
-        || triggers.states.some(s => s.keys.includes(event));
+        || triggers.flows.some(s => s.keys.includes(event));
 }
 
 // @px-area control
@@ -1129,7 +1129,7 @@ export function triggerKeys(triggers: PxResolvedTriggers): ReadonlyArray<string>
     const keys: Array<string> = [];
     const add = (list: ReadonlyArray<string>): void => { for (const k of list) if (!keys.includes(k)) keys.push(k); };
     add(triggers.startPlayback); add(triggers.playPlayback); add(triggers.stopPlayback); add(triggers.pausePlayback); add(triggers.resumePlayback);
-    for (const s of triggers.states) add(s.keys);
+    for (const s of triggers.flows) add(s.keys);
     return keys;
 }
 
@@ -1537,13 +1537,13 @@ export function maxKeyframeTimeOf(doc: PxDocument): number | undefined {
 
 // @px-importance important
 /**
- * Resolves the first of `cfg.timelines` (the wire spelling) into the runtime-view fields the engines consume.
- * Returns `cfg` unchanged when there is nothing to resolve. Pure: never mutates, never caches.
+ * Resolves the DEFAULT timeline of `cfg.timelines` (the one with no id — the wire spelling) into the runtime-view fields
+ * the engines consume. Returns `cfg` unchanged when there is nothing to resolve (no timeline without an id). Pure: never mutates, never caches.
  * Public code reads the result through `getAnimatorConfig` / `prepareDocument` (review §17a).
  * @internal
  */
 export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorRuntimeConfig {
-    const timeline = firstTimelineOf(cfg);
+    const timeline = defaultTimelineOf(cfg);
     if (timeline === undefined) return cfg;
 
     const { timelines: _dropped, ...flat }: PxAnimatorRuntimeConfig = cfg;
@@ -1551,7 +1551,7 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
     // starts it" — copied as it is
     // an unchecked document may carry anything there — what is not a list is no rules (the old map: nothing starts it)
     if (cfg.actionTriggers !== undefined) flat.actionTriggers = Array.isArray(cfg.actionTriggers) ? [...cfg.actionTriggers] : [];
-    if (cfg.states !== undefined) flat.states = Array.isArray(cfg.states) ? [...cfg.states] : [];
+    if (cfg.flowSteps !== undefined) flat.flowSteps = Array.isArray(cfg.flowSteps) ? [...cfg.flowSteps] : [];
 
     // `engine` is shared by every timeline type: how the attributes get updated.
     if (timeline.engine !== undefined) flat.engine = timeline.engine;
@@ -1582,15 +1582,25 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
     return flat;
 }
 
-/** The first timeline of a config's `timelines` — the default one; `undefined` when it names none. @public @advanced */
-export function firstTimelineOf(cfg: Pick<PxAnimatorRuntimeConfig, 'timelines'> | undefined): PxTimeline | undefined {
-    const first = Array.isArray(cfg?.timelines) ? cfg.timelines[0] : undefined;
-    return first !== null && typeof first === 'object' ? first : undefined;
+/** The name of what needs none (2026-11-22): the flow of the steps that name no flow, and the step the timeline with no
+ *  id is when no step names it — as the page and the rules call them. @public */
+export const PX_DEFAULT_ID = 'default';
+
+/** What the page, `getTimeline` and a step's or a rule's `timeline` call the timeline with no id (2026-11-22): the
+ *  empty name. `default` is an ordinary timeline id. @public */
+export const PX_DEFAULT_TIMELINE = '';
+
+/** The DEFAULT timeline of a config's `timelines` (2026-11-22) — the first entry with no `id`, wherever it stands; keyframes
+ *  that name no timeline are its. `undefined` when every timeline has an id, or there is none. A later entry with no id
+ *  is not read (`timelineIssues` says so). @public @advanced */
+export function defaultTimelineOf(cfg: Pick<PxAnimatorRuntimeConfig, 'timelines'> | undefined): PxTimeline | undefined {
+    const list = Array.isArray(cfg?.timelines) ? cfg.timelines : [];
+    return list.find((t): t is PxTimeline => t !== null && typeof t === 'object' && typeof t.id !== 'string');
 }
 
-/** True when a state is a part of the first timeline: it names no timeline, or the first one's id. @public @advanced */
-export function isOnFirstTimeline(state: Pick<PxState, 'timeline'>, first: Pick<PxTimeline, 'id'> | undefined): boolean {
-    return state.timeline === undefined || (first?.id !== undefined && state.timeline === first.id);
+/** True when a step is a part of the default timeline: it names no timeline, or {@link PX_DEFAULT_TIMELINE}. @public @advanced */
+export function isOnDefaultTimeline(step: Pick<PxFlowStep, 'timeline'>): boolean {
+    return step.timeline === undefined || step.timeline === PX_DEFAULT_TIMELINE;
 }
 
 /** A wire moment (a word, `{ domElement, screen }` or `{ scrolled }`) in its settings form — `undefined` for anything else. */
@@ -1684,12 +1694,12 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (!cfg || cfg.timelines !== undefined) return cfg;
 
     const { timelineSource, scroll, actionTriggers, actions, delay, iterations, direction, fill, resetOnFinish,
-            whenFinished, whenIdle, inViewThreshold, inViewDebounce, states, stateMachines,
+            whenFinished, whenIdle, inViewThreshold, inViewDebounce, flowSteps, flows,
             duration, inTime, playbackSpeed, engine, frameRate, ...shared } = cfg;
-    // the states and state machines sit at the animator's root, beside the timelines
-    const withStates = (nested: PxAnimatorConfig): PxAnimatorConfig => {
-        if (states !== undefined && states.length > 0) nested.states = [...states];
-        if (stateMachines !== undefined && stateMachines.length > 0) nested.stateMachines = [...stateMachines];
+    // the flow steps and the flows sit at the animator's root, beside the timelines
+    const withFlowSteps = (nested: PxAnimatorConfig): PxAnimatorConfig => {
+        if (flowSteps !== undefined && flowSteps.length > 0) nested.flowSteps = [...flowSteps];
+        if (flows !== undefined && flows.length > 0) nested.flows = [...flows];
         return nested;
     };
     // flat `duration` is the WINDOW LENGTH; on the wire the window is written as its two points
@@ -1719,7 +1729,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
             if (scroll.axis !== undefined) timeline.axis = scroll.axis;
             if (scroll.smoothing !== undefined) timeline.smoothing = scroll.smoothing;
         }
-        return withStates({ ...shared, timelines: [timeline] });   // a scroll timeline has no triggers: nothing starts it
+        return withFlowSteps({ ...shared, timelines: [timeline] });   // a scroll timeline has no triggers: nothing starts it
     }
 
     // Time-driven: `type` is optional on the wire and 'time' is the default, so the
@@ -1744,7 +1754,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
 
     // An empty time timeline says nothing — omit the list entirely. The states, then the rules, sit beside it, at the root
     // (the order a person reads them in: what plays, its parts, what moves them).
-    const nested = withStates(Object.keys(timeline).length > 0 ? { ...shared, timelines: [timeline] } : { ...shared });
+    const nested = withFlowSteps(Object.keys(timeline).length > 0 ? { ...shared, timelines: [timeline] } : { ...shared });
     if (actionTriggers !== undefined) nested.actionTriggers = [...actionTriggers];
     return nested;
 }

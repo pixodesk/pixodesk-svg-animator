@@ -4,9 +4,9 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxTimelineControls } from '@pixodesk/svg-animator-core';
+import type { PxRunListProps, PxTimelineControls } from '@pixodesk/svg-animator-core';
 import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxWhenFinished, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput, type PxVariablesOptions } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, forwardStateControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride, controlModeTakesOverTrigger, PxVariablesRuntime, applyVariablesProp } from '@pixodesk/svg-animator-core/engine';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, forwardFlowControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride, controlModeTakesOverTrigger, PxVariablesRuntime, applyVariablesProp, attributeOwnersOf, planUnits, stepDocumentOf, switchStepsOf, unknownRunNames, type PxRunLists, type PxUnitPlan } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -47,7 +47,7 @@ import { openClosedTextPathTargets } from './PxRnSafety';
  * on this platform is declared here: `fallback`, which has no web counterpart.
  * @public
  */
-export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & Omit<PxVariablesOptions, 'cssVariables'> & PxAnimationPlayerCallbacks & {
+export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & Omit<PxVariablesOptions, 'cssVariables'> & PxRunListProps & PxAnimationPlayerCallbacks & {
 
     // -- Source ---------------------------------------------------------------
 
@@ -229,6 +229,8 @@ interface Compiled {
     doc: PxDocument | null;
     tracks: PxCompiledTracks;
     error: Error | null;
+    /** The flows of the document (2026-11-22) — React Native plays the first that runs; absent: the document as it is. */
+    plan?: PxUnitPlan;
 }
 
 /** Playable-but-empty tracks, so a failed compile still satisfies every hook
@@ -243,7 +245,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * Materializes + compiles a document. Extracted from the component so the
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
-function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics): Compiled {
+function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics, run?: PxRunLists): Compiled {
     // Migrate + check ONCE — the same `checked` stage and reporting as the web player's entry.
     const onProblems = (problems: Parameters<typeof reportDocumentProblems>[0]) => reportDocumentProblems(problems, diag);
     doc = prepareDocument(doc, { stage: PxDocStage.checked, onProblems });
@@ -286,7 +288,20 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
 
     prepared = prepareDocument(prepared, { engine: PxTimelineEngine.native, freshIds: true });
     const tracks = compileTracks(prepared, { native: NATIVE_SVG_VIEWS });
-    return { doc: prepared, tracks, error: null };
+    // flows (2026-11-22): React Native plays ONE — the first that runs; the others are named once
+    for (const unknown of unknownRunNames(prepared, run)) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.runListNameUnknown, unknown.list, unknown.name);
+    const plan = planUnits(prepared, run);
+    if (plan && plan.units.length > 1) diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.rnPlaysOneFlow, plan.units.slice(1).map(u => u.flow ?? plan.timelines[u.steps[0].timeline].name));
+    return plan && plan.units.length ? { doc: prepared, tracks, error: null, plan } : { doc: prepared, tracks, error: null };
+}
+
+/** The current step's document and tracks of a planned document's first flow (2026-11-22) — what React Native plays. */
+function compileStep(compiled: Compiled, stepIndex: number): Compiled {
+    const { plan, doc } = compiled;
+    if (!plan || !doc) return compiled;
+    const step = Math.min(Math.max(stepIndex, 0), plan.units[0].steps.length - 1);
+    const stepDoc = stepDocumentOf(doc, plan, 0, step, attributeOwnersOf(doc, plan));
+    return { doc: stepDoc, tracks: compileTracks(stepDoc, { native: NATIVE_SVG_VIEWS }), error: null, plan };
 }
 
 
@@ -306,7 +321,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
  */
 export function SvgAnimationPlayer({
     document: doc, timelineOptions, actions,
-    showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers, playerRef, variables, variant,
+    showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers, playerRef, variables, variant, flows, timelines,
     onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
@@ -315,7 +330,7 @@ export function SvgAnimationPlayer({
     // The override props are objects: a fresh literal every render would otherwise recompile the
     // whole document (materialize + compile tracks), which is the expensive path. Key on their
     // CONTENT instead — the override is small, the document is not.
-    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, actionTriggers ?? null]);
+    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, actionTriggers ?? null, flows ?? null, timelines ?? null]);
 
     // A re-created `doc` with the same content keeps the compiled tracks (core `deepEquals`, as in React and Vue).
     const docRef = useRef(doc);
@@ -377,13 +392,14 @@ export function SvgAnimationPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the token stands for the instance's inputs
     const instance = useMemo(() => ({}), [stableDoc, overrideKey, compMode]);
 
-    const compiled = useMemo((): Compiled => {
+    const whole = useMemo((): Compiled => {
         try {
             return compileDocument(
                 runtime.resolvedDocument(false),
                 { timelineOptions, actions, actionTriggers },
                 compMode === PxControlMode.playback,
                 makeDiag(),
+                { flows, timelines },
             );
         } catch (e) {
             // A malformed document must not take the host screen down with it. This instance
@@ -396,6 +412,19 @@ export function SvgAnimationPlayer({
         // document. Key on their CONTENT — the override is small, unlike the document.
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `overrideKey` stands for `timelineOptions`, `actions` and `actionTriggers`; `makeDiag` is rebuilt per render on purpose (above)
     }, [runtime, overrideKey, compMode, variablesVersion]);
+
+    // Flows (2026-11-22): the first flow's current step — its own document and tracks; a new document starts at its first step
+    const switchSteps = useMemo(() => (whole.plan ? switchStepsOf(whole.plan.units[0], whole.plan) : []), [whole]);
+    const [step, setStep] = useState<{ of: Compiled; index: number }>({ of: whole, index: 0 });
+    const stepIndex = step.of === whole ? step.index : Math.max(0, switchSteps.findIndex(s => s.initial));
+    const compiled = useMemo(() => compileStep(whole, stepIndex), [whole, stepIndex]);
+    /** A step was entered by the flow: its playback starts once its tracks are in place. */
+    const startOnEnter = useRef(false);
+    const goToStep = (index: number): void => {
+        if (index < 0 || index >= switchSteps.length || index === stepIndex) return;
+        startOnEnter.current = true;
+        setStep({ of: whole, index });
+    };
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.
@@ -435,6 +464,13 @@ export function SvgAnimationPlayer({
         runClock.seek(Number.isFinite(seekCeiling) ? seekCeiling : tracks.duration);
         runClock.stop();
         progress.value = restingPosition();
+        // a step that goes on at its end (2026-11-22): the flow's — no finish is told
+        const then = switchSteps[stepIndex]?.then;
+        if (then) {
+            const n = switchSteps.length;
+            goToStep('flowStep' in then ? switchSteps.findIndex(s => s.id === then.flowStep) : (stepIndex + then.step + n) % n);
+            return;
+        }
         executor?.onNaturalFinish();              // the executor tells `onPlaybackFinish`, then `whenFinished`
     };
 
@@ -550,6 +586,23 @@ export function SvgAnimationPlayer({
     };
     const player = composeApiExtras(api, { ...view, playbackListeners, duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations }, (cb) => { requestAnimationFrame(cb); });
     executor = player.playExecutor;
+    // the flow's controls (2026-11-22): one flow; a step goes to the next at once (no `whenLeaving` on React Native)
+    if (switchSteps.length) {
+        player.flow = {
+            next: () => goToStep((stepIndex + 1) % switchSteps.length),
+            previous: () => goToStep((stepIndex - 1 + switchSteps.length) % switchSteps.length),
+            goTo: (id: string) => goToStep(switchSteps.findIndex(s => s.id === id)),
+            get: () => [switchSteps[stepIndex].id],
+            getAll: () => switchSteps.map(s => s.id),
+        };
+    }
+    // a step the flow entered plays from its start, once its tracks are in place
+    useEffect(() => {
+        if (!startOnEnter.current) return;
+        startOnEnter.current = false;
+        player.timeline.start();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- once per entered step
+    }, [compiled]);
 
     // `onReady` (review §14): the animator exists and the tree is rendered — once per compiled
     // instance, asynchronously like the web player fires it.
@@ -578,7 +631,7 @@ export function SvgAnimationPlayer({
         // ONE forwarder for every wrapper (core `forwardPlaybackControls`); a write warns first when a driver prop owns playback
         return {
             timeline: forwardPlaybackControls(() => player.timeline, (call, run) => write(call, () => run(player.timeline))),
-            state: forwardStateControls(() => player.state, (call, run) => write(call, () => run(player.state))),
+            flow: forwardFlowControls(() => player.flow, (call, run) => write(call, () => run(player.flow))),
             // React Native plays the first timeline only (2026-11-20): no other timeline to find
             getTimeline: (): PxTimelineControls | undefined => undefined,
             variables: runtime.api,

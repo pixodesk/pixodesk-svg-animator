@@ -60,24 +60,27 @@ component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
 
-**`animator.timeline`, `segments`, the `segment` prop, `onSegmentChange` or `player.timeline.segment` is not there;
-`actionTriggers` is not an object.** Changed on 2026-11-20 (schema 1.28, amended): a file can hold several timelines and
-states.
+**`animator.timeline`, `segments` or `states`, the `segment` or `state` prop, `onSegmentChange` / `onStateChange`,
+`player.timeline.segment` or `player.state` is not there; `actionTriggers` is not an object.** Changed on 2026-11-20
+and 2026-11-22 (schema 1.28, amended): a file can hold several timelines, flows and flow steps.
 
 <!-- px-check off old and new spelling, prose -->
 | Was | Is |
 |---|---|
-| `"timeline": { … }` | `"timelines": [ { … } ]` — the first is the default and needs no `id` |
-| `timeline.segments: [{ "name": "intro", … }]` | `"states": [{ "id": "intro", … }]` beside `timelines` — `id` is the handle, `name` only a label |
+| `"timeline": { … }` | `"timelines": [ { … } ]` — the one with no `id` is the default |
+| `timeline.segments: [{ "name": "intro", … }]` | `"flowSteps": [{ "id": "intro", … }]` beside `timelines` — `id` is the handle, `name` only a label |
 | `"actionTriggers": { "timeline.start": "load" }` | `"actionTriggers": [{ "action": "timeline.start", "event": "load" }]` — one rule per event |
-| `"timeline.segment.goTo(intro)"` · `"timeline.segment.next"` · `.previous` | `{ "action": "state.goTo", "state": "intro" }` · `{ "action": "state.next" }` · `state.previous` |
-| a segment's `"whenFinished": "timeline.segment.next"` | `"whenFinished": { "action": "state.next" }` |
-| `player.timeline.segment.goTo()` · `.next()` · `.get()` | `player.state.goTo()` · `.next()` · `.get()` — `get()` is a list, one id per state machine |
-| the `segment` prop · `onSegmentChange` · Vue `segmentChange` | the `state` prop · `onStateChange` · Vue `stateChange` |
+| `"timeline.segment.goTo(intro)"` · `"timeline.segment.next"` · `.previous` | `{ "action": "flow.goTo", "flowStep": "intro" }` · `{ "action": "flow.next" }` · `flow.previous` |
+| a segment's `"whenFinished": "timeline.segment.next"` | `"whenFinished": { "action": "flow.next" }` |
+| `player.timeline.segment.goTo()` · `.next()` · `.get()` | `player.flow.goTo()` · `.next()` · `.get()` — `get()` is a list, one id per flow |
+| the `segment` prop · `onSegmentChange` · Vue `segmentChange` | the `flowStep` prop · `onFlowStepChange` · Vue `flowStepChange` |
 | a `"timeline.resume"` key with an empty list | not possible any more: with no `timeline.resume` rule, the resume is derived |
+| `"states"` · `"stateMachines"` · a rule's `"state"` / `"stateMachine"` · `state.goTo` (2026-11-20) | `"flowSteps"` · `"flows"` · `"flowStep"` / `"flow"` · `flow.goTo` |
+| `player.state` · the `state` prop · `onStateChange` · Vue `stateChange` | `player.flow` · the `flowStep` prop · `onFlowStepChange` · Vue `flowStepChange` |
+| two timelines played side by side by themselves | one flow of two steps — give the second a flow of its own (a step `{ "id": "…", "flow": "…", "timeline": "…" }`), or name both in the `timelines` prop |
 
 The `actionTriggers` prop and option take the list too. Stamped 1.28 files are converted on read — see
-[States](./playback-and-triggers.md#states--named-parts-of-a-timeline).
+[Flows](./playback-and-triggers.md#flows--named-steps-of-the-animation).
 
 **`playback.playOnce()` / `playback.jumpToStart()` / `playback.jumpToEnd()` is not a function; `src`, `doc`,
 `playUsingActionTriggers` or `onFinish` is not an option; `timeline.atEnd` is not read.** Changed in 1.26: the
@@ -232,8 +235,8 @@ first and the last frame are shown — `firstFrameWhen` / `lastFrameWhen`, from 
 **A trigger event does nothing, or the console warns about the triggers.** Each action names only
 the events that make sense for it — `timeline.start` and `timeline.play` never `hoverOut`, `timeline.stop` never `load` or `hoverIn`,
 `timeline.pause` and `timeline.resume` never `load` — and a rule with any other event is dropped (PX1110). A
-`state.goTo` naming a state the file does not have is ignored (PX1114), and so is a rule whose `timeline` or
-`stateMachine` names nothing (PX1116). What resumes a
+`flow.goTo` naming a step the file does not have is ignored (PX1114), and so is a rule whose `timeline` or
+`flow` names nothing (PX1116). What resumes a
 pause is derived unless the file names it (the counterpart of the `timeline.pause` event, plus the `timeline.start`
 events that do not stop it); named `timeline.resume` rules are honoured as written, and the player notes
 where it differs from that derivation (PX1111); `timeline.stop` on the
