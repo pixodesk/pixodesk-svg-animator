@@ -46,27 +46,24 @@ describe('animator.timelines?.[0] spelling compat', () => {
     // ── flatten: nested → the flat view every engine consumes ────────────────
 
     it('flattens a time timeline to the flat runtime keys (whenFinished → resetOnFinish + fill, iterationDirection → direction)', () => {
-        const actions = {
-            'timeline.stop': { behavior: 'animateToEnd' },
-            outOfView: { behavior: 'continue' },
-        } as const;
+        // 1.29: what the timeline does by itself is its own keys (`whenStopped`, `whenOutOfView`), carried flat
         const flat = resolveAnimatorTimeline({
             timelines: [{
                 type: 'time', outTime: 4000,
-whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
+                whenIdle: 'firstFrame', whenFinished: 'jumpToStart', whenStopped: 'animateToEnd', whenOutOfView: 'continue',
                 delay: 250, iterations: 'infinite', iterationDirection: 'alternate',
-                actions, inViewThreshold: 0.2, inViewDebounce: 80,
-            }], actionTriggers: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }]
+                inViewThreshold: 0.2, inViewDebounce: 80,
+            }], actions: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }]
         });
         expect(flat.timelines).toBeUndefined();
         expect(flat).toMatchObject({
             duration: 4000, delay: 250, iterations: 'infinite', direction: 'alternate',
             fill: 'backwards', resetOnFinish: true, whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
-            actions, inViewThreshold: 0.2, inViewDebounce: 80,
-            actionTriggers: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }]
+            whenStopped: 'animateToEnd', whenOutOfView: 'continue', inViewThreshold: 0.2, inViewDebounce: 80,
+            actions: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }]
         });
         // an EMPTY triggers block is copied as it is — it means "nothing starts it", not "the defaults"
-        expect(resolveAnimatorTimeline({ timelines: [{ }], actionTriggers: [] }).actionTriggers).toEqual([]);
+        expect(resolveAnimatorTimeline({ timelines: [{ }], actions: [] }).actions).toEqual([]);
     });
 
     it('the pre-1.3 `timeline.duration` and the pre-1.4 `trigger.finish` are NOT read — the wire steps convert stamped documents', () => {
@@ -112,7 +109,7 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
     });
 
     it('is identity for a flat runtime-view config and pure for a nested one', () => {
-        const flat: PxAnimatorRuntimeConfig = { duration: 1000, actionTriggers: [{ action: 'timeline.start', event: 'load' }] };
+        const flat: PxAnimatorRuntimeConfig = { duration: 1000, actions: [{ action: 'timeline.start', event: 'load' }] };
         expect(resolveAnimatorTimeline(flat)).toBe(flat);            // nothing to fold → same object
         const nested: PxAnimatorRuntimeConfig = { timelines: [{ delay: 5 }] };   // no `type` = time-driven
         // no memo since the prepare-document pipeline: an equal answer every call, not the same object
@@ -132,12 +129,12 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
     it('getAnimatorConfig DROPS flat playback keys found on a document — the wire states playback only inside `timeline`', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: untyped<PxAnimatorConfig>({ duration: 9999, actionTriggers: [{ action: 'timeline.start', event: 'load' }], fill: 'both', resetOnFinish: true }),
+            animator: untyped<PxAnimatorConfig>({ duration: 9999, actions: [{ action: 'timeline.start', event: 'load' }], fill: 'both', resetOnFinish: true }),
         });
 
         // the stray value never wins: the window resolves to the DEFAULT, not the dropped 9999
         expect(cfg?.duration).toBe(1000);
-        expect(cfg?.actionTriggers).toEqual([{ action: 'timeline.start', event: 'load' }]);   // not a flat key: the triggers' wire place since 2026-11-15
+        expect(cfg?.actions).toEqual([{ action: 'timeline.start', event: 'load' }]);   // not a flat key: the triggers' wire place since 2026-11-15
         expect(cfg?.fill).toBeUndefined();
         expect(cfg?.resetOnFinish).toBeUndefined();
     });
@@ -161,7 +158,7 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
     it('nests flat time keys under a type-less timeline (absent type = time); fill / resetOnFinish → the two wire settings', () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, engine: 'auto',
-            actionTriggers: [{ action: 'timeline.start', event: 'click' }], delay: 250, iterations: 3,
+            actions: [{ action: 'timeline.start', event: 'click' }], delay: 250, iterations: 3,
             direction: 'reverse', fill: 'none', resetOnFinish: true
         });
         expect(nested).toEqual({
@@ -170,7 +167,7 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
                 outTime: 4000,
                 whenFinished: 'jumpToStart',
                 delay: 250, iterations: 3, iterationDirection: 'reverse'
-            }], actionTriggers: [{ action: 'timeline.start', event: 'click' }]
+            }], actions: [{ action: 'timeline.start', event: 'click' }]
         });
         // the rest pose comes from `whenIdle`, or from `fill` alone; a held end writes no `whenFinished`
         expect(nestAnimatorTimeline({ whenIdle: 'static', fill: 'both' })).toEqual({ timelines: [{ whenIdle: 'static' }] });
@@ -182,7 +179,7 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
     it("nests flat scroll settings under timeline{type:'scroll'}; the dead clock keys (triggers, frame rate, …) do not survive", () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, timelineSource: 'scroll',
-            actionTriggers: [{ action: 'timeline.start', event: 'load' }],      // dead under scroll (D3) — dropped by nesting
+            actions: [{ action: 'timeline.start', event: 'load' }],      // dead under scroll (D3) — dropped by nesting
             frameRate: 30,                                      // no frame rate on a scroll timeline
             engine: 'native',
             scroll: { axis: 'horizontal', smoothing: 120, holdOnScreen: true, holdAt: 'center', holdOffset: 24,
@@ -229,14 +226,11 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
     it('round-trips: flatten(nest(flat)) reproduces the flat form', () => {
         const flat: PxAnimatorRuntimeConfig = {
             duration: 4000, frameRate: 60, engine: 'auto',
-            actionTriggers: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }], delay: 250,
+            actions: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }], delay: 250,
             iterations: 'infinite', direction: 'alternate',
             // the derived rest-pose view and its wire source, consistent with each other
             fill: 'backwards', resetOnFinish: true, whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
-            actions: {
-                'timeline.stop': { behavior: 'animateToEnd' },
-                outOfView: { behavior: 'continue' },
-            },
+            whenStopped: 'animateToEnd', whenOutOfView: 'continue',
             inViewThreshold: 0.2, inViewDebounce: 80,
         };
         expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat))).toEqual(flat);
@@ -259,7 +253,7 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
     });
 
     it("time timeline: `type: 'time'` and an absent type both validate; the retired 'clock' does not", () => {
-        for (const timeline of [{ type: 'time', outTime: 10 }, { outTime: 10, whenIdle: 'firstFrame', whenFinished: 'animateToStart', actions: { 'timeline.stop': { behavior: 'animateToStart' } } }]) {
+        for (const timeline of [{ type: 'time', outTime: 10 }, { outTime: 10, whenIdle: 'firstFrame', whenFinished: 'animateToStart', whenStopped: 'animateToStart' }]) {
             const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
             expect(PxAnimatorConfigSchema.isValid({ timelines: [timeline] }, ctx)).toBe(true);
             expect(ctx.errors).toEqual([]);
@@ -277,7 +271,7 @@ whenIdle: 'firstFrame', whenFinished: 'jumpToStart',
     it('the flat spelling is NOT wire format — flat playback keys are schema errors', () => {
         const clockCtx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            duration: 1000, actionTriggers: [{ action: 'timeline.start', event: 'load' }], iterations: 3, direction: 'normal'
+            duration: 1000, actions: [{ action: 'timeline.start', event: 'load' }], iterations: 3, direction: 'normal'
         }, clockCtx)).toBe(false);   // §2.8: flat duration is not wire either
         expect(clockCtx.errors.length).toBeGreaterThan(0);
 

@@ -32,12 +32,14 @@ function buttonDoc(): PxDocument {
             flowSteps: [
                 { id: 'idle', flow: 'pointer', timeline: 'grow', inTime: 0, outTime: 0 },
                 { id: 'hover', flow: 'pointer', timeline: 'grow' },
-                { id: 'press', flow: 'pointer', timeline: 'dip', whenFinished: { action: 'flow.goTo', flowStep: 'hover' } },
+                { id: 'press', flow: 'pointer', timeline: 'dip' },
             ],
             flows: [{ id: 'pointer' }],
-            actionTriggers: [
+            actions: [
                 { action: 'timeline.start', event: 'load' },
                 { action: 'flow.goTo', flowStep: 'press', event: 'click', element: '#btn' },
+                // 1.29: "at its end, go to hover" is an entry of the list
+                { action: 'flow.goTo', flowStep: 'hover', event: 'finished', from: 'press' },
             ],
         },
         children: [

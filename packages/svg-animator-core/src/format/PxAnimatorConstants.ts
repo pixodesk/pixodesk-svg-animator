@@ -21,7 +21,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActionTriggers, PxActionTriggerRule, PxActionTriggersInput, PxActions, PxFlowStep, PxTriggerEventObject, PxTriggerEventFilter, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActionTriggers, PxActionTriggerRule, PxActionTriggersInput, PxFlowStep, PxTriggerEventObject, PxTriggerEventFilter, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
 // (TYPES only from PxAnimatorTypes: it reads this module's constants while it loads.)
 import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
@@ -99,6 +99,18 @@ export const PxTriggerEvent = {
 
 export type PxTriggerEvent = typeof PxTriggerEvent[keyof typeof PxTriggerEvent];
 
+/** What a STEP does that an entry of `actions` may wait for (schema 1.29, 2026-11-22) — not a page event, so not in
+ *  {@link PxTriggerEvent}: nothing listens to the page for it. `finished` — the step (`from`) reached its end; a flow
+ *  action only (`{ "event": "finished", "from": "intro", "action": "flow.goTo", "flowStep": "loop" }`). WHY an event:
+ *  "at its end, go there" is a reaction like any other — one list says them all. @public */
+export const PxStepEvent = {
+    finished: 'finished',
+} as const;
+export type PxStepEvent = typeof PxStepEvent[keyof typeof PxStepEvent];
+
+/** An entry's event: a page event, or a step's. @public */
+export type PxActionEvent = PxTriggerEvent | PxStepEvent;
+
 /** One entry of a trigger list: an event word (the whole picture), or an event object — the word plus where it is
  *  heard (`element` of the picture, `selector` of the page) and the event's own fields it must have (`with`). @public */
 export type PxTriggerEventEntry = PxTriggerEvent | PxTriggerEventObject;
@@ -116,7 +128,7 @@ export type PxPointerType = typeof PxPointerType[keyof typeof PxPointerType];
 
 /** The state actions (2026-11-20; the segment actions `timeline.segment.*` until then): go to a state (`flow.goTo`
  *  with a `state`), to the next state of a state machine (after the last, the first) or the previous one. The `action`
- *  of a rule of `actionTriggers` and of a `whenFinished` object; the same name is the page's call
+ *  of a rule of `actions`; the same name is the page's call
  *  (`player.state.goTo('hover')`, `player.state.next()`). @public */
 export const PxFlowAction = {
     goTo:     'flow.goTo',
@@ -134,7 +146,7 @@ export const PxWhenLeaving = {
 } as const;
 export type PxWhenLeaving = typeof PxWhenLeaving[keyof typeof PxWhenLeaving];
 
-/** THE BUILT-IN ACTION NAMES — the one place they are spelled. Each is a key of `animator.actionTriggers` (its trigger
+/** THE BUILT-IN ACTION NAMES — the one place they are spelled. Each is the `action` of an entry of `animator.actions` (its
  *  list) and, for the one with settings, of `timeline.actions` (playback-layers.md, layers 0–1): `"timeline.start"` /
  *  `"timeline.stop"` bracket a PLAYBACK, `"timeline.pause"` / `"timeline.resume"` a FREEZE inside it, and
  *  `"timeline.play"` is start-or-carry-on (resumes a pause, turns a return around, starts otherwise);
@@ -152,7 +164,7 @@ export const PxTriggerList = {
 
 export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
 
-/** Every action a rule of `actionTriggers` may name — the playback's five and the three state actions. @public */
+/** Every action an entry of `actions` may name — the playback's five and the three flow actions. @public */
 export type PxActionName = PxTriggerList | PxFlowAction;
 
 /** The action names, in their order — the schema's list. @public @advanced */
@@ -184,9 +196,17 @@ export function allowedTriggerEvents(list: PxTriggerList): ReadonlyArray<PxTrigg
     }
 }
 
-/** Every event — what a state action may name (2026-11-15). @public @advanced */
+/** Every page event — what a flow action may name (2026-11-15). @public @advanced */
 export const PX_ALL_TRIGGER_EVENTS: ReadonlyArray<PxTriggerEvent> = [PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut,
     PxTriggerEvent.click, PxTriggerEvent.pointerDown, PxTriggerEvent.pointerUp, PxTriggerEvent.keyDown, PxTriggerEvent.keyUp];
+
+/** What a flow action may wait for: every page event, and a step's end (1.29). @public @advanced */
+export const PX_FLOW_ACTION_EVENTS: ReadonlyArray<PxActionEvent> = [...PX_ALL_TRIGGER_EVENTS, PxStepEvent.finished];
+
+/** True for a page event — the rest (a step's end) is the flow's, nothing listens to the page for it. @public @advanced */
+export function isPageEvent(event: PxActionEvent): event is PxTriggerEvent {
+    return event !== PxStepEvent.finished;
+}
 
 // @px-area control
 /** The event that undoes another — what resumes a pause: hoverIn ↔ hoverOut, click → click; `load` has none.
@@ -469,7 +489,7 @@ export const PX_TIMELINE_SHARED_KEYS = ['inTime', 'outTime', 'iterations', 'engi
 
 /** Timeline keys that exist ONLY on the time-driven member — a scroll timeline is moved by the scrolling, so nothing
  *  starts it, nothing delays it, nothing remaps its pace, and no frame rate applies (a frame is drawn when it moves). */
-export const PX_TIME_ONLY_TIMELINE_KEYS = ['actions', 'delay', 'playbackSpeed', 'iterationDirection', 'whenIdle',
+export const PX_TIME_ONLY_TIMELINE_KEYS = ['whenStopped', 'whenOutOfView', 'delay', 'playbackSpeed', 'iterationDirection', 'whenIdle',
     'inViewThreshold', 'inViewDebounce', 'frameRate'] as const;
 
 /**
@@ -547,7 +567,7 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
 /**
  * THE PLAYBACK DEFAULTS (playback-layers.md, layers 0–1) — what absent `actions` settings mean. One table,
  * stated by the schemas and applied by {@link resolveTriggers} / {@link resolveActions} / {@link resolveGate},
- * which every player calls — so a file behaves the same everywhere. No `start` row: an absent `actionTriggers`
+ * which every player calls — so a file behaves the same everywhere. No `start` row: an absent `actions`
  * block, like an empty one, names NO event (schema 1.17) — a file that plays by itself says `start: 'load'`.
  *   - stopPlayback `jumpToStart` · whenFinished `hold` — the two moves' presets
  *   - outOfView `pause` — an animation nobody can see does not run
@@ -556,7 +576,7 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
  * @public @advanced
  */
 export const PX_PLAYBACK_DEFAULTS = {
-    // no `timeline.start`: an absent `actionTriggers` block, like an empty one, names NO event — nothing plays until something
+    // no `timeline.start`: an absent `actions` list, like an empty one, names NO event — nothing plays until something
     // drives it; a file that plays by itself says `startPlayback: 'load'` (schema 1.17, dev-docs/reviews/schema-and-props--manual-review.md B2)
     stopPlaybackBehavior: 'jumpToStart',
     whenFinished: 'hold',
@@ -610,6 +630,10 @@ export interface PxTriggerEventSpec {
     readonly selector?: string;
     /** The event's own fields it must have. */
     readonly filter?: PxTriggerEventFilter;
+    /** Only while a flow is at one of these steps (the entry's `from`, 1.29) — none: at any step. */
+    readonly from?: ReadonlyArray<string>;
+    /** The entry's own manner (`behavior`, 1.29): a stop's, or a go-to's way of leaving. */
+    readonly behavior?: PxStopPlaybackBehavior | PxWhenLeaving;
 }
 
 /** One flow action and the entries that press it (2026-11-20). @public @advanced */
@@ -651,17 +675,18 @@ export const PxControlMode = {
     fixedTime: 'fixedTime',
     /** `playback` — the host holds the playback's position: `off` · `on` · `paused`. */
     playback:   'playback',
-    /** `disableActionTriggers` (or `actionTriggers: null`) — nothing fires by itself; code presses the buttons. */
+    /** `disableActions` (or `actions: null`) — nothing fires by itself; code presses the buttons. */
     manual:    'manual',
-    /** No control prop (the default) — the document's `actionTriggers` drive it, or the `actionTriggers` block given instead. */
-    actionTriggers: 'actionTriggers',
+    /** No control prop (the default) — the document's `actions` drive it, or the `actions` list given instead
+     *  (`actionTriggers` until 1.29). */
+    actions: 'actions',
 } as const;
 
 export type PxControlMode = typeof PxControlMode[keyof typeof PxControlMode];
 
 /**
  * The control props EVERY surface takes — the web player's options and the pre-rendered builds' too. Left out, all
- * three: the file's own `actionTriggers` drive it, the way the editor saved it. One at a time; a mix warns (PX1501).
+ * three: the file's own `actions` drive it, the way the editor saved it. One at a time; a mix warns (PX1501).
  * @public
  */
 export interface PxCommonControlProps {
@@ -671,17 +696,16 @@ export interface PxCommonControlProps {
      * Beats every other control prop.
      */
     showAsStatic?: boolean;
-    /** Manual: the file's `actionTriggers` are switched off, so nothing starts it by itself — your code presses the
-     *  buttons (`timeline.start()`, …). `actionTriggers: null` (or `{}`) says the same. */
-    disableActionTriggers?: boolean;
+    /** Manual: the file's `actions` are switched off, so nothing starts it by itself — your code presses the buttons
+     *  (`timeline.start()`, …). `actions: null` (or `[]`) says the same. (`disableActionTriggers` until 1.29.) */
+    disableActions?: boolean;
     /**
-     * The triggers to use INSTEAD of the file's `actionTriggers` — a REPLACEMENT of the whole block, as in the file:
-     * lists left out are not listed, never the file's values (the lists belong together: switching `hoverIn` →
-     * `click` wants other `pause` / `stop` lists too). `null` or `{}`: no triggers, the same as
-     * `disableActionTriggers`. Left out: the file's own. (`playerActionTriggers` until 2026-11-13, which also took
-     * `true` — now the default.)
+     * The entries to use INSTEAD of the file's `actions` — a REPLACEMENT of the whole list, as in the file: entries
+     * left out are not there, never the file's (they belong together: switching `hoverIn` → `click` wants other
+     * pause / stop entries too). `null` or `[]`: none, the same as `disableActions`. Left out: the file's own.
+     * (`actionTriggers` until 1.29.)
      */
-    actionTriggers?: PxActionTriggersInput | null;
+    actions?: PxActionTriggersInput | null;
 }
 
 /**
@@ -722,7 +746,7 @@ type PxOnlyControlProps<K extends keyof PxAnyControlProps> =
 
 /**
  * The control props every framework component takes — ONE driver family at a time, checked by TypeScript:
- * `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActionTriggers` · `actionTriggers`. None of
+ * `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActions` · `actions`. None of
  * them: the file's own triggers drive it. Two families at once do not compile; a JavaScript caller gets the precedence
  * of {@link resolveControlMode} and a PX1501 warning.
  * ONE definition (review §9) — React, Vue and React Native take it, so the hover text is what their users see.
@@ -733,8 +757,8 @@ export type PxControlProps =
     | PxOnlyControlProps<'showAtProgress'>
     | PxOnlyControlProps<'showAtTime'>
     | PxOnlyControlProps<'playback'>
-    | PxOnlyControlProps<'disableActionTriggers'>
-    | PxOnlyControlProps<'actionTriggers'>;
+    | PxOnlyControlProps<'disableActions'>
+    | PxOnlyControlProps<'actions'>;
 
 /** The positions of the `playback` prop — what a host can ASK for: `off` (no playback), `on` (a playback), `paused` (the playback
  *  frozen). The player's own readout, {@link PxPlaybackState}, says what it IS (`playing` or `finished` for `on`, plus the
@@ -761,8 +785,8 @@ interface PxControlTier {
     readonly mode: PxControlMode;
 }
 
-/** An `actionTriggers` value that IS a block — `null` (no triggers) and `undefined` (the file's own) are not. */
-function isActionTriggersBlock(value: PxActionTriggersInput | null | undefined): value is PxActionTriggersInput {
+/** An `actions` value that IS a list — `null` (none) and `undefined` (the file's own) are not. */
+function isActionsList(value: PxActionTriggersInput | null | undefined): value is PxActionTriggersInput {
     return typeof value === 'object' && value !== null;
 }
 
@@ -774,8 +798,8 @@ function isActionTriggersBlock(value: PxActionTriggersInput | null | undefined):
  *   1. `showAsStatic` — the picture as drawn; nothing may move it
  *   2. `showAtProgress` / `showAtTime` — an explicit position is the most precise instruction there is
  *   3. `playback` — the playback's position, held by the host
- *   4. `disableActionTriggers` (or `actionTriggers: null`) — manual: code presses the buttons
- *   5. otherwise `actionTriggers` — the file's own triggers, or the block given instead
+ *   4. `disableActions` (or `actions: null`) — manual: code presses the buttons
+ *   5. otherwise `actions` — the file's own, or the list given instead
  *
  * `playerRef` is absent on purpose. A ref is a handle, not an instruction: it is populated in
  * every mode, so a bare component + `playerRef` plays as the file says AND gives you the handle.
@@ -794,11 +818,11 @@ export function resolveControlMode(props: PxAnyControlProps): PxResolvedControlM
         { name: 'showAsStatic', given: !!props.showAsStatic, mode: PxControlMode.static },
         { name: 'showAtProgress/showAtTime', given: props.showAtProgress !== undefined || props.showAtTime !== undefined, mode: PxControlMode.fixedTime },
         { name: 'playback', given: props.playback !== undefined, mode: PxControlMode.playback },
-        { name: props.disableActionTriggers ? 'disableActionTriggers' : 'actionTriggers', given: !!props.disableActionTriggers || props.actionTriggers === null, mode: PxControlMode.manual },
-        { name: 'actionTriggers', given: isActionTriggersBlock(props.actionTriggers), mode: PxControlMode.actionTriggers },
+        { name: props.disableActions ? 'disableActions' : 'actions', given: !!props.disableActions || props.actions === null, mode: PxControlMode.manual },
+        { name: 'actions', given: isActionsList(props.actions), mode: PxControlMode.actions },
     ];
     const winner = tiers.find(t => t.given);
-    if (!winner) return { mode: PxControlMode.actionTriggers, warnings };
+    if (!winner) return { mode: PxControlMode.actions, warnings };
     for (const tier of tiers) {
         if (tier !== winner && tier.given) warnings.push(named(winner.name, tier.name, winner.name));
     }
@@ -810,12 +834,12 @@ export function resolveControlMode(props: PxAnyControlProps): PxResolvedControlM
  * True when the surface must take the document's triggers over — replaced by an EMPTY block
  * (`withoutTriggerDriver`), so nothing starts the animation by itself.
  *
- * Every mode except `actionTriggers` — the default, the one mode that says "let the triggers decide" (the file's, or
- * the block given). `static` takes them over too, and more: see `withStaticPicture`.
+ * Every mode except `actions` — the default, the one mode that says "let the entries decide" (the file's, or the list
+ * given). `static` takes them over too, and more: see `withStaticPicture`.
  * @public
  */
 export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
-    return mode !== PxControlMode.actionTriggers;
+    return mode !== PxControlMode.actions;
 }
 
 // @px-area control
@@ -862,7 +886,51 @@ export function triggerSpecOf(entry: PxTriggerEventEntry): PxTriggerEventSpec {
 function counterpartSpecOf(spec: PxTriggerEventSpec): PxTriggerEventSpec | undefined {
     const event = counterpartTriggerEvent(spec.event);
     if (event === undefined) return undefined;
-    return triggerSpecOf({ event, element: spec.element, selector: spec.selector, with: spec.filter });
+    // the resume a pause implies holds where the pause does (its `from`); a manner is the pause's own
+    return scopedSpecOf(triggerSpecOf({ event, element: spec.element, selector: spec.selector, with: spec.filter }), spec.from, undefined);
+}
+
+/** A spec limited to some steps and with a manner of its own — both are part of its key, so it is its own entry. */
+function scopedSpecOf(spec: PxTriggerEventSpec, from: ReadonlyArray<string> | undefined, behavior: PxStopPlaybackBehavior | PxWhenLeaving | undefined): PxTriggerEventSpec {
+    if (!from?.length && behavior === undefined) return spec;
+    const key = [spec.key, from?.length ? 'from:' + from.join(',') : '', behavior !== undefined ? 'how:' + behavior : ''].filter(Boolean).join('|');
+    const out: { -readonly [K in keyof PxTriggerEventSpec]: PxTriggerEventSpec[K] } = { ...spec, key };
+    if (from?.length) out.from = [...from];
+    if (behavior !== undefined) out.behavior = behavior;
+    return out;
+}
+
+/** The steps an entry is limited to (`from`) — undefined: none named, it holds at any step. @public @advanced */
+export function fromStepsOf(rule: Pick<PxActionTriggerRule, 'from'>): ReadonlyArray<string> | undefined {
+    const from = rule.from;
+    if (from === undefined) return undefined;
+    const list = (Array.isArray(from) ? from : [from]).filter((id): id is string => typeof id === 'string' && id !== '');
+    return list.length ? list : undefined;
+}
+
+/** An entry whose event is a page event — the only kind a page listens for. @public @advanced */
+export type PxPageEventRule = PxActionTriggerRule & { event: PxTriggerEvent };
+
+/** True when the entry waits for a page event, not for a step's end. @public @advanced */
+export function isPageEventRule(rule: PxActionTriggerRule): rule is PxPageEventRule {
+    return isPageEvent(rule.event);
+}
+
+/** An entry's spec — its event, where it is heard, its fields, its steps and its manner. @public @advanced */
+export function ruleSpecOf(rule: PxPageEventRule): PxTriggerEventSpec {
+    return scopedSpecOf(triggerSpecOf(ruleEventEntry(rule)), fromStepsOf(rule), rule.behavior);
+}
+
+/** The keys of `rules` an action's list may name ({@link allowedTriggerEvents}), each entry's spec recorded in `specs`. */
+function ruleKeysOf(allowed: ReadonlyArray<PxTriggerEvent>, rules: ReadonlyArray<PxActionTriggerRule>, specs: Map<string, PxTriggerEventSpec>): ReadonlyArray<string> {
+    const keys: Array<string> = [];
+    for (const rule of rules) {
+        if (!isPageEventRule(rule) || !allowed.includes(rule.event)) continue;
+        const spec = ruleSpecOf(rule);
+        specs.set(spec.key, spec);
+        if (!keys.includes(spec.key)) keys.push(spec.key);
+    }
+    return keys;
 }
 
 /** A list's entries that the list may name ({@link allowedTriggerEvents}) — the others are dropped — as keys, each
@@ -915,7 +983,7 @@ function isTriggerEvent(value: string): value is PxTriggerEvent {
 }
 
 /** A rule's event as a list entry — the bare word when it says nothing more, else the event object. @public @advanced */
-export function ruleEventEntry(rule: PxActionTriggerRule): PxTriggerEventEntry {
+export function ruleEventEntry(rule: PxPageEventRule): PxTriggerEventEntry {
     if (rule.element === undefined && rule.selector === undefined && rule.with === undefined) return rule.event;
     const entry: PxTriggerEventObject = { event: rule.event };
     if (rule.element !== undefined) entry.element = rule.element;
@@ -926,10 +994,10 @@ export function ruleEventEntry(rule: PxActionTriggerRule): PxTriggerEventEntry {
 
 /** The entries of the rules that name `action`, in the rules' order. @public @advanced */
 export function ruleEntriesOf(rules: ReadonlyArray<PxActionTriggerRule> | undefined, action: PxActionName): Array<PxTriggerEventEntry> {
-    return (Array.isArray(rules) ? rules : []).filter(r => r.action === action).map(ruleEventEntry);
+    return (Array.isArray(rules) ? rules : []).filter(r => r.action === action).filter(isPageEventRule).map(ruleEventEntry);
 }
 
-/** The rules as an `actionTriggers` list again, one per entry — the inverse of {@link ruleEntriesOf} for a playback
+/** The rules as an `actions` list again, one per entry — the inverse of {@link ruleEntriesOf} for a playback
  *  action. @public @advanced */
 export function rulesOfEntries(action: PxActionName, entries: PxTriggerEvents | undefined, refs?: { timeline?: string; flowStep?: string; flow?: string }): Array<PxActionTriggerRule> {
     return triggerEventList(entries).map((entry): PxActionTriggerRule => {
@@ -951,10 +1019,10 @@ export function rulesOfEntries(action: PxActionName, entries: PxTriggerEvents | 
  *  name are dropped ({@link triggerIssues} says which). `timeline.resume` is {@link derivedResume} unless a rule names
  *  it — then the rules are used as written. `stepIds`: the steps this player plays — a `flow.goTo` naming another
  *  is not read (`validateDocument` warns). @public @advanced */
-export function resolveTriggers(rules: PxActionTriggers | undefined, stepIds: ReadonlyArray<string> = []): PxResolvedTriggers {
+export function resolveTriggers(rules: ReadonlyArray<PxActionTriggerRule> | undefined, stepIds: ReadonlyArray<string> = []): PxResolvedTriggers {
     const specs = new Map<string, PxTriggerEventSpec>();
     if (!Array.isArray(rules)) return { startPlayback: [], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: [], flows: [], specs };
-    const listOf = (list: PxTriggerList): ReadonlyArray<string> => allowedKeysOf(allowedTriggerEvents(list), ruleEntriesOf(rules, list), specs);
+    const listOf = (list: PxTriggerList): ReadonlyArray<string> => ruleKeysOf(allowedTriggerEvents(list), rules.filter(r => r.action === list), specs);
     const startPlayback = listOf(PxTriggerList.startPlayback);
     const playPlayback = listOf(PxTriggerList.playPlayback);
     const stopPlayback = listOf(PxTriggerList.stopPlayback);
@@ -966,7 +1034,9 @@ export function resolveTriggers(rules: PxActionTriggers | undefined, stepIds: Re
         for (const rule of rules) {
             if (rule.action !== PxFlowAction.goTo && rule.action !== PxFlowAction.next && rule.action !== PxFlowAction.previous) continue;
             if (rule.action === PxFlowAction.goTo && (rule.flowStep === undefined || !stepIds.includes(rule.flowStep))) continue;
-            const spec = triggerSpecOf(ruleEventEntry(rule));
+            // a step's end is the flow's own (`atEndActionOf`) — no page event to listen for
+            if (!isPageEventRule(rule)) continue;
+            const spec = ruleSpecOf(rule);
             specs.set(spec.key, spec);
             const same = flows.find(t => t.action === rule.action && t.flowStep === rule.flowStep && t.flow === rule.flow);
             if (same) { if (!same.keys.includes(spec.key)) same.keys.push(spec.key); continue; }
@@ -1011,7 +1081,7 @@ export interface PxTriggerIssue {
 // @px-area control
 /** Every problem with a triggers list, for the players to warn about and the Editor to show — see
  *  {@link PxTriggerIssueKind}. An empty array is a clean list. @public @advanced */
-export function triggerIssues(rules: PxActionTriggers | undefined): Array<PxTriggerIssue> {
+export function triggerIssues(rules: ReadonlyArray<PxActionTriggerRule> | undefined): Array<PxTriggerIssue> {
     if (!Array.isArray(rules)) return [];
     const issues: Array<PxTriggerIssue> = [];
     const lists: ReadonlyArray<PxTriggerList> = [PxTriggerList.startPlayback, PxTriggerList.playPlayback, PxTriggerList.stopPlayback,
@@ -1048,23 +1118,13 @@ export function triggerIssues(rules: PxActionTriggers | undefined): Array<PxTrig
 }
 
 // @px-area control
-/** An action slot's settings: the word form (`'animateToStart'`) is exactly `{ behavior: 'animateToStart' }`; an absent slot stays absent.
- *  The one reader of the shorthand — every consumer goes through it (or {@link resolveActions}). @public @advanced */
-export function actionSettingsOf(slot: PxActions[typeof PxTriggerList.stopPlayback]): { behavior?: PxStopPlaybackBehavior } | undefined;
-export function actionSettingsOf(slot: PxActions['outOfView']): { behavior?: PxOutOfViewBehavior } | undefined;
-export function actionSettingsOf(slot: string | { behavior?: string } | undefined): { behavior?: string } | undefined {
-    return typeof slot === 'string' ? { behavior: slot } : slot;
-}
-
-// @px-area control
-/** A document's `actions` (and its `whenFinished`) with every default applied — see {@link PxResolvedActions}. @public @advanced */
-export function resolveActions(actions: PxActions | undefined, whenFinished?: PxWhenFinished): PxResolvedActions {
-    const stopPlayback = actionSettingsOf(actions?.[PxTriggerList.stopPlayback]);
-    const outOfView = actionSettingsOf(actions?.outOfView);
+/** What a timeline does by itself — `whenStopped`, `whenOutOfView`, `whenFinished` — with every default applied (1.29;
+ *  the `actions` block until then); `whenFinished` — the caller's, when it has a newer one (a step's). @public @advanced */
+export function resolveActions(cfg: Pick<PxAnimatorRuntimeConfig, 'whenStopped' | 'whenOutOfView' | 'whenFinished'> | undefined, whenFinished?: PxWhenFinished): PxResolvedActions {
     return {
-        stopPlayback:   { behavior: stopPlayback?.behavior ?? PX_PLAYBACK_DEFAULTS.stopPlaybackBehavior },
-        outOfView: { behavior: outOfView?.behavior ?? PX_PLAYBACK_DEFAULTS.outOfViewBehavior },
-        whenFinished: whenFinished ?? PX_PLAYBACK_DEFAULTS.whenFinished,
+        stopPlayback:   { behavior: cfg?.whenStopped ?? PX_PLAYBACK_DEFAULTS.stopPlaybackBehavior },
+        outOfView: { behavior: cfg?.whenOutOfView ?? PX_PLAYBACK_DEFAULTS.outOfViewBehavior },
+        whenFinished: whenFinished ?? cfg?.whenFinished ?? PX_PLAYBACK_DEFAULTS.whenFinished,
     };
 }
 
@@ -1079,9 +1139,9 @@ export interface PxResolvedGate {
 
 // @px-area control
 /** The gate of a runtime view, defaulted — see {@link PxResolvedGate}. @public @advanced */
-export function resolveGate(cfg: Pick<PxAnimatorRuntimeConfig, 'actions' | 'inViewThreshold' | 'inViewDebounce'> | undefined): PxResolvedGate {
+export function resolveGate(cfg: Pick<PxAnimatorRuntimeConfig, 'whenOutOfView' | 'inViewThreshold' | 'inViewDebounce'> | undefined): PxResolvedGate {
     return {
-        outOfView: actionSettingsOf(cfg?.actions?.outOfView)?.behavior ?? PX_PLAYBACK_DEFAULTS.outOfViewBehavior,
+        outOfView: cfg?.whenOutOfView ?? PX_PLAYBACK_DEFAULTS.outOfViewBehavior,
         inViewThreshold: cfg?.inViewThreshold ?? PX_PLAYBACK_DEFAULTS.inViewThreshold,
         inViewDebounce: cfg?.inViewDebounce ?? PX_PLAYBACK_DEFAULTS.inViewDebounce,
     };
@@ -1550,7 +1610,7 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
     // the rules sit at the animator's root (a rule may name any timeline or state); an EMPTY list means "nothing
     // starts it" — copied as it is
     // an unchecked document may carry anything there — what is not a list is no rules (the old map: nothing starts it)
-    if (cfg.actionTriggers !== undefined) flat.actionTriggers = Array.isArray(cfg.actionTriggers) ? [...cfg.actionTriggers] : [];
+    if (cfg.actions !== undefined) flat.actions = Array.isArray(cfg.actions) ? [...cfg.actions] : [];
     if (cfg.flowSteps !== undefined) flat.flowSteps = Array.isArray(cfg.flowSteps) ? [...cfg.flowSteps] : [];
 
     // `engine` is shared by every timeline type: how the attributes get updated.
@@ -1568,10 +1628,10 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         if (timeline.iterationDirection !== undefined) flat.direction = timeline.iterationDirection;
-        // the built-in actions' settings travel as their block; the engines' rest-pose view is derived from
-        // two of them: `fill` (CSS animation-fill-mode) and `resetOnFinish`
-        const actions = timeline.actions !== undefined ? expandedActions(timeline.actions) : undefined;
-        if (actions !== undefined && Object.keys(actions).length > 0) flat.actions = actions;
+        // what it does by itself travels as it is; the engines' rest-pose view is derived from two of them: `fill` (CSS
+        // animation-fill-mode) and `resetOnFinish`
+        if (timeline.whenStopped !== undefined) flat.whenStopped = timeline.whenStopped;
+        if (timeline.whenOutOfView !== undefined) flat.whenOutOfView = timeline.whenOutOfView;
         if (timeline.whenFinished !== undefined) { flat.whenFinished = timeline.whenFinished; flat.resetOnFinish = timeline.whenFinished === PxWhenFinished.jumpToStart; }
         if (timeline.whenIdle !== undefined) flat.whenIdle = timeline.whenIdle;
         if (timeline.whenIdle !== undefined || timeline.whenFinished !== undefined) flat.fill = fillModeOf(timeline.whenIdle, timeline.whenFinished);
@@ -1657,32 +1717,6 @@ export function fillModeOf(whenIdle: PxWhenIdle | undefined, whenFinished: PxWhe
     return before ? (after ? PxFillMode.both : PxFillMode.backwards) : (after ? PxFillMode.forwards : PxFillMode.none);
 }
 
-/** An `actions` block in its SETTINGS form — no word slots, the runtime view's spelling. */
-export type PxActionsSettings = { [K in keyof PxActions]?: Exclude<NonNullable<PxActions[K]>, string> };
-
-/** A copy of an `actions` block in its settings form: every slot through {@link actionSettingsOf} (the word
- *  `'animateToStart'` is exactly `{ behavior: 'animateToStart' }`); an EMPTY settings block says nothing (every field its default),
- *  so it is dropped. What `resolveAnimatorTimeline` hands the engines, so no reader meets the word form. */
-function expandedActions(actions: PxActions): PxActionsSettings {
-    const copy: PxActionsSettings = {};
-    const said = <T extends object>(slot: T | undefined): slot is T => slot !== undefined && Object.keys(slot).length > 0;
-    const stop = actionSettingsOf(actions[PxTriggerList.stopPlayback]); if (said(stop)) copy[PxTriggerList.stopPlayback] = { ...stop };
-    const outOfView = actionSettingsOf(actions.outOfView); if (said(outOfView)) copy.outOfView = { ...outOfView };
-    return copy;
-}
-
-/** The wire's canonical form — the SHORTEST exact spelling: a slot that says only `behavior` is the word itself
- *  (the rule `mergeTimeline` applies to a merged block as RULE 5). What `nestAnimatorTimeline` writes. */
-function compactedActions(actions: PxActions): PxActions {
-    const settings = expandedActions(actions);
-    const onlyBehavior = (slot: { behavior?: string }): boolean => slot.behavior !== undefined && Object.keys(slot).length === 1;
-    const copy: PxActions = {};
-    const stop = settings[PxTriggerList.stopPlayback];
-    if (stop !== undefined) copy[PxTriggerList.stopPlayback] = onlyBehavior(stop) ? stop.behavior : stop;
-    if (settings.outOfView !== undefined) copy.outOfView = onlyBehavior(settings.outOfView) ? settings.outOfView.behavior : settings.outOfView;
-    return copy;
-}
-
 /**
  * Converts a FLAT animator config into the written spelling: mode-specific keys fold into
  * one discriminated `timeline` object; the legacy flat keys are removed from the output.
@@ -1693,7 +1727,7 @@ function compactedActions(actions: PxActions): PxActions {
 export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorConfig {
     if (!cfg || cfg.timelines !== undefined) return cfg;
 
-    const { timelineSource, scroll, actionTriggers, actions, delay, iterations, direction, fill, resetOnFinish,
+    const { timelineSource, scroll, actions, whenStopped, whenOutOfView, delay, iterations, direction, fill, resetOnFinish,
             whenFinished, whenIdle, inViewThreshold, inViewDebounce, flowSteps, flows,
             duration, inTime, playbackSpeed, engine, frameRate, ...shared } = cfg;
     // the flow steps and the flows sit at the animator's root, beside the timelines
@@ -1742,9 +1776,9 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (delay !== undefined) timeline.delay = delay;
     if (iterations !== undefined) timeline.iterations = iterations;
     if (direction !== undefined) timeline.iterationDirection = direction;
-    // the actions block; the rest-pose view back to its two settings: `fill` / `resetOnFinish` → `whenFinished` and the rest pose
-    const compacted: PxActions = actions !== undefined ? compactedActions(actions) : {};
-    if (Object.keys(compacted).length > 0) timeline.actions = compacted;
+    // what it does by itself; the rest-pose view back to its two settings: `fill` / `resetOnFinish` → `whenFinished` and the rest pose
+    if (whenStopped !== undefined) timeline.whenStopped = whenStopped;
+    if (whenOutOfView !== undefined) timeline.whenOutOfView = whenOutOfView;
     if (whenFinished !== undefined) timeline.whenFinished = whenFinished;
     else if (resetOnFinish || fill === PxFillMode.none || fill === PxFillMode.backwards) timeline.whenFinished = PxWhenFinished.jumpToStart;
     if (whenIdle !== undefined) timeline.whenIdle = whenIdle;
@@ -1755,7 +1789,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     // An empty time timeline says nothing — omit the list entirely. The states, then the rules, sit beside it, at the root
     // (the order a person reads them in: what plays, its parts, what moves them).
     const nested = withFlowSteps(Object.keys(timeline).length > 0 ? { ...shared, timelines: [timeline] } : { ...shared });
-    if (actionTriggers !== undefined) nested.actionTriggers = [...actionTriggers];
+    if (actions !== undefined) nested.actions = [...actions];
     return nested;
 }
 

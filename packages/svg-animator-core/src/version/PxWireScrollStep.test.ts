@@ -142,9 +142,10 @@ describe('1.27 → 1.28: holding, the axis, the rest', () => {
         expect(converted({ outTime: 1000, actionTriggers: { 'playback.start': 'load' } })).toEqual({ outTime: 1000 });
         const moved = convertWireDocument(doc127({ outTime: 1000, actionTriggers: { 'playback.start': 'load' }, actions: { 'playback.stop': 'animateToStart' } })).doc;
         const animator = isRecord(moved) ? moved.animator : undefined;
-        expect(isRecord(animator) ? asTriggerMap(animator.actionTriggers) : undefined).toEqual({ 'timeline.start': 'load' });
+        // 1.29: the list is `actions`, the stop's manner the timeline's `whenStopped`
+        expect(isRecord(animator) ? asTriggerMap(animator.actions) : undefined).toEqual({ 'timeline.start': 'load' });
         const first = timelineRecordOf(animator);
-        expect(isRecord(first) ? first.actions : undefined).toEqual({ 'timeline.stop': 'animateToStart' });
+        expect(isRecord(first) ? first.whenStopped : undefined).toBe('animateToStart');
         const doc = convertWireDocument(doc127({ type: 'view', subject: '#a', range: { start: { phase: 'entry', fraction: 0.5 } } })).doc;
         expect(validateDocument(doc).errors).toEqual([]);
         expect(getAnimatorConfig(untyped<PxDocument>(doc))?.scroll).toEqual({ follows: 'pageDomElement', selector: '#a', firstFrameWhen: { moment: 'halfIn' } });

@@ -2,7 +2,7 @@ import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
 const animator = createSvgAnimationPlayer({
   document: '../../../../animation.json',
-  container: '#box',   // plays the way the file says; `disableActionTriggers: true` would wait for timeline.start()
+  container: '#box',   // plays the way the file says; `disableActions: true` would wait for timeline.start()
 });
 
 const $ = (id: string) => document.getElementById(id)!;

@@ -20,7 +20,7 @@
 //   `off` · `on` · `paused` — and a change between two of them is one or two buttons.
 // ============================================================================
 
-import type { PxActions, PxAnimationPlayerApi, PxEngineAnimationPlayerApi, PxPlayExecutor, PxTimelineControls, PxPlaybackListeners } from '../format/PxAnimatorTypes';
+import type { PxAnimationPlayerApi, PxEngineAnimationPlayerApi, PxPlayExecutor, PxTimelineControls, PxPlaybackListeners } from '../format/PxAnimatorTypes';
 import { PxWhenFinished, PxStopPlaybackBehavior, PxOutOfViewBehavior, PxPlaybackState, PxPlayback, type PxPlaybackDirection, resolveActions } from '../format/PxAnimatorConstants';
 import { iterationIndexOf, iterationTimeOf, isReversedIteration, runMsOf, totalDurationMs, type PxRunGeometry } from './PxPlaybackTime';
 import { NO_FLOW_CONTROLS, type PxFlowControls, type PxFlowRuntime } from './PxFlows';
@@ -44,7 +44,7 @@ export function resolvePlaybackWorld(iterations: number | 'infinite' | undefined
 export type PxPlayTarget = Pick<PxEngineAnimationPlayerApi,
     'play' | 'pause' | 'jumpToStart' | 'getPlaybackSpeed' | 'setPlaybackSpeed' | 'getTotalTime' | 'setTotalTime' | 'isPlaying'>;
 
-/** What the executor needs beside the api: the playback's geometry, the timeline's `actions` and its `whenFinished`. @public @advanced */
+/** What the executor needs beside the api: the playback's geometry, the timeline's `whenStopped` and its `whenFinished`. @public @advanced */
 export interface PxPlayExecutorConfig {
     /** One pass of the content window, ms (`getAnimatorConfig(doc).duration`). */
     passMs: number;
@@ -52,7 +52,8 @@ export interface PxPlayExecutorConfig {
     totalMs: number;
     /** Each pass's direction — a stop that finishes a pass played backwards is already at the start pose. */
     direction?: PxPlaybackDirection;
-    actions?: PxActions;
+    /** Where a stop takes the picture (`timeline.whenStopped`, 1.29) — an entry may say its own. */
+    whenStopped?: PxStopPlaybackBehavior;
     whenFinished?: PxWhenFinished;
 }
 
@@ -73,8 +74,8 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     const world = (): PxPlaybackWorld => { const g = geo(); return resolvePlaybackWorld(g.totalMs === Infinity ? 'infinite' : g.passMs > 0 ? g.totalMs / g.passMs : 1); };
     const passMsOf = (): number => Math.max(geo().passMs, 1);
     const iterationsOf = (): number => { const g = geo(); return g.passMs > 0 ? g.totalMs / g.passMs : 1; };
-    const stopBehavior = resolveActions(cfg.actions, cfg.whenFinished).stopPlayback.behavior;
-    const whenFinishedOf = (): PxWhenFinished => resolveActions(cfg.actions, geo().whenFinished).whenFinished;
+    const configuredStop = resolveActions(cfg).stopPlayback.behavior;
+    const whenFinishedOf = (): PxWhenFinished => resolveActions(cfg, geo().whenFinished).whenFinished;
     /** The player's playback events — told whenever a button's act is performed. */
     let listeners: PxPlaybackListeners | undefined;
     const tellStart = (): void => { listeners?.onPlaybackStart?.(); };
@@ -215,8 +216,10 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
         startPlayback();
     };
 
-    /** The configured stop. Nothing to stop when there is no playback (`off`, `returning`). */
-    const stopPlayback = (): void => {
+    /** The configured stop — or the manner an entry gives (`behavior`, 1.29). Nothing to stop when there is no playback
+     *  (`off`, `returning`). */
+    const stopPlayback = (behavior?: PxStopPlaybackBehavior): void => {
+        const stopBehavior = behavior ?? configuredStop;
         const was = state();
         if (was === PxPlaybackState.off || was === PxPlaybackState.returning) return;
         gateOwes = undefined;
@@ -407,7 +410,7 @@ export function applyDeclarativeAction(api: PxDeclarativeTarget, action: PxDecla
 // ── the composed api ───────────────────────────────────────────────────────────────────────
 
 /** The slice of the runtime view {@link composeApiExtras} reads. @public @advanced */
-export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions' | 'whenFinished'>, Pick<PxAnimatorRuntimeConfig, 'inTime' | 'timelineSource'> {
+export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'whenStopped' | 'whenFinished'>, Pick<PxAnimatorRuntimeConfig, 'inTime' | 'timelineSource'> {
     /** One pass of the content window, ms. */
     duration?: number;
     iterations?: number | 'infinite';
@@ -419,12 +422,12 @@ export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions' 
     playbackListeners?: PxPlaybackListeners;
 }
 
-/** The executor's geometry, `actions` and `whenFinished` from the runtime view. @public @advanced */
+/** The executor's geometry, `whenStopped` and `whenFinished` from the runtime view. @public @advanced */
 export function executorConfigOf(cfg: PxApiExtrasConfig): PxPlayExecutorConfig {
     const passMs = cfg.duration ?? 0;
     const iterations = cfg.iterations === 'infinite' ? Infinity : (typeof cfg.iterations === 'number' && cfg.iterations >= 1 ? cfg.iterations : 1);
     return {
-        passMs, totalMs: passMs * iterations, direction: cfg.direction, actions: cfg.actions, whenFinished: cfg.whenFinished,
+        passMs, totalMs: passMs * iterations, direction: cfg.direction, whenStopped: cfg.whenStopped, whenFinished: cfg.whenFinished,
     };
 }
 

@@ -59,7 +59,7 @@ export const CASES = [
 
   // -- Playback settings & triggers ---------------------------------------------
   { group: 'playback', id: 'override-web',   title: 'Overriding from the web player', anchor: 'overriding-from-a-player',
-    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; disableActionTriggers, so only timeline.start() starts it.' },
+    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; disableActions, so only timeline.start() starts it.' },
   { group: 'playback', id: 'override-react', title: 'Overriding from component props', anchor: 'overriding-from-a-player',
     summary: 'The `timeline` prop merges over the document\'s block: infinite iterations, alternate direction, the js engine.' },
 

@@ -28,7 +28,7 @@ export type { PxInfer, PxSchema, PxValidationContext } from '@pixodesk/svg-anima
 // `PxInternalAnimationPlayerOptions` = the public options + `adapter`, for the React and Vue packages only
 // (review §25.14) — a type so they can name what they pass; not an option of the public API.
 export type { PxAnimationPlayerOptions } from './animator/PxAnimator';
-export type { PxTimelineOptions, PxActionsInput } from '@pixodesk/svg-animator-core';
+export type { PxTimelineOptions } from '@pixodesk/svg-animator-core';
 export {
     PxAnimatorConfigSchema,
     PxTimelineEngineSetting,
@@ -36,7 +36,6 @@ export {
     PxNodeBaseSchema,
     PxSvgNodeRootSchema,
     PxActionTriggersSchema,
-    PxActionsSchema,
 } from '@pixodesk/svg-animator-core';
 
 // Types
@@ -52,7 +51,7 @@ export type {
     PxSvgNode,
     PxActionTriggers,
     PxActionTriggersInput,
-    PxActions,
+    PxActionEvent,
     PxTriggerEvent,
     PxTriggerEvents,
     PxStopPlaybackBehavior,

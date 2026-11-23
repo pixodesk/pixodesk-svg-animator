@@ -126,12 +126,12 @@ export function createFlowSwitch<P extends PxFlowStepPlayer>(o: PxFlowSwitchOpti
         o.raf(tick);
     };
 
-    /** A request to go to `target` — by the current step's way of leaving. */
-    const request = (target: number): void => {
+    /** A request to go to `target` — by the current step's way of leaving, or `how` (an entry's own, 1.29). */
+    const request = (target: number, how?: PxWhenLeaving): void => {
         if (target < 0 || target >= n || disposed) return;
         if (leaving) { leaving.target = target; return; }      // the newest request wins
         if (target === index) return;
-        const way = o.steps[index].whenLeaving;
+        const way = how ?? o.steps[index].whenLeaving;
         const state = player.playExecutor.state();
         const passMs = player.timeline.getDuration() ?? 0;
         const at = Math.max(player.getTotalTime() ?? 0, 0);
@@ -155,7 +155,7 @@ export function createFlowSwitch<P extends PxFlowStepPlayer>(o: PxFlowSwitchOpti
     const controls: PxFlowControls = {
         next: () => request((index + 1) % n),
         previous: () => request((index - 1 + n) % n),
-        goTo: (id: string) => request(indexOf(id)),
+        goTo: (id: string, how?: PxWhenLeaving) => request(indexOf(id), how),
         get: () => [o.steps[index].id],
         getAll: () => o.steps.map(s => s.id),
     };

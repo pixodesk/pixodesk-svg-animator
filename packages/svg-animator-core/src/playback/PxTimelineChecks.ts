@@ -12,7 +12,7 @@
 // | kind | when |
 // |---|---|
 // | `idDuplicate` | two timelines (also two with no id) or two flows share an id — the first wins |
-// | `referenceNotFound` | a step's or a rule's `timeline` / `flow`, a rule's `flowStep`, a track's `timeline` names nothing |
+// | `referenceNotFound` | a step's or an entry's `timeline` / `flow`, an entry's `flowStep` or `from`, a track's `timeline` names nothing |
 // | `timelineShared` | steps of two flows are on one timeline — the first flow keeps it |
 // | `partOfScrollTimeline` | a step is a part of a scroll timeline (`inTime` / `outTime`) — not read; the whole of one is a step |
 // | `attributeSplit` | an attribute (a node's transform parts count as one) is moved by two flows — the first wins |
@@ -100,8 +100,11 @@ export function timelineIssues(doc: PxDocument): Array<PxTimelineIssue> {
     }
 
     // the rules' references
-    for (const rule of listOf(animator.actionTriggers)) {
+    for (const rule of listOf(animator.actions)) {
         const action = typeof rule.action === 'string' ? rule.action : undefined;
+        // the steps an entry is limited to (1.29)
+        const from = typeof rule.from === 'string' ? [rule.from] : Array.isArray(rule.from) ? rule.from.filter((x): x is string => typeof x === 'string') : [];
+        for (const id of from) if (!stepIds.has(id)) notFound('from', id, action);
         if (typeof rule.timeline === 'string' && !timelineNames.has(rule.timeline)) notFound('timeline', rule.timeline, action);
         if (typeof rule.flow === 'string' && !flowIds.has(rule.flow)) notFound('flow', rule.flow, action);
         // a go-to naming no step is PX1114

@@ -967,7 +967,7 @@ class Arr<T> extends Base<Array<T>> {
 
 
 /** Array whose items `item` rejects are DROPPED whole — never repaired into another value (2026-11-20, the rules of
- *  `actionTriggers`: an unknown action or event repaired to the enum's first word would start the picture on load). */
+ *  `actions`: an unknown action or event repaired to the enum's first word would start the picture on load). */
 class ValidItems<T> extends Arr<T> {
     constructor(private readonly valid: PxSchema<T>) { super(valid); }
     override sanitize(raw: unknown): Array<T> {

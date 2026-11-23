@@ -174,12 +174,12 @@ describe("SvgAnimationPlayer (React)", () => {
 
         it("warns when two control tiers are set, naming both and the winner", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actions={[{ action: 'timeline.start', event: 'load' }]} />);
 
             const said = warn.mock.calls.map(c => c.map(String).join(" ")).join("\n");
             expect(said).toContain("PX" + PxDiagnosticCode.controlPropsConflict);
             expect(said).toContain("showAtProgress/showAtTime");
-            expect(said).toContain("actionTriggers");
+            expect(said).toContain("actions");
             expect(said).toContain("ignored");
             warn.mockRestore();
         });
@@ -234,17 +234,18 @@ describe("SvgAnimationPlayer (React)", () => {
             expect(apiRef.current?.timeline.getCurrentTime()).toBe(1000);
         });
 
-        it("an animateToStart stop (the actions prop): the off TRAVELS back from the current frame (the hover toggle)", () => {
+        it("an animateToStart stop (timelineOptions.whenStopped): the off TRAVELS back from the current frame (the hover toggle)", () => {
             const onPlaybackStart = vi.fn();
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
-            const back = { 'timeline.stop': { behavior: 'animateToStart' } } as const;
+            // 1.29: the stop behaviour is the timeline's `whenStopped` (was the `actions` prop's `timeline.stop` block)
+            const back = { whenStopped: 'animateToStart' } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer document={doc} playback="off" actions={back} playerRef={apiRef} onPlaybackStart={onPlaybackStart} />);
-            rerender(<SvgAnimationPlayer document={doc} playback="on" actions={back} playerRef={apiRef} onPlaybackStart={onPlaybackStart} />);
+                <SvgAnimationPlayer document={doc} playback="off" timelineOptions={back} playerRef={apiRef} onPlaybackStart={onPlaybackStart} />);
+            rerender(<SvgAnimationPlayer document={doc} playback="on" timelineOptions={back} playerRef={apiRef} onPlaybackStart={onPlaybackStart} />);
             vi.advanceTimersByTime(400);
 
-            rerender(<SvgAnimationPlayer document={doc} playback="off" actions={back} playerRef={apiRef} onPlaybackStart={onPlaybackStart} />);
+            rerender(<SvgAnimationPlayer document={doc} playback="off" timelineOptions={back} playerRef={apiRef} onPlaybackStart={onPlaybackStart} />);
             vi.advanceTimersByTime(32);
 
             expect(apiRef.current?.timeline.getCurrentTime() ?? 0).toBeGreaterThan(0);   // no snap — it turns around
@@ -279,15 +280,15 @@ describe("SvgAnimationPlayer (React)", () => {
         it("loop world: a stop that animates to the end finishes the pass first, then finish (jumpToStart) rests it", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
-            const loop = { iterations: 'infinite', whenFinished: 'jumpToStart' } as const;
-            const completing = { 'timeline.stop': 'animateToEnd' } as const;
+            // 1.29: `whenStopped` sits on the timeline options (was the `actions` prop's `timeline.stop` block)
+            const loop = { iterations: 'infinite', whenFinished: 'jumpToStart', whenStopped: 'animateToEnd' } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer document={doc} timelineOptions={loop} actions={completing} playback="off" playerRef={apiRef} />);
-            rerender(<SvgAnimationPlayer document={doc} timelineOptions={loop} actions={completing} playback="on" playerRef={apiRef} />);
+                <SvgAnimationPlayer document={doc} timelineOptions={loop} playback="off" playerRef={apiRef} />);
+            rerender(<SvgAnimationPlayer document={doc} timelineOptions={loop} playback="on" playerRef={apiRef} />);
             vi.advanceTimersByTime(300);
             expect(apiRef.current?.timeline.isPlaying()).toBe(true);
 
-            rerender(<SvgAnimationPlayer document={doc} timelineOptions={loop} actions={completing} playback="off" playerRef={apiRef} />);
+            rerender(<SvgAnimationPlayer document={doc} timelineOptions={loop} playback="off" playerRef={apiRef} />);
             vi.advanceTimersByTime(100);
             expect(apiRef.current?.timeline.isPlaying()).toBe(true);    // still finishing the iteration
             vi.advanceTimersByTime(1200);                      // past the boundary — the watcher landed it
@@ -312,9 +313,10 @@ describe("SvgAnimationPlayer (React)", () => {
             expect(onWarn2.mock.calls[0][0].code).toBe(PxDiagnosticCode.imperativeOverDeclarative);
         });
 
-        it("no misplaced modifiers remain: the actions prop warns nothing on a loop", () => {
+        it("no misplaced modifiers remain: whenStopped on a loop warns nothing", () => {
             const onWarning = vi.fn();
-            render(<SvgAnimationPlayer document={getTestJson1000()} timelineOptions={{ iterations: 'infinite' }} actions={{ "timeline.stop": { behavior: 'animateToStart' } }} playback="on" onWarning={onWarning} />);
+            // 1.29: was the `actions` prop's `timeline.stop` block
+            render(<SvgAnimationPlayer document={getTestJson1000()} timelineOptions={{ iterations: 'infinite', whenStopped: 'animateToStart' }} playback="on" onWarning={onWarning} />);
             expect(onWarning).not.toHaveBeenCalled();
         });
     });
@@ -326,7 +328,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarning = vi.fn();
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} onWarning={onWarning} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actions={[{ action: 'timeline.start', event: 'load' }]} onWarning={onWarning} />);
 
             expect(onWarning).toHaveBeenCalled();
             const d = onWarning.mock.calls[0][0];
@@ -342,7 +344,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("falls back to the console when no handler is given", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actions={[{ action: 'timeline.start', event: 'load' }]} />);
 
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
@@ -351,7 +353,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("suppressWarnings switches the console fallback off", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} suppressWarnings />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actions={[{ action: 'timeline.start', event: 'load' }]} suppressWarnings />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -361,7 +363,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
             // The control-mode conflict is a WARNING; muting errors leaves it audible.
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} suppressErrors />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actions={[{ action: 'timeline.start', event: 'load' }]} suppressErrors />);
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
         });
@@ -370,7 +372,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarning = vi.fn();
 
-            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actionTriggers={[{ action: 'timeline.start', event: 'load' }]} suppressWarnings onWarning={onWarning} />);
+            render(<SvgAnimationPlayer document={getTestJson()} showAtProgress={0.5} actions={[{ action: 'timeline.start', event: 'load' }]} suppressWarnings onWarning={onWarning} />);
 
             expect(onWarning).toHaveBeenCalled();
             expect(warn).not.toHaveBeenCalled();
@@ -384,7 +386,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackSpeed/isPlaying", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
             // manual: the file starts on load, so its triggers are switched off — the handle drives (1.26)
-            render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} disableActionTriggers />);
+            render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} disableActions />);
 
             const api = apiRef.current;
             expect(api).not.toBeNull();
@@ -429,7 +431,7 @@ describe("SvgAnimationPlayer (React)", () => {
                 onPlaybackFinish: vi.fn(), onDestroy: vi.fn(), onPlaybackStop: vi.fn(),
             };
             // manual (1.26): the file starts on load — switched off, so each callback counts only what the test presses
-            const utils = render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} disableActionTriggers {...spies} />);
+            const utils = render(<SvgAnimationPlayer document={getTestJson()} playerRef={apiRef} disableActions {...spies} />);
             return { apiRef, spies, ...utils };
         }
 
@@ -595,7 +597,7 @@ describe("SvgAnimationPlayer (React)", () => {
             return {
                 type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
                 animator: {
-                    timelines: [{ engine: "js", outTime: 1000 }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+                    timelines: [{ engine: "js", outTime: 1000 }], actions: [{ action: 'timeline.start', event: 'load' }],
                 },
                 children: [{
                     type: "rect", id: "r1", opacity: 0,
@@ -624,9 +626,9 @@ describe("SvgAnimationPlayer (React)", () => {
             expect(opacityNow()).toBe(1);
         });
 
-        it("an `actionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right", () => {
+        it("an `actions` object beside `showAtProgress`: the position wins (PX1501), the frame is right", () => {
             const onWarning = vi.fn();
-            render(<SvgAnimationPlayer document={wireJson()} showAtProgress={0.5} timelineOptions={{ outTime: 4000 }} actionTriggers={[{ action: 'timeline.start', event: 'click' }]} onWarning={onWarning} />);
+            render(<SvgAnimationPlayer document={wireJson()} showAtProgress={0.5} timelineOptions={{ outTime: 4000 }} actions={[{ action: 'timeline.start', event: 'click' }]} onWarning={onWarning} />);
             expect(opacityNow()).toBe(1);
             expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
         });
@@ -921,7 +923,7 @@ function getTestJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -961,7 +963,7 @@ function getTestJson1000(): PxDocument {
                 outTime: 1000,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -1027,7 +1029,7 @@ function getTreeJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -1082,7 +1084,7 @@ function getRectJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -1112,9 +1114,9 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timelines: [{
                 outTime: 1000,
-actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+whenOutOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }],
+            }], actions: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }],
             version: "1.9.1",
         },
         children: [
@@ -1177,9 +1179,9 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timelines: [{
                 outTime: 1000,
-actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+whenOutOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
             version: "1.9.1",
         },
         children: [
@@ -1217,7 +1219,7 @@ actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebou
     };
 }
 
-describe("SvgAnimationPlayer (React) — the file drives by default; disableActionTriggers, showAsStatic (2026-11-13)", () => {
+describe("SvgAnimationPlayer (React) — the file drives by default; disableActions, showAsStatic (2026-11-13)", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -1234,9 +1236,9 @@ describe("SvgAnimationPlayer (React) — the file drives by default; disableActi
         expect(onPlaybackStart).toHaveBeenCalledTimes(1);
     });
 
-    it("disableActionTriggers: still until the handle presses start", () => {
+    it("disableActions: still until the handle presses start", () => {
         const apiRef = createRef<PxAnimationPlayerHandle>();
-        render(<SvgAnimationPlayer document={getTestJson()} disableActionTriggers playerRef={apiRef} />);
+        render(<SvgAnimationPlayer document={getTestJson()} disableActions playerRef={apiRef} />);
         const ellipse = document.querySelector("ellipse");
         vi.advanceTimersByTime(300);
         expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");

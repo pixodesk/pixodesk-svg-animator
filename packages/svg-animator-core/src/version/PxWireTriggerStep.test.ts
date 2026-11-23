@@ -44,10 +44,11 @@ function timelineRecordOf(animator: unknown): unknown {
     return Array.isArray(animator.timelines) ? animator.timelines[0] : animator.timeline;
 }
 
-/** The animator's `actionTriggers` — at its root since the 1.28 amendment (2026-11-15), in the map form. */
+/** The animator's list — `actionTriggers` at its root since the 1.28 amendment (2026-11-15), `actions` since 1.29 — in the
+ *  map form. */
 function triggersOf(doc: unknown): unknown {
     const animator = isRecord(doc) ? doc.animator : undefined;
-    return isRecord(animator) ? asTriggerMap(animator.actionTriggers) : undefined;
+    return isRecord(animator) ? asTriggerMap(animator.actions ?? animator.actionTriggers) : undefined;
 }
 
 /** A document's raw first timeline record — throws when there is none (a failed expectation). */
@@ -67,6 +68,10 @@ const convertTo16 = (doc: unknown) => applyWireSteps(doc, { steps: STEPS_TO_1_6,
 /** Converts to 1.25 — the steps the next two blocks test, before 1.26 rewrote their words again (1.26 has no `down`). */
 const STEPS_TO_1_25 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.26'));
 const convertTo125 = (doc: unknown) => applyWireSteps(doc, { steps: STEPS_TO_1_25, target: { a: 1, b: 25, c: 0 }, readerReadsEditorPart: false });
+
+/** Converts to 1.28 — the 1.26 words these blocks test, before 1.29 moved the list and the slots (2026-11-22). */
+const STEPS_TO_1_28 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.29'));
+const convertTo128 = (doc: unknown) => applyWireSteps(doc, { steps: STEPS_TO_1_28, target: { a: 1, b: 28, c: 0 }, readerReadsEditorPart: false });
 
 describe('wire step 1.1 → 1.2 — the trigger block', () => {
 
@@ -366,8 +371,9 @@ describe('wire step 1.14 → 1.15 — `timeline.beforeStart` → `showWhenStoppe
         const chained = convertWireDocument(old).doc;
         expect(timelineOf(chained)).toEqual({
             // 1.26: the old default start carried on — a click is now `play`; `jumpToStart` out of view is `stop`;
-            // 1.28 (amended 2026-11-15): `timeline.*` names, the triggers at the animator's root
-            outTime: 1000, actions: { 'timeline.stop': 'animateToStart', outOfView: 'stop' }, whenIdle: 'firstFrame',
+            // 1.28 (amended 2026-11-15): `timeline.*` names, the triggers at the animator's root;
+            // 1.29: the list is `actions`, the two slots the timeline's `whenStopped` / `whenOutOfView`
+            outTime: 1000, whenStopped: 'animateToStart', whenOutOfView: 'stop', whenIdle: 'firstFrame',
         });
         expect(triggersOf(chained)).toEqual({ 'timeline.play': 'click', 'timeline.stop': 'click' });
     });
@@ -468,7 +474,7 @@ describe('wire step 1.24 → 1.25 — playback is the noun (animation-state.play
     });
 
     it('only 1.25 (and then 1.26) is applied to a 1.24 file; a file without lists or slots passes untouched', () => {
-        expect(convertWireDocument(at('1.24.1', runWords)).applied.map(s => s.to)).toEqual(['1.25', '1.26', '1.28']);   // 1.27 converts nothing up; 1.28 runs and leaves a time timeline as it is
+        expect(convertWireDocument(at('1.24.1', runWords)).applied.map(s => s.to)).toEqual(['1.25', '1.26', '1.28', '1.29']);   // 1.27 converts nothing up; 1.28 and 1.29 run
         expect(timelineOf(convertTo125(at('1.24.0', { iterations: 2 })).doc)).toEqual({ outTime: 1000, iterations: 2 });
     });
 });
@@ -478,32 +484,32 @@ describe('wire step 1.25 → 1.26 — state words and move words (animation-stat
     const at = (version: string, timeline: Record<string, unknown>) => ({ type: 'svg', animator: { version, timeline: { outTime: 1000, ...timeline } }, children: [] });
 
     it('`atEnd` → `whenFinished`, `outOfView: jumpToStart` → `stop` (word and settings form); other values unchanged', () => {
-        expect(timelineOf(convertWireDocument(at('1.25.0', { atEnd: 'animateToStart', actions: { outOfView: 'jumpToStart' } })).doc))
+        expect(timelineOf(convertTo128(at('1.25.0', { atEnd: 'animateToStart', actions: { outOfView: 'jumpToStart' } })).doc))
             .toEqual({ outTime: 1000, whenFinished: 'animateToStart', actions: { outOfView: 'stop' } });
-        expect(timelineOf(convertWireDocument(at('1.25.0', { actions: { outOfView: { behavior: 'jumpToStart' }, 'playback.stop': 'animateToEnd' } })).doc))
+        expect(timelineOf(convertTo128(at('1.25.0', { actions: { outOfView: { behavior: 'jumpToStart' }, 'playback.stop': 'animateToEnd' } })).doc))
             .toEqual({ outTime: 1000, actions: { outOfView: { behavior: 'stop' }, 'timeline.stop': 'animateToEnd' } });
     });
 
     it('the default `continue` start becomes `playback.play` for hover and click; `load` stays a start', () => {
-        const up = convertWireDocument(at('1.25.0', { actionTriggers: { 'playback.start': ['load', 'hoverIn'], 'playback.pause': 'hoverOut' } })).doc;
+        const up = convertTo128(at('1.25.0', { actionTriggers: { 'playback.start': ['load', 'hoverIn'], 'playback.pause': 'hoverOut' } })).doc;
         expect(triggersOf(up)).toEqual({ 'timeline.start': 'load', 'timeline.play': 'hoverIn', 'timeline.pause': 'hoverOut' });
-        const said = convertWireDocument(at('1.25.0', { actionTriggers: { 'playback.start': 'click' }, actions: { 'playback.start': 'continue' } })).doc;
+        const said = convertTo128(at('1.25.0', { actionTriggers: { 'playback.start': 'click' }, actions: { 'playback.start': 'continue' } })).doc;
         expect(triggersOf(said)).toEqual({ 'timeline.play': 'click' });
-        const load = convertWireDocument(at('1.25.0', { actionTriggers: { 'playback.start': 'load' } })).doc;
+        const load = convertTo128(at('1.25.0', { actionTriggers: { 'playback.start': 'load' } })).doc;
         expect(triggersOf(load)).toEqual({ 'timeline.start': 'load' });
     });
 
     it('a `jumpToStart` or `jumpToEnd` start keeps its lists as starts (they restart now); the slot leaves the file', () => {
-        const restart = convertWireDocument(at('1.25.0', { actionTriggers: { 'playback.start': 'hoverIn' }, actions: { 'playback.start': { behavior: 'jumpToStart' } }, atEnd: 'jumpToStart' })).doc;
+        const restart = convertTo128(at('1.25.0', { actionTriggers: { 'playback.start': 'hoverIn' }, actions: { 'playback.start': { behavior: 'jumpToStart' } }, atEnd: 'jumpToStart' })).doc;
         expect(timelineOf(restart)).toEqual({ outTime: 1000, whenFinished: 'jumpToStart' });
         expect(triggersOf(restart)).toEqual({ 'timeline.start': 'hoverIn' });
-        const toEnd = convertWireDocument(at('1.25.0', { actionTriggers: { 'playback.start': 'click' }, actions: { 'playback.start': 'jumpToEnd', 'playback.stop': 'animateToStart' } })).doc;
+        const toEnd = convertTo128(at('1.25.0', { actionTriggers: { 'playback.start': 'click' }, actions: { 'playback.start': 'jumpToEnd', 'playback.stop': 'animateToStart' } })).doc;
         expect(timelineOf(toEnd)).toEqual({ outTime: 1000, actions: { 'timeline.stop': 'animateToStart' } });
         expect(triggersOf(toEnd)).toEqual({ 'timeline.start': 'click' });
     });
 
     it('only 1.26 is applied to a 1.25 file, and it has no way back', () => {
-        expect(convertWireDocument(at('1.25.1', { atEnd: 'hold' })).applied.map(s => s.to)).toEqual(['1.26', '1.28']);   // 1.28 runs and leaves a time timeline as it is
+        expect(convertWireDocument(at('1.25.1', { atEnd: 'hold' })).applied.map(s => s.to)).toEqual(['1.26', '1.28', '1.29']);   // 1.28 and 1.29 run
         const result = applyWireStepsDown(at('1.26.0', { whenFinished: 'hold' }), { steps: PX_WIRE_STEPS, target: { a: 1, b: 25, c: 0 }, readerReadsEditorPart: false });
         expect(result.ok).toBe(false);
     });

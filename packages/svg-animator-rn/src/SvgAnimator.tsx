@@ -320,8 +320,8 @@ function compileStep(compiled: Compiled, stepIndex: number): Compiled {
  * @public
  */
 export function SvgAnimationPlayer({
-    document: doc, timelineOptions, actions,
-    showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers, playerRef, variables, variant, flows, timelines,
+    document: doc, timelineOptions,
+    showAsStatic, showAtProgress, showAtTime, playback, disableActions, actions, playerRef, variables, variant, flows, timelines,
     onReady, onPlaybackStart, onPlaybackStop, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onDestroy, onError, fallback, onWarning, suppressWarnings, suppressErrors,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
@@ -330,7 +330,7 @@ export function SvgAnimationPlayer({
     // The override props are objects: a fresh literal every render would otherwise recompile the
     // whole document (materialize + compile tracks), which is the expensive path. Key on their
     // CONTENT instead — the override is small, the document is not.
-    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, actionTriggers ?? null, flows ?? null, timelines ?? null]);
+    const overrideKey = JSON.stringify([timelineOptions ?? null, actions ?? null, flows ?? null, timelines ?? null]);
 
     // A re-created `doc` with the same content keeps the compiled tracks (core `deepEquals`, as in React and Vue).
     const docRef = useRef(doc);
@@ -355,8 +355,8 @@ export function SvgAnimationPlayer({
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers });
-    /** The file's triggers (or the `actionTriggers` block) are wired — load, tap, the visibility gate — only in the
+        resolveControlMode({ showAsStatic, showAtProgress, showAtTime, playback, disableActions, actions });
+    /** The file's entries (or the `actions` list given) are wired — load, tap, the visibility gate — only in the
      *  default mode; every other mode leaves them to its own driver. */
     const triggersDrive = !controlModeTakesOverTrigger(compMode);
 
@@ -396,7 +396,7 @@ export function SvgAnimationPlayer({
         try {
             return compileDocument(
                 runtime.resolvedDocument(false),
-                { timelineOptions, actions, actionTriggers },
+                { timelineOptions, actions },
                 compMode === PxControlMode.playback,
                 makeDiag(),
                 { flows, timelines },
@@ -410,11 +410,11 @@ export function SvgAnimationPlayer({
         }
         // `timelineOptions` / `actions` are object props, so a fresh literal each render would recompile the whole
         // document. Key on their CONTENT — the override is small, unlike the document.
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- `overrideKey` stands for `timelineOptions`, `actions` and `actionTriggers`; `makeDiag` is rebuilt per render on purpose (above)
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `overrideKey` stands for `timelineOptions` and `actions`; `makeDiag` is rebuilt per render on purpose (above)
     }, [runtime, overrideKey, compMode, variablesVersion]);
 
     // Flows (2026-11-22): the first flow's current step — its own document and tracks; a new document starts at its first step
-    const switchSteps = useMemo(() => (whole.plan ? switchStepsOf(whole.plan.units[0], whole.plan) : []), [whole]);
+    const switchSteps = useMemo(() => (whole.plan ? switchStepsOf(whole.plan.units[0], whole.plan, (whole.doc ? getAnimatorConfig(whole.doc)?.actions : undefined) ?? []) : []), [whole]);
     const [step, setStep] = useState<{ of: Compiled; index: number }>({ of: whole, index: 0 });
     const stepIndex = step.of === whole ? step.index : Math.max(0, switchSteps.findIndex(s => s.initial));
     const compiled = useMemo(() => compileStep(whole, stepIndex), [whole, stepIndex]);
@@ -641,13 +641,13 @@ export function SvgAnimationPlayer({
 
     // -- Declarative control --------------------------------------------------
 
-    // The EFFECTIVE triggers and gate, read back off the COMPILED document's runtime view — so they
-    // already reflect the `timelineOptions` / `actions` overrides and an `actionTriggers` block, all applied before
+    // The EFFECTIVE entries and gate, read back off the COMPILED document's runtime view — so they
+    // already reflect the `timelineOptions` override and an `actions` list given, all applied before
     // compilation. Resolved through core's one table, so a document means the same here as on the
-    // web: no triggers block = `start: 'load'`, no `actions.outOfView` = 'pause'.
-    const trigger = resolveTriggers(view?.actionTriggers);
+    // web: no `whenOutOfView` = 'pause'.
+    const trigger = resolveTriggers(view?.actions);
     const gate = resolveGate(view);
-    const whenFinished = resolveActions(view?.actions, view?.whenFinished).whenFinished;
+    const whenFinished = resolveActions(view).whenFinished;
     /** What a `load` presses — a start, a play, or nothing. */
     const loadPress = trigger.startPlayback.includes(PxTriggerEvent.load) ? () => player.timeline.start()
         : trigger.playPlayback.includes(PxTriggerEvent.load) ? () => player.timeline.play() : undefined;

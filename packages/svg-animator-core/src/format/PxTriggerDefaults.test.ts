@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { describeSchema } from '../schema/PxSchema';
 import { allowedTriggerEvents, counterpartTriggerEvent, PxWhenFinished, derivedResume, PX_PLAYBACK_DEFAULTS, PxPlaybackState, PxTriggerAction, PxTriggerIssueKind, PxTriggerList, resolveActions, resolveGate, resolveTriggers, triggerActionFor, triggerEventList, triggerIssues, triggerListsEvent } from './PxAnimatorConstants';
-import { PxActionsSchema, PxOutOfViewActionSchema, PxTimeTimelineSchema, PxActionTriggersSchema, type PxActionTriggers } from './PxAnimatorTypes';
+import { PxTimeTimelineSchema, PxActionTriggersSchema, type PxActionTriggers } from './PxAnimatorTypes';
 
 /** The five playback lists of the resolved block — entry keys; a bare word's key is the word. Since 2026-11-15 the
  *  resolved view also carries `segments` and `specs` (the segment triggers, what each key listens for). */
@@ -184,15 +184,16 @@ describe('trigger defaults', () => {
 
     it('the gate defaults from the one table, read off the runtime view', () => {
         expect(resolveGate(undefined)).toEqual({ outOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150 });
-        expect(resolveGate({ actions: { outOfView: { behavior: 'stop' } }, inViewThreshold: 0 })).toEqual({ outOfView: 'stop', inViewThreshold: 0, inViewDebounce: 150 });
+        expect(resolveGate({ whenOutOfView: 'stop', inViewThreshold: 0 })).toEqual({ outOfView: 'stop', inViewThreshold: 0, inViewDebounce: 150 });
     });
 
     it('the actions default from the one table, each field on its own', () => {
         expect(resolveActions(undefined)).toEqual({
             stopPlayback: { behavior: 'jumpToStart' }, outOfView: { behavior: 'pause' }, whenFinished: 'hold',
         });
-        expect(resolveActions({ 'timeline.stop': 'animateToEnd' }).stopPlayback).toEqual({ behavior: 'animateToEnd' });
-        expect(resolveActions({ 'timeline.stop': { behavior: 'animateToEndAndBack' } }).stopPlayback.behavior).toBe('animateToEndAndBack');
+        // 1.29: the timeline's `whenStopped` / `whenOutOfView` (the `actions` block until then)
+        expect(resolveActions({ whenStopped: 'animateToEnd' }).stopPlayback).toEqual({ behavior: 'animateToEnd' });
+        expect(resolveActions({ whenOutOfView: 'continue' }).outOfView.behavior).toBe('continue');
         expect(resolveActions(undefined, 'animateToStart').whenFinished).toBe('animateToStart');
     });
 
@@ -201,14 +202,11 @@ describe('trigger defaults', () => {
         expect(listsOf(undefined).startPlayback).toEqual([]);
     });
 
+    // 1.29: `whenOutOfView` / `whenStopped` on the timeline (the `actions` block until then)
     it('the schema declares the same outOfView default the players apply — the one that makes `load` safe', () => {
-        const outOfView = describeSchema(PxOutOfViewActionSchema);
-        if (outOfView.kind !== 'shape') throw new Error('PxOutOfViewActionSchema is not an object schema');
-        const transition = describeSchema(outOfView.shape.behavior);
-        if (transition.kind !== 'optional') throw new Error('actions.outOfView.behavior is not optional');
-        expect(transition.inner._default).toBe(PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
-        expect(PxOutOfViewActionSchema.defaults.behavior).toBe('pause');
-        expect(PxActionsSchema.defaults).toEqual({});
+        expect(PxTimeTimelineSchema.defaults.whenOutOfView).toBe(PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
+        expect(PxTimeTimelineSchema.defaults.whenOutOfView).toBe('pause');
+        expect(PxTimeTimelineSchema.defaults.whenStopped).toBe(PX_PLAYBACK_DEFAULTS.stopPlaybackBehavior);
         expect(PxTimeTimelineSchema.defaults.whenIdle).toBe('static');
     });
 });

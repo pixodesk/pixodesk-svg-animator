@@ -93,10 +93,9 @@ player.destroy();             // cleanup
 | `onReady` · `onPlaybackStart` · `onPlaybackStop` · `onPlaybackPause` · `onPlaybackResume` · `onPlaybackFinish` · `onDestroy` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`; the `onPlayback…` callbacks are the playback's events, told when the act is performed; `onPlaybackFinish` only when the last pass ends by playing); plus `onWarning`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlaybackStart,onPlaybackStop,onPlaybackPause,onPlaybackResume,onPlaybackFinish,onDestroy,onWarning,onError,suppressWarnings,suppressErrors -->
 | `onFlowStepChange` | `(flowStep: string, previous: string, flow: string) => void` | a flow went to another [step](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation); `flow` is its id, `default` for the flow `default` |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says: no triggers, no scroll; every playback call is ignored with a warning (PX1506). Beats every other option |
-| `disableActionTriggers` | `boolean` | manual: the file's triggers are switched off — nothing starts by itself, the returned api drives playback |
-| `actionTriggers` | `PxActionTriggersInput \| null` | the rules to use instead of the file's — the whole list, `[{ action: 'timeline.start', event: 'load' }]` (a rule left out is not there); `null` or `[]`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
-| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline (minus `actionTriggers` and `actions`), merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'timeline.stop': 'animateToStart' }`, and the gate's `outOfView`; a setting left out reads its default (what a finished playback shows, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `disableActions` | `boolean` | manual: the file's triggers are switched off — nothing starts by itself, the returned api drives playback |
+| `actions` | `PxActionTriggersInput \| null` | the rules to use instead of the file's — the whole list, `[{ action: 'timeline.start', event: 'load' }]` (a rule left out is not there); `null` or `[]`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
+| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline (how a stop looks too: `{ whenStopped: 'animateToStart' }`), merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; applied before the first paint. See [Variables](../../docs/library/variables.md) |
 | `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
 | `cssVariables` | `boolean \| Record<string, string>` | deliver variables as CSS custom properties (`fill: var(--bg, #2a7fff)`), so the page's stylesheet sets them: `true`, or a map with a `"*"` pattern — `{ '*': 'card-*', bg: 'brand-primary' }` |
@@ -110,7 +109,7 @@ const player = createSvgAnimationPlayer({
   document: '/animation.json',
   container: '#box',
   timelineOptions: { iterations: 'infinite' },
-  disableActionTriggers: true,   // the file's triggers off: nothing starts until timeline.start()
+  disableActions: true,   // the file's triggers off: nothing starts until timeline.start()
 });
 player.timeline.start();
 ```

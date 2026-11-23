@@ -84,11 +84,11 @@ const motionPathDoc: PxDocument = {
     ],
 };
 
-// `disableActionTriggers: true` switches the file's own triggers off — then only the Play / Pause buttons drive it.
-const DEMOS: Array<{ name: string; doc: PxDocument; disableActionTriggers: boolean }> = [
-    { name: 'Animated', doc: animatedDoc, disableActionTriggers: false },
-    { name: 'Motion path', doc: motionPathDoc, disableActionTriggers: false },
-    { name: 'Static', doc: staticDoc, disableActionTriggers: true },
+// `disableActions: true` switches the file's own triggers off — then only the Play / Pause buttons drive it.
+const DEMOS: Array<{ name: string; doc: PxDocument; disableActions: boolean }> = [
+    { name: 'Animated', doc: animatedDoc, disableActions: false },
+    { name: 'Motion path', doc: motionPathDoc, disableActions: false },
+    { name: 'Static', doc: staticDoc, disableActions: true },
 ];
 
 export default function AppPlayer() {
@@ -113,7 +113,7 @@ export default function AppPlayer() {
                 <SvgAnimationPlayer
                     key={demo}
                     document={current.doc}
-                    disableActionTriggers={current.disableActionTriggers}
+                    disableActions={current.disableActions}
                     playerRef={api}
                 />
             </View>

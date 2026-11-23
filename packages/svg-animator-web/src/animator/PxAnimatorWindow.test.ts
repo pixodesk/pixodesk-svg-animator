@@ -10,10 +10,10 @@ import { createSvgAnimationPlayer } from '../index';
 import type { PxActionTriggers, PxDocument } from '@pixodesk/svg-animator-core';
 
 /** Opacity 0 → 1 over content 500…1500 ms; keyframes also exist OUTSIDE the window below. */
-function windowDoc(extra: Record<string, unknown> = {}, actionTriggers?: PxActionTriggers): PxDocument {
+function windowDoc(extra: Record<string, unknown> = {}, actions?: PxActionTriggers): PxDocument {
     return {
         type: 'svg', viewBox: '0 0 10 10',
-        animator: { timelines: [{ engine: 'js', inTime: 500, outTime: 1500, ...extra }], ...(actionTriggers ? { actionTriggers } : {}) },
+        animator: { timelines: [{ engine: 'js', inTime: 500, outTime: 1500, ...extra }], ...(actions ? { actions } : {}) },
         children: [{
             type: 'rect', id: 'r', width: 10, height: 10,
             animate: { opacity: { keyframes: [

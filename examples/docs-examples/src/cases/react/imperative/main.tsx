@@ -15,8 +15,8 @@ function App() {
         <button onClick={() => api.current?.timeline.setCurrentProgress(1)}>timeline.setCurrentProgress(1)</button>
       </div>
       <div className="stage">
-        {/* disableActionTriggers: the file's own trigger is off, so only these buttons start it */}
-        <SvgAnimationPlayer document={animation as any} disableActionTriggers playerRef={api} />
+        {/* disableActions: the file's own trigger is off, so only these buttons start it */}
+        <SvgAnimationPlayer document={animation as any} disableActions playerRef={api} />
       </div>
     </>
   );

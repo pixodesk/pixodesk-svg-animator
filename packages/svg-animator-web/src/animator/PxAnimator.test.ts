@@ -122,7 +122,7 @@ describe('createSvgAnimationPlayer', () => {
     it('a load trigger on an ungated document reports onPlaybackStart — the listeners are attached before the engine presses the first button', () => {
         const onPlaybackStart = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timelines: [{ engine: 'js', outTime: DUR, actions: { outOfView: 'continue' } }], actionTriggers: [{ action: 'timeline.start', event: 'load' }] };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR, whenOutOfView: 'continue' }], actions: [{ action: 'timeline.start', event: 'load' }] };
         const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container', onPlaybackStart });
         window.dispatchEvent(new Event('load'));     // a no-op when the document was already complete at creation
 
@@ -133,7 +133,7 @@ describe('createSvgAnimationPlayer', () => {
     it('takes the callbacks INLINE; onPlaybackStop fires on the built-in stop only — a pause is onPlaybackPause, a resume onPlaybackResume, the end onPlaybackFinish', () => {
         const onPlaybackStart = vi.fn(), onPlaybackPause = vi.fn(), onPlaybackResume = vi.fn(), onPlaybackFinish = vi.fn(), onPlaybackStop = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actionTriggers: [] };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actions: [] };
         const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container', onPlaybackStart, onPlaybackPause, onPlaybackResume, onPlaybackFinish, onPlaybackStop });
 
         api.timeline.start();
@@ -173,7 +173,7 @@ describe('createSvgAnimationPlayer', () => {
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
-        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actionTriggers: [] };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actions: [] };
         const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container' });
         expect(api.timeline.isPlaying()).toBe(false);
     });
@@ -183,7 +183,7 @@ describe('createSvgAnimationPlayer', () => {
         // load, which would fire `onPlay` a second time and hide this test's subject — that a
         // control call made before the fetch resolves is queued and replayed exactly once.
         const doc = makeDoc();
-        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actionTriggers: [] };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR }], actions: [] };
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
@@ -438,7 +438,7 @@ describe('createSvgAnimationPlayersFromPage', () => {
 
         // One trigger block for every player — start on click, not on load — plus an inline callback: both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ actionTriggers: [{ action: 'timeline.start', event: 'click' }], onPlaybackStart: onPlay });
+        createSvgAnimationPlayersFromPage({ actions: [{ action: 'timeline.start', event: 'click' }], onPlaybackStart: onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-document]'))

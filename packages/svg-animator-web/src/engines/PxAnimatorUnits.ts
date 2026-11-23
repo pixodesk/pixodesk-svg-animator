@@ -76,7 +76,7 @@ function bindUnit(
     const { onPlaybackFinish, onFlowStepChange, ...stepCallbacks } = callbacks ?? {};
     const flowSwitch = createFlowSwitch<PxBoundPlayerApi>({
         flow: unit.flow ?? plan.timelines[unit.steps[0].timeline].name,
-        steps: switchStepsOf(unit, plan),
+        steps: switchStepsOf(unit, plan, getAnimatorConfig(doc)?.actions ?? []),
         raf: webRaf,
         onChange: (flowStep, previous, flow) => onFlowStepChange?.(flowStep, previous, flow),
         onPlaybackFinish: () => onPlaybackFinish?.(),

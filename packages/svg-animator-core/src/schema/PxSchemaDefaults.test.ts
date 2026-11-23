@@ -14,7 +14,7 @@ import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_
 import {
     PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxHoldOnScreenSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
-    PxTimeTimelineSchema, PxActionTriggersSchema, PxStopPlaybackActionSchema, PxOutOfViewActionSchema, type PxDocument, type PxActionTriggers,
+    PxTimeTimelineSchema, PxActionTriggersSchema, type PxDocument, type PxActionTriggers,
 } from '../format/PxAnimatorTypes';
 import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
 import { untyped } from '../effects/effectTestKit';
@@ -66,9 +66,7 @@ describe('schema.defaults — what an absent field means', () => {
         const visitCounting = (name: string, schema: PxAnySchema) => { visited++; visit(name, schema); };
         visitCounting('loop', PxLoopSchema);
         visitCounting('propertyAnimation', PxPropertyAnimationSchema);
-        visitCounting('actionTriggers', PxActionTriggersSchema);
-        visitCounting('actions["timeline.stop"]', PxStopPlaybackActionSchema);
-        visitCounting('actions.outOfView', PxOutOfViewActionSchema);
+        visitCounting('actions', PxActionTriggersSchema);
         // Every member of the timeline union — time, scroll and view have fields of their own.
         const timeline = describeSchema(PxTimelineSchema);
         for (const member of timeline.kind === 'discriminatedUnion' ? timeline.members : []) visitCounting('timeline', member);
@@ -78,7 +76,7 @@ describe('schema.defaults — what an absent field means', () => {
         visitCounting('clone', PxCloneEffectSchema);
         visitCounting('fillGradient', PxFillGradientEffectSchema);
         visitCounting('textPath', PxTextPathEffectSchema);
-        expect(visited).toBeGreaterThanOrEqual(13);   // 16 until 1.26: the start action's block left the schema; 15 until 1.28: one scroll member and no range point
+        expect(visited).toBeGreaterThanOrEqual(11);   // 13 until 1.29: the actions block's two slots are timeline keys now; 16 until 1.26: the start action's block left the schema; 15 until 1.28: one scroll member and no range point
         // The rule has teeth: the one deliberate flag is the only optional choice without a stated default.
         expect(PxCloneEffectSchema._shape.omit.absentDefault()).toBeUndefined();
         expect(unstated, 'optional choices whose schema does not say what absent means').toEqual([]);
@@ -89,18 +87,19 @@ describe('schema.defaults — what an absent field means', () => {
         // empty one, names no event (1.17) — there is no `start` constant any more.
         const d = PX_PLAYBACK_DEFAULTS;
         expect(PxTimeTimelineSchema.defaults).toMatchObject({ whenIdle: d.whenIdle, inViewThreshold: d.inViewThreshold, inViewDebounce: d.inViewDebounce });
-        expect(PxStopPlaybackActionSchema.defaults).toEqual({ behavior: d.stopPlaybackBehavior });
+        // 1.29: the stop's manner and the out-of-view word are the timeline's own keys
+        expect(PxTimeTimelineSchema.defaults.whenStopped).toBe(d.stopPlaybackBehavior);
         expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(d.whenFinished);
-        expect(PxOutOfViewActionSchema.defaults).toEqual({ behavior: d.outOfViewBehavior });
+        expect(PxTimeTimelineSchema.defaults.whenOutOfView).toBe(d.outOfViewBehavior);
         expect(PxActionTriggersSchema.isValid([])).toBe(true);
         expect(resolveTriggers(undefined).startPlayback).toEqual([]);
         // `whenFinished` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
         expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(PxWhenFinished.hold);
-        const flat = resolveAnimatorTimeline({ timelines: [{ }], actionTriggers: [{ action: 'timeline.start', event: PxTriggerEvent.load }] });
+        const flat = resolveAnimatorTimeline({ timelines: [{ }], actions: [{ action: 'timeline.start', event: PxTriggerEvent.load }] });
         expect(flat.resetOnFinish).toBeFalsy();
         expect(resolveAnimatorTimeline({ timelines: [{ whenFinished: PxWhenFinished.jumpToStart }] }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timelines: [{ }], actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) }).resetOnFinish).toBeUndefined();
+        expect(resolveAnimatorTimeline({ timelines: [{ }], actions: untyped<PxActionTriggers>({ finish: 'reset' }) }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -124,10 +123,10 @@ describe('schema.defaults — what an absent field means', () => {
     it('the reported document: an omitted resume is the start list — hovering in resumes what hovering out paused', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timelines: [{ outTime: 1000, iterations: 1 }], actionTriggers: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }] },
+            animator: { timelines: [{ outTime: 1000, iterations: 1 }], actions: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }] },
             children: [],
         };
-        expect(resolveTriggers(getAnimatorConfig(doc)?.actionTriggers).resumePlayback).toEqual(['hoverIn']);
+        expect(resolveTriggers(getAnimatorConfig(doc)?.actions).resumePlayback).toEqual(['hoverIn']);
     });
 
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {

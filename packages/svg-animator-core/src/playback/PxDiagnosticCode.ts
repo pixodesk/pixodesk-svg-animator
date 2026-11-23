@@ -162,8 +162,8 @@ export enum PxDiagnosticCode {
 
     /**
      * A `flow.goTo` names a flow step the file does not have (flows 2026-11-22; states 11-20, segments 11-15) — in a rule
-     * of `actionTriggers`, or in a step's `whenFinished`. It is ignored.
-     * @data the step it names, the step whose `whenFinished` holds it, and the ids the file has
+     * of `actions`, also one for a step's end (`finished`) — or a rule's `from` does (1.29). It is ignored.
+     * @data the step it names, the step whose end it is (a `finished` rule's `from`), and the ids the file has
      */
     flowStepNotFound = 1114,
 

@@ -7,7 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer as createPlayer } from '../index';
-import { PxDiagnosticCode, type PxActionTriggers, type PxDocument, type PxFlowStep } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxStepEvent, type PxActionObject, type PxActionTriggers, type PxDocument, type PxFlowStep } from '@pixodesk/svg-animator-core';
 
 /** Every player a test makes is destroyed after it — a live frame loop otherwise outlives its test's fake timers. */
 const made: Array<ReturnType<typeof createPlayer>> = [];
@@ -19,11 +19,19 @@ const createSvgAnimationPlayer: typeof createPlayer = (options) => {
 
 /** Opacity runs 0 → 1 over content 0…3000 ms, so the opacity says where the playhead is (content ms / 3000). */
 /** The test's states by id, written as the file's list in that order. */
-function doc(byId: Record<string, Omit<PxFlowStep, 'id'>>, actionTriggers: PxActionTriggers = [{ action: 'timeline.start', event: 'load' }]): PxDocument {
-    const states: Array<PxFlowStep> = Object.entries(byId).map(([id, st]) => ({ id, ...st }));
+// 1.29: a step's "at its end, go there" is an entry of `actions` (`event: 'finished'`, `from`) — the helper still takes it
+// on the step, as the tests read it, and writes it as the file has it.
+type TestStep = Omit<PxFlowStep, 'id' | 'whenFinished'> & { whenFinished?: PxFlowStep['whenFinished'] | PxActionObject };
+function doc(byId: Record<string, TestStep>, actions: PxActionTriggers = [{ action: 'timeline.start', event: 'load' }]): PxDocument {
+    const atEnd: PxActionTriggers = [];
+    const states: Array<PxFlowStep> = Object.entries(byId).map(([id, { whenFinished, ...st }]) => {
+        if (whenFinished === undefined || typeof whenFinished === 'string') return whenFinished === undefined ? { id, ...st } : { id, ...st, whenFinished };
+        atEnd.push({ ...whenFinished, event: PxStepEvent.finished, from: id });
+        return { id, ...st };
+    });
     return {
         type: 'svg', viewBox: '0 0 10 10',
-        animator: { timelines: [{ engine: 'js', outTime: 3000 }], flowSteps: states, actionTriggers },
+        animator: { timelines: [{ engine: 'js', outTime: 3000 }], flowSteps: states, actions: [...actions, ...atEnd] },
         children: [
             { type: 'rect', id: 'r', width: 10, height: 10,
               animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 3000, value: 1 }] } } },
@@ -207,6 +215,60 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         const api = createSvgAnimationPlayer({ document: twice, container: '#box', onWarning: (w) => warnings.push(w.code) });
         expect(api.flow.getAll()).toEqual(['intro', 'loop', 'success']);
         expect(warnings).toContain(PxDiagnosticCode.flowStepIdDuplicate);
+    });
+
+    const click = (): void => { document.querySelector('svg')?.dispatchEvent(new MouseEvent('click', { bubbles: true })); };
+
+    it('1.29 `from`: an entry holds only while the flow is at one of its steps', () => {
+        const api = createSvgAnimationPlayer({
+            document: doc(THREE, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'success', event: 'click', from: 'loop' }]),
+            container: '#box',
+        });
+        vi.advanceTimersByTime(100);
+        click();
+        expect(api.flow.get()).toEqual(['intro']);           // not from intro
+        vi.advanceTimersByTime(1100);                         // intro ends → loop
+        click();
+        expect(api.flow.get()).toEqual(['success']);
+    });
+
+    it('1.29: a `finished` entry with no `from` is every step\'s end', () => {
+        const api = createSvgAnimationPlayer({
+            document: doc({ a: { inTime: 0, outTime: 500 }, b: { inTime: 500, outTime: 1000 }, c: { inTime: 1000, outTime: 3000 } },
+                [{ action: 'timeline.start', event: 'load' }, { action: 'flow.next', event: PxStepEvent.finished }]),
+            container: '#box',
+        });
+        vi.advanceTimersByTime(600);
+        expect(api.flow.get()).toEqual(['b']);
+        vi.advanceTimersByTime(600);
+        expect(api.flow.get()).toEqual(['c']);
+    });
+
+    it('1.29: a go-to\'s own `behavior` overrides the step\'s way of leaving', () => {
+        const api = createSvgAnimationPlayer({
+            document: doc(THREE, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'success', event: 'click', behavior: 'animateToEnd' }]),
+            container: '#box',
+        });
+        vi.advanceTimersByTime(1300);                        // 300 ms into the loop (it leaves at once by itself)
+        click();
+        expect(api.flow.get()).toEqual(['loop']);            // finishing its pass first
+        vi.advanceTimersByTime(900);
+        expect(api.flow.get()).toEqual(['success']);
+    });
+
+    it('1.29: a stop\'s own `behavior` — the picture travels back instead of jumping', () => {
+        const api = createSvgAnimationPlayer({
+            document: doc({}, [{ action: 'timeline.start', event: 'load' }, { action: 'timeline.stop', event: 'click', behavior: 'animateToStart' }]),
+            container: '#box',
+        });
+        vi.advanceTimersByTime(1000);
+        click();
+        vi.advanceTimersByTime(32);
+        expect(contentMs()).toBeGreaterThan(500);            // no snap to the start
+        expect(api.timeline.getState()).toBe('returning');
+        vi.advanceTimersByTime(3000);
+        expect(contentMs()).toBe(0);
+        expect(api.timeline.getState()).toBe('off');
     });
 
     it('a file with no states: get() is empty and the controls do nothing', () => {

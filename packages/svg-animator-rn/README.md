@@ -23,7 +23,7 @@ native SVG, driven on the UI thread.
 - **One prop to render:** put the `.json` next to your component, import it, pass
   it as `document`.
 - **Playback control:** none needed — it plays the file the way it was saved; or declarative props
-  (`actionTriggers`, `playback`, `showAtTime`, `showAsStatic`) or an imperative ref (`timeline.play()`, `timeline.pause()`, `timeline.stop()`, `timeline.setCurrentTime()`, …).
+  (`actions`, `playback`, `showAtTime`, `showAsStatic`) or an imperative ref (`timeline.play()`, `timeline.pause()`, `timeline.stop()`, `timeline.setCurrentTime()`, …).
 - **No size of its own:** it fills whatever `View` you put it in — give that `View` a `width` and `height`.
 
 ## Quick start
@@ -108,21 +108,21 @@ module.exports = function (api) {
 
 With no control prop it plays the file the way it was saved. The control props change who drives it —
 pick one, they are mutually exclusive (from JavaScript the highest wins with a warning: `showAsStatic` →
-`showAtProgress` / `showAtTime` → `playback` → `disableActionTriggers` → `actionTriggers`); `playerRef` is
+`showAtProgress` / `showAtTime` → `playback` → `disableActions` → `actions`); `playerRef` is
 filled in every one of them.
 
 ### Action triggers — the default
 
 Uses the triggers defined in the animation document (a `timeline.start` rule on `load` plays once enough of it is
 on screen; `click` is a tap; `hoverIn` / `hoverOut` never fire — there is no hover on a touch
-screen), or the `actionTriggers` list you pass instead of the file's:
+screen), or the `actions` list you pass instead of the file's:
 
 ```tsx
 <SvgAnimationPlayer document={animation} />
 <SvgAnimationPlayer document={animation}
-  actionTriggers={[{ action: 'timeline.play', event: 'click' }, { action: 'timeline.pause', event: 'click' }]} />   {/* tap plays, tap again pauses */}
+  actions={[{ action: 'timeline.play', event: 'click' }, { action: 'timeline.pause', event: 'click' }]} />   {/* tap plays, tap again pauses */}
 <SvgAnimationPlayer document={animation}
-  actionTriggers={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />   {/* tap plays, tap again stops */}
+  actions={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />   {/* tap plays, tap again stops */}
 <SvgAnimationPlayer document={animation} showAsStatic />   {/* the picture as drawn — nothing plays */}
 ```
 
@@ -130,8 +130,8 @@ screen), or the `actionTriggers` list you pass instead of the file's:
 
 Control playback with one lever — `playback` holds a position, `'off'` (no playback) · `'on'` (a playback) ·
 `'paused'` (the playback, frozen); a change of position presses one built-in button (`timeline.start` · `timeline.pause` ·
-`timeline.resume` · `timeline.stop`), and how a stop looks is the file's `timeline.actions` — or the
-block the `actions` prop gives instead:
+`timeline.resume` · `timeline.stop`), and how a stop looks is the timeline's `whenStopped` — the file's, or
+`timelineOptions`' (`{ whenStopped: 'animateToStart' }`):
 
 ```tsx
 const [playing, setPlaying] = useState(false);
@@ -144,7 +144,7 @@ const [paused, setPaused] = useState(false);
 
 ### Imperative API
 
-Use a ref for full programmatic control — `disableActionTriggers` switches the file's triggers off, so your
+Use a ref for full programmatic control — `disableActions` switches the file's triggers off, so your
 buttons alone drive it:
 
 ```tsx
@@ -153,7 +153,7 @@ import type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
 
 const playerRef = useRef<PxAnimationPlayerHandle>(null);
 
-<SvgAnimationPlayer document={animation} disableActionTriggers playerRef={playerRef} />
+<SvgAnimationPlayer document={animation} disableActions playerRef={playerRef} />
 <Button title="Play"    onPress={() => playerRef.current?.timeline.play()} />
 <Button title="Pause"   onPress={() => playerRef.current?.timeline.pause()} />
 <Button title="Stop"    onPress={() => playerRef.current?.timeline.stop()} />
@@ -208,15 +208,14 @@ variables. See [Variables](../../docs/library/variables.md#react-native).
 | Prop | Type | Description |
 |---|---|---|
 | `document` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is (inline only, no URL form yet) |
-| `actionTriggers` | `PxActionTriggersInput \| null` | these rules instead of the document's own — a list of `{ action, event, … }`, `[{ action: 'timeline.start', event: 'load' }]`; a rule whose action may not name its event is dropped; `timeline.resume` is derived when no rule names it; `null` or `[]`: none. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
-| `disableActionTriggers` | `boolean` | manual: the document's triggers are switched off — your code drives it through `playerRef` |
+| `actions` | `PxActionTriggersInput \| null` | these rules instead of the document's own — a list of `{ action, event, … }`, `[{ action: 'timeline.start', event: 'load' }]`; a rule whose action may not name its event is dropped; `timeline.resume` is derived when no rule names it; `null` or `[]`: none. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `disableActions` | `boolean` | manual: the document's triggers are switched off — your code drives it through `playerRef` |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says; playback calls on `playerRef` are ignored with a warning (PX1506). Beats every other control prop |
-| `playback` | `'off' \| 'on' \| 'paused'` | A lever (`PxPlayback`): its position is held, and a change presses one button — `off` → `on` `timeline.start()`, `on` → `paused` `timeline.pause()`, `paused` → `on` `timeline.resume()`, → `off` `timeline.stop()`. How a stop looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-a-stop-looks); `'on'` always plays from the start. A mount with `'off'` presses nothing; with `'paused'` starts the playback frozen |
+| `playback` | `'off' \| 'on' \| 'paused'` | A lever (`PxPlayback`): its position is held, and a change presses one button — `off` → `on` `timeline.start()`, `on` → `paused` `timeline.pause()`, `paused` → `on` `timeline.resume()`, → `off` `timeline.stop()`. How a stop looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#how-a-stop-looks--whenstopped); `'on'` always plays from the start. A mount with `'off'` presses nothing; with `'paused'` starts the playback frozen |
 | `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |
 | `showAtProgress` | `number` | show the frame at this position, counted in iterations: `0` is the first frame, `0.5` the middle of the first iteration, `1` its last frame, `1.2` 20 % into the second |
 | `showAtTime` | `number` | show the frame at that time, in milliseconds inside one iteration (`0` to `timeline.getDuration()`) |
-| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline, minus `actionTriggers` and `actions`, merged over it — same shape as the file; a key left out keeps the file's value. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsInput` | the `timeline.actions` block to use instead of the document's — how a stop looks, `{ 'timeline.stop': 'animateToStart' }`, and `outOfView`; a setting left out reads its default (what shows once finished, `whenFinished`, is a timeline key: `timelineOptions`). See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline (how a stop looks too: `{ whenStopped: 'animateToStart' }`), merged over it — same shape as the file; a key left out keeps the file's value. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `flows` | `Array<string>` | what runs — React Native plays ONE flow: the first of them that runs ([Flows](../../docs/library/playback-and-triggers.md#what-runs--the-pages-lists), PX1605) |
 | `timelines` | `Array<string>` | …or those timelines, each whole and by itself — React Native plays the first |
 | `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; a name that leaves the prop goes back to the file's value. A change compiles the document again; the playback keeps running. See [Variables](../../docs/library/variables.md#react-native) |
@@ -234,8 +233,8 @@ variables. See [Variables](../../docs/library/variables.md#react-native).
 | `suppressErrors` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
-With no control prop (`showAsStatic` / `showAtProgress` / `showAtTime` / `playback` / `disableActionTriggers` /
-`actionTriggers`) the component plays the file the way it was saved — its own triggers drive it. TypeScript
+With no control prop (`showAsStatic` / `showAtProgress` / `showAtTime` / `playback` / `disableActions` /
+`actions`) the component plays the file the way it was saved — its own triggers drive it. TypeScript
 accepts one driver family at a time (`PxControlProps` is a union).
 
 ### Failure handling
@@ -264,7 +263,7 @@ renderer never reaches JavaScript and cannot be caught — see
 |---|---|
 | `timeline.engine` | Accepted inside `timeline` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60. |
-| `hoverIn` / `hoverOut` | Have no touch equivalent, so they never fire. `load` and `click` (a tap) work as they do on the web, from the file or from `actionTriggers`. |
+| `hoverIn` / `hoverOut` | Have no touch equivalent, so they never fire. `load` and `click` (a tap) work as they do on the web, from the file or from `actions`. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
 | `onDestroy` | Never called. On the web it tells you the player was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
@@ -371,7 +370,7 @@ player sees plain nodes. **All are supported:**
 | `playback.setSpeed` — faster, slower and **reverse** (negative) | ✅ | multiplies with `iterationDirection`; `timeline.playbackSpeed` is the initial value |
 | Trigger event `load` | ✅ | |
 | Trigger event `click` | ✅ | a tap — the animation is wrapped in a `Pressable`; listed in `timeline.pause` too, a second tap pauses |
-| The gate — `actions.outOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`) |
+| The gate — `whenOutOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`) |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent — use `click`, or drive `playback` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |

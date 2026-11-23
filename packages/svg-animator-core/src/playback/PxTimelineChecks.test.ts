@@ -28,7 +28,7 @@ function bell(): PxDocument {
                 { id: 'ringing', flow: 'notice', timeline: 'ring' },
             ],
             flows: [{ id: 'notice' }],
-            actionTriggers: [
+            actions: [
                 { action: 'timeline.start', event: 'load' },
                 { action: 'flow.next', flow: 'notice', event: 'keyDown' },
                 { action: 'timeline.pause', timeline: 'ring', event: 'hoverOut' },
@@ -73,7 +73,7 @@ describe('timeline checks', () => {
     it('references that name nothing: a step\'s timeline, a rule\'s, a track\'s timeline — a flow only steps name is a flow', () => {
         const doc = bell();
         doc.animator?.flowSteps?.push({ id: 'lost', timeline: 'nope', flow: 'gone' });
-        doc.animator?.actionTriggers?.push({ action: 'timeline.stop', timeline: 'nope2', event: 'click' });
+        doc.animator?.actions?.push({ action: 'timeline.stop', timeline: 'nope2', event: 'click' });
         doc.children?.push({ type: 'rect', id: 'stray', animate: { x: { byTimeline: [{ timeline: 'nope3', keyframes: [{ time: 0, value: 1 }] }] } } });
         expect(kinds(doc)).toEqual([
             [PxTimelineIssueKind.referenceNotFound, 'timeline', 'nope', 'lost'],

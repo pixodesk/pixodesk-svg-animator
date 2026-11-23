@@ -29,11 +29,11 @@ class StubAnimation {
     finish(): void { this.playState = 'finished'; }
 }
 
-function doc(actionTriggers?: PxActionTriggers): PxDocument {
+function doc(actions?: PxActionTriggers): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timelines: [{ engine: 'native', outTime: 1000 }], ...(actionTriggers ? { actionTriggers } : {}) },
+        animator: { timelines: [{ engine: 'native', outTime: 1000 }], ...(actions ? { actions } : {}) },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },

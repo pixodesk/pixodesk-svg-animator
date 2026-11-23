@@ -6,9 +6,9 @@
   "fill": "none",
   "animator": {
     "timelines": [
-      { "outTime": 1000, "actions": { "outOfView": "continue" }, "iterations": 2, "iterationDirection": "normal" }
+      { "outTime": 1000, "whenOutOfView": "continue", "iterations": 2, "iterationDirection": "normal" }
     ],
-    "actionTriggers": [{ "action": "timeline.start", "event": "load" }]
+    "actions": [{ "action": "timeline.start", "event": "load" }]
   },
   "children": [
     {

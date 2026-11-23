@@ -33,18 +33,20 @@ function bell(): PxDocument {
             flowSteps: [
                 { id: 'idle', flow: 'pointer', timeline: 'grow', inTime: 0, outTime: 0 },
                 { id: 'hover', flow: 'pointer', timeline: 'grow' },
-                { id: 'press', flow: 'pointer', timeline: 'dip', whenFinished: { action: 'flow.goTo', flowStep: 'hover' } },
+                { id: 'press', flow: 'pointer', timeline: 'dip' },
                 { id: 'calm', flow: 'notice', timeline: 'ring', inTime: 0, outTime: 0 },
                 { id: 'ringing', flow: 'notice', timeline: 'ring', inTime: 0, outTime: 600 },
                 { id: 'shown', flow: 'scrollIn', timeline: 'reveal' },
             ],
             flows: [{ id: 'pointer' }, { id: 'notice' }, { id: 'scrollIn' }],
-            actionTriggers: [
+            actions: [
                 { action: 'timeline.start', event: 'load' },
                 { action: 'flow.goTo', flowStep: 'hover', event: 'hoverIn' },
                 { action: 'flow.goTo', flowStep: 'ringing', event: 'click' },
                 { action: 'flow.next', flow: 'notice', event: 'keyDown' },
                 { action: 'timeline.pause', timeline: 'ring', event: 'hoverOut' },
+                // 1.29: "at its end, go to hover" is an entry of the list
+                { action: 'flow.goTo', flowStep: 'hover', event: 'finished', from: 'press' },
             ],
         },
         children: [
@@ -172,10 +174,10 @@ describe('a step\'s document', () => {
         const shine = stepDocumentOf(doc, plan, 0, 0, attributeOwnersOf(doc, plan));
         expect(shine.animator?.timelines).toEqual([{ outTime: 4000, iterations: 'infinite' }]);
         expect(shine.animator?.flowSteps).toBeUndefined();
-        expect(shine.animator?.actionTriggers).toBeUndefined();
+        expect(shine.animator?.actions).toBeUndefined();
         expect(Object.keys(nodeById(shine, 'shine')?.animate ?? {})).toEqual(['x']);
         expect(nodeById(shine, 'bg')?.animate).toBeUndefined();
-        expect(unitConfigOf(doc, plan.units[0], plan).animator?.actionTriggers).toEqual([{ action: 'timeline.start', event: 'load' }]);
+        expect(unitConfigOf(doc, plan.units[0], plan).animator?.actions).toEqual([{ action: 'timeline.start', event: 'load' }]);
     });
 
     it('a step on another timeline: its part and settings, its own track only — an attribute with no track there has no entry', () => {
@@ -189,8 +191,10 @@ describe('a step\'s document', () => {
         expect(keyframesOf(press, 'bg', 'opacity')).toBeUndefined();
         // a step of no length holds its first frame: a part one millisecond long
         expect(stepDocumentOf(doc, plan, 1, 0, claims).animator?.timelines?.[0]).toMatchObject({ inTime: 0, outTime: 1, iterations: 1 });
-        expect(unitConfigOf(doc, plan.units[1], plan).animator?.actionTriggers).toEqual([
+        // 1.29: the press's "at its end, go to hover" is the flow's entry too
+        expect(unitConfigOf(doc, plan.units[1], plan).animator?.actions).toEqual([
             { action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'hover', event: 'hoverIn' },
+            { action: 'flow.goTo', flowStep: 'hover', event: 'finished', from: 'press' },
         ]);
     });
 
@@ -242,13 +246,13 @@ describe('a step\'s document', () => {
     it('the rules go to their unit: a named flow\'s `next`, a rule naming a timeline; a scroll flow hears none', () => {
         const doc = plain(bell());
         const plan = planOf(doc);
-        expect(unitConfigOf(doc, plan.units[2], plan).animator?.actionTriggers).toEqual([
+        expect(unitConfigOf(doc, plan.units[2], plan).animator?.actions).toEqual([
             { action: 'timeline.start', event: 'load' },
             { action: 'flow.goTo', flowStep: 'ringing', event: 'click' },
             { action: 'flow.next', flow: 'notice', event: 'keyDown' },
             { action: 'timeline.pause', event: 'hoverOut' },
         ]);
-        expect(unitConfigOf(doc, plan.units[3], plan).animator?.actionTriggers).toBeUndefined();   // scroll: no list
+        expect(unitConfigOf(doc, plan.units[3], plan).animator?.actions).toBeUndefined();   // scroll: no list
         expect(stepDocumentOf(doc, plan, 3, 0, attributeOwnersOf(doc, plan)).animator?.timelines?.[0]).toMatchObject({ type: 'scroll', outTime: 1000 });
     });
 

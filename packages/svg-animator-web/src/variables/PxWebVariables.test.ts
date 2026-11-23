@@ -17,7 +17,7 @@ function doc(): PxDocument {
     const json: unknown = JSON.parse(JSON.stringify({
         type: 'svg', viewBox: '0 0 400 200',
         animator: {
-            timelines: [{ engine: 'js', outTime: 1000, iterations: 'infinite', actions: { outOfView: 'continue' } }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            timelines: [{ engine: 'js', outTime: 1000, iterations: 'infinite', whenOutOfView: 'continue' }], actions: [{ action: 'timeline.start', event: 'load' }],
             definitions: {
                 variables: {
                     bg: { type: 'color', defaultValue: '#2a7fff' },

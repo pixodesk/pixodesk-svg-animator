@@ -12,7 +12,7 @@ import { PxSchemaChangeCode, schemaChangeRef } from './PxSchemaChangeCode';
 import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
-    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords,
+    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords, upActionsList, downActionsList,
 } from './PxWireVersion';
 import { isRecord } from '../schema/PxSchema';
 
@@ -374,13 +374,15 @@ describe('1.28 amended a third time (2026-11-22) — the flow words', () => {
         const r = convertWireDocument(old());
         const animator = isRecord(r.doc) && isRecord(r.doc.animator) ? r.doc.animator : {};
         expect(animator.states).toBeUndefined();
+        // 1.29: the list is `actions`, and "at its end, the next" is an entry of it (`finished`, `from`)
         expect(animator.flowSteps).toEqual([
-            { id: 'intro', inTime: 0, outTime: 1000, whenFinished: { action: 'flow.next' } },
+            { id: 'intro', inTime: 0, outTime: 1000 },
             { id: 'loop', inTime: 1000, outTime: 3000 },
         ]);
-        expect(animator.actionTriggers).toEqual([
+        expect(animator.actions).toEqual([
             { action: 'flow.goTo', flowStep: 'loop', event: 'click' },
             { action: 'timeline.start', event: 'load' },
+            { action: 'flow.next', event: 'finished', from: 'intro' },
         ]);
     });
 
@@ -401,5 +403,88 @@ describe('1.28 amended a third time (2026-11-22) — the flow words', () => {
         });
         upFlowWords(d);
         expect(JSON.stringify(d)).toBe(once);
+    });
+});
+
+describe('1.29 (2026-11-22) — one actions list, whenStopped / whenOutOfView, a step\'s end as an entry', () => {
+    /** A 1.28 file: the list under its old name, the timeline's block, a step that goes on at its end. */
+    const at128 = (): Record<string, unknown> => ({
+        type: 'svg',
+        animator: {
+            version: '1.28.0',
+            timelines: [{ outTime: 2000, actions: { 'timeline.stop': { behavior: 'animateToStart' }, outOfView: 'pause' } }],
+            flowSteps: [{ id: 'intro', inTime: 0, outTime: 1000, whenFinished: { action: 'flow.goTo', flowStep: 'loop' } }, { id: 'loop', inTime: 1000, outTime: 2000 }],
+            actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+        },
+    });
+
+    it('upActionsList: the list renamed, the block flattened, the step\'s end appended as a finished entry', () => {
+        const d = at128();
+        upActionsList(d);
+        expect(rawAnimator(d)).toEqual({
+            version: '1.28.0',
+            timelines: [{ outTime: 2000, whenStopped: 'animateToStart', whenOutOfView: 'pause' }],
+            flowSteps: [{ id: 'intro', inTime: 0, outTime: 1000 }, { id: 'loop', inTime: 1000, outTime: 2000 }],
+            actions: [
+                { action: 'timeline.start', event: 'load' },
+                { action: 'flow.goTo', flowStep: 'loop', event: 'finished', from: 'intro' },
+            ],
+        });
+    });
+
+    it('upActionsList twice is the same as once', () => {
+        const d = at128();
+        upActionsList(d);
+        const once = JSON.stringify(d);
+        upActionsList(d);
+        expect(JSON.stringify(d)).toBe(once);
+    });
+
+    it('a step\'s `hold` end goes without an entry — holding is what no entry means', () => {
+        const d: Record<string, unknown> = { type: 'svg', animator: { flowSteps: [{ id: 'a', whenFinished: 'hold' }] } };
+        upActionsList(d);
+        expect(rawAnimator(d)).toEqual({ flowSteps: [{ id: 'a', whenFinished: 'hold' }] });
+    });
+
+    it('down to 1.28 and up again gives the same file', () => {
+        const up = at128();
+        upActionsList(up);
+        const back = JSON.parse(JSON.stringify(up)) as Record<string, unknown>;
+        downActionsList(back);
+        expect(rawAnimator(back)).toEqual({
+            version: '1.28.0',
+            timelines: [{ outTime: 2000, actions: { 'timeline.stop': 'animateToStart', outOfView: 'pause' } }],
+            flowSteps: [{ id: 'intro', inTime: 0, outTime: 1000, whenFinished: { action: 'flow.goTo', flowStep: 'loop' } }, { id: 'loop', inTime: 1000, outTime: 2000 }],
+            actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+        });
+        upActionsList(back);
+        expect(back).toEqual(up);
+    });
+
+    /** A 1.29 file with one entry 1.28 cannot say. */
+    const at129With = (entry: Record<string, unknown>) => ({
+        type: 'svg', animator: { version: '1.29.0', timelines: [{ outTime: 1000 }], flowSteps: [{ id: 'a' }, { id: 'b' }], actions: [entry] },
+    });
+    const to128 = { a: 1, b: 28, c: 0 };
+
+    it.each([
+        ['an entry\'s own behavior', { action: 'timeline.stop', event: 'click', behavior: 'animateToStart' }],
+        ['a `from` on a page event', { action: 'flow.next', event: 'click', from: 'a' }],
+        ['a step\'s end naming several steps', { action: 'flow.next', event: 'finished', from: ['a', 'b'] }],
+        ['a step\'s end naming no step', { action: 'flow.next', event: 'finished' }],
+    ])('down to 1.28 is REFUSED for %s, and names the step', (_what, entry) => {
+        const r = downgradeWireDocument(at129With(entry), to128);
+        expect(r.ok).toBe(false);
+        if (r.ok) return;
+        expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.actionsList]);
+    });
+
+    it('down to 1.28 through the live table, for a file 1.28 can say', () => {
+        const r = downgradeWireDocument(at129With({ action: 'flow.goTo', flowStep: 'b', event: 'finished', from: 'a' }), to128);
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(rawAnimator(r.doc).actionTriggers).toEqual([]);
+        expect(rawAnimator(r.doc).flowSteps).toEqual([{ id: 'a', whenFinished: { action: 'flow.goTo', flowStep: 'b' } }, { id: 'b' }]);
+        expect(rawAnimator(r.doc).version).toBe('1.28.0');
     });
 });

@@ -18,23 +18,22 @@ import type { SvgAnimationPlayerProps } from './SvgAnimator';
  *
  * | prop | as on `SvgAnimationPlayer`, narrowed to |
  * |---|---|
- * | `actionTriggers` | the same — but with none given nothing starts it: a script-free SVG imported as a component carries no triggers the component could read |
- * | `timelineOptions` | the gate numbers `inViewThreshold` / `inViewDebounce` |
- * | `actions` | `outOfView` |
+ * | `actions` | the same list — but with none given nothing starts it: a script-free SVG imported as a component carries no entries the component could read |
+ * | `timelineOptions` | the gate: `inViewThreshold`, `inViewDebounce`, `whenOutOfView` |
  * | `className`, `style` | — (here on the wrapper `<div>`) |
  * | `children` | its own: the SVGR-imported SVG |
  * @public
  */
 export type SvgCssAnimationPlayerProps = Pick<SvgAnimationPlayerProps, 'className' | 'style'> & {
-    /** WHEN — the triggers block, as on `SvgAnimationPlayer`: `timeline.start`, `timeline.play`, `timeline.stop`,
-     *  `timeline.pause`, `timeline.resume` (derived when left out), each one event or a list. Absent (or `null`):
-     *  nothing starts it (the class toggle waits) — the SVG carries no triggers this component could read. */
-    actionTriggers?: SvgAnimationPlayerProps['actionTriggers'];
-    /** The visibility gate's numbers, as in `SvgAnimationPlayer`'s `timelineOptions`: how much must be on screen
-     *  (0–1, default 0.5) and for how long, ms (default 150). */
-    timelineOptions?: Pick<Extract<NonNullable<SvgAnimationPlayerProps['timelineOptions']>, { type?: 'time' }>, 'inViewThreshold' | 'inViewDebounce'>;
-    /** Only `outOfView` applies — `'pause'` (default), `'continue'`, `'stop'` (replays on the next entry). */
-    actions?: Pick<NonNullable<SvgAnimationPlayerProps['actions']>, 'outOfView'>;
+    /** WHAT HAPPENS ON AN EVENT — the `actions` list, as on `SvgAnimationPlayer`: its `timeline.start`, `timeline.play`,
+     *  `timeline.stop`, `timeline.pause`, `timeline.resume` entries (resume derived when left out). Absent (or `null`):
+     *  nothing starts it (the class toggle waits) — the SVG carries no entries this component could read.
+     *  (`actionTriggers` until 1.29.) */
+    actions?: SvgAnimationPlayerProps['actions'];
+    /** The visibility gate, as in `SvgAnimationPlayer`'s `timelineOptions`: how much must be on screen (0–1, default
+     *  0.5), for how long, ms (default 150), and `whenOutOfView` — `'pause'` (default), `'continue'`, `'stop'` (replays
+     *  on the next entry). */
+    timelineOptions?: Pick<Extract<NonNullable<SvgAnimationPlayerProps['timelineOptions']>, { type?: 'time' }>, 'inViewThreshold' | 'inViewDebounce' | 'whenOutOfView'>;
     /** The SVGR-imported SVG component to animate. */
     children: ReactNode;
 };
@@ -62,7 +61,7 @@ type AssertNever<T extends never> = T;
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer actionTriggers={[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }]}>
+ * <SvgCssAnimationPlayer actions={[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }]}>
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```
@@ -75,7 +74,7 @@ type AssertNever<T extends never> = T;
  * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `timeline.start`, `timeline.play`,
  * `timeline.stop`, `timeline.pause` (`timeline.resume` is derived unless named) — over the events `load`, `hoverIn`,
  * `hoverOut`, `click`, read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
- * (`createVisibilityGate`), so the two players cannot drift. No `actionTriggers`, `null` or an empty block: nothing
+ * (`createVisibilityGate`), so the two players cannot drift. No `actions`, `null` or an empty list: nothing
  * starts it.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
@@ -85,10 +84,10 @@ type AssertNever<T extends never> = T;
  * - `whenIdle` and `whenFinished` are the file's own CSS
  * @public
  */
-const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, style, children, actionTriggers, timelineOptions, actions }) => {
+const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, style, children, actions, timelineOptions }) => {
     // one rule with the JSON player: the lists normalised, the gate defaulted
-    const resolved = resolveTriggers(actionTriggers ?? undefined);
-    const gateConfig = resolveGate({ actions, inViewThreshold: timelineOptions?.inViewThreshold, inViewDebounce: timelineOptions?.inViewDebounce });
+    const resolved = resolveTriggers(actions ?? undefined);
+    const gateConfig = resolveGate({ whenOutOfView: timelineOptions?.whenOutOfView, inViewThreshold: timelineOptions?.inViewThreshold, inViewDebounce: timelineOptions?.inViewDebounce });
     const loadPresses = resolved.startPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.startPlayback
         : resolved.playPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.playPlayback : undefined;
 

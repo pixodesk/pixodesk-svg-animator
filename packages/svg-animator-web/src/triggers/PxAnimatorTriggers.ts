@@ -15,7 +15,14 @@ import {
     type PxPlaybackListeners,
     type PxPlayExecutor,
     PxFlowAction,
+    PxStopPlaybackBehavior,
+    PxWhenLeaving,
 } from '@pixodesk/svg-animator-core';
+
+const isWhenLeaving = (v: string): v is PxWhenLeaving => v === PxWhenLeaving.jump || v === PxWhenLeaving.animateToEnd || v === PxWhenLeaving.animateToStart;
+/** A stop's manner — `animateToStart` and `animateToEnd` are a go-to's ways of leaving too; an entry's action says which it is. */
+const isStopBehavior = (v: string): v is PxStopPlaybackBehavior => v === PxStopPlaybackBehavior.jumpToStart || v === PxStopPlaybackBehavior.animateToStart
+    || v === PxStopPlaybackBehavior.jumpToEnd || v === PxStopPlaybackBehavior.animateToEnd || v === PxStopPlaybackBehavior.animateToEndAndBack;
 import { duplicateFlowStepIds, ensurePlayExecutor, resolveActions, resolveGate, resolveTriggers, flowStepReferenceIssues, triggerActionFor, triggerIssues, triggerKeys, type PxFlowRuntime, type PxTriggerEventSpec } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
@@ -80,7 +87,7 @@ export function setupAnimationTriggers(
 
 /** What `triggerIssues` finds in the rules — a disallowed event, a named resume list that differs, a collision. @internal */
 export function reportTriggerProblems(config: PxAnimatorRuntimeConfig, report: PxDiagnostics): void {
-    for (const issue of triggerIssues(config.actionTriggers)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
+    for (const issue of triggerIssues(config.actions)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
 }
 
 /**
@@ -99,7 +106,7 @@ export function wireTriggers(
     // Everything attached below registers its own undo here, so one call detaches it all.
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
-    const trigger = resolveTriggers(config.actionTriggers, (config.flowSteps ?? []).map(s => s.id));
+    const trigger = resolveTriggers(config.actions, (config.flowSteps ?? []).map(s => s.id));
 
     // Permission to run, for every document and whatever starts it. Leaving and returning are the executor's buttons.
     const gateRule = resolveGate(config);
@@ -109,19 +116,25 @@ export function wireTriggers(
     });
     cleanups.push(() => gate.dispose());
 
-    const whenFinished = resolveActions(config.actions, config.whenFinished).whenFinished;
+    const whenFinished = resolveActions(config).whenFinished;
 
     /** The state rule (core's `triggerActionFor`): the player's state picks the lists an event is read
      *  from — off · playing · paused · finished · returning. `direct` is a pointer interaction — it never waits out
      *  the gate; a resume never does either (a paused playback was seen). */
     const fire = (event: string, direct: boolean): void => {
+        const spec = trigger.specs.get(event);
+        // an entry limited to some steps (`from`, 1.29) holds only while a flow is at one of them
+        if (spec?.from && !(flows && flows.controls.get().some(id => spec.from?.includes(id)))) return;
+        // an entry's own manner (`behavior`): a stop's, or a go-to's way of leaving
+        const leaving = spec?.behavior !== undefined && isWhenLeaving(spec.behavior) ? spec.behavior : undefined;
+        const stopping = spec?.behavior !== undefined && isStopBehavior(spec.behavior) ? spec.behavior : undefined;
         // the flow actions first — unless a component holds the step (its `flowStep` prop)
         if (flows && !flows.isHeld()) {
             for (const s of trigger.flows) {
                 if (!s.keys.includes(event)) continue;
                 if (s.action === PxFlowAction.next) flows.controls.next();
                 else if (s.action === PxFlowAction.previous) flows.controls.previous();
-                else if (s.flowStep !== undefined) flows.controls.goTo(s.flowStep);
+                else if (s.flowStep !== undefined) flows.controls.goTo(s.flowStep, leaving);
             }
         }
         switch (triggerActionFor(trigger, executor.state(), event, whenFinished)) {
@@ -129,7 +142,7 @@ export function wireTriggers(
             case PxTriggerAction.playPlayback: gate.requestStart(direct, () => executor.playPlayback()); break;
             case PxTriggerAction.resumePlayback: executor.resumePlayback(); break;
             case PxTriggerAction.pausePlayback: executor.pausePlayback(); break;
-            case PxTriggerAction.stopPlayback: executor.stopPlayback(); break;
+            case PxTriggerAction.stopPlayback: executor.stopPlayback(stopping); break;
         }
     };
 

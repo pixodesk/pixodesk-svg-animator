@@ -1,7 +1,7 @@
 import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 import animation from '../../../fixtures/animation.json';
 
-// The triggers are part of the document, in `animator.actionTriggers`: a list of rules `{ action, event }`
+// The triggers are part of the document, in `animator.actions`: a list of rules `{ action, event }`
 // (`timeline.start`, `timeline.play`, `timeline.stop`, `timeline.pause`; what resumes a pause is derived unless the file
 // names it), read by the playback's state — `click` for `timeline.start` AND `timeline.pause` toggles play / pause
 // (playing: the pause rule wins; paused: the derived resume). Here it is set in code so the case is
@@ -11,7 +11,7 @@ const doc = {
   ...animation,
   animator: {
     ...animation.animator,
-    actionTriggers: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }],
+    actions: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }],
   },
 };
 

@@ -4,7 +4,7 @@
 
 Change how an animation plays — its length, loops, direction, what starts and stops it, what the
 end leaves behind — without going back to the editor. Everything about *when* and *how* it plays
-lives in the document's `animator` block — its `timelines`, its `actionTriggers` and, for a picture with
+lives in the document's `animator` block — its `timelines`, its `actions` list and, for a picture with
 named steps, its [`flowSteps`](#flows--named-steps-of-the-animation) — and every player lets you
 **override it at runtime** from component props or the player options. This page is the
 reference for those fields and the overrides.
@@ -30,11 +30,11 @@ comments, so a real file has none.)
         "iterations": "infinite",
         "iterationDirection": "alternate",
         // Plays as soon as half of it is on screen; pauses while it is scrolled away
-        "actions": { "outOfView": "pause" }, "inViewThreshold": 0.5
+        "whenOutOfView": "pause", "inViewThreshold": 0.5
       }
     ],
     // A list of rules: an action, and the event that does it
-    "actionTriggers": [ { "action": "timeline.start", "event": "load" } ]
+    "actions": [ { "action": "timeline.start", "event": "load" } ]
   },
   "children": [
     {
@@ -57,42 +57,46 @@ comments, so a real file has none.)
 The same bouncing ball as in the [web player](./web-player.md#declarative--data-px-document),
 now two seconds per bounce and waiting until half of it has scrolled into view.
 
-## Two blocks — requests and moments
+## Requests and moments
 
 Three things make an animation go: the **triggers** (the user hovers or clicks), a component's
 **`playback` prop** (your app's state — `off` · `on` · `paused`), and the **player API**
 (`timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()` from your code).
 All three press the same five **buttons**, so the format writes down **how** a stop looks exactly once, in the
-timeline's `actions` block, and all three honour it.
+timeline's `whenStopped`, and all three honour it.
 
 A **playback** is one instance of the animation being in effect: it begins with `timeline.start` (always from
 the start) or `timeline.play` (start, or carry on), lasts while the animation is `playing`, `paused` or
 `finished`, and is retired by `timeline.stop`. `timeline.pause` / `timeline.resume` are the freeze inside it;
-`off` is no playback. Reaching the end makes the playback `finished`, whatever the picture then shows. The two
-blocks are not mirror images of each other:
+`off` is no playback. Reaching the end makes the playback `finished`, whatever the picture then shows. The
+two places are not mirror images of each other:
 
-- `actionTriggers` rules name the **requests** a page event can make, in their `action` — `timeline.start`,
+- the `actions` list names the **requests** an event can make, in each rule's `action` — `timeline.start`,
   `timeline.play`, `timeline.stop`, `timeline.pause` (`timeline.resume` is derived unless the file names it) —
   and the flow actions `flow.goTo`, `flow.next`, `flow.previous`
   ([Flows](#flows--named-steps-of-the-animation)).
-- `actions` keys are the **moments** whose outcome is configurable — `timeline.stop` and `outOfView`.
-- `timeline.stop` is in both because it is both a request and a moment. The other buttons have one behaviour
-  each — a start always plays from the start, a pause freezes — so there is no `actions["timeline.start"]` (until
-  1.25) or `actions["timeline.pause"]`; `outOfView` is not a page event, so it has no list. What the picture
-  shows once the playback is finished is nobody's request either — it is the clock's rule, the timeline key
-  `whenFinished` beside `whenIdle`, not a button.
+- the timeline's `when…` keys say what happens at the **moments**: `whenStopped` (how every stop looks),
+  `whenOutOfView` (what the [visibility gate](#whether-it-may-run--the-visibility-gate) does), `whenFinished` and
+  `whenIdle` (what the picture shows once finished, and while off).
+- A stop is both: `timeline.stop` is a request, and `whenStopped` says how every stop looks, whoever asked for it.
+  The other buttons have one behaviour each — a start always plays from the start, a pause freezes — so there is no
+  `whenStarted` or `whenPaused`; going out of view is not a page event, so no rule names it. What the picture shows
+  once the playback is finished is nobody's request either — it is the clock's rule, `whenFinished`, not a button.
 
-<!-- px-check off the two-blocks overview — each key and list is checked in its own table below -->
-| button / moment | does | how it looks | requested by (`actionTriggers`) |
+(Until 1.29 the moments were the timeline's `actions` block — `actions["timeline.stop"]` and `actions.outOfView` —
+and the list was called `actionTriggers`; older files are converted on read.)
+
+<!-- px-check off the overview — each key and list is checked in its own table below -->
+| button / moment | does | how it looks | requested by (`actions`) |
 |---|---|---|---|
 | **timeline.start** | any state → playing, from the start | nothing to configure — always from the start | `timeline.start` |
 | **timeline.play** | off or finished → playing, from the start; paused → resumes; a picture on its way back → turns around; playing → nothing | nothing to configure | `timeline.play` |
-| **timeline.stop** | playing, paused or finished → off, or on to the end (finished) | `actions["timeline.stop"].behavior`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` · `animateToEndAndBack` | `timeline.stop` |
+| **timeline.stop** | playing, paused or finished → off, or on to the end (finished) | `whenStopped`: `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` · `animateToEndAndBack` — or the rule's own `behavior` | `timeline.stop` |
 | **timeline.pause** / **timeline.resume** | freeze, and carry on | nothing to configure | `timeline.pause`; `timeline.resume` — derived unless the file names it |
 | **whenFinished** | the playback reached its end — the state is `finished`; this moves only the picture | `timeline.whenFinished`: `hold` · `jumpToStart` · `animateToStart` | — (the clock) |
-| **outOfView** / back in view | nobody can see it / seen again | `actions.outOfView.behavior`: `pause` · `continue` · `stop` | — (the view sensor: a condition, not an event) |
+| **out of view** / back in view | nobody can see it / seen again | `whenOutOfView`: `pause` · `continue` · `stop` | — (the view sensor: a condition, not an event) |
 
-So `player.timeline.stop()` on a looping heartbeat with `actions: { 'timeline.stop': 'animateToEnd' }` finishes the
+So `player.timeline.stop()` on a looping heartbeat with `whenStopped: 'animateToEnd'` finishes the
 beat and then rests — and so does a rule `{ "action": "timeline.stop", "event": "hoverOut" }`, and so does
 `playback="off"` on the React component. One vocabulary, learnt once — [the action words](#the-action-words).
 
@@ -115,7 +119,7 @@ on every player; `timeline.isActive()` is true while a playback exists (`playing
 `timeline.isPlaying()` is `timeline.getState() === 'playing'`: a picture moving back to the start is not playing —
 neither a `returning` one nor a `finished` one that `whenFinished: 'animateToStart'` plays back. The
 [visibility gate](#whether-it-may-run--the-visibility-gate) presses the same buttons, so a playback scrolled out
-of view reads `paused` (or `off`, with `outOfView: 'stop'`) and reports it.
+of view reads `paused` (or `off`, with `whenOutOfView: 'stop'`) and reports it.
 
 ## Timelines — what advances the playhead
 
@@ -130,18 +134,18 @@ answers one question — who moves the playhead:
 <!-- px-check schema PxTimelineSchema values=type -->
 | `timeline.type` | The playhead follows… |
 |---|---|
-| `time` (default — may be omitted) | the player's clock — something *starts* a playback (the `actionTriggers`), and it has the playback dynamics below |
+| `time` (default — may be omitted) | the player's clock — something *starts* a playback (the `actions` list), and it has the playback dynamics below |
 | `scroll` | the scrolling — an element on its way across the screen, or how far the page or a box is scrolled — [Following the scroll](#following-the-scroll) |
 
 Each type carries only the fields that mean something for it — a scroll timeline has no
-`actions`, no `delay` and no `frameRate`, and the format gives them no slot there; no rule starts it. Omitting
+`whenStopped`, no `whenOutOfView`, no `delay` and no `frameRate`, and the format gives them no slot there; no rule starts it. Omitting
 `timelines` entirely means one time-driven timeline with every default.
 
 ## Timing
 
 Timing, the playback dynamics, how the animated attributes get updated and at what rate ALL live
 in a timeline — each entry of `timelines` has its own. Beside the timelines, `animator` keeps the rules
-(`actionTriggers`), the [flows](#flows--named-steps-of-the-animation) and the lookup tables (`definitions`,
+(`actions`), the [flows](#flows--named-steps-of-the-animation) and the lookup tables (`definitions`,
 `bindings`). The keys of a clock timeline:
 
 <!-- px-check schema PxTimeTimelineSchema partial -->
@@ -209,15 +213,15 @@ same way.
 
 ## Triggers — WHEN it plays
 
-`animator.actionTriggers` — at the root of `animator`, beside `timelines` — is a **list of rules**. Each rule
+`animator.actions` — at the root of `animator`, beside `timelines` — is a **list of rules**. Each rule
 says one thing: on this event, do this action. A rule names its `action`, the `event` that fires it, and — by id —
 what it acts on:
 
 ```json
 "timelines": [
-  { "actions": { "timeline.stop": "animateToEnd" } }
+  { "whenStopped": "animateToEnd" }
 ],
-"actionTriggers": [
+"actions": [
   { "action": "timeline.play",  "event": "hoverIn" },
   { "action": "timeline.play",  "event": "click" },
   { "action": "timeline.stop",  "event": "hoverOut" },
@@ -228,26 +232,29 @@ what it acts on:
 Read cold: play on hover-in or click (carrying on if it is already going), stop (after the beat) on hover-out,
 a click while playing pauses and the next click carries on. One rule per event; the order of the rules does not
 matter to the playback actions — the [state rule](#one-event-several-lists) decides. (Until 2026-11-20 the block
-was a map by action, `{ "timeline.start": "load" }`; older files are converted on read.)
+was a map by action, `{ "timeline.start": "load" }`, and until 1.29 the list was called `actionTriggers`; older files
+are converted on read.)
 
 <!-- px-check schema PxActionTriggerRuleSchema -->
 | Field | Means |
 |---|---|
 | `action` | what to do — the table below |
-| `event` | the event that does it — `load` · `hoverIn` · `hoverOut` · `click` · `pointerDown` · `pointerUp` · `keyDown` · `keyUp` |
+| `event` | the event that does it — `load` · `hoverIn` · `hoverOut` · `click` · `pointerDown` · `pointerUp` · `keyDown` · `keyUp` — or `finished`: a flow step reached its end ([Moving between steps](#moving-between-steps)) |
 | `timeline` | the timeline a `timeline.*` action acts on, by its `id`. None: the whole picture — every timeline and every flow |
 | `flowStep` | the step `flow.goTo` goes to, by its `id` — or a timeline's id: the step a timeline no step names is |
 | `flow` | the flow `flow.next` / `flow.previous` steps through, by its `id`. None: `default` |
 | `element` | heard on one element of the picture, `"#id"` — [below](#an-event-on-one-element-a-page-element-or-a-key) |
 | `selector` | heard on an element of the page, a CSS selector |
 | `with` | fields the event must have — a key, a pointer button |
+| `from` | only while a flow is at one of these steps — a step's `id`, or a list of them ([Only at some steps](#only-at-some-steps--from)). None: at any step |
+| `behavior` | the rule's own manner ([below](#a-rules-own-manner--behavior)): a `timeline.stop`'s — a `whenStopped` word — or a `flow.goTo`'s way of leaving — a `whenLeaving` word. None: the timeline's `whenStopped`, the step's `whenLeaving` |
 
 <!-- px-check schema PxActionTriggerRuleSchema values=action -->
 | `action` | Does | Acts while the playback is… | Editor label |
 |---|---|---|---|
 | `timeline.start` | a start — always from the start | **off, finished or returning** — and **playing** or **paused** when no other rule names the event: it restarts | *Start playback on* |
 | `timeline.play` | starts, or carries on: resumes a pause, turns a picture on its way back around | **off, finished, returning or paused** — nothing to do while playing | — |
-| `timeline.stop` | a stop, per `actions["timeline.stop"]` | **playing, paused or finished** | *Stop playback on* |
+| `timeline.stop` | a stop, per the timeline's `whenStopped` (or the rule's own `behavior`) | **playing, paused or finished** | *Stop playback on* |
 | `timeline.pause` | freezes the current frame | **playing** | *Pause playback on* |
 | `timeline.resume` | carries on from there. **Derived unless the file has such a rule** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume playback on* (shown, not edited) |
 | `flow.goTo` | goes to `flowStep` and plays it ([Flows](#flows--named-steps-of-the-animation)) | **any state** — read before the actions above | *Add trigger* |
@@ -262,7 +269,7 @@ click start events move to `timeline.play`, and `load` stays a start.)
 
 A rule that does not fit the schema — an unknown action, or an event its action may not name — is **dropped
 whole**, with a warning ([PX1108](../diagnostics.md#what-the-document-says)). The type of one rule is
-`PxActionTriggerRule` (its `action` a `PxActionName`), the list `PxActionTriggers`.
+`PxActionTriggerRule` (its `action` a `PxActionName`, its `event` a `PxActionEvent`), the list `PxActionTriggers`.
 
 Two clicks make two toggles — spelt with the rules themselves, no extra key:
 
@@ -284,6 +291,9 @@ Two clicks make two toggles — spelt with the rules themselves, no extra key:
 | `keyDown` | a key goes down — heard on the page while the animation is in view and no text field has the focus; narrow it with `with: { key }` |
 | `keyUp` | it comes up |
 
+One more event is not the page's: `finished` (`PxStepEvent`) — a flow step reached its end. Only the flow actions take
+it, and `from` says which steps ([Moving between steps](#moving-between-steps)); a `PxActionEvent` is either kind.
+
 The vocabulary is open: a later interaction (focus, an app event) is a new word for `event`, never a new key.
 A rule with no `element` or `selector` hears the whole picture
 ([An event on one element, a page element, or a key](#an-event-on-one-element-a-page-element-or-a-key)).
@@ -303,7 +313,7 @@ with a warning ([PX1110](../diagnostics.md#what-the-document-says)).
 | `timeline.resume` | — | ✓ | ✓ | ✓ | derived unless the file names it — see below |
 
 The four pressed events — `pointerDown`, `pointerUp`, `keyDown`, `keyUp` — may stand with every action, and the
-state actions take any event.
+flow actions take any event, `finished` included.
 
 ### What resumes a pause — derived unless named
 
@@ -333,7 +343,7 @@ list cannot be written: with no `timeline.resume` rule, the resume is derived.
 
 An event may be named by rules of several actions. The player's **state** picks the actions it is read
 for, in order, and the first action with a rule on the event wins — every button checks the state **as it was
-when the event arrived**. The state actions come first, in any state:
+when the event arrived**. The flow actions come first, in any state:
 
 <!-- px-check off the state rule, prose — triggerActionFor is described under "For player authors" -->
 | State | Actions, first match wins |
@@ -375,10 +385,10 @@ Every warning the players give about the rules, by kind:
 
 ### Absent, or empty
 
-An absent `actionTriggers` list and an empty one, `"actionTriggers": []`, mean the same thing:
+An absent `actions` list and an empty one, `"actions": []`, mean the same thing:
 no rule, so nothing starts the animation until something drives it — your code's
-`timeline.start()`, a component's `playback` prop, or an `actionTriggers` list given to the player. A file that plays by
-itself says so: `"actionTriggers": [{ "action": "timeline.start", "event": "load" }]`. The editor always writes it, and
+`timeline.start()`, a component's `playback` prop, or an `actions` list given to the player. A file that plays by
+itself says so: `"actions": [{ "action": "timeline.start", "event": "load" }]`. The editor always writes it, and
 files saved before schema 1.17 — when an absent block still meant `load` — get the rule written in when they are
 migrated. WHY: a default nobody wrote is a guess, and an absent block meaning something other than an
 empty one trapped every merge patch, hand edit and tool that drops empty objects.
@@ -388,17 +398,16 @@ empty one trapped every merge patch, hand edit and tool that drops empty objects
 what the editor does for you: ticking *Hover in* under *Start playback on* adds *Hover out* under *Pause playback
 on*, editable.
 
-## Actions — how a stop looks
+## How a stop looks — `whenStopped`
 
-`timeline.actions` gives the playback's stop its settings, and the visibility gate its one — one slot per
-moment. `behavior` names a **preset**: one word for where the move goes and how it gets there — and a slot that
-says only `behavior` is written as the word itself: `"timeline.stop": "animateToStart"` is exactly
-`"timeline.stop": { "behavior": "animateToStart" }`. Every setting has a stated default, so a document that says
-nothing plays the way it always did: a stop jumps back to the start, a finished playback holds its last frame
-(`whenFinished`, [below](#once-finished--whenfinished)), an animation scrolled away pauses. A key here names a
-moment; `timeline.stop` is a request too, so it appears in `actionTriggers` as well
-([Two blocks](#two-blocks--requests-and-moments)). A start has nothing to configure: it always plays from the
-start (`actions["timeline.start"]` until 1.25).
+`timeline.whenStopped` says how a stop looks — every stop: a `timeline.stop` rule, `playback="off"`,
+`timeline.stop()`. It is one word, a **preset**: where the move goes and how it gets there. Every setting has a
+stated default, so a document that says nothing plays the way it always did: a stop jumps back to the start, a
+finished playback holds its last frame (`whenFinished`, [below](#once-finished--whenfinished)), an animation scrolled
+away pauses (`whenOutOfView`, [the visibility gate](#whether-it-may-run--the-visibility-gate)). One rule can stop
+another way with its own `behavior` ([below](#a-rules-own-manner--behavior)). A start has nothing to configure: it
+always plays from the start. (Until 1.29 the timeline's `actions` block said it — `"timeline.stop": "animateToStart"`,
+or `{ "behavior": "animateToStart" }`; `actions["timeline.start"]` until 1.25.)
 
 ### The action words
 
@@ -409,11 +418,11 @@ There are two kinds of words. **State words** change the playback state: the but
 <!-- px-check off the one table of action words — each slot's values are checked in its own table below -->
 | Word | Means | Taken by |
 |---|---|---|
-| `jumpToStart` | at once to the rest pose (`whenIdle`: the file's static look, or the first frame) | `timeline.stop` · `whenFinished` |
-| `animateToStart` | plays backwards to the rest pose | `timeline.stop` (the `returning` state) · `whenFinished` |
-| `jumpToEnd` | at once to the end of the current pass (a one-shot: the playback's end) | `timeline.stop` |
-| `animateToEnd` | plays on to the end of the current pass | `timeline.stop` |
-| `animateToEndAndBack` | plays on to the end of the current pass, then backwards to the rest pose | `timeline.stop` |
+| `jumpToStart` | at once to the rest pose (`whenIdle`: the file's static look, or the first frame) | `whenStopped` · `whenFinished` |
+| `animateToStart` | plays backwards to the rest pose | `whenStopped` (the `returning` state) · `whenFinished` |
+| `jumpToEnd` | at once to the end of the current pass (a one-shot: the playback's end) | `whenStopped` |
+| `animateToEnd` | plays on to the end of the current pass | `whenStopped` |
+| `animateToEndAndBack` | plays on to the end of the current pass, then backwards to the rest pose | `whenStopped` |
 | `hold` | stays where it is | `whenFinished` |
 
 **A stop that goes to the end leaves the playback `finished`** — `jumpToEnd` and `animateToEnd` arrive at the end
@@ -424,24 +433,24 @@ pass, then plays back to the rest pose, and the playback is `off`. WHY these wor
 "reset to where?", "rewind how?", "complete what?".
 
 <!-- px-check off worked examples — the words are checked in the tables below -->
-| You want | `actions` | What happens |
+| You want | `whenStopped` | What happens |
 |---|---|---|
-| stop after this pass — a heartbeat should not die mid-beat | `{ 'timeline.stop': 'animateToEnd' }` | a stop plays on to the end of the current pass; the playback is `finished` there — `whenFinished: 'hold'` rests on that frame |
-| …then snap back | `{ 'timeline.stop': 'animateToEnd' }` + `whenFinished: 'jumpToStart'` | the beat completes, then the rest pose — a natural end does the same |
-| …then play it back | `{ 'timeline.stop': 'animateToEndAndBack' }` | the beat completes, then plays backwards to the rest pose; a natural end still does what `whenFinished` says |
-| a lid that opens on hover-in and closes animated on hover-out | `{ 'timeline.stop': 'animateToStart' }` | a stop plays backwards from wherever it is |
+| stop after this pass — a heartbeat should not die mid-beat | `'animateToEnd'` | a stop plays on to the end of the current pass; the playback is `finished` there — `whenFinished: 'hold'` rests on that frame |
+| …then snap back | `'animateToEnd'` + `whenFinished: 'jumpToStart'` | the beat completes, then the rest pose — a natural end does the same |
+| …then play it back | `'animateToEndAndBack'` | the beat completes, then plays backwards to the rest pose; a natural end still does what `whenFinished` says |
+| a lid that opens on hover-in and closes animated on hover-out | `'animateToStart'` | a stop plays backwards from wherever it is |
 
-<!-- px-check schema PxActionsSchema -->
-| Field | Values | Default |
+<!-- px-check schema PxTimeTimelineSchema partial -->
+| Timeline key | Values | Default |
 |---|---|---|
-| `timeline.stop.behavior` | `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` · `animateToEndAndBack` | `jumpToStart` |
-| `outOfView.behavior` | `pause` · `continue` · `stop` | `pause` — [the visibility gate](#whether-it-may-run--the-visibility-gate) |
+| `whenStopped` | `jumpToStart` · `animateToStart` · `jumpToEnd` · `animateToEnd` · `animateToEndAndBack` | `jumpToStart` |
+| `whenOutOfView` | `pause` · `continue` · `stop` | `pause` — [the visibility gate](#whether-it-may-run--the-visibility-gate) |
 
 `timeline.start`, `timeline.play`, `timeline.pause`, `timeline.resume` and the return into view have nothing to
 configure.
 
 <!-- px-check values PxStopPlaybackBehavior pkg=core -->
-| `actions["timeline.stop"].behavior` | A stop (a `timeline.stop` event, `playback="off"`, `timeline.stop()`)… |
+| `timeline.whenStopped` | A stop (a `timeline.stop` rule, `playback="off"`, `timeline.stop()`)… |
 |---|---|
 | `jumpToStart` (default) | jumps back to the rest pose at once (was `reset`) — `off` |
 | `animateToStart` | plays backwards to the rest pose from wherever it is — the `returning` state (was `rewind`), then `off` — the trash-can lid: opens on hover-in, closes animated on hover-out |
@@ -453,11 +462,34 @@ configure.
 the pass first. With `jumpToEnd` or `animateToEnd`, a stop on a playback that is already finished does nothing;
 the other three take it back to the rest pose.
 
+### A rule's own manner — `behavior`
+
+A rule can say how ITS move looks, over the timeline's or the step's own setting (1.29):
+
+```json
+"actions": [
+  { "action": "timeline.play", "event": "hoverIn" },
+  { "action": "timeline.stop", "event": "hoverOut", "behavior": "animateToStart" },
+  { "action": "timeline.stop", "event": "click" }
+]
+```
+
+Read cold: when the pointer leaves, the picture plays back; a click stops it the timeline's way — its `whenStopped`,
+here the default `jumpToStart`. `behavior` belongs to two actions:
+
+<!-- px-check off the two actions that take a behavior, prose -->
+| `action` | `behavior` | Instead of |
+|---|---|---|
+| `timeline.stop` | a `whenStopped` word | the timeline's `whenStopped` |
+| `flow.goTo` | a `whenLeaving` word — how the current step is left: `jump` · `animateToEnd` · `animateToStart` | the current step's `whenLeaving` |
+
+`playback="off"` and `timeline.stop()` have no rule, so they always stop the timeline's way.
+
 ### Once finished — `whenFinished`
 
 Nobody presses the end of the playback: the clock gets there. When the last pass ends by playing, the playback
 is `finished` — and it stays `finished` until the next start, stop or seek, **whatever the picture then shows**.
-`timeline.whenFinished` moves only the picture; it is a plain key beside `whenIdle`, not an `actions` slot
+`timeline.whenFinished` moves only the picture; it is a plain key beside `whenStopped` and `whenIdle`
 (`atEnd` until 1.25, `actions.finish` until 1.23). It applies to every way a playback becomes finished: the
 natural end, which reports `onPlaybackFinish`, and a stop that goes to the end (`jumpToEnd`, `animateToEnd`),
 which reports `onPlaybackStop`:
@@ -510,23 +542,23 @@ what shows while there is no playback:
 A **one-shot document** driven by a component's `playback` prop reads these settings too:
 `playback="on"` is a start (it plays to the end, and the picture then follows `whenFinished` — the last frame
 by default), `playback="off"` a stop (`jumpToStart` snaps back, `animateToStart` plays back). The trash-can
-lid that closes animated is `actions={{ 'timeline.stop': 'animateToStart' }}`.
+lid that closes animated is `timelineOptions={{ whenStopped: 'animateToStart' }}`.
 
 ### Whether it may run — the visibility gate
 
 An animation nobody can see does not play, whatever started it. The gate is a **condition on
 every driver** — the triggers, a component's `playback` prop and the API alike — not an event: once
-none of it is on screen the player performs the built-in `outOfView` moment, and once it is seen
+none of it is on screen the player does what `whenOutOfView` says, and once it is seen
 again it undoes what it did. The gate presses the real buttons, so `timeline.getState()` and the callbacks
-tell the truth while the animation is off screen. `outOfView` has one setting; the two numbers that say when
-the sensor counts it as seen are plain timeline keys:
+tell the truth while the animation is off screen. `whenOutOfView` is a plain timeline key, and so are the
+two numbers that say when the sensor counts it as seen:
 
 <!-- px-check values PxOutOfViewBehavior pkg=core -->
-| `actions.outOfView.behavior` | Effect while none of it is on screen |
+| `timeline.whenOutOfView` | Effect while none of it is on screen |
 |---|---|
 | `pause` (default) | pauses a playing animation — `paused`, `onPlaybackPause` — and resumes it when it comes back (`onPlaybackResume`) |
 | `continue` | keep playing — and start without waiting to be seen at all |
-| `stop` | stops a playing or finished animation at once — `off`, `onPlaybackStop`; no animated return, the stop action is not used — and starts it again from the start when it comes back (`onPlaybackStart`) (`jumpToStart` until 1.25) |
+| `stop` | stops a playing or finished animation at once — `off`, `onPlaybackStop`; no animated return, `whenStopped` is not used — and starts it again from the start when it comes back (`onPlaybackStart`) (`jumpToStart` until 1.25) |
 
 <!-- px-check off two plain numbers, not a closed value list — the schema block in the format guide carries their types -->
 | Field | Default | Meaning |
@@ -549,21 +581,21 @@ for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 
 ### Where triggers work
 
-- **Every player** — web, React, Vue and React Native — honours the rules, the actions and the
+- **Every player** — web, React, Vue and React Native — honours the rules, `whenStopped` and the
   gate, with one exception: React Native has no `hoverIn` / `hoverOut`, because there is no hover
   on a touch screen. React Native plays the first timeline only.
 - **Pre-rendered SVG + CSS animation + JS triggers** honours all of them too. The editor writes a
   few lines of script into the file for this; no library is involved.
 - **Pre-rendered SVG + CSS animation** (no script at all) listens for `load` and, through CSS
   `:hover`, for `hoverIn` and `hoverOut` — `hoverOut` may pause or stop, not both. `click` and the
-  visibility gate cannot be done in pure CSS and are dropped from the file; the actions keep
-  their defaults (a class cannot jump keyframes to their start or end, or play them backwards). The editor marks every
+  visibility gate cannot be done in pure CSS and are dropped from the file; `whenStopped` keeps
+  its default (a class cannot jump keyframes to their start or end, or play them backwards). The editor marks every
   choice *(CSS)* or *(JS)* so you see what the script-free flavour keeps. See
   [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
 - **The CSS components** (`SvgCssAnimationPlayer` in React and Vue) take the JS component's prop
-  names, narrowed: `actionTriggers` (the list), `timelineOptions` with the two gate numbers, and
-  `actions` limited to `outOfView` — read with the same rules. A script-free SVG carries no triggers the
-  component could read, so with no `actionTriggers` nothing starts it. Accepted limits of a class toggle: a start that is not
+  names, narrowed: `actions` (the list) and `timelineOptions` with the gate — the two numbers and
+  `whenOutOfView` — read with the same rules. A script-free SVG carries no triggers the
+  component could read, so with no `actions` nothing starts it. Accepted limits of a class toggle: a start that is not
   from rest restarts by remounting the content (a class cannot rewind keyframes), the stop is always
   `jumpToStart`, there is no `finished` state (the class toggle does not see the CSS animation end), and
   `whenIdle` / `whenFinished` are the file's own CSS.
@@ -573,7 +605,7 @@ for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 A rule's event can be heard somewhere else than the whole picture, or narrowed (2026-11-15):
 
 ```json
-"actionTriggers": [
+"actions": [
   { "action": "timeline.start", "event": "load" },
   { "action": "timeline.start", "event": "click", "element": "#lens" },
   { "action": "flow.next",     "event": "click", "selector": ".next-step" },
@@ -623,12 +655,13 @@ run at the same time. The page, or the file's own rules, moves from step to step
 "animator": {
   "timelines": [ { "outTime": 3000 } ],
   "flowSteps": [
-    { "id": "intro",   "inTime": 0,    "outTime": 1000, "whenFinished": { "action": "flow.next" } },
+    { "id": "intro",   "inTime": 0,    "outTime": 1000 },
     { "id": "loading", "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" },
     { "id": "success", "inTime": 2000, "outTime": 3000 }
   ],
-  "actionTriggers": [
+  "actions": [
     { "action": "timeline.start", "event": "load" },
+    { "action": "flow.next", "event": "finished", "from": "intro" },
     { "action": "flow.goTo", "flowStep": "success", "event": "click", "selector": "#save" }
   ]
 }
@@ -637,8 +670,8 @@ run at the same time. The page, or the file's own rules, moves from step to step
 Read cold: the intro plays once and goes on to the loading loop by itself; a click on the page's *Save* button asks
 for the success — the loop first finishes its pass, then the success plays and holds its last frame. The three
 steps name no `flow`, so they are the flow `default`, and no `timeline`, so they are parts of the default timeline.
-(Until 2026-11-22 these were `states` in `stateMachines`, until 2026-11-20 the timeline's `segments`; older files are
-converted on read.)
+(Until 1.29 a step said where it goes on at its end in its own `whenFinished`; until 2026-11-22 the steps were `states`
+in `stateMachines`, until 2026-11-20 the timeline's `segments`; older files are converted on read.)
 
 **A step overrides its timeline** while it is current: its part, its repeats, direction, speed and end. What it does
 not say, it takes from the timeline. While a flow is at a step, **the playback is that step's**: `timeline.start()`
@@ -648,7 +681,7 @@ frame.
 <!-- px-check schema PxFlowStepSchema -->
 | Field | Means |
 |---|---|
-| `id` | what rules, `whenFinished` and the page call it — unique in `flowSteps`: a later step with an id already used is ignored, with a warning ([PX1115](../diagnostics.md#what-the-document-says)) |
+| `id` | what rules (their `flowStep` and `from`) and the page call it — unique in `flowSteps`: a later step with an id already used is ignored, with a warning ([PX1115](../diagnostics.md#what-the-document-says)) |
 | `name` | a label for people; nothing refers to it — two steps can both be called "Open" |
 | `flow` | the flow it belongs to, by its `id`. None: the flow `default` |
 | `timeline` | the timeline it is a part of, by its `id`. None (or `""`): the default timeline |
@@ -658,17 +691,26 @@ frame.
 | `iterations` | passes, or `"infinite"` (default: the timeline's) |
 | `iterationDirection` | as the timeline's |
 | `playbackSpeed` | as the timeline's, on top of the player's speed |
-| `whenFinished` | after its last pass: a picture word (`hold` · `jumpToStart` · `animateToStart`; default: the timeline's, else `hold`), or an action — it goes on there |
+| `whenFinished` | after its last pass, what the picture shows: `hold` · `jumpToStart` · `animateToStart` (default: the timeline's, else `hold`). Going on is a rule's — [a step's end](#a-steps-end--finished) |
 | `whenLeaving` | how it is left when another step is asked for (`PxWhenLeaving`): `jump` (default) at once · `animateToEnd` this pass first · `animateToStart` played back to its start |
 
-A `whenFinished` that goes somewhere is **the same small object as a rule**, without its event (`PxActionObject`):
+### A step's end — `finished`
+
+Where a step goes on at its end is a rule like any other, on the event `finished`; `from` names the step:
 
 <!-- px-check values PxFlowAction pkg=core -->
-| Action | `whenFinished` | Goes to |
+| Action | The rule | Goes to |
 |---|---|---|
-| `flow.goTo` | `{ "action": "flow.goTo", "flowStep": "hover" }` | that step |
-| `flow.next` | `{ "action": "flow.next" }` | the next step of its flow — after the last, the first |
-| `flow.previous` | `{ "action": "flow.previous" }` | the previous one — before the first, the last |
+| `flow.goTo` | `{ "action": "flow.goTo", "flowStep": "hover", "event": "finished", "from": "intro" }` | that step |
+| `flow.next` | `{ "action": "flow.next", "event": "finished", "from": "intro" }` | the next step of the step's own flow — after the last, the first |
+| `flow.previous` | `{ "action": "flow.previous", "event": "finished", "from": "intro" }` | the previous one — before the first, the last |
+
+- A `finished` rule with no `from` is **every** step's end: a slideshow that steps on by itself is one rule.
+- The first rule that fits the step wins; with none, the step holds — its `whenFinished` says what shows.
+- `finished` takes only the three flow actions, and a step that goes on reports no finish.
+
+The action and its `flowStep` or `flow` alone are a `PxActionObject` — what `player.flow` and the helpers pass around.
+(Until 1.29 the object stood in the step's own `whenFinished`.)
 
 ### The flow `default` and the default timeline
 
@@ -685,7 +727,7 @@ steps**, one at a time: only flows run side by side.
 
 ```json
 "timelines": [ { "outTime": 2000, "iterations": "infinite" }, { "id": "hover", "outTime": 150 }, { "id": "press", "outTime": 200 } ],
-"actionTriggers": [
+"actions": [
   { "action": "timeline.start", "event": "load" },
   { "action": "flow.goTo", "flowStep": "hover", "event": "hoverIn" },
   { "action": "flow.goTo", "flowStep": "press", "event": "pointerDown" }
@@ -710,11 +752,11 @@ button's pointer steps and its notification badge each have their own, and both 
   { "id": "idle",    "flow": "pointer", "timeline": "grow", "inTime": 0, "outTime": 0 },
   { "id": "hover",   "flow": "pointer", "timeline": "grow", "whenLeaving": "animateToStart" },
   { "id": "calm",    "flow": "notice",  "timeline": "ring", "inTime": 0, "outTime": 0 },
-  { "id": "ringing", "flow": "notice",  "timeline": "ring", "inTime": 0, "outTime": 600, "iterations": 3,
-    "whenFinished": { "action": "flow.next" } },
+  { "id": "ringing", "flow": "notice",  "timeline": "ring", "inTime": 0, "outTime": 600, "iterations": 3 },
   { "id": "unread",  "flow": "notice",  "timeline": "ring", "inTime": 600, "outTime": 1400 }
 ],
-"flows": [ { "id": "pointer" }, { "id": "notice", "name": "Notification" } ]
+"flows": [ { "id": "pointer" }, { "id": "notice", "name": "Notification" } ],
+"actions": [ { "action": "flow.next", "event": "finished", "from": "ringing" } ]
 ```
 
 `idle` and `hover` are `pointer`; `calm`, `ringing` and `unread` are `notice`, three parts of one timeline, `ring`. The
@@ -753,7 +795,7 @@ is on the [JSON format page](../format/README.md#timelines-flows-and-flow-steps)
 | From | How |
 |---|---|
 | a rule of the file | `{ "action": "flow.goTo", "flowStep": "success", "event": "click" }`; `flow.next` / `flow.previous` with an optional `flow` — any event, read before the playback actions ([Triggers](#triggers--when-it-plays)) |
-| a step's end | its `whenFinished` action |
+| a step's end | a rule on `finished` — [above](#a-steps-end--finished) |
 | page code | `player.flow.goTo('success')`, `.next(flow?)`, `.previous(flow?)`; `.get(flow?)` is the current step of each running flow, a list; `.getAll()` every id — [the web player](./web-player.md#the-playback-api) |
 | a component | the `flowStep` prop — one id, or a list with one id per flow: `<SvgAnimationPlayer document={saveIcon} flowStep={status} />` (React, Vue) |
 
@@ -762,7 +804,24 @@ is `flowStepChange`. Going to the current step does nothing; an id the file does
 ([PX1114](../diagnostics.md#what-the-document-says)); a request while a step is leaving replaces the earlier one — the
 newest wins. While the `flowStep` prop is set, the page holds that flow and the file's rules for it rest; at mount a
 step that ends is shown at its end without playing, one that repeats plays. The prop's type is `PxFlowStepProps`, the
-handle's `PxFlowControls`, the wire types `PxFlowStep` and `PxFlow`.
+handle's `PxFlowControls`, the wire types `PxFlowStep` and `PxFlow`. `player.flow.goTo(id, leaving?)` takes a way of
+leaving too — a `whenLeaving` word over the current step's.
+
+### Only at some steps — `from`
+
+`from` limits a rule to some steps: it is heard only while a flow is at one of them (1.29).
+
+```json
+"actions": [
+  { "action": "flow.goTo", "flowStep": "open",   "event": "click", "from": "closed" },
+  { "action": "flow.goTo", "flowStep": "closed", "event": "click", "from": "open" }
+]
+```
+
+Read cold: one click opens, the next closes — each rule waits at its own step. `from` takes one id or a list
+(`"from": ["idle", "hover"]`); a rule with no `from` is heard at every step. Any action takes it — a `timeline.pause`
+that only the loading loop hears is `{ "action": "timeline.pause", "event": "click", "from": "loading" }`. On a
+`finished` rule, `from` is the step whose end it is.
 
 ### What runs — the page's lists
 
@@ -818,11 +877,11 @@ Repeated step ids are [PX1115](../diagnostics.md#what-the-document-says), a `flo
 | No blend between two timelines, no crossfade between two steps | two steps on one timeline: it plays from one part to the other — `whenLeaving` |
 | An id is unique in its whole list — two steps cannot both be `open` | `eyesOpen`, `mouthOpen`; a `name` beside the id can still say "Open" |
 | The transform parts of one node are one attribute — `scale` in one flow and `rotate` in another: the first flow keeps both | a group around the node takes the second move, as in SVG itself |
-| A rule applies in every step of its flow | — |
+| A rule applies in every step of its flow | `from` — [Only at some steps](#only-at-some-steps--from) |
 | `getState()` naming the step | `flow.get()` beside it |
 | `timelineOptions` changing one step | `timelineOptions` patches the default timeline only; steps are the file's |
 | Exports other than the players — SVG + CSS with no script, Lottie, video | one timeline, whole |
-| React Native | one flow — the first that runs ([PX1605](../diagnostics.md#react-native)); its steps change at once (no `whenLeaving`); no `flowStep` prop yet |
+| React Native | one flow — the first that runs ([PX1605](../diagnostics.md#react-native)); its steps change at once (no `whenLeaving`); no `flowStep` prop yet; a tap reads no rule's `from` or `behavior` |
 
 ## Overriding from a player
 
@@ -831,33 +890,34 @@ Repeated step ids are [PX1115](../diagnostics.md#what-the-document-says), a `flo
 
 One document can play differently in each place you use it — the same file shown twice at two
 speeds, or a file that starts by itself everywhere except inside your own play/pause UI. With no
-option at all a player plays the file **the way it was saved**: its own `actionTriggers` start it and its
-`actions` say how a stop looks. Every player takes the **same three overrides**, and the file on disk is
+option at all a player plays the file **the way it was saved**: its own `actions` start it and its
+timeline's `whenStopped` says how a stop looks. Every player takes the **same two overrides**, and the file on disk is
 never modified:
 
-<!-- px-check off the three override props, prose — their types are checked in each player's signature block -->
+<!-- px-check off the two override props, prose — their types are checked in each player's signature block -->
 | | prop / option | what it carries |
 |---|---|---|
-| the timing | `timelineOptions` | corrections to the file's first timeline, minus `actionTriggers` and `actions` — `iterations`, `delay`, `playbackSpeed`, `whenFinished`, the gate numbers — as an object shaped like the file, **merged** over it; whoever needs more edits the document |
-| the actions | `actions` | the first timeline's `actions` block to use **instead** of the file's — `{ 'timeline.stop': 'animateToStart' }` says how a stop looks; a slot left out (`outOfView`, say) reads its default, never the file's value |
-| the triggers | `actionTriggers` | the `actionTriggers` list to use **instead** of the file's — the same rules a file can have, `timeline.resume` and the state actions included, so the override has the file's power. A rule left out is not there, never the file's. `null` or `[]`: no triggers, the same as `disableActionTriggers` ([Control modes](#control-modes--who-drives-it)) |
+| the timing | `timelineOptions` | corrections to the file's first timeline — `iterations`, `delay`, `playbackSpeed`, `whenStopped`, `whenOutOfView`, `whenFinished`, the gate numbers — as an object shaped like the file, **merged** over it; whoever needs more edits the document |
+| the triggers | `actions` | the `actions` list to use **instead** of the file's — the same rules a file can have, `timeline.resume`, the flow actions, `from` and `behavior` included, so the override has the file's power. A rule left out is not there, never the file's. `null` or `[]`: no triggers, the same as `disableActions` ([Control modes](#control-modes--who-drives-it)) |
 
-Merge or replace — the one rule for the three:
+(Until 1.29 there were three: the list was `actionTriggers`, and an `actions` prop replaced the timeline's `actions`
+block — its stop setting is `timelineOptions.whenStopped` now, merged like every other timing key.)
+
+Merge or replace — the one rule for the two:
 
 <!-- px-check off merge versus replace, prose -->
 | | |
 |---|---|
 | `timelineOptions` | **a recursive partial** — "options": objects merge key by key, values replace, a key left out keeps the file's value |
-| `actions`, `actionTriggers` | **blocks** that replace the file's as a whole — their slots and rules belong together: switching hover → click wants other rules too, and one action slot changed against the file's others can make no sense |
+| `actions` | **a list** that replaces the file's as a whole — its rules belong together: switching hover → click wants other rules too |
 
-So a hover file that saves `actions: { outOfView: 'continue' }`, mounted with
-`actions={{ 'timeline.stop': 'animateToStart' }}`, scrolls out of view with `outOfView` at its default,
-`pause`. To keep a slot, write it in the block you pass.
+So a hover file that saves `whenOutOfView: 'continue'`, mounted with
+`timelineOptions={{ whenStopped: 'animateToStart' }}`, stops animated and still plays on out of view — the key left
+out keeps the file's value.
 
-The prop is `timelineOptions`, not `timeline`: it is not a timeline of the file — one of its keys lives on
-another prop, and the rules sit beside the timelines — and a prop that shares a file key's name would promise
-the same shape. `actions` and `actionTriggers` keep the file's names because each IS that block. With several
-timelines, `timelineOptions` and `actions` patch the **first** one; the others play as the file says.
+The prop is `timelineOptions`, not `timeline`: it is not a timeline of the file — the rules sit beside the timelines —
+and a prop that shares a file key's name would promise the same shape. `actions` keeps the file's name because it IS
+that list. With several timelines, `timelineOptions` patches the **first** one; the others play as the file says.
 
 **Web player**
 
@@ -871,12 +931,11 @@ import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 const a = createSvgAnimationPlayer({
   document: '/bouncing-ball.json',
   container: '#box',
-  timelineOptions: { iterations: 'infinite' },
-  actions: { 'timeline.stop': 'animateToEnd' },
-  disableActionTriggers: true,   // the file's triggers off: nothing starts until a.timeline.start()
+  timelineOptions: { iterations: 'infinite', whenStopped: 'animateToEnd' },
+  disableActions: true,   // the file's triggers off: nothing starts until a.timeline.start()
 });
 a.timeline.start();
-a.timeline.stop();   // plays on to the end of the current pass, then rests — the actions said so
+a.timeline.stop();   // plays on to the end of the current pass, then rests — whenStopped said so
 ```
 
 **React / Vue / React Native** — the same objects, as props:
@@ -888,15 +947,15 @@ a.timeline.stop();   // plays on to the end of the current pass, then rests — 
 // these triggers instead of the file's: plays on hover-in, plays back on hover-out —
 // a hover-in on the way back turns it around
 <SvgAnimationPlayer document={animation}
-  actionTriggers={[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.stop', event: 'hoverOut' }]}
-  actions={{ 'timeline.stop': 'animateToStart' }} />
+  actions={[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.stop', event: 'hoverOut' }]}
+  timelineOptions={{ whenStopped: 'animateToStart' }} />
 
 // one click starts it, the next stops it
 <SvgAnimationPlayer document={animation}
-  actionTriggers={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />
+  actions={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />
 
-// driven by your state — the same actions, the same settings
-<SvgAnimationPlayer document={spinner} playback={busy ? 'on' : 'off'} actions={{ 'timeline.stop': 'animateToEnd' }} />
+// driven by your state — the same buttons, the same settings
+<SvgAnimationPlayer document={spinner} playback={busy ? 'on' : 'off'} timelineOptions={{ whenStopped: 'animateToEnd' }} />
 ```
 
 ### How the merge works
@@ -909,36 +968,34 @@ a.timeline.stop();   // plays on to the end of the current pass, then rests — 
 | **Objects merge, key by key** | `timelineOptions: { outTime: 2000 }` changes the window end and leaves `iterations` and everything else as the file has them |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
 | **A key left out changes nothing** | there is no delete: a key left out — or `null` from JavaScript — keeps the file's value. To get a default, set it: `{ timelineOptions: { delay: 0, whenFinished: 'hold' } }`. WHY no `null` delete (until 1.22): nobody resets one key to "absent" from a page — setting the value wanted is clearer, and React reads `null` as "nothing" anyway |
-| **`actionTriggers` and `actions` are not timeline keys here** | the file keeps them apart (the rules beside the timelines, `actions` inside one), the props lift them: only `actionTriggers` carries triggers and only `actions` the action settings, so every key is reachable exactly one way — `timelineOptions={{ actionTriggers: … }}` is a type error. Both are whole blocks, set as given (`actions` merged until 1.25) |
-| **Changing the `type` starts over** | switching the first timeline between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations` and `engine` — the keys both kinds share. Clock-only keys (`actions`, `whenIdle`, `whenFinished`, `delay`, `playbackSpeed`, `iterationDirection`, `frameRate`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning; so is `iterations: 'infinite'` |
+| **`actions` is not a timeline key** | the file keeps the rules beside the timelines, and so do the props: only `actions` carries rules, so every key is reachable exactly one way — `timelineOptions={{ actions: … }}` is a type error. The list is set as given |
+| **Changing the `type` starts over** | switching the first timeline between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations` and `engine` — the keys both kinds share. Clock-only keys (`whenStopped`, `whenOutOfView`, `whenIdle`, `whenFinished`, `delay`, `playbackSpeed`, `iterationDirection`, `frameRate`, the gate numbers) have no meaning on a scroll timeline and are dropped, with a console warning; so is `iterations: 'infinite'` |
 | **A moment and `holdOnScreen` are one value each** | on a scroll timeline, `firstFrameWhen`, `lastFrameWhen` and `holdOnScreen` are replaced whole — a word and an object never mix: `timelineOptions: { holdOnScreen: { at: 'center' } }` over a file's `{ forScreens: 3 }` holds at the centre for the page's own tall section |
 
-Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions, actionTriggers })`
+Every player uses the same code from core. `applyPlaybackOverride(doc, { timelineOptions, actions })`
 is the one implementation the web player and the three components call: the timing merged
-(`mergeAnimatorConfig`'s rules, above), then the `actions` block and the `actionTriggers` block, each SET as a
-whole when given (`actionTriggers: null` is left to the control mode — [below](#control-modes--who-drives-it)).
-Its input is a `PxPlaybackOverrideInput` (the `timelineOptions` and `actions` of `PxPlaybackOverride` plus
-`actionTriggers`), its answer a `PxPlaybackOverrideResult`: the new document, sharing every untouched subtree,
+(`mergeAnimatorConfig`'s rules, above), then the `actions` list, SET as a whole when given (`actions: null` is left
+to the control mode — [below](#control-modes--who-drives-it)).
+Its input is a `PxPlaybackOverrideInput` (the `timelineOptions` of `PxPlaybackOverride` plus `actions`), its answer a `PxPlaybackOverrideResult`: the new document, sharing every untouched subtree,
 and the merge's warnings. `applyAnimatorConfig(doc, patch)` applies a patch to a whole document;
 `mergeAnimatorConfig` does the same one level down, on the `animator` block alone, and reports what it could
 and could not do in a `PxAnimatorConfigMergeResult`. A patch is a `PxRecursivePartial` of the wire type —
 every key optional at every depth, arrays and primitives replaced whole, no delete — so
 `PxAnimatorConfigPatch` patches the `animator` block and `PxTimelineOptions` (the `timelineOptions` prop) the
-timing, typed from `PxTimelineTiming` (the timeline minus `actionTriggers` and `actions`); its parameter,
+timing, typed from `PxTimelineTiming` (the timeline's keys); its parameter,
 `PxTimelineOptions<TFollowed>`, is what a scroll timeline's `follows` may also take from page code — an `Element`
-on the web player, none by default ([From page code](#from-page-code)). `PxActionsInput`
-(the `actions` prop) is the `actions` block itself (`PxActions`), and `PxActionTriggersInput` the triggers
-list of rules. WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until
+on the web player, none by default ([From page code](#from-page-code)). `PxActionTriggersInput`
+(the `actions` prop) is the list of rules, taken as given (`PxActionsInput`, the timeline's old block, until 1.29).
+WHY the names (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until
 1.25): `PxRecursivePartial` says what the type IS — the common `RecursivePartial`; "options" is the word
-for a merge, "input" for a block taken as given. `withActionTriggers(doc, triggers)` and
-`withActions(doc, actions)` are the SETs the two blocks need (an empty block and a replacement that drops
-keys are things a merge cannot say).
+for a merge, "input" for a value taken as given. `withActions(doc, actions)` is the SET the list needs (an empty
+list and a replacement that drops rules are things a merge cannot say; `withActionTriggers` until 1.29).
 
 ### Control modes — who drives it
 
 Every player takes the same three control options — `PxCommonControlProps`: the web player's options, the
 pre-rendered `bind` and the three components alike. The components add the props that hold a position.
-**None of them set, the file plays the way it was saved**: its own `actionTriggers` start it, and your code
+**None of them set, the file plays the way it was saved**: its own `actions` start it, and your code
 can still drive it through the handle.
 
 <!-- px-check values PxControlMode pkg=core -->
@@ -947,37 +1004,37 @@ can still drive it through the handle.
 | `static` | `showAsStatic` | off — and no scroll: the picture as drawn | every playback call is ignored with a warning ([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer |
 | `fixedTime` | `showAtProgress` / `showAtTime` (components) | off; the player seeks and holds that frame | works; a write warns ([PX1503](../diagnostics.md#the-props-a-component-was-given)) and the next prop change reasserts the frame |
 | `playback` | `playback` (components) | off; the lever presses the buttons | works; a write warns (PX1503) and the next prop change reasserts the lever |
-| `manual` | `disableActionTriggers` (or `actionTriggers: null`) | off — nothing starts it by itself | your code presses the buttons |
-| `actionTriggers` (default) | nothing — or an `actionTriggers` list | the file's own, or the list given | works too |
+| `manual` | `disableActions` (or `actions: null`) | off — nothing starts it by itself | your code presses the buttons |
+| `actions` (default) | nothing — or an `actions` list | the file's own, or the list given | works too |
 
 When two are set at once the higher row wins — `showAsStatic` beats everything — and the player warns
 once, naming both and the winner ([PX1501](../diagnostics.md#the-props-a-component-was-given)); TypeScript
-rejects the mix on the components first. `actionTriggers={[]}` is the default mode with an empty list, so
-it does what `disableActionTriggers` does. `playerRef` (a Vue template ref, the web player's returned api)
+rejects the mix on the components first. `actions={[]}` is the default mode with an empty list, so
+it does what `disableActions` does. `playerRef` (a Vue template ref, the web player's returned api)
 is not a mode: the handle is filled in every mode and never changes which one you are in, so a bare
-component with `playerRef` plays as the file says AND gives you the handle — add `disableActionTriggers`
+component with `playerRef` plays as the file says AND gives you the handle — add `disableActions`
 when your code alone should start it.
 
 The `playback` prop presses the built-in buttons — a change of position is one press: `off` → `on` is
 `timeline.start()`, `on` → `paused` is `timeline.pause()`, `paused` → `on` is `timeline.resume()`, anything →
-`off` is `timeline.stop()` — so the file's `actions` (and the `actions` prop) still say how each move looks;
+`off` is `timeline.stop()` — so the timeline's `whenStopped` (the file's, or `timelineOptions`) still says how a stop looks;
 a mount with `"off"` presses nothing, a mount with `"paused"` starts the playback frozen. Its positions are
 `PxPlayback` (`off` · `on` · `paused`).
 
 **One driver family at a time.** The React and React Native components type their control props as
 `PxControlProps`, a union: `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` ·
-`disableActionTriggers` · `actionTriggers` — two families together do not compile. Vue's runtime props, the
+`disableActions` · `actions` — two families together do not compile. Vue's runtime props, the
 web player's options, or a JavaScript caller can still pass any mix (`PxAnyControlProps` is every control
 prop, in any mix): every player decides it with the same core function, so they always agree.
 `resolveControlMode` reads the props you passed and returns a `PxResolvedControlMode` — the mode that wins
 (`PxControlMode`), plus a ready-made PX1501 warning when they came from more than one family (also when both
 `showAtProgress` and `showAtTime` are set: `showAtProgress` wins). `controlModeTakesOverTrigger` then says
-whether that mode switches the file's triggers off — true for every mode except `actionTriggers`.
+whether that mode switches the file's triggers off — true for every mode except `actions`.
 `withControlMode(doc, mode)` applies it to a document, after the override so nothing re-arms what it
 switched off: `static` → `withStaticPicture(doc)` (the triggers emptied and `whenIdle: 'static'`, so the
 picture is the SVG as drawn; a scroll-driven document comes back as it is — its scroll is simply not
 attached), the other modes that take the triggers over → `withoutTriggerDriver(doc)` (an **empty**
-`actionTriggers` list; a scroll-driven document is spared), `actionTriggers` → as it is. The web player and
+`actions` list; a scroll-driven document is spared), `actions` → as it is. The web player and
 the pre-rendered builds call it; the components apply their own pose rules beside it.
 
 ### For player authors — the same rules, exported
@@ -991,10 +1048,9 @@ write yourself cannot drift from the four shipped ones:
   `resolveTriggers(rules, stepIds?)` returns a `PxResolvedTriggers` —
   the rules grouped by playback action, each an array of the events it may name (`triggerEventList` normalises
   one), `timeline.resume` derived unless a rule names it, an absent list and an empty one both nothing.
-  `resolveActions(actions, whenFinished?)` returns a
-  `PxResolvedActions` — the `timeline.stop` and `outOfView` settings plus `whenFinished`, every one defaulted; `actionSettingsOf(slot)` reads one slot however it
-  is written (the word `'animateToStart'` is exactly `{ behavior: 'animateToStart' }`). `resolveGate(view)` returns a `PxResolvedGate`:
-  the `outOfView` behavior and the two sensor numbers, defaulted.
+  `resolveActions(view, whenFinished?)` returns a
+  `PxResolvedActions` — `whenStopped` and `whenOutOfView` plus `whenFinished`, every one defaulted. `resolveGate(view)`
+  returns a `PxResolvedGate`: the `whenOutOfView` behavior and the two sensor numbers, defaulted.
 - **Rules.** `PX_ACTION_NAMES` lists every action a rule may name (a `PxActionName`), `isPlaybackAction(action)`
   tells the five playback actions from the three flow actions (`PxFlowAction`). `ruleEntriesOf(rules, action)`
   gives the events of the rules that name an action, `ruleEventEntry(rule)` one rule's event as an entry (a bare word,
@@ -1002,8 +1058,12 @@ write yourself cannot drift from the four shipped ones:
   `PxTriggerEvents` is one entry or several, as those helpers take them.
   `resolveTriggers` keys every entry — `triggerKeys(resolved)`, `triggerKeyOf(entry)`, `triggerSpecOf(entry)` → a
   `PxTriggerEventSpec` (`triggerEventOf` gives its event) — and lists the flow rules (`flows`, each a
-  `PxFlowTrigger`); `isTriggerEvents(value)` guards an open value; `PX_ALL_TRIGGER_EVENTS` is every event.
-- **Flows.** `isFlowActionObject(value)` recognises a `whenFinished` that is an action, `isFlowStepEntry(value)` a
+  `PxFlowTrigger`); `isTriggerEvents(value)` guards an open value; `PX_ALL_TRIGGER_EVENTS` is every page event and
+  `PX_FLOW_ACTION_EVENTS` every event a flow action may name — `finished` too. `isPageEvent(event)` tells a page event
+  from `finished`, `isPageEventRule(rule)` a rule the page listens for; `ruleSpecOf(rule)` is that rule's spec — its
+  event, where it is heard, its `from` and `behavior`, all part of its key — and `fromStepsOf(rule)` the steps its
+  `from` names (none: any step).
+- **Flows.** `isFlowActionObject(value)` recognises a go-to written as a value (`PxActionObject`), `isFlowStepEntry(value)` a
   list entry that can be a step. `flowStepReferenceIssues(view, extraIds?)` lists the `flow.goTo` that name nothing
   (`PxFlowStepReferenceIssue`, PX1114), `duplicateFlowStepIds(steps)` the ids used twice (PX1115). `PX_DEFAULT_ID` is
   `default` (the default flow), `PX_DEFAULT_TIMELINE` is `""` (the default timeline); `defaultTimelineOf(view)` is the default timeline and `isOnDefaultTimeline(step)` says whether a step is a
@@ -1020,10 +1080,10 @@ write yourself cannot drift from the four shipped ones:
   `click` → `click`, none for `load`); `derivedResume(startPlayback, stopPlayback, pausePlayback)` is the derived resume.
 - **Schemas.** `PxActionTriggersSchema` is the list of rules — `PxActionTriggerRuleSchema` one rule, a member per action,
   each limited to the events it may name, so a rule that does not fit is dropped whole; `PxActionObjectSchema` is a
-  `whenFinished` action, `PxFlowStepSchema` · `PxFlowSchema` a step and a flow, `PxTimelineTrackSchema`
-  one `byTimeline` entry. `PxActionsSchema` has one fixed sub-schema per
-  slot — `PxStopPlaybackActionSchema`, `PxOutOfViewActionSchema` — each stating its
-  defaults; `PxWhenFinishedSchema` is the `whenFinished` enum on the timeline (`hold` · `jumpToStart` · `animateToStart`, default `hold`).
+  go-to written as a value, `PxFlowStepSchema` · `PxFlowSchema` a step and a flow, `PxTimelineTrackSchema`
+  one `byTimeline` entry. `PxWhenFinishedSchema` is the `whenFinished` enum on the timeline (`hold` · `jumpToStart` ·
+  `animateToStart`, default `hold`); `whenStopped` and `whenOutOfView` are enums of the timeline schema, each stating
+  its default (`PxActionsSchema` with a sub-schema per slot until 1.29).
 - **The event rule.** `triggerActionFor(triggers, state, event, whenFinished)` — the playback's state (`PxPlaybackState`:
   off · playing · paused · finished · returning — and `scrubbing` and `destroyed`, which answer nothing) picks the lists, in the order of
   [One event, several lists](#one-event-several-lists) (`whenFinished` decides the order while finished), and the answer is a
@@ -1037,8 +1097,8 @@ write yourself cannot drift from the four shipped ones:
   (`PxResolvedTriggers`, `PxTriggerIssue`) come from `@pixodesk/svg-animator-core/engine`; the
   consts `PxTriggerList`, `PxTriggerIssueKind`, `PxPlaybackState` and `PxTriggerAction` from the main entry.
 - **The executor.** One `PxPlayExecutor` per player performs every button — its own flat methods `startPlayback()`
-  (from the start, in every state), `playPlayback()` (start or carry on), `stopPlayback()` per
-  `actions["timeline.stop"]`, `pausePlayback()` / `resumePlayback()`, `seek(totalMs)` (the seek rule),
+  (from the start, in every state), `playPlayback()` (start or carry on), `stopPlayback(behavior?)` per
+  `whenStopped`, or a rule's own `behavior`, `pausePlayback()` / `resumePlayback()`, `seek(totalMs)` (the seek rule),
   `leaveView(behavior)` / `returnToView()` (the visibility gate's two edges: it presses the real buttons and undoes
   only what it did), and `onNaturalFinish()`, called when the engine's clock reaches an end — the playback's
   finish (`finished`, `onPlaybackFinish`, then `whenFinished`), or the end of a return leg. It owns the states
@@ -1050,7 +1110,7 @@ write yourself cannot drift from the four shipped ones:
   framework component resolves `playback` the same way (a mount with `"off"` presses nothing; no position pair is
   invalid). `createPlayExecutor(api, config, raf)` builds
   one over any `PxPlayTarget` (the engine primitives it drives) from a `PxPlayExecutorConfig` (the
-  playback's geometry, the `actions` and `whenFinished` — `executorConfigOf(view)` reads them from the runtime view, a
+  playback's geometry, `whenStopped` and `whenFinished` — `executorConfigOf(view)` reads them from the runtime view, a
   `PxApiExtrasConfig`); `ensurePlayExecutor` reuses the one an engine attached. `composeApiExtras(api, cfg, raf)`
   then completes an engine's primitives (a `PxApiExtrasTarget`) with `playback` — the five buttons, the seeks,
   the state reads and every per-iteration and at-speed read — as `PxApiExtras`, so one engine keeps
@@ -1072,13 +1132,13 @@ What the names alone do not settle — each row is a test in the packages:
 | `timeline.start()` always plays from the start | in every state — `playing` (it restarts), `paused` (the freeze is dropped), `returning`, `finished` — from code, from a `timeline.start` trigger and from the `playback` prop; the delay is waited again. `timeline.play()` is the start that carries on instead: nothing while playing, a resume while paused, a turn-around while the picture goes back |
 | `finished` is a state, not a picture | after the last pass ends by playing, `timeline.getState()` reads `finished` under every `whenFinished` — also while `animateToStart` plays the picture back — until the next start, stop or seek |
 | `onPlaybackFinish` is for playing to the end | it fires when the last pass ends by playing — never for a stop that goes to the end (`jumpToEnd`, `animateToEnd` report `onPlaybackStop`), never for the end of a return leg, never on a loop without end |
-| A stop that reaches the end leaves the playback finished | `'timeline.stop': 'jumpToEnd'` or `'animateToEnd'` arrives at the end of the current pass: the state is `finished`, then `whenFinished` applies. `onPlaybackStop` fires when the stop is performed: at once, or on arrival for `animateToEnd` and `animateToEndAndBack` |
-| The state during a stop's return leg reads `returning` | while a `'timeline.stop': 'animateToStart'` (or the way back of `animateToEndAndBack`) is on its way, `timeline.getState()` reads `returning`: the playback is over, `timeline.isActive()` and `timeline.isPlaying()` are false, the picture still moves; `timeline.play()` turns it around, `timeline.start()` plays from the start. An `animateToEnd` stop in flight is still the playback — `playing` — until it arrives |
+| A stop that reaches the end leaves the playback finished | `whenStopped: 'jumpToEnd'` or `'animateToEnd'` arrives at the end of the current pass: the state is `finished`, then `whenFinished` applies. `onPlaybackStop` fires when the stop is performed: at once, or on arrival for `animateToEnd` and `animateToEndAndBack` |
+| The state during a stop's return leg reads `returning` | while a `whenStopped: 'animateToStart'` stop (or the way back of `animateToEndAndBack`) is on its way, `timeline.getState()` reads `returning`: the playback is over, `timeline.isActive()` and `timeline.isPlaying()` are false, the picture still moves; `timeline.play()` turns it around, `timeline.start()` plays from the start. An `animateToEnd` stop in flight is still the playback — `playing` — until it arrives |
 | A seek holds the frame unless playing | `timeline.setCurrentTime()`, `timeline.setCurrentProgress()` and `timeline.setTotalTime()` while `playing` keep playing from there; in every other state the playback becomes `paused` at that frame, and `timeline.resume()` plays on from it. A seek reports no callback |
 | Progress counts iterations | `timeline.getCurrentProgress()` / `timeline.setCurrentProgress()` and `showAtProgress`: `1.2` is 20 % into the second iteration, in play order; clamped to `0 … iterations`, no upper bound when endless; nothing wraps |
 | A negative speed multiplies with `iterationDirection` | `timeline.setSpeed(-1)` plays a `reverse` pass forwards. A file's `playbackSpeed` must be positive — in a file the direction is `iterationDirection` |
 | On a scroll timeline only the scroll moves the playhead | `timeline.getState()` reads `scrubbing` on every engine and no playback callback fires. The buttons — `timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()` — `timeline.setSpeed()`, `timeline.setDurationAtSpeed()` and the seeks — `timeline.setCurrentTime()`, `timeline.setCurrentProgress()`, `timeline.setTotalTime()`, the components' `showAtProgress` / `showAtTime` — are ignored with the usage warning `scrollOwnsPlayhead` ([PX1505](../diagnostics.md#the-props-a-component-was-given)); the reads still answer |
-| With no control prop the file drives | no `showAsStatic`, `showAt…`, `playback`, `disableActionTriggers` or `actionTriggers`: the document's own `actionTriggers` start it, on every player — a file saved with a `timeline.start` rule on `load` plays at once, a file without triggers stays still until code calls `timeline.start()` |
+| With no control prop the file drives | no `showAsStatic`, `showAt…`, `playback`, `disableActions` or `actions`: the document's own `actions` start it, on every player — a file saved with a `timeline.start` rule on `load` plays at once, a file without triggers stays still until code calls `timeline.start()` |
 | A player shown with `showAsStatic` never moves | the picture as drawn, whatever the file says: no triggers, no scroll, and `timeline.start()`, `timeline.play()`, `timeline.stop()`, `timeline.pause()`, `timeline.resume()`, every seek, `timeline.setSpeed()` and `timeline.setDurationAtSpeed()` are no-ops with the usage warning `showAsStaticIgnoresCall` ([PX1506](../diagnostics.md#the-props-a-component-was-given)); the reads still answer. It beats every other control prop |
 | `playback="off"` on mount does nothing | a component mounted with `playback="off"` presses no button — there is nothing to stop yet; a change from `"on"` to `"off"` stops. A mount with `"on"` starts the playback, with `"paused"` starts it frozen |
 | The gate presses the real buttons | scrolled out of view, `outOfView: 'pause'` makes the state `paused` and reports `onPlaybackPause` (`onPlaybackResume` when seen again); `'stop'` makes it `off` and reports `onPlaybackStop` (`onPlaybackStart` when it starts again). It only undoes what it did: a playback the page paused stays paused |
@@ -1107,8 +1167,8 @@ alone is a whole timeline:
   gone, unless they say otherwise;
 - whether it is **held on screen** meanwhile — `holdOnScreen`.
 
-The clock keys — `actions`, `delay`, `playbackSpeed`, `iterationDirection`, `whenIdle`, `whenFinished`,
-`frameRate` and the gate numbers — have no slot on a scroll timeline, and no rule of `actionTriggers` starts it.
+The clock keys — `whenStopped`, `whenOutOfView`, `delay`, `playbackSpeed`, `iterationDirection`, `whenIdle`,
+`whenFinished`, `frameRate` and the gate numbers — have no slot on a scroll timeline, and no rule of `actions` starts it.
 A scroll timeline can be the only one, or stand beside clock timelines: an entry with an `id`, and the attributes
 that follow the scroll ride it through `byTimeline` ([Several timelines](#several-timelines-and-bytimeline)).
 

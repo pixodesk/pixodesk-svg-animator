@@ -12,20 +12,20 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**No rule starts it on `load`.** Check the file's `animator.actionTriggers` for a rule
+**No rule starts it on `load`.** Check the file's `animator.actions` for a rule
 `{ "action": "timeline.start", "event": "load" }` (or `"timeline.play"`) (or *Play on* in the editor). `click`, `hoverIn`
 and `hoverOut` wait for the user; an absent or empty list (`[]`) waits for you to call `timeline.start()` — since
 schema 1.17 a file that plays by itself says so, an absent block no longer means load (stamped files were migrated; a hand-written file without a
 version stamp has to say it). Even `load` waits until enough of the animation is on screen, and pauses
-while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
+while it is scrolled out of view (`whenOutOfView: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). Remember that every control prop or option
-but `actionTriggers` switches the document's triggers off — with `showAsStatic`, `disableActionTriggers`,
+but `actions` switches the document's triggers off — with `showAsStatic`, `disableActions`,
 `playback`, `showAtProgress` or `showAtTime` the file's triggers are ignored. Passing `playerRef` does **not**
 change the mode.
 
 **`showAsStatic` is set.** It shows the picture as drawn and nothing else: no triggers, no scroll, and every
 playback call is ignored with a warning ([PX1506](../diagnostics.md#the-props-a-component-was-given)). It
-beats every other control prop, so a `playback` or `actionTriggers` beside it does nothing (PX1501).
+beats every other control prop, so a `playback` or `actions` beside it does nothing (PX1501).
 
 **`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only
@@ -59,6 +59,28 @@ document means a new player; the old one is thrown away and reports it on its wa
 component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
+
+**`actionTriggers` or `disableActionTriggers` is not an option or prop; the `actions` prop rejects an object; a
+timeline's `actions` block or a step's `whenFinished` object is not read.** Changed in 1.29 (2026-11-22): one list
+says what happens on an event, and a timeline's own keys say what it does by itself.
+
+<!-- px-check off old and new spelling, prose -->
+| Was | Is |
+|---|---|
+| `"animator": { "actionTriggers": [ … ] }` | `"animator": { "actions": [ … ] }` — the same rules |
+| a timeline's `"actions": { "timeline.stop": "animateToStart" }` | `"whenStopped": "animateToStart"` on the timeline |
+| a timeline's `"actions": { "outOfView": "continue" }` | `"whenOutOfView": "continue"` on the timeline |
+| a step's `"whenFinished": { "action": "flow.next" }` | a rule `{ "action": "flow.next", "event": "finished", "from": "‹the step›" }` — the step's `whenFinished` takes only the picture words |
+| the `actionTriggers` prop / option · `disableActionTriggers` | `actions` · `disableActions` |
+| the `actions` prop `{ 'timeline.stop': 'animateToEnd' }` | `timelineOptions={{ whenStopped: 'animateToEnd' }}` — merged, like the rest of the timing |
+| the `actions` prop `{ outOfView: 'continue' }` | `timelineOptions={{ whenOutOfView: 'continue' }}` |
+| `PxActions` · `PxActionsInput` · `PxActionsSchema` · `withActionTriggers(doc, rules)` | gone · `PxActionTriggersInput` (the list) · the timeline schema's two keys · `withActions(doc, rules)` |
+| `PxControlMode.actionTriggers` | `PxControlMode.actions` |
+
+New in the same step: a rule may say `from` (only while a flow is at those steps) and `behavior` (its own manner of
+stopping or leaving) — [Only at some steps](./playback-and-triggers.md#only-at-some-steps--from),
+[A rule's own manner](./playback-and-triggers.md#a-rules-own-manner--behavior). Stamped 1.28 files are converted on
+read.
 
 **`animator.timeline`, `segments` or `states`, the `segment` or `state` prop, `onSegmentChange` / `onStateChange`,
 `player.timeline.segment` or `player.state` is not there; `actionTriggers` is not an object.** Changed on 2026-11-20
@@ -162,7 +184,7 @@ position INSIDE the current iteration — the playback is `timeline.getTotalTime
 `timeline.getCurrentProgress()` counts iterations since 1.26 (`1.2` = 20 % into the second).
 
 **Two control props do not compile together.** Expected: `PxControlProps` takes ONE driver family at a
-time — `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActionTriggers` · `actionTriggers`.
+time — `showAsStatic` · `showAtProgress` · `showAtTime` · `playback` · `disableActions` · `actions`.
 Pick the one that drives; from JavaScript the highest-priority family wins with a warning (PX1501).
 
 **A JSON import is flagged on `document`.** It shouldn't be: `document` is typed `PxDocumentJson`,
@@ -201,9 +223,9 @@ file whose static attributes differ from its first keyframe can show the first f
 (see [Once finished](./playback-and-triggers.md#once-finished--whenfinished)).
 For one mount only, pass the same thing as an override: `timelineOptions={{ whenFinished: 'jumpToStart' }}`.
 
-**How do I stop after the current pass, not mid-beat?** `actions: { 'timeline.stop': 'animateToEnd' }` — a stop
+**How do I stop after the current pass, not mid-beat?** `whenStopped: 'animateToEnd'` on the timeline — a stop
 plays on to the end of the pass; there the playback is `finished` and `whenFinished` applies (`hold` rests there).
-To play back to the start after that pass, `'timeline.stop': 'animateToEndAndBack'`.
+To play back to the start after that pass, `whenStopped: 'animateToEndAndBack'`.
 
 **A hover or a click restarts the animation.** Since 1.26 `timeline.start` always plays from the start — also
 while the animation is playing, paused or on its way back. To carry on instead (resume a pause, turn a return
@@ -211,8 +233,8 @@ around, do nothing while playing), list the event under `"timeline.play"` — or
 than `timeline.start`.
 
 **How do I play backwards?** `player.timeline.setSpeed(-1); player.timeline.start();` (on a `reverse` pass the two
-multiply, so it plays forwards) — or let a stop play back by itself: `actions: { 'timeline.stop': 'animateToStart' }`
-in the timeline, with the event that stops it listed in the triggers (`'timeline.stop': 'hoverOut'`); `timeline.stop()` and
+multiply, so it plays forwards) — or let a stop play back by itself: `whenStopped: 'animateToStart'`
+in the timeline, with a rule for the event that stops it (`{ "action": "timeline.stop", "event": "hoverOut" }`); `timeline.stop()` and
 `playback="off"` play back the same way (the state reads `returning` on the way).
 
 **How do I play faster or slower?** `timeline.playbackSpeed` in the file (`2` = twice as fast), the same
@@ -259,12 +281,12 @@ For a slider across a finite playback use `timeline.getTotalTime()` with `timeli
 (`null` when `iterations` is `'infinite'`).
 
 **`onPlaybackFinish` never fires.** It fires when the last pass ends by playing — never on a loop without end,
-never for a stop that goes to the end (`'timeline.stop': 'animateToEnd'` reports `onPlaybackStop`, though the
+never for a stop that goes to the end (`whenStopped: 'animateToEnd'` reports `onPlaybackStop`, though the
 state then reads `finished` too), and never on a scroll timeline, which never starts or finishes.
 
 **`onPlaybackPause` fires, but nobody paused it.** The out-of-view gate pauses for real since 1.26: scrolled out
 of view (or in a hidden tab) the playback reads `paused` and reports `onPlaybackPause`, then `onPlaybackResume` when
-it is seen again. `actions: { outOfView: 'continue' }` keeps it playing; `'stop'` stops it at once
+it is seen again. `whenOutOfView: 'continue'` keeps it playing; `'stop'` stops it at once
 (`onPlaybackStop`) and starts it again when seen.
 
 **Frame rate.** `timeline.frameRate` applies only to the player's own frame loop (`engine: 'js'`,

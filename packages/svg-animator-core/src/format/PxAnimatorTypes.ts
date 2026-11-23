@@ -14,7 +14,7 @@ import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxHoldAt, PxPlaybackDirection,
     PxScrollAxis, PxScrollFollows, PxScrollLine, PxScrollMoment, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType,
-    PX_ALL_TRIGGER_EVENTS, PxPointerType, PxFlowAction, PxWhenLeaving } from './PxAnimatorConstants';
+    PX_ALL_TRIGGER_EVENTS, PX_FLOW_ACTION_EVENTS, PxPointerType, PxFlowAction, PxWhenLeaving, type PxActionEvent } from './PxAnimatorConstants';
 import type { PxActionName, PxPlaybackState, PxScrollSettings, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
@@ -635,17 +635,17 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
  * references. The state rule, over stopped · playing · paused: `start` acts when stopped, `pause` when playing,
  * `resume` when paused, `stop` when playing or paused — so `click` in `start` and `pause` toggles through all
  * three. Each list names only the events that make sense for it ({@link allowedTriggerEvents}); `resume` is
- * DERIVED when the file does not name it ({@link derivedResume}). HOW each action looks is the timeline's `actions`
- * block: the triggers say only WHEN.
+ * DERIVED when the file does not name it ({@link derivedResume}). HOW a stop looks is the timeline's `whenStopped`
+ * (or an entry's own `behavior`): the entries say only WHEN.
  *
  * WHY THESE NAMES (outside reviews, 2026-10/11; the playback, 2026-11-10 — dev-docs/plans/animation-state.brainstorm.md):
- * `actionTriggers`, not `triggers` — the word *action* is the link to the `actions` block: a key here is a BUTTON a
- * page event presses, the same key there says how that button moves the playhead. The four keys ARE the handle's
+ * `actions` (`actionTriggers` until 1.29) — one list for everything that happens on an event: each entry names a BUTTON
+ * an event presses. The four playback actions ARE the handle's
  * methods (`timeline.start()` / `timeline.stop()` / `timeline.pause()` / `timeline.resume()`) and the edges of the components' `playback`
  * prop: `timeline.start` / `timeline.stop` bracket a PLAYBACK (one instance of the animation being in effect), `timeline.pause` /
- * `timeline.resume` bracket a FREEZE inside it. The two blocks are not symmetrical and do not claim to be: a pause and a
- * resume have one possible behavior, so there is no `actions["timeline.pause"]`; `whenFinished` and `outOfView` are the
- * clock's and the gate's rules, not page events, so they have no list here. Which list an event is read from in each
+ * `timeline.resume` bracket a FREEZE inside it. A pause and a resume have one possible behavior, so there is no
+ * `whenPaused`; `whenFinished` and `whenOutOfView` are the clock's and the gate's rules, not page events, so no entry
+ * names them. Which list an event is read from in each
  * state: `triggerActionFor`.
  */
 export interface _PxActionTriggerRule {
@@ -667,14 +667,20 @@ export interface _PxActionTriggerRule {
     flowStep?: string;
     /** The flow `flow.next` / `flow.previous` steps through — an `id` of `animator.flows`, or `default`. */
     flow?: string;
-    /** The event that does it. */
-    event: PxTriggerEvent;
+    /** The event that does it — a page event, or `finished`: the step `from` reached its end (a flow action only, 1.29). */
+    event: PxActionEvent;
     /** Where it is heard: one of this file's elements, `"#id"` — its fresh id is followed when the player renames ids. */
     element?: string;
     /** Where it is heard: an element of the page around it, a CSS selector. */
     selector?: string;
     /** The event's own fields it must have — see {@link _PxTriggerEventFilter}. */
     with?: _PxTriggerEventFilter;
+    /** Only while a flow is at this step (or one of these) — none: at any step (1.29). WHY `from`: the arrow of a
+     *  state machine starts at a state — `from` names where it starts. */
+    from?: string | Array<string>;
+    /** HOW, for this entry alone (1.29): a stop's manner (overrides the timeline's `whenStopped`), a go-to's way of
+     *  leaving the step it is at (overrides that step's `whenLeaving`). */
+    behavior?: PxStopPlaybackBehavior | PxWhenLeaving;
 }
 
 /**
@@ -759,7 +765,7 @@ function triggerListOf(events: ReadonlyArray<PxTriggerEvent>) {
 }
 
 /** One rule whose `action` is `action`, naming one of `events` — the shape every member of the rule union shares. */
-function ruleSchemaOf<A extends PxActionName>(action: A, events: ReadonlyArray<PxTriggerEvent>) {
+function ruleSchemaOf<A extends PxActionName>(action: A, events: ReadonlyArray<PxActionEvent>) {
     return px.object({
         action: px.literal(action),
         timeline: px.string().optional(),
@@ -769,40 +775,67 @@ function ruleSchemaOf<A extends PxActionName>(action: A, events: ReadonlyArray<P
         element: px.string().optional(),
         selector: px.string().optional(),
         with: PxTriggerEventFilterSchema.optional(),
+        from: px.union([px.string(), px.array(px.string())]).optional(),
     });
 }
 
-/** One rule of `actionTriggers` — see {@link _PxActionTriggerRule}. A member per action, so the schema states the events
+/** A member that says HOW (1.29) — a stop's manner, a go-to's way of leaving; the others have no `behavior`. */
+function ruleSchemaWithBehaviorOf<A extends PxActionName, B extends string>(action: A, events: ReadonlyArray<PxActionEvent>, behaviors: ReadonlyArray<B>) {
+    return px.object({
+        action: px.literal(action),
+        timeline: px.string().optional(),
+        flowStep: px.string().optional(),
+        flow: px.string().optional(),
+        event: px.enum(events),
+        element: px.string().optional(),
+        selector: px.string().optional(),
+        with: PxTriggerEventFilterSchema.optional(),
+        from: px.union([px.string(), px.array(px.string())]).optional(),
+        behavior: px.enum(behaviors).optional(),
+    });
+}
+
+/** A stop's manners — what its entry's `behavior` may say. */
+const STOP_BEHAVIORS = [PxStopPlaybackBehavior.jumpToStart, PxStopPlaybackBehavior.animateToStart, PxStopPlaybackBehavior.jumpToEnd,
+    PxStopPlaybackBehavior.animateToEnd, PxStopPlaybackBehavior.animateToEndAndBack] as const;
+/** A go-to's ways of leaving — what its entry's `behavior` may say. */
+const LEAVING_BEHAVIORS = [PxWhenLeaving.jump, PxWhenLeaving.animateToEnd, PxWhenLeaving.animateToStart] as const;
+
+/** One rule of `actions` — see {@link _PxActionTriggerRule}. A member per action, so the schema states the events
  *  each may name ({@link allowedTriggerEvents}): a playback action naming another fails strict validation, and the
  *  document repair drops the rule. A flow action may name every event. @public @advanced */
 export const PxActionTriggerRuleSchema = implementsInterface<_PxActionTriggerRule>()(px.discriminatedUnion('action', [
     ruleSchemaOf(PxTriggerList.startPlayback, allowedTriggerEvents(PxTriggerList.startPlayback)),
     ruleSchemaOf(PxTriggerList.playPlayback, allowedTriggerEvents(PxTriggerList.playPlayback)),
-    ruleSchemaOf(PxTriggerList.stopPlayback, allowedTriggerEvents(PxTriggerList.stopPlayback)),
+    ruleSchemaWithBehaviorOf(PxTriggerList.stopPlayback, allowedTriggerEvents(PxTriggerList.stopPlayback), STOP_BEHAVIORS),
     ruleSchemaOf(PxTriggerList.pausePlayback, allowedTriggerEvents(PxTriggerList.pausePlayback)),
     ruleSchemaOf(PxTriggerList.resumePlayback, allowedTriggerEvents(PxTriggerList.resumePlayback)),
-    ruleSchemaOf(PxFlowAction.goTo, PX_ALL_TRIGGER_EVENTS),
-    ruleSchemaOf(PxFlowAction.next, PX_ALL_TRIGGER_EVENTS),
-    ruleSchemaOf(PxFlowAction.previous, PX_ALL_TRIGGER_EVENTS),
+    ruleSchemaWithBehaviorOf(PxFlowAction.goTo, PX_FLOW_ACTION_EVENTS, LEAVING_BEHAVIORS),
+    ruleSchemaOf(PxFlowAction.next, PX_FLOW_ACTION_EVENTS),
+    ruleSchemaOf(PxFlowAction.previous, PX_FLOW_ACTION_EVENTS),
 ] as const));
-/** One rule of `actionTriggers`. @public */
+/** One entry of `animator.actions`. @public */
 export type PxActionTriggerRule = _PxActionTriggerRule;
 
-/** `animator.actionTriggers` — a LIST of rules (2026-11-20; a map by action until then): each says on which event to do
- *  which action, and by id what it acts on. An absent list, like an empty one, means nothing starts it; a file that
- *  plays by itself has `{ "action": "timeline.start", "event": "load" }`. @public @advanced */
+/** `animator.actions` (`actionTriggers` until 1.29) — a LIST of entries: each says on which event to do which action,
+ *  and by id what it acts on; `from` limits it to some steps, `behavior` says how. An absent list, like an empty one,
+ *  means nothing starts it; a file that plays by itself has `{ "action": "timeline.start", "event": "load" }`. WHY one
+ *  list: every "when X happens, do Y" of the file is one of these — the step's "at its end, go there" too (event
+ *  `finished`). What a timeline does by itself is its own `when…` keys. @public @advanced */
 export const PxActionTriggersSchema = px.validItems(PxActionTriggerRuleSchema);
 
-/** WHEN each action fires — the `actionTriggers` list; see {@link _PxActionTriggerRule}. @public */
+/** WHEN each action fires — the `actions` list; see {@link _PxActionTriggerRule}. @public */
 export type PxActionTriggers = PxInfer<typeof PxActionTriggersSchema>;
 
-/** The list the `actionTriggers` prop / option takes (every surface, `bind` included) — the same shape the FILE has.
- *  WHY the same power as the file: an override that cannot say what a file can is a trap. @public @advanced */
-export type PxActionTriggersInput = PxActionTriggers;
+/** The list the `actions` prop / option takes (every surface, `bind` included) — the same shape the FILE has, or rules
+ *  typed one by one as {@link PxActionTriggerRule} (its `behavior` is either kind's word; the player repairs a rule that
+ *  does not fit its action, as on read). WHY the same power as the file: an override that cannot say what a file can is
+ *  a trap. @public @advanced */
+export type PxActionTriggersInput = PxActionTriggers | ReadonlyArray<PxActionTriggerRule>;
 
 /**
  * An action written as a value (2026-11-20) — a `whenFinished` that goes somewhere: `{ "action": "flow.goTo",
- * "flowStep": "hover" }`, `{ "action": "flow.next" }`. The same object, and the same names, as a rule of `actionTriggers`,
+ * "flowStep": "hover" }`, `{ "action": "flow.next" }`. The same object, and the same names, as a rule of `actions`,
  * without its event.
  * @public
  */
@@ -824,49 +857,11 @@ export const PxActionObjectSchema = implementsInterface<_PxActionObject>()(px.ob
 export type PxActionObject = PxInfer<typeof PxActionObjectSchema>;
 const _ck_PxActionObject: KeysMatch<PxActionObject, _PxActionObject> = true;
 
-/**
- * HOW the built-in actions look (playback-layers.md, layer 1) — one slot per button that has a choice: `behavior` names a
- * PRESET (where the move ends and the path there), and a slot that says only `behavior` is written as the word itself —
- * `"timeline.stop": 'animateToStart'` is exactly `"timeline.stop": { behavior: 'animateToStart' }`. The words are explained
- * once, in the table above `PxStopPlaybackBehavior`. Nothing to configure on `timeline.start` (always from the start,
- * 1.26), `timeline.play`, `timeline.pause` or `timeline.resume`. A key here names the button; the same key in
- * `actionTriggers` says when a page event presses it.
- *
- * WHY `behavior` (1.14): "stop behavior: animateToStart" says what kind of thing the value is; `do` (1.11) and
- * `transition` (1.10, read as CSS) did not. WHY `outOfView` is here and `whenFinished` is not (1.24): both are sensor
- * rules, not buttons; `outOfView` stays where every file has it, `finish` moved beside `whenIdle` because it names what
- * the picture shows once the playback is finished — the second half of CSS's `animation-fill-mode`.
- */
-export interface _PxActions {
-    /** `behavior`: `jumpToStart` (default), `animateToStart` (the `returning` state), `jumpToEnd`, `animateToEnd` (after
-     *  the current pass; both rest `finished`, then `whenFinished` applies), `animateToEndAndBack` (after the current pass,
-     *  then backwards to the rest pose). */
-    [PxTriggerList.stopPlayback]?: PxStopPlaybackBehavior | { behavior?: PxStopPlaybackBehavior };
-    /** None of it on screen (the visibility gate's closing edge) — `behavior`: `pause` (default), `continue`, `stop`.
-     *  Back in view, the gate undoes what it did (resumes, or starts again). */
-    outOfView?: PxOutOfViewBehavior | { behavior?: PxOutOfViewBehavior };
-}
-
 const PxStopPlaybackPresetSchema = px.enum([PxStopPlaybackBehavior.jumpToStart, PxStopPlaybackBehavior.animateToStart, PxStopPlaybackBehavior.jumpToEnd,
     PxStopPlaybackBehavior.animateToEnd, PxStopPlaybackBehavior.animateToEndAndBack] as const, PX_PLAYBACK_DEFAULTS.stopPlaybackBehavior);
 const PxOutOfViewPresetSchema = px.enum([PxOutOfViewBehavior.pause, PxOutOfViewBehavior.continue, PxOutOfViewBehavior.stop] as const, PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
 /** `timeline.whenFinished` — a plain word, like `whenIdle`. @public @advanced */
 export const PxWhenFinishedSchema = px.enum([PxWhenFinished.hold, PxWhenFinished.jumpToStart, PxWhenFinished.animateToStart] as const, PX_PLAYBACK_DEFAULTS.whenFinished);
-
-/** `actions["timeline.stop"]`, the settings form. @public @advanced */
-export const PxStopPlaybackActionSchema = px.object({ behavior: PxStopPlaybackPresetSchema.optional() });
-/** `actions.outOfView`, the settings form. @public @advanced */
-export const PxOutOfViewActionSchema = px.object({ behavior: PxOutOfViewPresetSchema.optional() });
-
-/** Each slot: the preset word, or the settings. @public @advanced */
-export const PxActionsSchema = implementsInterface<_PxActions>()(px.object({
-    [PxTriggerList.stopPlayback]: px.union([PxStopPlaybackPresetSchema, PxStopPlaybackActionSchema]).optional(),
-    outOfView: px.union([PxOutOfViewPresetSchema, PxOutOfViewActionSchema]).optional(),
-}));
-
-/** HOW the built-in actions look — see {@link _PxActions}. @public */
-export type PxActions = PxInfer<typeof PxActionsSchema>;
-const _ck_PxActions: KeysMatch<PxActions, _PxActions> = true;
 
 
 // ============================================================================
@@ -1090,9 +1085,9 @@ export interface _PxFlowStep {
     iterationDirection?: PxPlaybackDirection;
     playbackSpeed?: number;
     /** At its end: `hold` (default) · `jumpToStart` · `animateToStart` — what the picture shows, the playback is then
-     *  finished — or an action: `{ "action": "flow.goTo", "flowStep": "‹id›" }`, `{ "action": "flow.next" }` — it goes
-     *  on there. */
-    whenFinished?: PxWhenFinished | _PxActionObject;
+     *  finished. To go on somewhere: an entry of `actions` with `"event": "finished", "from": "‹this id›"` (1.29; an
+     *  action object here until then). */
+    whenFinished?: PxWhenFinished;
     /** How it is left when another step is asked for: `jump` (default) · `animateToEnd` · `animateToStart`. */
     whenLeaving?: PxWhenLeaving;
 }
@@ -1109,7 +1104,7 @@ export const PxFlowStepSchema = implementsInterface<_PxFlowStep>()(px.object({
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),
     iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const).optional(),
     playbackSpeed: px.number().optional(),
-    whenFinished: px.union([px.enum([PxWhenFinished.hold, PxWhenFinished.jumpToStart, PxWhenFinished.animateToStart] as const), PxActionObjectSchema]).optional(),
+    whenFinished: px.enum([PxWhenFinished.hold, PxWhenFinished.jumpToStart, PxWhenFinished.animateToStart] as const).optional(),
     whenLeaving: px.enum([PxWhenLeaving.jump, PxWhenLeaving.animateToEnd, PxWhenLeaving.animateToStart] as const, PxWhenLeaving.jump).optional(),
 }));
 /** @public */
@@ -1180,8 +1175,13 @@ export interface _PxTimeTimeline {
      *  `direction`, with `iteration` in front because it is per iteration — a scroll timeline has an axis direction of
      *  its own; `alternateReverse` is `alternate-reverse` in the format's camelCase, like every value. */
     iterationDirection?: PxPlaybackDirection;
-    /** HOW the buttons move the playhead — `timeline.stop` (+ the gate's `outOfView`), each a preset word or its settings. */
-    actions?: _PxActions;
+    /** Where a stop takes the picture, and how (1.29; `actions["timeline.stop"]` until then): `jumpToStart` (default),
+     *  `animateToStart` (the `returning` state), `jumpToEnd`, `animateToEnd` (after the current pass; both rest `finished`,
+     *  then `whenFinished` applies), `animateToEndAndBack`. An entry of `actions` may say its own (`behavior`). */
+    whenStopped?: PxStopPlaybackBehavior;
+    /** None of it on screen — the visibility gate's closing edge (1.29; `actions.outOfView` until then): `pause`
+     *  (default), `continue`, `stop`. Back in view, the gate undoes what it did (resumes, or starts again). */
+    whenOutOfView?: PxOutOfViewBehavior;
     /** What the picture shows once the playback is `finished` — the natural end, or a stop that went there: `hold` the
      *  last frame (default), `jumpToStart` / `animateToStart` back to the rest pose. The playback stays `finished` either
      *  way. The runtime view derives `fill` from it and `whenIdle`. (`atEnd` until 1.25, `actions.finish` until 1.23.) */
@@ -1216,7 +1216,8 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     delay: px.number(0).optional(),
     iterations: px.union([px.number(PX_DEFAULT_ITERATIONS), px.literal('infinite')], PX_DEFAULT_ITERATIONS).optional(),
     iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const, PxPlaybackDirection.normal).optional(),
-    actions: PxActionsSchema.optional(),
+    whenStopped: PxStopPlaybackPresetSchema.optional(),
+    whenOutOfView: PxOutOfViewPresetSchema.optional(),
     whenFinished: PxWhenFinishedSchema.optional(),
     whenIdle: px.enum([PxWhenIdle.static, PxWhenIdle.firstFrame] as const, PX_PLAYBACK_DEFAULTS.whenIdle).optional(),
     inViewThreshold: px.number(PX_PLAYBACK_DEFAULTS.inViewThreshold).optional(),
@@ -1353,13 +1354,15 @@ export interface _PxAnimatorConfig {
      *  player's frame loop; ignored by WAAPI, React Native and the pre-rendered CSS export. */
     frameRate?: number;
 
-    /** WHEN each action fires — the list of rules (wire AND view: the root of `animator`, beside `timelines`, since a
-     *  rule may name any timeline or state). Absent and `[]` are the same: nothing starts it (the manual document); a
-     *  file that plays by itself has `{ "action": "timeline.start", "event": "load" }`. WHY: a default nobody wrote is a
-     *  guess. A scroll timeline reads none: nothing starts it. */
-    actionTriggers?: PxActionTriggers;
-    /** HOW the built-in actions look — copied from the wire (`fill` / `resetOnFinish` / `direction` above are derived). */
-    actions?: PxActions;
+    /** WHAT HAPPENS ON AN EVENT — the list of entries (wire AND view: the root of `animator`, beside `timelines`, since
+     *  an entry may name any timeline or step; `actionTriggers` until 1.29). Absent and `[]` are the same: nothing starts
+     *  it (the manual document); a file that plays by itself has `{ "action": "timeline.start", "event": "load" }`. WHY: a
+     *  default nobody wrote is a guess. A scroll timeline reads none: nothing starts it. */
+    actions?: PxActionTriggers;
+    /** RUNTIME VIEW — the default timeline's `whenStopped`, carried through (the executor reads it). */
+    whenStopped?: PxStopPlaybackBehavior;
+    /** RUNTIME VIEW — the default timeline's `whenOutOfView`, carried through (the gate reads it). */
+    whenOutOfView?: PxOutOfViewBehavior;
     /** The wire's rest pose, carried through so a WRITER round-trips it; the engines read `fill`. */
     whenIdle?: PxWhenIdle;
     /** The wire's `whenFinished`, carried through (the executor reads it; the engines read `fill` / `resetOnFinish`). */
@@ -1391,7 +1394,7 @@ export interface _PxAnimatorConfig {
      *
      * The wire spells this as the first timeline's `type` ('time' — or absent — vs 'scroll');
      * `resolveAnimatorTimeline` folds it into this field for the engines.
-     * Distinct from a `timeline.start` rule of `actionTriggers`, which says what STARTS the animation: one
+     * Distinct from a `timeline.start` rule of `actions`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      */
     timelineSource?: string;
@@ -1472,7 +1475,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     timelines: px.array(PxTimelineSchema).optional(),
     flowSteps: px.array(PxFlowStepSchema).optional(),
     flows: px.array(PxFlowSchema).optional(),
-    actionTriggers: PxActionTriggersSchema.optional(),
+    actions: PxActionTriggersSchema.optional(),
     definitions: PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
     // Declared HERE because this is a closed object: an undeclared key would be stripped by
@@ -3002,8 +3005,8 @@ export type PxPlaybackListeners = Pick<PxAnimationPlayerCallbacks, 'onPlaybackSt
 
 /**
  * The player's ONE executor of the buttons (dev-docs/plans/playback-layers.md, animation-state.brainstorm.md) — what
- * the triggers' event lists, the `playback` prop and the api's methods all call. It performs the timeline's `actions`
- * (`timeline.stop`) and `whenFinished` on the engine, owns the states the engines cannot report — paused (resumable)
+ * the `actions` entries, the `playback` prop and the api's methods all call. It performs the timeline's `whenStopped`
+ * and `whenFinished` on the engine, owns the states the engines cannot report — paused (resumable)
  * versus off, finished, returning — and tells the playback events.
  * @public @advanced
  */
@@ -3014,8 +3017,9 @@ export interface PxPlayExecutor {
     startPlayback(): void;
     /** Start or carry on: resume a pause, turn a return around, start otherwise; nothing while playing. */
     playPlayback(): void;
-    /** The configured stop (`actions["timeline.stop"]`); nothing to stop when off or returning. */
-    stopPlayback(): void;
+    /** The configured stop (`timeline.whenStopped`), or `behavior` — an entry's own manner (1.29); nothing to stop when
+     *  off or returning. */
+    stopPlayback(behavior?: PxStopPlaybackBehavior): void;
     /** Freeze where it is (only while playing). */
     pausePlayback(): void;
     /** Continue from the paused position (only while paused). */

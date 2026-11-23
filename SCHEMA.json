@@ -3050,63 +3050,21 @@
                 "alternateReverse"
               ]
             },
-            "actions": {
-              "type": "object",
-              "properties": {
-                "timeline.stop": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "jumpToStart",
-                        "animateToStart",
-                        "jumpToEnd",
-                        "animateToEnd",
-                        "animateToEndAndBack"
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "behavior": {
-                          "enum": [
-                            "jumpToStart",
-                            "animateToStart",
-                            "jumpToEnd",
-                            "animateToEnd",
-                            "animateToEndAndBack"
-                          ]
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "outOfView": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "pause",
-                        "continue",
-                        "stop"
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "behavior": {
-                          "enum": [
-                            "pause",
-                            "continue",
-                            "stop"
-                          ]
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
+            "whenStopped": {
+              "enum": [
+                "jumpToStart",
+                "animateToStart",
+                "jumpToEnd",
+                "animateToEnd",
+                "animateToEndAndBack"
+              ]
+            },
+            "whenOutOfView": {
+              "enum": [
+                "pause",
+                "continue",
+                "stop"
+              ]
             },
             "whenFinished": {
               "enum": [
@@ -3530,36 +3488,10 @@
                 "type": "number"
               },
               "whenFinished": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "hold",
-                      "jumpToStart",
-                      "animateToStart"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "action": {
-                        "enum": [
-                          "flow.goTo",
-                          "flow.next",
-                          "flow.previous"
-                        ]
-                      },
-                      "flowStep": {
-                        "type": "string"
-                      },
-                      "flow": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "action"
-                    ],
-                    "additionalProperties": false
-                  }
+                "enum": [
+                  "hold",
+                  "jumpToStart",
+                  "animateToStart"
                 ]
               },
               "whenLeaving": {
@@ -3594,7 +3526,7 @@
             "additionalProperties": false
           }
         },
-        "actionTriggers": {
+        "actions": {
           "type": "array",
           "items": {
             "oneOf": [
@@ -3666,6 +3598,19 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -3742,6 +3687,19 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -3817,6 +3775,28 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "behavior": {
+                    "enum": [
+                      "jumpToStart",
+                      "animateToStart",
+                      "jumpToEnd",
+                      "animateToEnd",
+                      "animateToEndAndBack"
+                    ]
                   }
                 },
                 "required": [
@@ -3893,6 +3873,19 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -3969,6 +3962,19 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -4001,7 +4007,8 @@
                       "pointerDown",
                       "pointerUp",
                       "keyDown",
-                      "keyUp"
+                      "keyUp",
+                      "finished"
                     ]
                   },
                   "element": {
@@ -4046,6 +4053,26 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  },
+                  "behavior": {
+                    "enum": [
+                      "jump",
+                      "animateToEnd",
+                      "animateToStart"
+                    ]
                   }
                 },
                 "required": [
@@ -4078,7 +4105,8 @@
                       "pointerDown",
                       "pointerUp",
                       "keyDown",
-                      "keyUp"
+                      "keyUp",
+                      "finished"
                     ]
                   },
                   "element": {
@@ -4123,6 +4151,19 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -4155,7 +4196,8 @@
                       "pointerDown",
                       "pointerUp",
                       "keyDown",
-                      "keyUp"
+                      "keyUp",
+                      "finished"
                     ]
                   },
                   "element": {
@@ -4200,6 +4242,19 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [

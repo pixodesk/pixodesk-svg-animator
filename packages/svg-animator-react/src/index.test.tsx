@@ -63,7 +63,7 @@ function getTestJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [

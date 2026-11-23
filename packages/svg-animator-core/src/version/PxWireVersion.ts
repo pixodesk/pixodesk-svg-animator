@@ -429,7 +429,110 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: (doc) => { upScrollTimeline(doc); upTimelineAndElementWords(doc); upTimelinesStatesAndRules(doc); upFlowWords(doc); },
         // no `down`: 1.27 cannot say an exact place on a line other than the screen's top or bottom
     },
+    {
+        from: '1.28',
+        to: '1.29',
+        code: PxSchemaChangeCode.actionsList,
+        kind: PxWireStepKind.converted,
+        up: (doc) => { upActionsList(doc); },
+        down: (doc) => { downActionsList(doc); },
+    },
 ];
+
+/** 1.28 → 1.29 (see the step's `code`) — frozen at the words of the two versions, never the live constants:
+ *  - `animator.actionTriggers` → `animator.actions`
+ *  - a timeline's `actions["timeline.stop"]` → `whenStopped`, `actions.outOfView` → `whenOutOfView` (a word, or the
+ *    settings' `behavior`); the block goes
+ *  - a step's `whenFinished` object (`flow.goTo` / `flow.next` / `flow.previous`) → an entry `{ event: "finished",
+ *    from: <step>, … }` at the end of the list; the step's `whenFinished` goes (it was `hold` for the picture)
+ *  Exported (internal) so a writer can bring its own documents over once. @internal */
+export function upActionsList(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    if (!animator) return;
+    if (animator['actionTriggers'] !== undefined) {
+        if (animator['actions'] === undefined) animator['actions'] = animator['actionTriggers'];
+        delete animator['actionTriggers'];
+    }
+    const timelines = Array.isArray(animator['timelines']) ? animator['timelines'] : [];
+    for (const timeline of timelines) {
+        if (!timeline || typeof timeline !== 'object' || Array.isArray(timeline)) continue;
+        const t = timeline as Record<string, unknown>;
+        const block = t['actions'];
+        if (block && typeof block === 'object' && !Array.isArray(block)) {
+            const slots = block as Record<string, unknown>;
+            const wordOf = (slot: unknown): string | undefined => typeof slot === 'string' ? slot
+                : slot && typeof slot === 'object' && typeof (slot as Record<string, unknown>)['behavior'] === 'string' ? String((slot as Record<string, unknown>)['behavior']) : undefined;
+            const stop = wordOf(slots['timeline.stop']);
+            const outOfView = wordOf(slots['outOfView']);
+            if (stop !== undefined && t['whenStopped'] === undefined) t['whenStopped'] = stop;
+            if (outOfView !== undefined && t['whenOutOfView'] === undefined) t['whenOutOfView'] = outOfView;
+        }
+        delete t['actions'];
+    }
+    const steps = Array.isArray(animator['flowSteps']) ? animator['flowSteps'] : [];
+    const added: Array<Record<string, unknown>> = [];
+    for (const step of steps) {
+        if (!step || typeof step !== 'object' || Array.isArray(step)) continue;
+        const st = step as Record<string, unknown>;
+        const wf = st['whenFinished'];
+        if (!wf || typeof wf !== 'object' || Array.isArray(wf)) continue;
+        const action = (wf as Record<string, unknown>)['action'];
+        delete st['whenFinished'];
+        if ((action !== 'flow.goTo' && action !== 'flow.next' && action !== 'flow.previous') || typeof st['id'] !== 'string') continue;
+        const entry: Record<string, unknown> = { action };
+        const target = (wf as Record<string, unknown>)['flowStep'];
+        const flow = (wf as Record<string, unknown>)['flow'];
+        if (typeof target === 'string') entry['flowStep'] = target;
+        if (typeof flow === 'string') entry['flow'] = flow;
+        entry['event'] = 'finished';
+        entry['from'] = st['id'];
+        added.push(entry);
+    }
+    if (added.length) animator['actions'] = [...(Array.isArray(animator['actions']) ? animator['actions'] : []), ...added];
+}
+
+/** 1.29 → 1.28 — the way back, refused (thrown) where 1.28 cannot say it: an entry's `behavior`, a `from` on any
+ *  entry but a step's end, a step's end with several `from` or none. @internal */
+export function downActionsList(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    if (!animator) return;
+    const entries = Array.isArray(animator['actions']) ? animator['actions'] : undefined;
+    const steps = Array.isArray(animator['flowSteps']) ? animator['flowSteps'] : [];
+    if (entries) {
+        const kept: Array<unknown> = [];
+        for (const entry of entries) {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) { kept.push(entry); continue; }
+            const e = entry as Record<string, unknown>;
+            if (e['behavior'] !== undefined) throw new Error('an entry says its own behavior');
+            if (e['event'] !== 'finished') {
+                if (e['from'] !== undefined) throw new Error('an entry is limited to some steps (from)');
+                kept.push(entry);
+                continue;
+            }
+            const from = e['from'];
+            if (typeof from !== 'string') throw new Error('a step\'s end names no single step');
+            const step = steps.find(s => s && typeof s === 'object' && !Array.isArray(s) && (s as Record<string, unknown>)['id'] === from);
+            if (!step) continue;
+            const wf: Record<string, unknown> = { action: e['action'] };
+            if (typeof e['flowStep'] === 'string') wf['flowStep'] = e['flowStep'];
+            if (typeof e['flow'] === 'string') wf['flow'] = e['flow'];
+            (step as Record<string, unknown>)['whenFinished'] = wf;
+        }
+        animator['actionTriggers'] = kept;
+        delete animator['actions'];
+    }
+    const timelines = Array.isArray(animator['timelines']) ? animator['timelines'] : [];
+    for (const timeline of timelines) {
+        if (!timeline || typeof timeline !== 'object' || Array.isArray(timeline)) continue;
+        const t = timeline as Record<string, unknown>;
+        const block: Record<string, unknown> = {};
+        if (typeof t['whenStopped'] === 'string') block['timeline.stop'] = t['whenStopped'];
+        if (typeof t['whenOutOfView'] === 'string') block['outOfView'] = t['whenOutOfView'];
+        delete t['whenStopped'];
+        delete t['whenOutOfView'];
+        if (Object.keys(block).length) t['actions'] = block;
+    }
+}
 
 /** 1.27 → 1.28 (see the step's `code`). Frozen at the words of the two versions — never the live constants. */
 function upScrollTimeline(doc: Record<string, unknown>): void {

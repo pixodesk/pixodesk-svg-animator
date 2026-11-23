@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionsInput, PxActionTriggersInput, PxPlaybackOverride, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionTriggersInput, PxPlaybackOverride, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback, type PxVariablesApi, type PxVariableValue } from '@pixodesk/svg-animator-core';
@@ -64,7 +64,7 @@ function elementOf(followed: PxVueFollowed | undefined): Element | undefined {
  * copy (review §9). The runtime `props: {…}` block below stays Vue's own, because Vue needs
  * runtime prop declarations; this is only the TypeScript view of the same members.
  */
-type DocOverrideProps = PxPlaybackOverride<PxVueFollowed> & Pick<PxPlaybackOverrideInput, 'actionTriggers'> & Pick<PxControlProps, 'showAtProgress' | 'showAtTime'>;
+type DocOverrideProps = PxPlaybackOverride<PxVueFollowed> & Pick<PxPlaybackOverrideInput, 'actions'> & Pick<PxControlProps, 'showAtProgress' | 'showAtTime'>;
 
 // @px-importance important
 function applyDocOverrides(
@@ -74,12 +74,12 @@ function applyDocOverrides(
     diag: PxDiagnostics,
 ): PxDocument {
 
-    // The override, applied ONCE through core's one rule (D4: the timing merged, the `actions` and `actionTriggers`
-    // blocks replacing the file's), and then the component's own need to take the triggers over in every control
-    // mode but `actionTriggers` — the EMPTY block goes on AFTER the caller's override, so nothing re-arms it.
+    // The override, applied ONCE through core's one rule (D4: the timeline merged, the `actions` list replacing the
+    // file's), and then the component's own need to take the entries over in every control mode but `actions` — the
+    // EMPTY list goes on AFTER the caller's override, so nothing re-arms it.
     // an element or a ref in `timelineOptions.follows` never reaches the document (documents stay JSON)
     const timelineOptions = takeFollowedOut(props.timelineOptions, isVueFollowed).timelineOptions;
-    const overridden = applyPlaybackOverride(doc, { timelineOptions, actions: props.actions, actionTriggers: props.actionTriggers });
+    const overridden = applyPlaybackOverride(doc, { timelineOptions, actions: props.actions });
     for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
     doc = overridden.doc;
     if (controlModeTakesOverTrigger(compMode)) doc = withoutTriggerDriver(doc);
@@ -115,16 +115,15 @@ export const svgAnimationPlayerProps = {
     /** The animation document — the same name as the web player's option (1.26; `doc` before). */
     document: { type: Object as PropType<PxDocumentJson>, required: true },
 
-    // -- Playback override (D4, playback-layers.md): `timelineOptions` merged over the file's timing, `actions` replacing
-    //    its actions block. The triggers travel with the control props, `actionTriggers`. Same names as React / RN.
-    //    A scroll timeline's `follows` also takes an element or a ref to one, resolved when the player is created.
+    // -- Playback override (D4, playback-layers.md): `timelineOptions` merged over the file's timeline. The `actions` list
+    //    travels with the control props. Same names as React / RN. A scroll timeline's `follows` also takes an element
+    //    or a ref to one, resolved when the player is created.
     timelineOptions: { type: Object as PropType<PxTimelineOptions<PxVueFollowed>> },
-    actions: { type: Object as PropType<PxActionsInput> },
 
     // -- Control — one at a time; none: the file's own triggers drive it
     showAsStatic: { type: Boolean, default: undefined },   // the picture as drawn; playback calls ignored
-    disableActionTriggers: { type: Boolean, default: undefined },   // manual: no triggers, code presses the buttons
-    actionTriggers: { type: Object as PropType<PxActionTriggersInput | null>, default: undefined },   // the whole block instead of the file's; null = none
+    disableActions: { type: Boolean, default: undefined },   // manual: no entries, code presses the buttons
+    actions: { type: Array as PropType<PxActionTriggersInput | null>, default: undefined },   // the whole list instead of the file's; null = none
     playback: { type: String as PropType<PxPlayback>, default: undefined },   // the lever: the playback's position, off · on · paused
 
     // -- Variables (docs/library/variables.md): values from the host, a variant, CSS delivery. Same names as React / RN.
@@ -160,10 +159,10 @@ export const svgAnimationPlayerProps = {
  *
  * Supports mutually-exclusive control modes (one at a time; a conflicting set warns, PX1501):
  *
- * 1. **As the file says** (no control prop) – the document's own triggers, or `actionTriggers` to use instead.
+ * 1. **As the file says** (no control prop) – the document's own triggers, or `actions` to use instead.
  *    ```vue
  *    <SvgAnimationPlayer :document="animation" />
- *    <SvgAnimationPlayer :document="animation" :actionTriggers="[{ action: 'timeline.start', event: 'click' }]" />
+ *    <SvgAnimationPlayer :document="animation" :actions="[{ action: 'timeline.start', event: 'click' }]" />
  *    ```
  *
  * 2. **Declarative `playback`** – the playback's position, held by the host: `"off"` · `"on"` · `"paused"`.
@@ -222,7 +221,7 @@ const SvgAnimationPlayer = defineComponent({
         // input: it is exposed in every mode and never changes which one is chosen.
         const resolvedMode = computed(() => resolveControlMode({
             showAsStatic: props.showAsStatic, showAtProgress: props.showAtProgress, showAtTime: props.showAtTime,
-            playback: props.playback, disableActionTriggers: props.disableActionTriggers, actionTriggers: props.actionTriggers,
+            playback: props.playback, disableActions: props.disableActions, actions: props.actions,
         }));
         const compMode = computed<PxControlMode>(() => resolvedMode.value.mode);
 

@@ -263,6 +263,16 @@ export enum PxSchemaChangeCode {
      * a `byTimeline` entry holds keyframes only.
      */
     scrollAndTimelines = 27,
+
+    /**
+     * One list says what happens on an event, a timeline's own keys say what it does by itself (2026-11-22,
+     * docs/library/playback-and-triggers.md): `animator.actionTriggers` becomes
+     * `animator.actions`; a timeline's `actions` block goes — `actions["timeline.stop"]` becomes `whenStopped`,
+     * `actions.outOfView` becomes `whenOutOfView`; a step's `whenFinished` that goes on (`flow.goTo`, `flow.next`,
+     * `flow.previous`) becomes an entry `{ "event": "finished", "from": "‹step›", … }` of the list. An entry may say
+     * `from` (only while a flow is at those steps) and `behavior` (a stop's manner, a go-to's way of leaving).
+     */
+    actionsList = 28,
 }
 
 /** Where the words behind a code live. One string, shared by every code. */

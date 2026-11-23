@@ -39,7 +39,7 @@
 
 import { isCompiledAnimation, type PxActionTriggerRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStep, type PxNode } from '../format/PxAnimatorTypes';
 import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, PxWhenFinished, PxWhenIdle, PxWhenLeaving, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
-import { isFlowActionObject, isFlowStepEntry } from './PxFlows';
+import { atEndActionOf, isFlowStepEntry } from './PxFlows';
 import type { PxFlowSwitchStep } from './PxFlowSwitch';
 import { timelinesOf, timelineWindowsOf, type PxTimelineInfo } from './PxTimelineWindows';
 import { animatorOf } from '../format/PxDocStage';
@@ -289,12 +289,12 @@ function rulesForUnit(rules: ReadonlyArray<PxActionTriggerRule>, unit: PxUnit, p
 /** What a unit's triggers are wired from (2026-11-22): its rules, its steps, and the gate — the in-view numbers and
  *  `actions` of its first step's timeline. A one-timeline document whose triggers wire the picture. @internal */
 export function unitConfigOf(doc: PxDocument, unit: PxUnit, plan: PxUnitPlan): PxDocument {
-    const rules = rulesForUnit(getAnimatorConfig(doc)?.actionTriggers ?? [], unit, plan);
+    const rules = rulesForUnit(getAnimatorConfig(doc)?.actions ?? [], unit, plan);
     const first = plan.timelines[unit.steps[0]?.timeline ?? 0]?.timeline ?? {};
     const timeline: Record<string, unknown> = {};
-    for (const key of ['actions', 'inViewThreshold', 'inViewDebounce']) if (first[key] !== undefined) timeline[key] = first[key];
+    for (const key of ['whenStopped', 'whenOutOfView', 'inViewThreshold', 'inViewDebounce']) if (first[key] !== undefined) timeline[key] = first[key];
     const config: Record<string, unknown> = { timelines: [timeline], flowSteps: unit.steps.map(s => ({ id: s.id })) };
-    if (rules.length) config.actionTriggers = rules;
+    if (rules.length) config.actions = rules;
     return { type: 'svg', animator: config } as PxDocument;
 }
 
@@ -314,7 +314,7 @@ const isPictureWord = (v: unknown): v is PxWhenFinished =>
 
 /** A written step's timeline: its part, and what it says over the timeline (repeats, direction, speed, its end —
  *  an action at its end is the flow's: the playback holds). No delay; before anything plays, its first frame. */
-function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStep): Record<string, unknown> {
+function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStep, goesOn: boolean): Record<string, unknown> {
     const out = asOnlyTimeline(timeline);
     if (typeof step.inTime === 'number') out.inTime = step.inTime;
     if (typeof step.outTime === 'number') out.outTime = step.outTime;
@@ -323,8 +323,9 @@ function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStep): Reco
     if (step.iterations !== undefined) out.iterations = step.iterations;
     if (step.iterationDirection !== undefined) out.iterationDirection = step.iterationDirection;
     if (step.playbackSpeed !== undefined) out.playbackSpeed = step.playbackSpeed;
-    if (isPictureWord(step.whenFinished)) out.whenFinished = step.whenFinished;
-    else if (step.whenFinished !== undefined) out.whenFinished = PxWhenFinished.hold;
+    // it goes on at its end (a `finished` entry, 1.29): the flow's — the playback holds
+    if (goesOn) out.whenFinished = PxWhenFinished.hold;
+    else if (isPictureWord(step.whenFinished)) out.whenFinished = step.whenFinished;
     delete out.delay;
     out.whenIdle = PxWhenIdle.firstFrame;
     return out;
@@ -426,8 +427,9 @@ export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: num
     const t = plan.timelines[planned.timeline];
     const animator = animatorOf(doc);
     const base: Record<string, unknown> = isRecord(animator) ? { ...animator } : {};
-    delete base.timelines; delete base.flowSteps; delete base.flows; delete base.actionTriggers;
-    base.timelines = [planned.implied ? asOnlyTimeline(t.timeline) : stepTimeline(t.timeline, planned.step)];
+    delete base.timelines; delete base.flowSteps; delete base.flows; delete base.actions;
+    const goesOn = atEndActionOf(planned.id, getAnimatorConfig(doc)?.actions) !== undefined;
+    base.timelines = [planned.implied ? asOnlyTimeline(t.timeline) : stepTimeline(t.timeline, planned.step, goesOn)];
     const owns = ownsOf(claims, unitIndex);
     const trackId = t.isDefault ? undefined : t.id;
     const promote = (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string): PxCompiledAnimation | undefined =>
@@ -441,14 +443,14 @@ export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: num
 const isLeaving = (v: unknown): v is PxWhenLeaving =>
     v === PxWhenLeaving.jump || v === PxWhenLeaving.animateToEnd || v === PxWhenLeaving.animateToStart;
 
-/** A unit's steps as its flow switch reads them: where each goes at its end, how it is left, where the flow starts,
- *  whether it repeats for ever (its own `iterations`, else its timeline's). @internal */
-export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan): Array<PxFlowSwitchStep> {
+/** A unit's steps as its flow switch reads them: where each goes at its end (the `finished` entries of `rules`, 1.29),
+ *  how it is left, where the flow starts, whether it repeats for ever (its own `iterations`, else its timeline's). @internal */
+export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan, rules: ReadonlyArray<PxActionTriggerRule> = []): Array<PxFlowSwitchStep> {
     const ids = unit.steps.map(s => s.id);
     return unit.steps.map((planned): PxFlowSwitchStep => {
         const step = planned.implied ? undefined : planned.step;
-        const wf = step?.whenFinished;
-        const then: PxFlowSwitchStep['then'] = !isFlowActionObject(wf) ? undefined
+        const wf = atEndActionOf(planned.id, rules);
+        const then: PxFlowSwitchStep['then'] = wf === undefined ? undefined
             : wf.action === PxFlowAction.next ? { step: 1 }
             : wf.action === PxFlowAction.previous ? { step: -1 }
             : wf.flowStep !== undefined && ids.includes(wf.flowStep) ? { flowStep: wf.flowStep } : undefined;

@@ -288,10 +288,10 @@ const SvgAnimatorImplOnce = React.memo(
  *
  * Supports mutually-exclusive control modes — TypeScript accepts one at a time (`PxControlProps`):
  *
- * 1. **As the file says** (no control prop) – the document's own triggers, or `actionTriggers` to use instead.
+ * 1. **As the file says** (no control prop) – the document's own triggers, or `actions` to use instead.
  *    ```tsx
  *    <SvgAnimationPlayer document={animation} />
- *    <SvgAnimationPlayer document={animation} actionTriggers={[{ action: 'timeline.start', event: 'click' }]} />
+ *    <SvgAnimationPlayer document={animation} actions={[{ action: 'timeline.start', event: 'click' }]} />
  *    ```
  *
  * 2. **Declarative `playback`** – the playback's position, held by the host: `"off"` · `"on"` · `"paused"`.
@@ -323,10 +323,10 @@ const SvgAnimatorImplOnce = React.memo(
  */
 const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     className, style,
-    document: docInput, showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers, playerRef,
+    document: docInput, showAsStatic, showAtProgress, showAtTime, playback, disableActions, actions, playerRef,
 
-    // Override — the file's timing merged, its actions replaced (D4, playback-layers.md); the triggers travel with `actionTriggers`
-    timelineOptions, actions,
+    // Override — the file's timeline merged (D4, playback-layers.md); the `actions` list travels with the control props
+    timelineOptions,
 
     // Variables (docs/library/variables.md): values from the host, a variant, CSS delivery
     variables, variant, cssVariables,
@@ -349,14 +349,14 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // a DOM element carries React's own circular properties
     const followsTaken = takeFollowedOut(timelineOptions, isReactFollowed);
     const jsonTimelineOptions = followsTaken.timelineOptions;
-    const overrideKey = JSON.stringify([jsonTimelineOptions ?? null, actions ?? null, actionTriggers ?? null]);
+    const overrideKey = JSON.stringify([jsonTimelineOptions ?? null, actions ?? null]);
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `playerRef` is deliberately NOT an input: the handle is populated in
     // every mode, so `<SvgAnimationPlayer document={…} playerRef={api} />` plays as the file says AND gives
     // you the handle, instead of the ref silently forcing `start: 'manual'`.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAsStatic, showAtProgress, showAtTime, playback, disableActionTriggers, actionTriggers });
+        resolveControlMode({ showAsStatic, showAtProgress, showAtTime, playback, disableActions, actions });
 
     /**
      * The diagnostics channel, built from the CURRENT props each time (API review §5).
@@ -375,12 +375,12 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
-    // The override, applied ONCE through core's one rule (D4: the timing merged, the `actions` and `actionTriggers`
-    // blocks replacing the file's), and then the component's own need to take the triggers over in every
-    // control mode but `actionTriggers` — the EMPTY block goes on AFTER the caller's override.
+    // The override, applied ONCE through core's one rule (D4: the timing merged, the `actions` list replacing the
+    // file's), and then the component's own need to take the triggers over in every control mode but `actions` — the
+    // EMPTY list goes on AFTER the caller's override.
     const patched = useMemo(() => {
         let doc = toPxDocument(stableDoc);
-        const overridden = applyPlaybackOverride(doc, { timelineOptions: jsonTimelineOptions, actions, actionTriggers });
+        const overridden = applyPlaybackOverride(doc, { timelineOptions: jsonTimelineOptions, actions });
         if (overridden.warnings.length) {
             const diag = makeDiag();
             for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);

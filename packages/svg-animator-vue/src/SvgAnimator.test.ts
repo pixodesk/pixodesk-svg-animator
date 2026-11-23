@@ -13,7 +13,7 @@ import SvgAnimationPlayer from './SvgAnimator';
 
 
 /** The control props a test may add (1.26: no control prop plays the file as saved — these documents start on load). */
-interface ControlProps { showAsStatic?: boolean; disableActionTriggers?: boolean }
+interface ControlProps { showAsStatic?: boolean; disableActions?: boolean }
 
 /**
  * Renders the animator inside a small host component so the test can grab the
@@ -172,7 +172,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     describe("imperative API (template ref)", () => {
         it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackSpeed/isPlaying", () => {
             // manual: the file starts on load, so its triggers are switched off — the handle drives (1.26)
-            const { api } = renderWithApi(getTestJson(), {}, { disableActionTriggers: true });
+            const { api } = renderWithApi(getTestJson(), {}, { disableActions: true });
 
             expect(api.value).not.toBeNull();
             const handle = api.value;
@@ -216,7 +216,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
                 onPlaybackFinish: vi.fn(), onDestroy: vi.fn(), onPlaybackStop: vi.fn(),
             };
             // manual (1.26): the file starts on load — switched off, so each event counts only what the test presses
-            const utils = renderWithApi(getTestJson(), spies, { disableActionTriggers: true });
+            const utils = renderWithApi(getTestJson(), spies, { disableActions: true });
             return { spies, ...utils };
         }
 
@@ -585,7 +585,7 @@ function getTestJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -625,7 +625,7 @@ function getTestJson1000(): PxDocument {
                 outTime: 1000,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -691,7 +691,7 @@ function getTreeJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -746,7 +746,7 @@ function getRectJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
         },
 
         children: [
@@ -769,7 +769,7 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timelines: [{ engine: 'js', outTime: 1000 }], actionTriggers: [{ action: 'timeline.start', event: 'load' }] },
+        animator: { timelines: [{ engine: 'js', outTime: 1000 }], actions: [{ action: 'timeline.start', event: 'load' }] },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -790,9 +790,9 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
         expect(opacityIn(container)).toBe(1);
     });
 
-    it('an `actionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
+    it('an `actions` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarning = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actionTriggers: [{ action: 'timeline.start', event: 'click' }], onWarning } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actions: [{ action: 'timeline.start', event: 'click' }], onWarning } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
@@ -816,9 +816,9 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timelines: [{
                 outTime: 1000,
-actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+whenOutOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }],
+            }], actions: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }],
             version: "1.9.1",
         },
         children: [
@@ -880,9 +880,9 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timelines: [{
                 outTime: 1000,
-actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+whenOutOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }], actionTriggers: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ action: 'timeline.start', event: 'load' }],
             version: "1.9.1",
         },
         children: [
@@ -920,7 +920,7 @@ actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebou
     };
 }
 
-describe("SvgAnimationPlayer (Vue) — the file drives by default; disableActionTriggers, showAsStatic (2026-11-13)", () => {
+describe("SvgAnimationPlayer (Vue) — the file drives by default; disableActions, showAsStatic (2026-11-13)", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -944,8 +944,8 @@ describe("SvgAnimationPlayer (Vue) — the file drives by default; disableAction
         expect(onPlaybackStart).toHaveBeenCalledTimes(1);
     });
 
-    it("disableActionTriggers: still until the handle presses start", () => {
-        const api = renderWithProps({ disableActionTriggers: true });
+    it("disableActions: still until the handle presses start", () => {
+        const api = renderWithProps({ disableActions: true });
         const ellipse = document.querySelector("ellipse");
         vi.advanceTimersByTime(300);
         expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");

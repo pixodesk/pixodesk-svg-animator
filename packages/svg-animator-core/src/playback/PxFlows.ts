@@ -20,9 +20,9 @@
 // while one is leaving.
 // ============================================================================
 
-import type { PxActionObject, PxAnimatorRuntimeConfig, PxFlowStep } from '../format/PxAnimatorTypes';
+import type { PxActionObject, PxActionTriggerRule, PxAnimatorRuntimeConfig, PxFlowStep } from '../format/PxAnimatorTypes';
 import type { PxRunLists } from './PxUnits';
-import { PxFlowAction } from '../format/PxAnimatorConstants';
+import { PxFlowAction, PxStepEvent, fromStepsOf, type PxWhenLeaving } from '../format/PxAnimatorConstants';
 
 /** The flow controls on `player.flow` (2026-11-22; `player.state` 11-20, `player.timeline.segment` 11-15). The same
  *  names as the file's actions: `flow.next` ↔ `next()`, `flow.goTo` with `flowStep: "intro"` ↔ `goTo('intro')`. @public */
@@ -32,8 +32,9 @@ export interface PxFlowControls {
     next(flow?: string): void;
     /** Goes to the previous step — before the first, the last. */
     previous(flow?: string): void;
-    /** Goes to the step; an id the file does not have is ignored. Going to the current one does nothing. */
-    goTo(flowStep: string): void;
+    /** Goes to the step; an id the file does not have is ignored. Going to the current one does nothing. `leaving`: how
+     *  the current step is left this time — none: its own `whenLeaving` (an entry's `behavior`, 1.29). */
+    goTo(flowStep: string, leaving?: PxWhenLeaving): void;
     /** The current step of each running flow, in run order; with `flow` — of that one: `[id]`. */
     get(flow?: string): Array<string>;
     /** Every step's id, flow by flow, in order. */
@@ -52,9 +53,24 @@ export function isFlowStepEntry(v: unknown): v is PxFlowStep {
     return isRecord(v) && typeof v.id === 'string';
 }
 
-/** A `whenFinished` that is an action — `{ action: "flow.goTo", flowStep }`, `flow.next`, `flow.previous`. @public @advanced */
+/** An action written as a value — `{ action: "flow.goTo", flowStep }`, `flow.next`, `flow.previous`. @public @advanced */
 export function isFlowActionObject(v: unknown): v is PxActionObject {
     return isRecord(v) && (v.action === PxFlowAction.goTo || v.action === PxFlowAction.next || v.action === PxFlowAction.previous);
+}
+
+/** Where the step `stepId` goes on at its end (1.29): the first entry of `actions` with the event `finished`, a flow
+ *  action and a `from` naming it — or none (`from` left out: any step). Undefined — it holds. @public @advanced */
+export function atEndActionOf(stepId: string, rules: ReadonlyArray<PxActionTriggerRule> | undefined): PxActionObject | undefined {
+    for (const rule of rules ?? []) {
+        if (rule.event !== PxStepEvent.finished || !isFlowActionObject(rule)) continue;
+        const from = fromStepsOf(rule);
+        if (from && !from.includes(stepId)) continue;
+        const out: PxActionObject = { action: rule.action };
+        if (rule.flowStep !== undefined) out.flowStep = rule.flowStep;
+        if (rule.flow !== undefined) out.flow = rule.flow;
+        return out;
+    }
+    return undefined;
 }
 
 /** The steps the player plays: in list order, an id used twice — the first wins (the later is reported, PX1115). */
@@ -75,29 +91,30 @@ export function duplicateFlowStepIds(steps: ReadonlyArray<PxFlowStep> | undefine
     return [...twice];
 }
 
-/** A `flow.goTo` naming a step the file does not have — it is ignored (PX1114). @public @advanced */
+/** A `flow.goTo` — or a rule's `from` (1.29) — naming a step the file does not have; it is ignored (PX1114). @public @advanced */
 export interface PxFlowStepReferenceIssue {
     /** The step it names. */
     readonly target: string;
-    /** The step whose `whenFinished` holds it; absent — a rule of `actionTriggers`. */
+    /** The step it goes on from at its end (`from` of a `finished` entry); absent — an event's entry. */
     readonly flowStep?: string;
     /** The ids the file has. */
     readonly ids: ReadonlyArray<string>;
 }
 
-/** Every `flow.goTo` in `actionTriggers` and in the steps' `whenFinished` that names no step of the file. `extraIds`:
- *  the steps the timelines no step names are (their names). @public @advanced */
-export function flowStepReferenceIssues(cfg: Pick<PxAnimatorRuntimeConfig, 'flowSteps' | 'actionTriggers'>, extraIds: ReadonlyArray<string> = []): Array<PxFlowStepReferenceIssue> {
+/** Every `flow.goTo` of `actions` that names no step of the file. `extraIds`: the steps the timelines no step names are
+ *  (their names). @public @advanced */
+export function flowStepReferenceIssues(cfg: Pick<PxAnimatorRuntimeConfig, 'flowSteps' | 'actions'>, extraIds: ReadonlyArray<string> = []): Array<PxFlowStepReferenceIssue> {
     const steps = uniqueSteps((cfg.flowSteps ?? []).filter(isFlowStepEntry));
     const ids = [...steps.map(st => st.id), ...extraIds.filter(id => !steps.some(st => st.id === id))];
     const unknown = (target: string | undefined): target is string => target !== undefined && !ids.includes(target);
     const issues: Array<PxFlowStepReferenceIssue> = [];
-    for (const rule of cfg.actionTriggers ?? []) {
-        if (rule.action === PxFlowAction.goTo && unknown(rule.flowStep)) issues.push({ target: rule.flowStep, ids });
-    }
-    for (const st of steps) {
-        const wf = st.whenFinished;
-        if (isFlowActionObject(wf) && wf.action === PxFlowAction.goTo && unknown(wf.flowStep)) issues.push({ target: wf.flowStep, flowStep: st.id, ids });
+    for (const rule of cfg.actions ?? []) {
+        // a `from` naming no step: the rule waits there for nothing (1.29)
+        for (const id of fromStepsOf(rule) ?? []) if (unknown(id)) issues.push({ target: id, ids });
+        if (rule.action !== PxFlowAction.goTo || !unknown(rule.flowStep)) continue;
+        // a step's end names the step it goes on from — `from`
+        const from = rule.event === PxStepEvent.finished ? fromStepsOf(rule)?.[0] : undefined;
+        issues.push(from !== undefined ? { target: rule.flowStep, flowStep: from, ids } : { target: rule.flowStep, ids });
     }
     return issues;
 }

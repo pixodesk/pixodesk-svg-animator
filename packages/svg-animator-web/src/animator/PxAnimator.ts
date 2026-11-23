@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxTimelineControls, PxTriggerEvent, PxTriggerList, type PxActionTriggerRule, type PxRunListProps } from '@pixodesk/svg-animator-core';
-import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, forwardFlowControls, timelineIssues, type PxRunLists, resolveControlMode, PxVariablesRuntime, withActionTriggers, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, forwardFlowControls, timelineIssues, type PxRunLists, resolveControlMode, PxVariablesRuntime, withActions, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, takeFollowedOut, validateDeprecatedTransformChannels, type PxFlowLever, type PxRunLever } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -189,10 +189,10 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
 
 /**
  * Everything `createSvgAnimationPlayer` takes. The playback override (`timelineOptions`, `actions`), the control
- * options (`showAsStatic`, `disableActionTriggers`, `actionTriggers`) and the callbacks are core's shared shapes —
+ * options (`showAsStatic`, `disableActions`, `actions`) and the callbacks are core's shared shapes —
  * the SAME names, inline, as the React, Vue and React Native components take (review §9) — so only what is
  * web-specific is declared here. With no control option the file plays the way the editor saved it: its own
- * `actionTriggers` start (and gate) playback. A scroll timeline's `timelineOptions.follows` also takes an
+ * `actions` start (and gate) playback. A scroll timeline's `timelineOptions.follows` also takes an
  * element of the page — the same as `follows: 'pageDomElement'` with a selector.
  * @public
  */
@@ -299,11 +299,11 @@ function restorePlayback(playback: PxTimelineControls, s: PxPlaybackSnapshot): v
 
 /** The document without its `load` start and play rules — a rebuild must not start the animation again. */
 function withoutLoadTriggers(doc: PxDocument): PxDocument {
-    const rules = getAnimatorConfig(doc)?.actionTriggers;
+    const rules = getAnimatorConfig(doc)?.actions;
     if (!rules) return doc;
     const startsOnLoad = (r: PxActionTriggerRule): boolean => r.event === PxTriggerEvent.load
         && (r.action === PxTriggerList.startPlayback || r.action === PxTriggerList.playPlayback);
-    return withActionTriggers(doc, rules.filter(r => !startsOnLoad(r)));
+    return withActions(doc, rules.filter(r => !startsOnLoad(r)));
 }
 
 /** The callbacks, silent while `muted()` — a rebuild's own starts, pauses and destroy are not the caller's events. */
@@ -338,7 +338,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const providedRoot = isInternalOptions(options) ? options.rootElement : undefined;
     // An element in `timelineOptions.follows` never reaches the document (documents stay JSON): taken out here
     const takenOut = takeFollowedOut(options.timelineOptions, isDomElement);
-    const override: PxPlaybackOverrideInput = { timelineOptions: takenOut.timelineOptions, actions: options.actions, actionTriggers: options.actionTriggers };
+    const override: PxPlaybackOverrideInput = { timelineOptions: takenOut.timelineOptions, actions: options.actions };
     const followed = (isInternalOptions(options) ? options.followedElement : undefined) ?? takenOut.followed;
     const flowLever = isInternalOptions(options) ? options.flowLever : undefined;
     const runLever = isInternalOptions(options) ? options.runLever : undefined;
@@ -350,7 +350,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     const callbacks = withRegistryEvents(toPlayerCallbacks(options), () => proxy);
     // ONE control-mode rule (core), the web player's three options of it
     const control: PxResolvedControlMode = resolveControlMode({
-        showAsStatic: options.showAsStatic, disableActionTriggers: options.disableActionTriggers, actionTriggers: options.actionTriggers,
+        showAsStatic: options.showAsStatic, disableActions: options.disableActions, actions: options.actions,
     });
 
     // A wrong CALL throws — a bug at the call site, found the moment the line runs. A document

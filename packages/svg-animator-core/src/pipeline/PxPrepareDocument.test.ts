@@ -134,13 +134,13 @@ describe('prepareDocument — the checked stage', () => {
 
     it('repairs what does not match the schema, reports it, and plays the rest', () => {
         const doc = makeDoc();
-        (doc.animator as Record<string, unknown>).actionTriggers = [{ action: 'timeline.start', event: 'onLoad' }];
+        (doc.animator as Record<string, unknown>).actions = [{ action: 'timeline.start', event: 'onLoad' }];
         const seen: Array<string> = [];
         const out = prep(doc, { stage: PxDocStage.checked, onProblems: ps => ps.forEach(p => seen.push(p.message)) });
         expect(seen.length).toBe(1);
-        expect(seen[0]).toContain('actionTriggers');
-        expect((out.animator as { actionTriggers: Array<unknown> }).actionTriggers).toEqual([]);   // the bad rule is gone
-        expect((doc.animator as { actionTriggers: Array<{ event: string }> }).actionTriggers[0].event).toBe('onLoad');   // input untouched
+        expect(seen[0]).toContain('actions');
+        expect((out.animator as { actions: Array<unknown> }).actions).toEqual([]);   // the bad rule is gone
+        expect((doc.animator as { actions: Array<{ event: string }> }).actions[0].event).toBe('onLoad');   // input untouched
     });
 
     it('a valid document reports nothing and comes out type-stamped', () => {

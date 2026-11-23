@@ -96,7 +96,7 @@ export function createFrameLoopAnimator(
     // Every time-driven document IS wired: no `triggers` means the defaults (`start: 'load'` behind
     // the gate's `pause` out-of-view behavior — so an unseen animation does not run).
     if (isScrollTimeline(config)) {
-        if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
+        if (config.actions) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else if (shouldWireOwnTriggers(callbacks)) {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
         const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.playbackListeners);

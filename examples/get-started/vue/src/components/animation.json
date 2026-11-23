@@ -5,12 +5,12 @@
     "timelines": [
       {
         "outTime": 1000,
-        "actions": { "outOfView": "continue" },
+        "whenOutOfView": "continue",
         "iterations": "infinite",
         "iterationDirection": "alternate"
       }
     ],
-    "actionTriggers": [{ "action": "timeline.start", "event": "load" }]
+    "actions": [{ "action": "timeline.start", "event": "load" }]
   },
   "children": [
     {

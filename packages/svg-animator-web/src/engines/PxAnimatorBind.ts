@@ -84,7 +84,7 @@ export function bindWithEngineChoice(
     adapter?: PxPlatformAdapter,
     callbacks?: PxPlayerCallbacks,
     rootElement?: Element | null,
-    mode: PxControlMode = PxControlMode.actionTriggers,
+    mode: PxControlMode = PxControlMode.actions,
     followed?: Element,
     triggersByFlow?: boolean,
 ): PxBoundPlayerApi {
@@ -241,7 +241,7 @@ function guardStaticPlayback<T extends PxPlayerEngineApi>(diag: ReturnType<typeo
  * Options accepted by the pre-rendered entry points — a subset of `PxAnimationPlayerOptions`: the
  * document, the control options and the callbacks INLINE under the same names every surface uses (review §9). No
  * `adapter`: a pre-rendered SVG is by definition already in the DOM (review §25.14). With no control option the
- * document's own `actionTriggers` decide — the way the editor saved it.
+ * document's own `actions` decide — the way the editor saved it.
  * @public
  */
 export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCallbacks, PxCommonControlProps, PxRunListProps {
@@ -257,11 +257,11 @@ export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCa
  *  `resolveControlMode` + `withControlMode`); a conflicting mix warns (PX1501). */
 function docToPlay(options: PxPrerenderedAnimationPlayerOptions): { doc: PxDocument; mode: PxControlMode } {
     const control = resolveControlMode({
-        showAsStatic: options.showAsStatic, disableActionTriggers: options.disableActionTriggers, actionTriggers: options.actionTriggers,
+        showAsStatic: options.showAsStatic, disableActions: options.disableActions, actions: options.actions,
     });
     const diag = createDiagnostics(options, '[PxAnimator]');
     for (const w of control.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.controlPropsConflict, w);
-    const overridden = applyPlaybackOverride(requireDoc(options), { actionTriggers: options.actionTriggers });
+    const overridden = applyPlaybackOverride(requireDoc(options), { actions: options.actions });
     for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
     return { doc: withControlMode(overridden.doc, control.mode), mode: control.mode };
 }

@@ -25,7 +25,7 @@ export {
 } from './playback/PxPlaybackTime';
 
 // A mount's timeline override folded into the file's; a component taking over the start
-export { applyPlaybackOverride, withActionTriggers, withActions, withoutTriggerDriver, withStaticPicture, withControlMode } from './playback/PxAnimatorConfigPatch';
+export { applyPlaybackOverride, withActions, withoutTriggerDriver, withStaticPicture, withControlMode } from './playback/PxAnimatorConfigPatch';
 
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
@@ -39,7 +39,7 @@ export { PxValueKind } from './format/PxAnimatorConstants';
 export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Which trigger, which engine
-export { resolveTriggers, resolveActions, actionSettingsOf, resolveGate, triggerEventList, triggerIssues, derivedResume, ruleEventEntry, ruleEntriesOf, rulesOfEntries, isPlaybackAction, defaultTimelineOf, isOnDefaultTimeline, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, triggerKeys, triggerKeyOf, triggerSpecOf, triggerEventOf, isTriggerEvents, PX_ALL_TRIGGER_EVENTS, PX_ACTION_NAMES, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
+export { resolveTriggers, resolveActions, resolveGate, fromStepsOf, isPageEvent, isPageEventRule, ruleSpecOf, triggerEventList, triggerIssues, derivedResume, ruleEventEntry, ruleEntriesOf, rulesOfEntries, isPlaybackAction, defaultTimelineOf, isOnDefaultTimeline, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, triggerKeys, triggerKeyOf, triggerSpecOf, triggerEventOf, isTriggerEvents, PX_ALL_TRIGGER_EVENTS, PX_FLOW_ACTION_EVENTS, PX_ACTION_NAMES, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
 
 // Adapter-driven frame-loop engine (platform-neutral playback) + the node props every renderer shares
 export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
