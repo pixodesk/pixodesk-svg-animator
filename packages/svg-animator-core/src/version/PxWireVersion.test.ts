@@ -12,7 +12,7 @@ import { PxSchemaChangeCode, schemaChangeRef } from './PxSchemaChangeCode';
 import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
-    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords, upActionsList, downActionsList,
+    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords, upActionsList, downActionsList, downFlowEnds,
 } from './PxWireVersion';
 import { isRecord } from '../schema/PxSchema';
 
@@ -374,7 +374,8 @@ describe('1.28 amended a third time (2026-11-22) — the flow words', () => {
         const r = convertWireDocument(old());
         const animator = isRecord(r.doc) && isRecord(r.doc.animator) ? r.doc.animator : {};
         expect(animator.states).toBeUndefined();
-        // 1.29: the list is `actions`, and "at its end, the next" is an entry of it (`finished`, `from`)
+        // 1.29: the list is `actions`, and "at its end, the next" is an entry of it (`finished`, `from`); 1.30: a next of
+        // before wrapped, so it arrives as `flow.nextOrWrap`
         expect(animator.flowSteps).toEqual([
             { id: 'intro', inTime: 0, outTime: 1000 },
             { id: 'loop', inTime: 1000, outTime: 3000 },
@@ -382,7 +383,7 @@ describe('1.28 amended a third time (2026-11-22) — the flow words', () => {
         expect(animator.actions).toEqual([
             { action: 'flow.goTo', flowStep: 'loop', event: 'click' },
             { action: 'timeline.start', event: 'load' },
-            { action: 'flow.next', event: 'finished', from: 'intro' },
+            { action: 'flow.nextOrWrap', event: 'finished', from: 'intro' },
         ]);
     });
 
@@ -486,5 +487,55 @@ describe('1.29 (2026-11-22) — one actions list, whenStopped / whenOutOfView, a
         expect(rawAnimator(r.doc).actionTriggers).toEqual([]);
         expect(rawAnimator(r.doc).flowSteps).toEqual([{ id: 'a', whenFinished: { action: 'flow.goTo', flowStep: 'b' } }, { id: 'b' }]);
         expect(rawAnimator(r.doc).version).toBe('1.28.0');
+    });
+});
+
+describe('1.30 (2026-11-23) — next and previous stop at the ends; the `…OrWrap` actions wrap', () => {
+    /** A 1.29 file: every stepping action, a go-to and a playback action. */
+    const at129 = (): Record<string, unknown> => ({
+        type: 'svg',
+        animator: {
+            version: '1.29.0',
+            timelines: [{ outTime: 2000 }],
+            flowSteps: [{ id: 'a', inTime: 0, outTime: 1000 }, { id: 'b', inTime: 1000, outTime: 2000 }],
+            actions: [
+                { action: 'timeline.start', event: 'load' },
+                { action: 'flow.next', event: 'click', selector: '.next' },
+                { action: 'flow.previous', event: 'click', selector: '.back' },
+                { action: 'flow.next', event: 'finished', from: 'a' },
+                { action: 'flow.goTo', flowStep: 'a', event: 'keyDown' },
+            ],
+        },
+    });
+    const to129 = { a: 1, b: 29, c: 0 };
+
+    it('a 1.29 file keeps its meaning: its next and previous wrapped, so they arrive as `…OrWrap`', () => {
+        const r = convertWireDocument(at129());
+        expect(r.applied.map(s => s.to)).toEqual(['1.30']);
+        expect(rawAnimator(r.doc).actions).toEqual([
+            { action: 'timeline.start', event: 'load' },
+            { action: 'flow.nextOrWrap', event: 'click', selector: '.next' },
+            { action: 'flow.previousOrWrap', event: 'click', selector: '.back' },
+            { action: 'flow.nextOrWrap', event: 'finished', from: 'a' },
+            { action: 'flow.goTo', flowStep: 'a', event: 'keyDown' },
+        ]);
+    });
+
+    it('down to 1.29 and up again gives the same file', () => {
+        const up = convertWireDocument(at129());
+        const back = downgradeWireDocument(up.doc, to129);
+        expect(back.ok).toBe(true);
+        if (!back.ok) return;
+        expect(rawAnimator(back.doc).actions).toEqual(rawAnimator(at129()).actions);
+        expect(convertWireDocument(back.doc).doc).toEqual(up.doc);
+    });
+
+    it.each([['flow.next'], ['flow.previous']])('down to 1.29 is REFUSED for a %s that stops at the ends', (action) => {
+        const doc = { type: 'svg', animator: { version: '1.30.0', flowSteps: [{ id: 'a' }, { id: 'b' }], actions: [{ action, event: 'click' }] } };
+        expect(() => downFlowEnds(JSON.parse(JSON.stringify(doc)) as Record<string, unknown>)).toThrow();
+        const r = downgradeWireDocument(doc, to129);
+        expect(r.ok).toBe(false);
+        if (r.ok) return;
+        expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.flowEnds]);
     });
 });

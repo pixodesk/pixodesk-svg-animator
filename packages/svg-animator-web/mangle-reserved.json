@@ -76,6 +76,7 @@
   "definitions",
   "defs",
   "delay",
+  "delta",
   "describe",
   "description",
   "destroy",
@@ -233,6 +234,7 @@
   "names",
   "next",
   "nextId",
+  "nextOrWrap",
   "node",
   "nodePath",
   "note",
@@ -284,6 +286,7 @@
   "pointerType",
   "prev",
   "previous",
+  "previousOrWrap",
   "problems",
   "radius",
   "raf",
@@ -441,6 +444,7 @@
   "with",
   "wordSpacing",
   "world",
+  "wrap",
   "x",
   "y"
  ]

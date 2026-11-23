@@ -105,12 +105,22 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         expect(contentMs()).toBeGreaterThan(300);   // not restarted
     });
 
-    it('next after the last goes to the first; previous before the first, to the last', () => {
+    // 1.30: wrapping is the `…OrWrap` calls' (it was `next` / `previous`'s until then)
+    it('nextOrWrap after the last goes to the first; previousOrWrap before the first, to the last', () => {
+        const api = createSvgAnimationPlayer({ document: doc(THREE, []), container: '#box' });
+        api.flow.previousOrWrap();
+        expect(api.flow.get()).toEqual(['success']);
+        api.flow.nextOrWrap();
+        expect(api.flow.get()).toEqual(['intro']);
+    });
+
+    it('1.30: next on the last step and previous on the first do nothing', () => {
         const api = createSvgAnimationPlayer({ document: doc(THREE, []), container: '#box' });
         api.flow.previous();
-        expect(api.flow.get()).toEqual(['success']);
-        api.flow.next();
         expect(api.flow.get()).toEqual(['intro']);
+        api.flow.goTo('success');
+        api.flow.next();
+        expect(api.flow.get()).toEqual(['success']);
     });
 
     it('a rule names a flowStep: `flow.goTo` success on a click', () => {
@@ -122,7 +132,8 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
 
     it('an event on one element of the picture, and one on an element of the page', () => {
         const api = createSvgAnimationPlayer({
-            document: doc(THREE, [{ action: 'flow.goTo', flowStep: 'success', event: 'click', element: '#btn' }, { action: 'flow.next', event: 'click', selector: '.next' }]),
+            // 1.30: `flow.nextOrWrap`, so the page button is seen to move the flow from the last step
+            document: doc(THREE, [{ action: 'flow.goTo', flowStep: 'success', event: 'click', element: '#btn' }, { action: 'flow.nextOrWrap', event: 'click', selector: '.next' }]),
             container: '#box',
         });
         document.querySelector('rect')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -241,6 +252,43 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         vi.advanceTimersByTime(600);
         expect(api.flow.get()).toEqual(['b']);
         vi.advanceTimersByTime(600);
+        expect(api.flow.get()).toEqual(['c']);
+    });
+
+    it('1.30: a `finished` next at the last step\'s end — it stays there, finished; `flow.nextOrWrap` goes round', () => {
+        const steps = { a: { inTime: 0, outTime: 500 }, b: { inTime: 500, outTime: 1000 } };
+        const stays = createSvgAnimationPlayer({
+            document: doc(steps, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.next', event: PxStepEvent.finished }]),
+            container: '#box',
+        });
+        vi.advanceTimersByTime(1200);
+        expect(stays.flow.get()).toEqual(['b']);
+        expect(stays.timeline.getState()).toBe('finished');
+        stays.destroy();
+        const wraps = createSvgAnimationPlayer({
+            document: doc(steps, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.nextOrWrap', event: PxStepEvent.finished }]),
+            container: '#box',
+        });
+        vi.advanceTimersByTime(1200);
+        expect(wraps.flow.get()).toEqual(['a']);
+    });
+
+    it('1.30: next pressed twice while a step finishes its pass — counted from where it is heading, two steps on', () => {
+        const api = createSvgAnimationPlayer({
+            document: doc({
+                a: { inTime: 0, outTime: 1000, iterations: 'infinite', whenLeaving: 'animateToEnd' },
+                b: { inTime: 1000, outTime: 2000 },
+                c: { inTime: 2000, outTime: 3000 },
+            }),
+            container: '#box',
+        });
+        vi.advanceTimersByTime(300);
+        api.flow.next();
+        api.flow.next();
+        expect(api.flow.get()).toEqual(['a']);               // still finishing its pass
+        vi.advanceTimersByTime(800);
+        expect(api.flow.get()).toEqual(['c']);
+        api.flow.next();                                     // the last: nothing
         expect(api.flow.get()).toEqual(['c']);
     });
 

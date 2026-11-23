@@ -543,7 +543,8 @@ export const PxPlaybackWrite = {
     start: 'timeline.start()', play: 'timeline.play()', stop: 'timeline.stop()', pause: 'timeline.pause()', resume: 'timeline.resume()',
     setCurrentTime: 'timeline.setCurrentTime()', setCurrentProgress: 'timeline.setCurrentProgress()',
     setTotalTime: 'timeline.setTotalTime()', setSpeed: 'timeline.setSpeed()', setDurationAtSpeed: 'timeline.setDurationAtSpeed()',
-    flowNext: 'flow.next()', flowPrevious: 'flow.previous()', flowGoTo: 'flow.goTo()',
+    flowNext: 'flow.next()', flowPrevious: 'flow.previous()', flowNextOrWrap: 'flow.nextOrWrap()', flowPreviousOrWrap: 'flow.previousOrWrap()',
+    flowGoTo: 'flow.goTo()',
 } as const;
 export type PxPlaybackWrite = typeof PxPlaybackWrite[keyof typeof PxPlaybackWrite];
 
@@ -597,6 +598,8 @@ export function forwardFlowControls(
     return {
         "next": (flow) => write(PxPlaybackWrite.flowNext, st => st.next(flow)),
         "previous": (flow) => write(PxPlaybackWrite.flowPrevious, st => st.previous(flow)),
+        "nextOrWrap": (flow) => write(PxPlaybackWrite.flowNextOrWrap, st => st.nextOrWrap(flow)),
+        "previousOrWrap": (flow) => write(PxPlaybackWrite.flowPreviousOrWrap, st => st.previousOrWrap(flow)),
         "goTo": (state) => write(PxPlaybackWrite.flowGoTo, st => st.goTo(state)),
         "get": (flow) => target()?.get(flow) ?? [],
         "getAll": () => target()?.getAll() ?? [],

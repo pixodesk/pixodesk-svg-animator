@@ -273,6 +273,15 @@ export enum PxSchemaChangeCode {
      * `from` (only while a flow is at those steps) and `behavior` (a stop's manner, a go-to's way of leaving).
      */
     actionsList = 28,
+
+    /**
+     * Next and previous stop at the ends of a flow (2026-11-23, docs/library/playback-and-triggers.md):
+     * `flow.next` on the last step and `flow.previous` on the first do nothing; the new `flow.nextOrWrap` and
+     * `flow.previousOrWrap` go round to the first or the last step, as `flow.next` and `flow.previous` did. A file
+     * from before keeps its meaning: its `flow.next` becomes `flow.nextOrWrap`, its `flow.previous`
+     * `flow.previousOrWrap`.
+     */
+    flowEnds = 29,
 }
 
 /** Where the words behind a code live. One string, shared by every code. */

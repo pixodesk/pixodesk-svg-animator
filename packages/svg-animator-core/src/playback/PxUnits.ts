@@ -37,8 +37,8 @@
 // | `flow.next` / `flow.previous` | the unit of its `flow` — none: `default`, else the first |
 // ============================================================================
 
-import { isCompiledAnimation, type PxActionTriggerRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStep, type PxNode } from '../format/PxAnimatorTypes';
-import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, PxWhenFinished, PxWhenIdle, PxWhenLeaving, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
+import { isCompiledAnimation, type PxActionObject, type PxActionTriggerRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStep, type PxNode } from '../format/PxAnimatorTypes';
+import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, PxWhenFinished, PxWhenIdle, PxWhenLeaving, flowStepIndexAfter, flowStepMoveOf, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
 import { atEndActionOf, isFlowStepEntry } from './PxFlows';
 import type { PxFlowSwitchStep } from './PxFlowSwitch';
 import { timelinesOf, timelineWindowsOf, type PxTimelineInfo } from './PxTimelineWindows';
@@ -428,7 +428,7 @@ export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: num
     const animator = animatorOf(doc);
     const base: Record<string, unknown> = isRecord(animator) ? { ...animator } : {};
     delete base.timelines; delete base.flowSteps; delete base.flows; delete base.actions;
-    const goesOn = atEndActionOf(planned.id, getAnimatorConfig(doc)?.actions) !== undefined;
+    const goesOn = goesOnAtEnd(atEndActionOf(planned.id, getAnimatorConfig(doc)?.actions), stepIndex, unit.steps.length);
     base.timelines = [planned.implied ? asOnlyTimeline(t.timeline) : stepTimeline(t.timeline, planned.step, goesOn)];
     const owns = ownsOf(claims, unitIndex);
     const trackId = t.isDefault ? undefined : t.id;
@@ -438,6 +438,14 @@ export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: num
     const definitions = projectDefinitions(doc, base, plan, promote);
     if (definitions) base.definitions = definitions;
     return { ...tree, animator: base } as PxDocument;
+}
+
+/** A step goes on at its end by `then` — unless a next / previous would pass an end of the flow (no `…OrWrap`, 1.30):
+ *  then it stays, finished by its own `whenFinished`. */
+function goesOnAtEnd(then: PxActionObject | undefined, stepIndex: number, count: number): boolean {
+    if (then === undefined) return false;
+    const move = flowStepMoveOf(then.action);
+    return !move || flowStepIndexAfter(stepIndex, count, move) !== undefined;
 }
 
 const isLeaving = (v: unknown): v is PxWhenLeaving =>
@@ -450,9 +458,9 @@ export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan, rules: ReadonlyArr
     return unit.steps.map((planned): PxFlowSwitchStep => {
         const step = planned.implied ? undefined : planned.step;
         const wf = atEndActionOf(planned.id, rules);
+        const move = wf && flowStepMoveOf(wf.action);
         const then: PxFlowSwitchStep['then'] = wf === undefined ? undefined
-            : wf.action === PxFlowAction.next ? { step: 1 }
-            : wf.action === PxFlowAction.previous ? { step: -1 }
+            : move ? (move.wrap ? { step: move.delta, wrap: true } : { step: move.delta })
             : wf.flowStep !== undefined && ids.includes(wf.flowStep) ? { flowStep: wf.flowStep } : undefined;
         const iterations = step?.iterations ?? plan.timelines[planned.timeline].timeline.iterations;
         return {

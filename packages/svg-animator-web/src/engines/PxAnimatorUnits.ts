@@ -136,6 +136,8 @@ function bindUnits(
         "goTo": (id) => ownerOf(id)?.bound.flowSwitch.controls.goTo(id),
         "next": (name) => flowOf(name)?.bound.flowSwitch.controls.next(),
         "previous": (name) => flowOf(name)?.bound.flowSwitch.controls.previous(),
+        "nextOrWrap": (name) => flowOf(name)?.bound.flowSwitch.controls.nextOrWrap(),
+        "previousOrWrap": (name) => flowOf(name)?.bound.flowSwitch.controls.previousOrWrap(),
         "get": (name) => name === undefined ? flows.flatMap(x => x.bound.flowSwitch.controls.get()) : flowOf(name)?.bound.flowSwitch.controls.get() ?? [],
         "getAll": () => flows.flatMap(x => x.bound.flowSwitch.controls.getAll()),
     };

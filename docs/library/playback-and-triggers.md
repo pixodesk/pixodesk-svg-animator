@@ -73,7 +73,7 @@ two places are not mirror images of each other:
 
 - the `actions` list names the **requests** an event can make, in each rule's `action` — `timeline.start`,
   `timeline.play`, `timeline.stop`, `timeline.pause` (`timeline.resume` is derived unless the file names it) —
-  and the flow actions `flow.goTo`, `flow.next`, `flow.previous`
+  and the flow actions `flow.goTo`, `flow.next`, `flow.previous`, `flow.nextOrWrap`, `flow.previousOrWrap`
   ([Flows](#flows--named-steps-of-the-animation)).
 - the timeline's `when…` keys say what happens at the **moments**: `whenStopped` (how every stop looks),
   `whenOutOfView` (what the [visibility gate](#whether-it-may-run--the-visibility-gate) does), `whenFinished` and
@@ -242,7 +242,7 @@ are converted on read.)
 | `event` | the event that does it — `load` · `hoverIn` · `hoverOut` · `click` · `pointerDown` · `pointerUp` · `keyDown` · `keyUp` — or `finished`: a flow step reached its end ([Moving between steps](#moving-between-steps)) |
 | `timeline` | the timeline a `timeline.*` action acts on, by its `id`. None: the whole picture — every timeline and every flow |
 | `flowStep` | the step `flow.goTo` goes to, by its `id` — or a timeline's id: the step a timeline no step names is |
-| `flow` | the flow `flow.next` / `flow.previous` steps through, by its `id`. None: `default` |
+| `flow` | the flow `flow.next` / `flow.previous` (or their `…OrWrap` twins) steps through, by its `id`. None: `default` |
 | `element` | heard on one element of the picture, `"#id"` — [below](#an-event-on-one-element-a-page-element-or-a-key) |
 | `selector` | heard on an element of the page, a CSS selector |
 | `with` | fields the event must have — a key, a pointer button |
@@ -258,8 +258,10 @@ are converted on read.)
 | `timeline.pause` | freezes the current frame | **playing** | *Pause playback on* |
 | `timeline.resume` | carries on from there. **Derived unless the file has such a rule** ([below](#what-resumes-a-pause--derived-unless-named)) | **paused** | *Resume playback on* (shown, not edited) |
 | `flow.goTo` | goes to `flowStep` and plays it ([Flows](#flows--named-steps-of-the-animation)) | **any state** — read before the actions above | *Add trigger* |
-| `flow.next` | the next step of a flow; after the last, the first | **any state** | *Add trigger* |
-| `flow.previous` | the previous step; before the first, the last | **any state** | *Add trigger* |
+| `flow.next` | the next step of a flow; on the last, nothing | **any state** | *Add trigger* |
+| `flow.previous` | the previous step; on the first, nothing | **any state** | *Add trigger* |
+| `flow.nextOrWrap` | the next step; after the last, the first — a carousel, a toggle | **any state** | *Add trigger* |
+| `flow.previousOrWrap` | the previous step; before the first, the last | **any state** | *Add trigger* |
 
 `timeline.start` and `timeline.play` differ only when something is already going: a start always plays from the
 start, a play carries on. A hover animation that should not jump back when the pointer returns mid-way uses
@@ -702,12 +704,15 @@ Where a step goes on at its end is a rule like any other, on the event `finished
 | Action | The rule | Goes to |
 |---|---|---|
 | `flow.goTo` | `{ "action": "flow.goTo", "flowStep": "hover", "event": "finished", "from": "intro" }` | that step |
-| `flow.next` | `{ "action": "flow.next", "event": "finished", "from": "intro" }` | the next step of the step's own flow — after the last, the first |
-| `flow.previous` | `{ "action": "flow.previous", "event": "finished", "from": "intro" }` | the previous one — before the first, the last |
+| `flow.next` | `{ "action": "flow.next", "event": "finished", "from": "intro" }` | the next step of the step's own flow — on the last, none: it holds |
+| `flow.previous` | `{ "action": "flow.previous", "event": "finished", "from": "intro" }` | the previous one — on the first, none |
+| `flow.nextOrWrap` | `{ "action": "flow.nextOrWrap", "event": "finished" }` | the next one — after the last, the first: a chain that plays round and round |
+| `flow.previousOrWrap` | `{ "action": "flow.previousOrWrap", "event": "finished", "from": "intro" }` | the previous one — before the first, the last |
 
-- A `finished` rule with no `from` is **every** step's end: a slideshow that steps on by itself is one rule.
+- A `finished` rule with no `from` is **every** step's end: a slideshow that steps on by itself is one rule — with
+  `flow.next` it stops on its last step, with `flow.nextOrWrap` it starts again.
 - The first rule that fits the step wins; with none, the step holds — its `whenFinished` says what shows.
-- `finished` takes only the three flow actions, and a step that goes on reports no finish.
+- `finished` takes only the flow actions, and a step that goes on reports no finish.
 
 The action and its `flowStep` or `flow` alone are a `PxActionObject` — what `player.flow` and the helpers pass around.
 (Until 1.29 the object stood in the step's own `whenFinished`.)
@@ -794,15 +799,16 @@ is on the [JSON format page](../format/README.md#timelines-flows-and-flow-steps)
 <!-- px-check off the four ways to move a step, prose -->
 | From | How |
 |---|---|
-| a rule of the file | `{ "action": "flow.goTo", "flowStep": "success", "event": "click" }`; `flow.next` / `flow.previous` with an optional `flow` — any event, read before the playback actions ([Triggers](#triggers--when-it-plays)) |
+| a rule of the file | `{ "action": "flow.goTo", "flowStep": "success", "event": "click" }`; `flow.next` / `flow.previous` (`…OrWrap` to go round) with an optional `flow` — any event, read before the playback actions ([Triggers](#triggers--when-it-plays)) |
 | a step's end | a rule on `finished` — [above](#a-steps-end--finished) |
-| page code | `player.flow.goTo('success')`, `.next(flow?)`, `.previous(flow?)`; `.get(flow?)` is the current step of each running flow, a list; `.getAll()` every id — [the web player](./web-player.md#the-playback-api) |
+| page code | `player.flow.goTo('success')`, `.next(flow?)`, `.previous(flow?)`, `.nextOrWrap(flow?)`, `.previousOrWrap(flow?)`; `.get(flow?)` is the current step of each running flow, a list; `.getAll()` every id — [the web player](./web-player.md#the-playback-api) |
 | a component | the `flowStep` prop — one id, or a list with one id per flow: `<SvgAnimationPlayer document={saveIcon} flowStep={status} />` (React, Vue) |
 
 `onFlowStepChange(flowStep, previous, flow)` tells the page (`flow` is `default` for the flow `default`) — the Vue event
 is `flowStepChange`. Going to the current step does nothing; an id the file does not have is ignored and reported
 ([PX1114](../diagnostics.md#what-the-document-says)); a request while a step is leaving replaces the earlier one — the
-newest wins. While the `flowStep` prop is set, the page holds that flow and the file's rules for it rest; at mount a
+newest wins — and a next or previous then counts from the step it is heading to: two presses of *Next* while a step
+finishes its pass move two steps (1.30). While the `flowStep` prop is set, the page holds that flow and the file's rules for it rest; at mount a
 step that ends is shown at its end without playing, one that repeats plays. The prop's type is `PxFlowStepProps`, the
 handle's `PxFlowControls`, the wire types `PxFlowStep` and `PxFlow`. `player.flow.goTo(id, leaving?)` takes a way of
 leaving too — a `whenLeaving` word over the current step's.
@@ -1052,7 +1058,9 @@ write yourself cannot drift from the four shipped ones:
   `PxResolvedActions` — `whenStopped` and `whenOutOfView` plus `whenFinished`, every one defaulted. `resolveGate(view)`
   returns a `PxResolvedGate`: the `whenOutOfView` behavior and the two sensor numbers, defaulted.
 - **Rules.** `PX_ACTION_NAMES` lists every action a rule may name (a `PxActionName`), `isPlaybackAction(action)`
-  tells the five playback actions from the three flow actions (`PxFlowAction`). `ruleEntriesOf(rules, action)`
+  tells the five playback actions from the five flow actions (`PxFlowAction`, `isFlowAction(action)`);
+  `flowStepMoveOf(action)` is a next or previous action's move (`PxFlowStepMove`: on or back, and whether it wraps)
+  and `flowStepIndexAfter(from, count, move)` the step it lands on — none past an end without wrapping. `ruleEntriesOf(rules, action)`
   gives the events of the rules that name an action, `ruleEventEntry(rule)` one rule's event as an entry (a bare word,
   or a `PxTriggerEventObject`), and `rulesOfEntries(action, entries, refs?)` turns entries back into rules —
   `PxTriggerEvents` is one entry or several, as those helpers take them.

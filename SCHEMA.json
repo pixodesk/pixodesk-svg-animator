@@ -4262,6 +4262,188 @@
                   "event"
                 ],
                 "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "flow.nextOrWrap"
+                  },
+                  "timeline": {
+                    "type": "string"
+                  },
+                  "flowStep": {
+                    "type": "string"
+                  },
+                  "flow": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "enum": [
+                      "load",
+                      "hoverIn",
+                      "hoverOut",
+                      "click",
+                      "pointerDown",
+                      "pointerUp",
+                      "keyDown",
+                      "keyUp",
+                      "finished"
+                    ]
+                  },
+                  "element": {
+                    "type": "string"
+                  },
+                  "selector": {
+                    "type": "string"
+                  },
+                  "with": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "code": {
+                        "type": "string"
+                      },
+                      "ctrlKey": {
+                        "type": "boolean"
+                      },
+                      "shiftKey": {
+                        "type": "boolean"
+                      },
+                      "altKey": {
+                        "type": "boolean"
+                      },
+                      "metaKey": {
+                        "type": "boolean"
+                      },
+                      "metaOrCtrlKey": {
+                        "type": "boolean"
+                      },
+                      "button": {
+                        "type": "number"
+                      },
+                      "pointerType": {
+                        "enum": [
+                          "mouse",
+                          "touch",
+                          "pen"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "action",
+                  "event"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "flow.previousOrWrap"
+                  },
+                  "timeline": {
+                    "type": "string"
+                  },
+                  "flowStep": {
+                    "type": "string"
+                  },
+                  "flow": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "enum": [
+                      "load",
+                      "hoverIn",
+                      "hoverOut",
+                      "click",
+                      "pointerDown",
+                      "pointerUp",
+                      "keyDown",
+                      "keyUp",
+                      "finished"
+                    ]
+                  },
+                  "element": {
+                    "type": "string"
+                  },
+                  "selector": {
+                    "type": "string"
+                  },
+                  "with": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "code": {
+                        "type": "string"
+                      },
+                      "ctrlKey": {
+                        "type": "boolean"
+                      },
+                      "shiftKey": {
+                        "type": "boolean"
+                      },
+                      "altKey": {
+                        "type": "boolean"
+                      },
+                      "metaKey": {
+                        "type": "boolean"
+                      },
+                      "metaOrCtrlKey": {
+                        "type": "boolean"
+                      },
+                      "button": {
+                        "type": "number"
+                      },
+                      "pointerType": {
+                        "enum": [
+                          "mouse",
+                          "touch",
+                          "pen"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "action",
+                  "event"
+                ],
+                "additionalProperties": false
               }
             ]
           }

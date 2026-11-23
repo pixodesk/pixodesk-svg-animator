@@ -474,7 +474,7 @@ describe('wire step 1.24 → 1.25 — playback is the noun (animation-state.play
     });
 
     it('only 1.25 (and then 1.26) is applied to a 1.24 file; a file without lists or slots passes untouched', () => {
-        expect(convertWireDocument(at('1.24.1', runWords)).applied.map(s => s.to)).toEqual(['1.25', '1.26', '1.28', '1.29']);   // 1.27 converts nothing up; 1.28 and 1.29 run
+        expect(convertWireDocument(at('1.24.1', runWords)).applied.map(s => s.to)).toEqual(['1.25', '1.26', '1.28', '1.29', '1.30']);   // 1.27 converts nothing up; 1.28, 1.29 and 1.30 run
         expect(timelineOf(convertTo125(at('1.24.0', { iterations: 2 })).doc)).toEqual({ outTime: 1000, iterations: 2 });
     });
 });
@@ -509,7 +509,7 @@ describe('wire step 1.25 → 1.26 — state words and move words (animation-stat
     });
 
     it('only 1.26 is applied to a 1.25 file, and it has no way back', () => {
-        expect(convertWireDocument(at('1.25.1', { atEnd: 'hold' })).applied.map(s => s.to)).toEqual(['1.26', '1.28', '1.29']);   // 1.28 and 1.29 run
+        expect(convertWireDocument(at('1.25.1', { atEnd: 'hold' })).applied.map(s => s.to)).toEqual(['1.26', '1.28', '1.29', '1.30']);   // 1.28, 1.29 and 1.30 run
         const result = applyWireStepsDown(at('1.26.0', { whenFinished: 'hold' }), { steps: PX_WIRE_STEPS, target: { a: 1, b: 25, c: 0 }, readerReadsEditorPart: false });
         expect(result.ok).toBe(false);
     });

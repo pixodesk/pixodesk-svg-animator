@@ -437,7 +437,44 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: (doc) => { upActionsList(doc); },
         down: (doc) => { downActionsList(doc); },
     },
+    {
+        from: '1.29',
+        to: '1.30',
+        code: PxSchemaChangeCode.flowEnds,
+        kind: PxWireStepKind.converted,
+        up: (doc) => { renameFlowSteppingActions(doc, FLOW_ENDS_RENAMES); },
+        down: (doc) => { downFlowEnds(doc); },
+    },
 ];
+
+/** 1.29 → 1.30 (see the step's `code`) — frozen at the words of the two versions: a stepping action of 1.29 wrapped,
+ *  so it keeps doing so under its 1.30 name. */
+const FLOW_ENDS_RENAMES: ReadonlyArray<readonly [string, string]> = [['flow.next', 'flow.nextOrWrap'], ['flow.previous', 'flow.previousOrWrap']];
+
+/** Renames the `action` of every entry of `animator.actions` by `renames` (`[from, to]`). */
+function renameFlowSteppingActions(doc: Record<string, unknown>, renames: ReadonlyArray<readonly [string, string]>): void {
+    const animator = getAnimatorBlock(doc);
+    const entries = animator && Array.isArray(animator['actions']) ? animator['actions'] : [];
+    for (const entry of entries) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+        const e = entry as Record<string, unknown>;
+        const rename = renames.find(([from]) => from === e['action']);
+        if (rename) e['action'] = rename[1];
+    }
+}
+
+/** 1.30 → 1.29 — the way back, refused (thrown) where 1.29 cannot say it: a next or previous that stops at the ends.
+ *  @internal */
+export function downFlowEnds(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const entries = animator && Array.isArray(animator['actions']) ? animator['actions'] : [];
+    for (const entry of entries) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+        const action = (entry as Record<string, unknown>)['action'];
+        if (FLOW_ENDS_RENAMES.some(([from]) => from === action)) throw new Error('a next or previous stops at the ends of its flow');
+    }
+    renameFlowSteppingActions(doc, FLOW_ENDS_RENAMES.map(([from, to]) => [to, from] as const));
+}
 
 /** 1.28 → 1.29 (see the step's `code`) — frozen at the words of the two versions, never the live constants:
  *  - `animator.actionTriggers` → `animator.actions`

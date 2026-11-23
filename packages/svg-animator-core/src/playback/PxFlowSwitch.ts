@@ -14,13 +14,13 @@
 // |---|---|
 // | `timeline` | `player.timeline` — the current step's playback; a speed the page sets carries on to every step |
 // | `executor` | the one the triggers and the gate press — the current step's |
-// | `controls` | `player.flow` — `goTo` · `next` · `previous` · `get` · `getAll` |
+// | `controls` | `player.flow` — `goTo` · `next` · `previous` · `nextOrWrap` · `previousOrWrap` · `get` · `getAll`; a next / previous counts from the step a leaving is heading to (1.30) |
 // | leaving | `whenLeaving`: `jump` at once · `animateToEnd` plays on to the end of the pass · `animateToStart` plays back to the start of the pass — then the next step from its start, playing |
 // | the end | a step whose `whenFinished` is an action goes on there after a frame (the guard); else its playback is finished as usual |
 // ============================================================================
 
 import type { PxPlayExecutor, PxTimelineControls } from '../format/PxAnimatorTypes';
-import { PxPlaybackState, PxWhenLeaving } from '../format/PxAnimatorConstants';
+import { PxFlowAction, PxPlaybackState, PxWhenLeaving, flowStepIndexAfter, flowStepMoveOf } from '../format/PxAnimatorConstants';
 import { forwardPlaybackControls, PxPlaybackWrite } from './PxDeclarativePlayback';
 import type { PxFlowControls, PxFlowRuntime } from './PxFlows';
 
@@ -40,8 +40,9 @@ export interface PxFlowStepPlayer {
 /** One step as the switch reads it. @internal */
 export interface PxFlowSwitchStep {
     readonly id: string;
-    /** Where it goes on at its end: the next step, the previous one, or the one named. */
-    readonly then?: { readonly step: 1 | -1 } | { readonly flowStep: string };
+    /** Where it goes on at its end: the next step, the previous one (`wrap`: round past an end — the `…OrWrap` actions,
+     *  1.30), or the one named. */
+    readonly then?: { readonly step: 1 | -1; readonly wrap?: true } | { readonly flowStep: string };
     readonly whenLeaving: PxWhenLeaving;
     readonly initial: boolean;
     /** It repeats for ever — held at mount it plays; one that ends is shown at its end. */
@@ -94,8 +95,9 @@ export function createFlowSwitch<P extends PxFlowStepPlayer>(o: PxFlowSwitchOpti
         if (disposed || i !== index) return;
         if (leaving) { go(leaving.target); return; }
         const then = o.steps[i].then;
-        if (!then) { o.onPlaybackFinish?.(); return; }
-        const to = 'flowStep' in then ? indexOf(then.flowStep) : (i + then.step + n) % n;
+        // a next / previous past an end of the flow (no `…OrWrap`): it stays, finished as usual (1.30)
+        const to = !then ? undefined : 'flowStep' in then ? indexOf(then.flowStep) : flowStepIndexAfter(i, n, { delta: then.step, wrap: then.wrap === true });
+        if (to === undefined) { o.onPlaybackFinish?.(); return; }
         // the guard: the end frame is drawn before the hop — no ring of empty steps can spin within one frame
         o.raf(() => { if (!disposed && index === i && to >= 0) go(to); });
     };
@@ -152,9 +154,19 @@ export function createFlowSwitch<P extends PxFlowStepPlayer>(o: PxFlowSwitchOpti
         go(target);
     };
 
+    /** A next / previous: counted from the step a leaving is heading to — two presses, two steps (1.30); past an end of
+     *  the flow, nothing unless it wraps. */
+    const step = (action: PxFlowAction): void => {
+        const move = flowStepMoveOf(action);
+        const to = move ? flowStepIndexAfter(leaving?.target ?? index, n, move) : undefined;
+        if (to !== undefined) request(to);
+    };
+
     const controls: PxFlowControls = {
-        next: () => request((index + 1) % n),
-        previous: () => request((index - 1 + n) % n),
+        next: () => step(PxFlowAction.next),
+        previous: () => step(PxFlowAction.previous),
+        nextOrWrap: () => step(PxFlowAction.nextOrWrap),
+        previousOrWrap: () => step(PxFlowAction.previousOrWrap),
         goTo: (id: string, how?: PxWhenLeaving) => request(indexOf(id), how),
         get: () => [o.steps[index].id],
         getAll: () => o.steps.map(s => s.id),

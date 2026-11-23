@@ -918,5 +918,31 @@
    "animator.timelines[]|time.actions.timeline.stop|1.behavior"
   ],
   "note": "PXS28 — One list says what happens on an event, a timeline's own keys say what it does by itself (2026-11-22, docs/library/playback-and-triggers.md): `animator.actionTriggers` becomes `animator.actions`; a timeline's `actions` block goes — `actions[\"timeline.stop\"]` becomes `whenStopped`, `actions.outOfView` becomes `whenOutOfView`; a step's `whenFinished` that goes on (`flow.goTo`, `flow.next`, `flow.previous`) becomes an entry `{ \"event\": \"finished\", \"from\": \"‹step›\", … }` of the list. An entry may say `from` (only while a flow is at those steps) and `behavior` (a stop's manner, a go-to's way of leaving)."
+ },
+ {
+  "version": "1.30",
+  "date": "2026-11-23",
+  "added": [
+   "animator.actions[]|flow.nextOrWrap.action",
+   "animator.actions[]|flow.nextOrWrap.element",
+   "animator.actions[]|flow.nextOrWrap.event",
+   "animator.actions[]|flow.nextOrWrap.flow",
+   "animator.actions[]|flow.nextOrWrap.flowStep",
+   "animator.actions[]|flow.nextOrWrap.from",
+   "animator.actions[]|flow.nextOrWrap.selector",
+   "animator.actions[]|flow.nextOrWrap.timeline",
+   "animator.actions[]|flow.nextOrWrap.with",
+   "animator.actions[]|flow.previousOrWrap.action",
+   "animator.actions[]|flow.previousOrWrap.element",
+   "animator.actions[]|flow.previousOrWrap.event",
+   "animator.actions[]|flow.previousOrWrap.flow",
+   "animator.actions[]|flow.previousOrWrap.flowStep",
+   "animator.actions[]|flow.previousOrWrap.from",
+   "animator.actions[]|flow.previousOrWrap.selector",
+   "animator.actions[]|flow.previousOrWrap.timeline",
+   "animator.actions[]|flow.previousOrWrap.with"
+  ],
+  "removed": [],
+  "note": "PXS29 — Next and previous stop at the ends of a flow (2026-11-23, docs/library/playback-and-triggers.md): `flow.next` on the last step and `flow.previous` on the first do nothing; the new `flow.nextOrWrap` and `flow.previousOrWrap` go round to the first or the last step, as `flow.next` and `flow.previous` did. A file from before keeps its meaning: its `flow.next` becomes `flow.nextOrWrap`, its `flow.previous` `flow.previousOrWrap`."
  }
 ]

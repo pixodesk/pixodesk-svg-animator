@@ -134,6 +134,8 @@ export function wireTriggers(
                 if (!s.keys.includes(event)) continue;
                 if (s.action === PxFlowAction.next) flows.controls.next();
                 else if (s.action === PxFlowAction.previous) flows.controls.previous();
+                else if (s.action === PxFlowAction.nextOrWrap) flows.controls.nextOrWrap();
+                else if (s.action === PxFlowAction.previousOrWrap) flows.controls.previousOrWrap();
                 else if (s.flowStep !== undefined) flows.controls.goTo(s.flowStep, leaving);
             }
         }

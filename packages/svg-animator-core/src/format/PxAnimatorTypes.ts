@@ -659,13 +659,15 @@ export interface _PxActionTriggerRule {
      *    counterpart of each `timeline.pause` event (hover out resumes what hover in paused) plus the `timeline.start`
      *    events that do not stop it. Named, the rules are used as written ({@link triggerIssues} notes a difference);
      *  - `flow.goTo` — goes to the step `flowStep`; `flow.next` · `flow.previous` — the next or previous step of a flow
-     *    (`flow`; none — `default`), after the last the first. */
+     *    (`flow`; none — `default`), nothing past its last (first) step; `flow.nextOrWrap` · `flow.previousOrWrap` —
+     *    the same, round to the first (last) step (1.30). */
     action: PxActionName;
     /** The timeline a `timeline.*` action acts on — an `id` of `animator.timelines`. None: the whole picture. */
     timeline?: string;
     /** The step `flow.goTo` goes to — an `id` of `animator.flowSteps`, or a timeline's id: the step a timeline no step uses is. */
     flowStep?: string;
-    /** The flow `flow.next` / `flow.previous` steps through — an `id` of `animator.flows`, or `default`. */
+    /** The flow a stepping action (`flow.next` · `flow.previous` · `…OrWrap`) steps through — an `id` of
+     *  `animator.flows`, or `default`. */
     flow?: string;
     /** The event that does it — a page event, or `finished`: the step `from` reached its end (a flow action only, 1.29). */
     event: PxActionEvent;
@@ -813,6 +815,8 @@ export const PxActionTriggerRuleSchema = implementsInterface<_PxActionTriggerRul
     ruleSchemaWithBehaviorOf(PxFlowAction.goTo, PX_FLOW_ACTION_EVENTS, LEAVING_BEHAVIORS),
     ruleSchemaOf(PxFlowAction.next, PX_FLOW_ACTION_EVENTS),
     ruleSchemaOf(PxFlowAction.previous, PX_FLOW_ACTION_EVENTS),
+    ruleSchemaOf(PxFlowAction.nextOrWrap, PX_FLOW_ACTION_EVENTS),
+    ruleSchemaOf(PxFlowAction.previousOrWrap, PX_FLOW_ACTION_EVENTS),
 ] as const));
 /** One entry of `animator.actions`. @public */
 export type PxActionTriggerRule = _PxActionTriggerRule;
@@ -843,13 +847,13 @@ export interface _PxActionObject {
     action: PxFlowAction;
     /** The step `flow.goTo` goes to. */
     flowStep?: string;
-    /** The flow `flow.next` / `flow.previous` steps through; none — the step's own. */
+    /** The flow a stepping action (`flow.next` …) steps through; none — the step's own. */
     flow?: string;
 }
 
 /** @public @advanced */
 export const PxActionObjectSchema = implementsInterface<_PxActionObject>()(px.object({
-    action: px.enum([PxFlowAction.goTo, PxFlowAction.next, PxFlowAction.previous] as const),
+    action: px.enum([PxFlowAction.goTo, PxFlowAction.next, PxFlowAction.previous, PxFlowAction.nextOrWrap, PxFlowAction.previousOrWrap] as const),
     flowStep: px.string().optional(),
     flow: px.string().optional(),
 }));

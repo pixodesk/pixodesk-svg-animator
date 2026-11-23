@@ -5,8 +5,8 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxRunListProps, PxTimelineControls } from '@pixodesk/svg-animator-core';
-import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxWhenFinished, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput, type PxVariablesOptions } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, forwardFlowControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride, controlModeTakesOverTrigger, PxVariablesRuntime, applyVariablesProp, attributeOwnersOf, planUnits, stepDocumentOf, switchStepsOf, unknownRunNames, type PxRunLists, type PxUnitPlan } from '@pixodesk/svg-animator-core/engine';
+import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxFlowAction, PxTimelineEngine, PxWhenFinished, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput, type PxVariablesOptions } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, forwardFlowControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride, controlModeTakesOverTrigger, PxVariablesRuntime, applyVariablesProp, attributeOwnersOf, planUnits, stepDocumentOf, switchStepsOf, unknownRunNames, flowStepMoveOf, flowStepIndexAfter, type PxRunLists, type PxUnitPlan } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -466,9 +466,11 @@ export function SvgAnimationPlayer({
         progress.value = restingPosition();
         // a step that goes on at its end (2026-11-22): the flow's — no finish is told
         const then = switchSteps[stepIndex]?.then;
-        if (then) {
-            const n = switchSteps.length;
-            goToStep('flowStep' in then ? switchSteps.findIndex(s => s.id === then.flowStep) : (stepIndex + then.step + n) % n);
+        // a next / previous past an end of the flow (no `…OrWrap`, 1.30): it stays, finished as usual
+        const to = !then ? undefined : 'flowStep' in then ? switchSteps.findIndex(s => s.id === then.flowStep)
+            : flowStepIndexAfter(stepIndex, switchSteps.length, { delta: then.step, wrap: then.wrap === true });
+        if (to !== undefined) {
+            goToStep(to);
             return;
         }
         executor?.onNaturalFinish();              // the executor tells `onPlaybackFinish`, then `whenFinished`
@@ -588,9 +590,17 @@ export function SvgAnimationPlayer({
     executor = player.playExecutor;
     // the flow's controls (2026-11-22): one flow; a step goes to the next at once (no `whenLeaving` on React Native)
     if (switchSteps.length) {
+        // past an end: nothing for `next` / `previous`, round for the `…OrWrap` twins (1.30)
+        const step = (action: PxFlowAction): void => {
+            const move = flowStepMoveOf(action);
+            const to = move ? flowStepIndexAfter(stepIndex, switchSteps.length, move) : undefined;
+            if (to !== undefined) goToStep(to);
+        };
         player.flow = {
-            next: () => goToStep((stepIndex + 1) % switchSteps.length),
-            previous: () => goToStep((stepIndex - 1 + switchSteps.length) % switchSteps.length),
+            next: () => step(PxFlowAction.next),
+            previous: () => step(PxFlowAction.previous),
+            nextOrWrap: () => step(PxFlowAction.nextOrWrap),
+            previousOrWrap: () => step(PxFlowAction.previousOrWrap),
             goTo: (id: string) => goToStep(switchSteps.findIndex(s => s.id === id)),
             get: () => [switchSteps[stepIndex].id],
             getAll: () => switchSteps.map(s => s.id),

@@ -337,9 +337,12 @@ interface PxFlowControls {
                                            //   is ignored; the current one does nothing); the step being left
                                            //   leaves per `leaving`, else its `whenLeaving`, and while it leaves
                                            //   the newest request wins
-    next(flow?: string): void;             // the next step of a flow; after the last, the first. No id: the
-                                           //   flow `default` when it runs, else the first
-    previous(flow?: string): void;         // the previous one; before the first, the last
+    next(flow?: string): void;             // the next step of a flow; on the last, nothing. While a step leaves,
+                                           //   counted from where it is heading. No id: the flow `default` when it
+                                           //   runs, else the first
+    previous(flow?: string): void;         // the previous one; on the first, nothing
+    nextOrWrap(flow?: string): void;       // as next(); after the last, the first
+    previousOrWrap(flow?: string): void;   // as previous(); before the first, the last
     get(flow?: string): Array<string>;     // the current step of each running flow, in run order — a plain file
                                            //   answers ['default']; with an id, of that one: ['hover']
     getAll(): Array<string>;               // every step's id, flow by flow
@@ -493,7 +496,7 @@ of view — a real pause: `timeline.getState()` reads `paused` and `onPlaybackPa
 An absent list and an empty one (`[]`) both name nothing: nothing happens until you
 call `timeline.start()` — a file that plays by itself says `{ "action": "timeline.start", "event": "load" }`.
 `disableActions` and `showAsStatic` empty the list: no event starts it. Rules with `flow.goTo`,
-`flow.next` and `flow.previous` move the [flows](./playback-and-triggers.md#flows--named-steps-of-the-animation). The lists, the events and the rule are on
+`flow.next`, `flow.previous` and their `…OrWrap` twins move the [flows](./playback-and-triggers.md#flows--named-steps-of-the-animation). The lists, the events and the rule are on
 [Playback settings & triggers → Triggers](./playback-and-triggers.md#triggers--when-it-plays).
 
 `setupAnimationTriggers(api, config)` is exported for one rare case: you have replaced the
@@ -665,10 +668,10 @@ function setupAnimationTriggers(api: PxEngineAnimationPlayerApi, config: PxAnima
 interface PxActionTriggerRule {
     action: PxActionName;                  // timeline.start · timeline.play · timeline.stop · timeline.pause ·
                                            //   timeline.resume (DERIVED when no rule names it) · flow.goTo ·
-                                           //   flow.next · flow.previous
+                                           //   flow.next · flow.previous · flow.nextOrWrap · flow.previousOrWrap
     timeline?: string;                     // the timeline a timeline.* action acts on; none: the whole picture
     flowStep?: string;                     // the step flow.goTo goes to
-    flow?: string;                         // the flow flow.next / flow.previous steps through
+    flow?: string;                         // the flow flow.next / flow.previous / …OrWrap steps through
     event: PxActionEvent;                  // load · hoverIn · hoverOut · click · pointerDown · pointerUp · keyDown · keyUp —
                                            //   or finished: a flow step reached its end (flow actions only)
     element?: string;                      // heard on one element of the picture, '#id'

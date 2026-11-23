@@ -126,16 +126,54 @@ export const PxPointerType = {
 } as const;
 export type PxPointerType = typeof PxPointerType[keyof typeof PxPointerType];
 
-/** The state actions (2026-11-20; the segment actions `timeline.segment.*` until then): go to a state (`flow.goTo`
- *  with a `state`), to the next state of a state machine (after the last, the first) or the previous one. The `action`
- *  of a rule of `actions`; the same name is the page's call
- *  (`player.state.goTo('hover')`, `player.state.next()`). @public */
+/** The flow actions (2026-11-20; the segment actions `timeline.segment.*` until then): go to a step (`flow.goTo` with a
+ *  `flowStep`), to the next or the previous step of a flow. The `action` of an entry of `actions`; the same name is the
+ *  page's call (`player.flow.goTo('hover')`, `player.flow.next()`).
+ *
+ *  | action | past the last step (the first, going back) |
+ *  |---|---|
+ *  | `flow.next` · `flow.previous` | nothing — it stays (1.30) |
+ *  | `flow.nextOrWrap` · `flow.previousOrWrap` | round to the first (the last) — what `flow.next` did until 1.30 |
+ *  @public */
 export const PxFlowAction = {
-    goTo:     'flow.goTo',
-    next:     'flow.next',
-    previous: 'flow.previous',
+    goTo:           'flow.goTo',
+    next:           'flow.next',
+    previous:       'flow.previous',
+    nextOrWrap:     'flow.nextOrWrap',
+    previousOrWrap: 'flow.previousOrWrap',
 } as const;
 export type PxFlowAction = typeof PxFlowAction[keyof typeof PxFlowAction];
+
+/** How a stepping flow action moves (1.30): `delta` 1 — on, -1 — back; `wrap` — past an end round to the other.
+ *  @public @advanced */
+export interface PxFlowStepMove {
+    readonly delta: 1 | -1;
+    readonly wrap: boolean;
+}
+
+/** The move of `flow.next` / `flow.previous` and their `…OrWrap` twins — none for `flow.goTo` and the playback
+ *  actions. @public @advanced */
+export function flowStepMoveOf(action: string): PxFlowStepMove | undefined {
+    switch (action) {
+        case PxFlowAction.next: return { delta: 1, wrap: false };
+        case PxFlowAction.previous: return { delta: -1, wrap: false };
+        case PxFlowAction.nextOrWrap: return { delta: 1, wrap: true };
+        case PxFlowAction.previousOrWrap: return { delta: -1, wrap: true };
+        default: return undefined;
+    }
+}
+
+/** True for the five flow actions. @public @advanced */
+export function isFlowAction(action: string): action is PxFlowAction {
+    return action === PxFlowAction.goTo || flowStepMoveOf(action) !== undefined;
+}
+
+/** The step a move lands on from step `from` of `count` — none past an end without `wrap` (1.30). @public @advanced */
+export function flowStepIndexAfter(from: number, count: number, move: PxFlowStepMove): number | undefined {
+    const to = from + move.delta;
+    if (to >= 0 && to < count) return to;
+    return move.wrap && count > 0 ? (to + count) % count : undefined;
+}
 
 /** How a state is LEFT when another is asked for (2026-11-15): `jump` (default) — a cut; `animateToEnd` — this pass
  *  plays to its end first; `animateToStart` — it plays back to its start first. @public */
@@ -164,13 +202,13 @@ export const PxTriggerList = {
 
 export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
 
-/** Every action an entry of `actions` may name — the playback's five and the three flow actions. @public */
+/** Every action an entry of `actions` may name — the playback's five and the five flow actions. @public */
 export type PxActionName = PxTriggerList | PxFlowAction;
 
 /** The action names, in their order — the schema's list. @public @advanced */
 export const PX_ACTION_NAMES: ReadonlyArray<PxActionName> = [PxTriggerList.startPlayback, PxTriggerList.playPlayback,
     PxTriggerList.stopPlayback, PxTriggerList.pausePlayback, PxTriggerList.resumePlayback,
-    PxFlowAction.goTo, PxFlowAction.next, PxFlowAction.previous];
+    PxFlowAction.goTo, PxFlowAction.next, PxFlowAction.previous, PxFlowAction.nextOrWrap, PxFlowAction.previousOrWrap];
 
 /** True for the five playback actions. @public @advanced */
 export function isPlaybackAction(action: PxActionName): action is PxTriggerList {
@@ -641,7 +679,7 @@ export interface PxFlowTrigger {
     readonly action: PxFlowAction;
     /** The step `flow.goTo` goes to. */
     readonly flowStep?: string;
-    /** The flow `flow.next` / `flow.previous` steps through, as the rule names it. */
+    /** The flow a stepping action (`flow.next` …, {@link flowStepMoveOf}) steps through, as the rule names it. */
     readonly flow?: string;
     readonly keys: ReadonlyArray<string>;
 }
@@ -1032,7 +1070,7 @@ export function resolveTriggers(rules: ReadonlyArray<PxActionTriggerRule> | unde
     const flows: Array<{ action: PxFlowAction; flowStep?: string; flow?: string; keys: Array<string> }> = [];
     if (stepIds.length) {
         for (const rule of rules) {
-            if (rule.action !== PxFlowAction.goTo && rule.action !== PxFlowAction.next && rule.action !== PxFlowAction.previous) continue;
+            if (!isFlowAction(rule.action)) continue;
             if (rule.action === PxFlowAction.goTo && (rule.flowStep === undefined || !stepIds.includes(rule.flowStep))) continue;
             // a step's end is the flow's own (`atEndActionOf`) — no page event to listen for
             if (!isPageEventRule(rule)) continue;

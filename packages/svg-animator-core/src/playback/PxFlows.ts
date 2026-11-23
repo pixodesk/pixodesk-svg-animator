@@ -11,27 +11,32 @@
 //
 // | piece | what it does |
 // |---|---|
-// | `PxFlowControls` | `player.flow` — `goTo` · `next` · `previous` · `get` · `getAll` |
+// | `PxFlowControls` | `player.flow` — `goTo` · `next` · `previous` · `nextOrWrap` · `previousOrWrap` · `get` · `getAll` |
 // | the lever | a component's `flowStep` prop between the component and its player |
 // | the checks | a step id used twice (PX1115), a `flow.goTo` naming no step (PX1114) |
 //
 // Guards (segments design §5.5): an id that does not exist is not read (PX1114); an id used twice — the first wins
 // (PX1115); an automatic hop always shows a frame first (no ring of empty steps can spin); the newest request wins
-// while one is leaving.
+// while one is leaving, and a next / previous counts from where it is heading (1.30).
 // ============================================================================
 
 import type { PxActionObject, PxActionTriggerRule, PxAnimatorRuntimeConfig, PxFlowStep } from '../format/PxAnimatorTypes';
 import type { PxRunLists } from './PxUnits';
-import { PxFlowAction, PxStepEvent, fromStepsOf, type PxWhenLeaving } from '../format/PxAnimatorConstants';
+import { PxFlowAction, PxStepEvent, fromStepsOf, isFlowAction, type PxWhenLeaving } from '../format/PxAnimatorConstants';
 
 /** The flow controls on `player.flow` (2026-11-22; `player.state` 11-20, `player.timeline.segment` 11-15). The same
  *  names as the file's actions: `flow.next` ↔ `next()`, `flow.goTo` with `flowStep: "intro"` ↔ `goTo('intro')`. @public */
 export interface PxFlowControls {
-    /** Goes to the next step of a flow — after the last, the first. Changes and plays. `flow`: its id; none —
+    /** Goes to the next step of a flow — on the last, nothing (1.30). Changes and plays. While a step is still leaving
+     *  (`animateToEnd` / `animateToStart`), it counts from the step the flow is heading to. `flow`: its id; none —
      *  `default` when it runs, else the first. */
     next(flow?: string): void;
-    /** Goes to the previous step — before the first, the last. */
+    /** Goes to the previous step — on the first, nothing. */
     previous(flow?: string): void;
+    /** As {@link next}, and after the last step the first (1.30). */
+    nextOrWrap(flow?: string): void;
+    /** As {@link previous}, and before the first step the last (1.30). */
+    previousOrWrap(flow?: string): void;
     /** Goes to the step; an id the file does not have is ignored. Going to the current one does nothing. `leaving`: how
      *  the current step is left this time — none: its own `whenLeaving` (an entry's `behavior`, 1.29). */
     goTo(flowStep: string, leaving?: PxWhenLeaving): void;
@@ -43,7 +48,7 @@ export interface PxFlowControls {
 
 /** The controls of a picture with no flow — nothing to go to. @internal */
 export const NO_FLOW_CONTROLS: PxFlowControls = {
-    next: () => {}, previous: () => {}, goTo: () => {}, get: () => [], getAll: () => [],
+    next: () => {}, previous: () => {}, nextOrWrap: () => {}, previousOrWrap: () => {}, goTo: () => {}, get: () => [], getAll: () => [],
 };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -53,9 +58,9 @@ export function isFlowStepEntry(v: unknown): v is PxFlowStep {
     return isRecord(v) && typeof v.id === 'string';
 }
 
-/** An action written as a value — `{ action: "flow.goTo", flowStep }`, `flow.next`, `flow.previous`. @public @advanced */
+/** An action written as a value — `{ action: "flow.goTo", flowStep }`, `flow.next` …. @public @advanced */
 export function isFlowActionObject(v: unknown): v is PxActionObject {
-    return isRecord(v) && (v.action === PxFlowAction.goTo || v.action === PxFlowAction.next || v.action === PxFlowAction.previous);
+    return isRecord(v) && typeof v.action === 'string' && isFlowAction(v.action);
 }
 
 /** Where the step `stepId` goes on at its end (1.29): the first entry of `actions` with the event `finished`, a flow

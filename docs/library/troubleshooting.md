@@ -60,6 +60,11 @@ component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
 
+**Next no longer goes round from the last step; Previous does nothing on the first.** Changed in 1.30
+(2026-11-23): `flow.next` / `flow.previous` stop at the ends of a flow. For a carousel or a toggle that goes round, use
+`flow.nextOrWrap` / `flow.previousOrWrap` — `player.flow.nextOrWrap()` from code. A file stamped before 1.30 is
+converted on read and keeps going round.
+
 **`actionTriggers` or `disableActionTriggers` is not an option or prop; the `actions` prop rejects an object; a
 timeline's `actions` block or a step's `whenFinished` object is not read.** Changed in 1.29 (2026-11-22): one list
 says what happens on an event, and a timeline's own keys say what it does by itself.
@@ -70,7 +75,7 @@ says what happens on an event, and a timeline's own keys say what it does by its
 | `"animator": { "actionTriggers": [ … ] }` | `"animator": { "actions": [ … ] }` — the same rules |
 | a timeline's `"actions": { "timeline.stop": "animateToStart" }` | `"whenStopped": "animateToStart"` on the timeline |
 | a timeline's `"actions": { "outOfView": "continue" }` | `"whenOutOfView": "continue"` on the timeline |
-| a step's `"whenFinished": { "action": "flow.next" }` | a rule `{ "action": "flow.next", "event": "finished", "from": "‹the step›" }` — the step's `whenFinished` takes only the picture words |
+| a step's `"whenFinished": { "action": "flow.next" }` | a rule `{ "action": "flow.nextOrWrap", "event": "finished", "from": "‹the step›" }` (`flow.next` since 1.30 stops on the last step) — the step's `whenFinished` takes only the picture words |
 | the `actionTriggers` prop / option · `disableActionTriggers` | `actions` · `disableActions` |
 | the `actions` prop `{ 'timeline.stop': 'animateToEnd' }` | `timelineOptions={{ whenStopped: 'animateToEnd' }}` — merged, like the rest of the timing |
 | the `actions` prop `{ outOfView: 'continue' }` | `timelineOptions={{ whenOutOfView: 'continue' }}` |
@@ -92,9 +97,9 @@ and 2026-11-22 (schema 1.28, amended): a file can hold several timelines, flows 
 | `"timeline": { … }` | `"timelines": [ { … } ]` — the one with no `id` is the default |
 | `timeline.segments: [{ "name": "intro", … }]` | `"flowSteps": [{ "id": "intro", … }]` beside `timelines` — `id` is the handle, `name` only a label |
 | `"actionTriggers": { "timeline.start": "load" }` | `"actionTriggers": [{ "action": "timeline.start", "event": "load" }]` — one rule per event |
-| `"timeline.segment.goTo(intro)"` · `"timeline.segment.next"` · `.previous` | `{ "action": "flow.goTo", "flowStep": "intro" }` · `{ "action": "flow.next" }` · `flow.previous` |
-| a segment's `"whenFinished": "timeline.segment.next"` | `"whenFinished": { "action": "flow.next" }` |
-| `player.timeline.segment.goTo()` · `.next()` · `.get()` | `player.flow.goTo()` · `.next()` · `.get()` — `get()` is a list, one id per flow |
+| `"timeline.segment.goTo(intro)"` · `"timeline.segment.next"` · `.previous` | `{ "action": "flow.goTo", "flowStep": "intro" }` · `{ "action": "flow.nextOrWrap" }` · `flow.previousOrWrap` (they went round; `flow.next` since 1.30 stops at the ends) |
+| a segment's `"whenFinished": "timeline.segment.next"` | a rule `{ "action": "flow.nextOrWrap", "event": "finished", "from": "‹the step›" }` |
+| `player.timeline.segment.goTo()` · `.next()` · `.get()` | `player.flow.goTo()` · `.nextOrWrap()` · `.get()` — `get()` is a list, one id per flow |
 | the `segment` prop · `onSegmentChange` · Vue `segmentChange` | the `flowStep` prop · `onFlowStepChange` · Vue `flowStepChange` |
 | a `"timeline.resume"` key with an empty list | not possible any more: with no `timeline.resume` rule, the resume is derived |
 | `"states"` · `"stateMachines"` · a rule's `"state"` / `"stateMachine"` · `state.goTo` (2026-11-20) | `"flowSteps"` · `"flows"` · `"flowStep"` / `"flow"` · `flow.goTo` |

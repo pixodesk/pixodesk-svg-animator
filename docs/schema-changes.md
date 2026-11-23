@@ -121,3 +121,7 @@ One scroll timeline in plain words (docs/library/playback-and-triggers.md, "Foll
 ## <a id="pxs28"></a>PXS28 · 1.28 → 1.29
 
 One list says what happens on an event, a timeline's own keys say what it does by itself (2026-11-22, docs/library/playback-and-triggers.md): `animator.actionTriggers` becomes `animator.actions`; a timeline's `actions` block goes — `actions["timeline.stop"]` becomes `whenStopped`, `actions.outOfView` becomes `whenOutOfView`; a step's `whenFinished` that goes on (`flow.goTo`, `flow.next`, `flow.previous`) becomes an entry `{ "event": "finished", "from": "‹step›", … }` of the list. An entry may say `from` (only while a flow is at those steps) and `behavior` (a stop's manner, a go-to's way of leaving).
+
+## <a id="pxs29"></a>PXS29 · 1.29 → 1.30
+
+Next and previous stop at the ends of a flow (2026-11-23, docs/library/playback-and-triggers.md): `flow.next` on the last step and `flow.previous` on the first do nothing; the new `flow.nextOrWrap` and `flow.previousOrWrap` go round to the first or the last step, as `flow.next` and `flow.previous` did. A file from before keeps its meaning: its `flow.next` becomes `flow.nextOrWrap`, its `flow.previous` `flow.previousOrWrap`.
