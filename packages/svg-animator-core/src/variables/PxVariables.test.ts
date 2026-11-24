@@ -13,8 +13,8 @@ import { PxDocStage } from '../format/PxDocStage';
 import { prepareDocument } from '../pipeline/PxPrepareDocument';
 import { createDiagnostics } from '../playback/PxDiagnostics';
 import { PxDiagnosticCode } from '../playback/PxDiagnosticCode';
-import { isBindingText, isVariableName, PxVariableBinding, renameInBinding } from './PxFormula';
-import { collectBindingSites, nodeAtPath, PX_VARIABLE_NODE_MARK, PxPredefinedVariable, resolveVariableBindings, variableValueFits } from './PxVariableBindings';
+import { isBindingText, isVariableName, PxFormulaResultType, PxVariableBinding, renameInBinding, type PxVariableValue } from './PxFormula';
+import { collectBindingSites, formulaResultTypeOf, nodeAtPath, PX_VARIABLE_NODE_MARK, PxPredefinedVariable, resolveVariableBindings, variableValueFits } from './PxVariableBindings';
 import { PxVariablesRuntime } from './PxVariablesRuntime';
 import { untyped } from '../effects/effectTestKit';
 
@@ -77,6 +77,164 @@ describe('the binding grammar — parsed into a tree, never eval', () => {
         expect(isBindingText('var(x)')).toBe(true);
         expect(isBindingText(' calc (1)')).toBe(true);
         expect(isBindingText('red')).toBe(false);
+    });
+});
+
+describe('calc(…) — comparisons, and · or · not, a choice, text and true / false (2026-11-24)', () => {
+    const values = new Map<string, PxVariableValue>([['x', 10], ['y', 4], ['on', true], ['off', false], ['mode', 'dark'], ['bg', '#fff'], ['at', [1, 2]]]);
+    const read = (name: string) => values.get(name);
+    const value = (text: string) => parse(text).evaluate(read);
+
+    it('comparisons read two numbers and give true or false', () => {
+        expect(value('calc(var(x) > var(y))')).toBe(true);
+        expect(value('calc(var(x) < var(y))')).toBe(false);
+        expect(value('calc(var(x) >= 10)')).toBe(true);
+        expect(value('calc(var(x) <= 9.5)')).toBe(false);
+        expect(value('calc(var(mode) > 1)')).toBeUndefined();
+    });
+
+    it('== and != compare two of one kind — numbers, text, true-or-false; never lists, never two kinds', () => {
+        expect(value('calc(var(x) == 10)')).toBe(true);
+        expect(value('calc(var(x) != 10)')).toBe(false);
+        expect(value("calc(var(mode) == 'dark')")).toBe(true);
+        expect(value("calc(var(mode) != 'dark')")).toBe(false);
+        expect(value('calc(var(on) == true)')).toBe(true);
+        expect(value("calc(var(x) == '10')")).toBeUndefined();
+        expect(value('calc(var(at) == var(at))')).toBeUndefined();
+    });
+
+    it('and · or · not read true-or-false; the right side is read only when the left one does not decide', () => {
+        expect(value('calc(var(on) and var(off))')).toBe(false);
+        expect(value('calc(var(on) or var(off))')).toBe(true);
+        expect(value('calc(not var(on))')).toBe(false);
+        expect(value('calc(var(off) and var(missing))')).toBe(false);
+        expect(value('calc(var(on) or var(missing))')).toBe(true);
+        expect(value('calc(var(on) and var(missing))')).toBeUndefined();
+        expect(value('calc(var(x) and var(on))')).toBeUndefined();
+        expect(value('calc(not var(x))')).toBeUndefined();
+    });
+
+    it('the levels: product, sum, comparison, equality, not, and, or, the choice', () => {
+        expect(value('calc(1 + 2 * 3 > 6 or false)')).toBe(true);
+        expect(value('calc(not var(x) > 5 and var(on))')).toBe(false);          // not (x > 5), then and
+        expect(value('calc(var(x) > 5 == var(on))')).toBe(true);                // (x > 5) == on
+        expect(value('calc(var(off) or var(on) and var(off))')).toBe(false);    // or is the loosest
+        expect(value('calc(var(x) > 5 ? var(x) - 5 : 0)')).toBe(5);
+    });
+
+    it('a choice gives one of two values of any kind, and reads only the one it picks', () => {
+        expect(value('calc(var(on) ? 10 : 20)')).toBe(10);
+        expect(value('calc(var(off) ? 10 : 20)')).toBe(20);
+        expect(value('calc(var(off) ? 1 : var(x) > 5 ? 2 : 3)')).toBe(2);
+        expect(value("calc(var(mode) == 'dark' ? '#000' : var(bg))")).toBe('#000');
+        expect(value("calc(var(mode) == 'light' ? '#000' : var(bg))")).toBe('#fff');
+        expect(value('calc(var(on) ? var(at) : var(at))')).toEqual([1, 2]);
+        expect(value('calc(var(on) ? 1 : var(missing) + 1)')).toBe(1);
+        expect(value('calc(var(x) ? 1 : 2)')).toBeUndefined();                  // a number is not true-or-false
+    });
+
+    it('text stands in single quotes; a quote or a backslash inside follows a backslash', () => {
+        expect(value("calc('it\\'s')")).toBe("it's");
+        expect(parse("calc('a\\\\b' == 'a\\\\b')").evaluate(read)).toBe(true);
+        expect(parse("calc( 'it\\'s'=='x' )").print()).toBe("calc('it\\'s' == 'x')");
+    });
+
+    it('prints normalised and keeps exactly the brackets the tree needs', () => {
+        const same = (text: string) => expect(parse(text).print()).toBe(text);
+        expect(parse('calc( var(x)>1?2:3 )').print()).toBe('calc(var(x) > 1 ? 2 : 3)');
+        same('calc((var(a) or var(b)) and var(c))');
+        same('calc(var(a) or var(b) and var(c))');
+        same('calc(not (var(a) and var(b)))');
+        same('calc(not var(a) > 1)');
+        same('calc((not var(a)) == var(b))');
+        same('calc(-(var(a) + 1))');
+        same('calc(-var(a) * 2)');
+        same('calc((var(a) ? 1 : 2) + 1)');
+        same('calc(var(a) ? 1 : var(b) ? 2 : 3)');
+        same('calc((var(a) ? var(b) : var(c)) ? 1 : 2)');
+        same('calc(var(a) ? (var(b) ? 1 : 2) : 3)');
+        same('calc(var(a) < var(b) == var(c) < var(d))');
+        same('calc(var(a) == (var(b) == var(c)))');
+        expect(parse('calc((var(a) == var(b)) == var(c))').print()).toBe('calc(var(a) == var(b) == var(c))');
+        expect(parse('calc(not not true)').print()).toBe('calc(not not true)');
+    });
+
+    it('what is printed parses back to the same text', () => {
+        for (const text of ["calc(var(a) > 1 and not var(b) or var(c) == 'x')", 'calc(-(var(a) - -var(b)) / (2 + var(c)))',
+            'calc(var(a) ? var(b) > 1 ? 1 : 2 : 3)', 'calc((var(a) < 1) == (var(b) >= 2) != false)']) {
+            const once = parse(text).print();
+            expect(parse(once).print()).toBe(once);
+        }
+    });
+
+    it('another language\'s operator is an error that says what to write', () => {
+        expect(PxVariableBinding.parse('calc(var(a) && var(b))').error).toMatch(/write "and"/);
+        expect(PxVariableBinding.parse('calc(var(a) || var(b))').error).toMatch(/write "or"/);
+        expect(PxVariableBinding.parse('calc(!var(a))').error).toMatch(/write "not"/);
+        expect(PxVariableBinding.parse('calc(var(a) = 1)').error).toMatch(/write "=="/);
+        expect(PxVariableBinding.parse('calc(var(a) == "x")').error).toMatch(/single quotes/);
+        expect(PxVariableBinding.parse("calc(var(a) == 'x)").error).toMatch(/not closed/);
+        expect(PxVariableBinding.parse('calc(var(a) < var(b) < var(c))').error).toMatch(/expected/);
+        expect(PxVariableBinding.parse('calc(var(a) ? 1)').error).toMatch(/":" expected/);
+        expect(PxVariableBinding.parse('calc(nota)').error).toMatch(/expected/);
+    });
+
+    it('rename reaches every part of the new nodes', () => {
+        expect(renameInBinding("calc(not var(x) > 1 ? var(x) : var(y) == 'x')", 'x', 'left')).toBe("calc(not var(left) > 1 ? var(left) : var(y) == 'x')");
+        expect(parse('calc(var(a) and var(b) ? var(c) : var(d))').names).toEqual(['a', 'b', 'c', 'd']);
+    });
+
+    it('the kind of the result is told without evaluating — and what is wrong, operator by operator', () => {
+        const kinds = new Map<string, PxFormulaResultType>([['x', PxFormulaResultType.number], ['on', PxFormulaResultType.boolean],
+            ['bg', PxFormulaResultType.string], ['at', PxFormulaResultType.list]]);
+        const check = (text: string) => { const problems: Array<string> = []; return { kind: parse(text).resultType(n => kinds.get(n), problems), problems }; };
+
+        expect(check('calc(var(x) + 1)')).toEqual({ kind: 'number', problems: [] });
+        expect(check('calc(var(x) > 1)')).toEqual({ kind: 'boolean', problems: [] });
+        expect(check('calc(not var(on) or var(x) == 2)')).toEqual({ kind: 'boolean', problems: [] });
+        expect(check("calc(var(on) ? var(bg) : '#000')")).toEqual({ kind: 'string', problems: [] });
+        expect(check('calc(var(on) ? var(at) : var(at))')).toEqual({ kind: 'list', problems: [] });
+        expect(check('var(bg)')).toEqual({ kind: 'string', problems: [] });
+        // an unknown name: the kind cannot be told, and it is not this check's problem
+        expect(check('calc(var(nope) + 1)')).toEqual({ kind: 'number', problems: [] });
+        expect(check('calc(var(on) ? var(nope) : var(nope))')).toEqual({ kind: undefined, problems: [] });
+
+        expect(check('calc(var(bg) + 1)').problems).toEqual(['var(bg) is text — "+" in a formula reads numbers']);
+        expect(check('calc(var(x) and var(on))').problems).toEqual(['var(x) is a number — "and" in a formula reads true or false']);
+        expect(check('calc(not var(x))').problems).toEqual(['var(x) is a number — "not" in a formula reads true or false']);
+        expect(check('calc(-var(on))').problems).toEqual(['var(on) is true or false — "-" in a formula reads numbers']);
+        expect(check('calc(var(x) ? 1 : 2)').problems).toEqual(['var(x) is a number — "?" in a formula reads true or false']);
+        expect(check("calc(var(on) ? 1 : 'a')").problems).toEqual(["1 is a number, 'a' is text — \"? :\" in a formula gives two values of one kind"]);
+        expect(check('calc(var(x) == var(bg))').problems).toEqual(['var(x) is a number, var(bg) is text — "==" in a formula compares two of one kind']);
+        expect(check('calc(var(at) != var(at))').problems).toEqual(['"!=" in a formula does not compare lists']);
+        expect(check('calc((var(x) > 1) + 1)').problems).toEqual(['var(x) > 1 is true or false — "+" in a formula reads numbers']);
+    });
+
+    it('a declared type gives a formula one of the four kinds', () => {
+        expect(formulaResultTypeOf('number')).toBe('number');
+        expect(formulaResultTypeOf('boolean')).toBe('boolean');
+        expect(['color', 'string', 'image', 'path'].map(t => formulaResultTypeOf(t as 'color'))).toEqual(['string', 'string', 'string', 'string']);
+        expect(formulaResultTypeOf('vector')).toBe('list');
+        expect(formulaResultTypeOf('numberList')).toBe('list');
+    });
+
+    it('in a document: a choice writes a number or a colour in; validation checks the kinds', () => {
+        const doc = card();
+        const defs = doc.animator?.definitions;
+        if (!defs?.variables) throw new Error('fixture');
+        defs.variables['big'] = { type: 'boolean', defaultValue: true };
+        defs.variables['mode'] = { type: 'string', defaultValue: 'dark' };
+        doc.children = [untyped<PxNode>({ type: 'circle', r: 'calc(var(big) ? var(size) * 2 : var(size))', fill: "calc(var(mode) == 'dark' ? '#000' : var(bg))" })];
+        expect(validateDocument(doc).findings).toEqual([]);
+
+        const defaults = new Map<string, PxVariableValue>([['big', true], ['mode', 'dark'], ['size', 40], ['bg', '#2a7fff']]);
+        const resolved = resolveVariableBindings(doc, collectBindingSites(doc), { read: name => defaults.get(name) });
+        expect(resolved.children?.[0]).toMatchObject({ r: 80, fill: '#000' });
+        defaults.set('big', false); defaults.set('mode', 'light');
+        expect(resolveVariableBindings(doc, collectBindingSites(doc), { read: name => defaults.get(name) }).children?.[0]).toMatchObject({ r: 40, fill: '#2a7fff' });
+
+        doc.children = [untyped<PxNode>({ type: 'circle', r: 'calc(var(bg) > 1 ? 1 : 2)' })];
+        expect(validateDocument(doc).findings.map(f => f.reason)).toEqual([expect.stringContaining('var(bg) is text — ">" in a formula reads numbers')]);
     });
 });
 

@@ -348,7 +348,7 @@ The mistakes the player reports, once each — the full text is on the
 |---|---|
 | The pre-rendered `bind` (an SVG + JS export) | `player.variables` reads the file's declarations and stores values, but does not draw them — the export wrote the values in |
 | React Native | a change compiles the document again; no `cssVariables`; the predefined variables are not fed yet |
-| A formula reads numbers only | `+ - * /`, brackets and a leading minus — no functions yet; a formula is never delivered as CSS |
+| A formula has no functions | operators only — `+ - * /`, comparisons, `and` · `or` · `not`, `a ? b : c` ([the format page](../format/README.md#bindings--varname-and-calc)); no `min()` / `round()` yet. A formula is never delivered as CSS |
 | Text that must literally read `var(x)` | cannot be written — it is read as a binding |
 | An animated default bound to an item of a pair or a transform part | shows its first keyframe — only a whole attribute or a whole effect setting animates |
 | A rebuild while the playback is finished | comes back paused at the last frame |

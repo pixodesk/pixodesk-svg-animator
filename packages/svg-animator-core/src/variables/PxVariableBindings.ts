@@ -17,7 +17,7 @@
 import { PxVariableType } from '../format/PxAnimatorConstants';
 import { PxEffectsSchema, type PxDocument, type PxNode, type PxVariableDefinition } from '../format/PxAnimatorTypes';
 import { schemaKeys } from '../schema/PxSchema';
-import { isBindingText, PxVariableBinding, type PxVariableReader, type PxVariableValue } from './PxFormula';
+import { isBindingText, PxFormulaResultType, PxVariableBinding, type PxVariableReader, type PxVariableValue } from './PxFormula';
 
 /** Node keys a binding never stands in. @internal */
 const STRUCTURAL_NODE_KEYS: ReadonlySet<string> = new Set(['type', 'id', 'children', 'animate', 'meta', 'animator', 'domType']);
@@ -207,6 +207,21 @@ export function firstKeyframeValue(animated: Record<string, unknown>): PxVariabl
 export function isVariableValue(value: unknown): value is PxVariableValue {
     return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean'
         || (Array.isArray(value) && value.every(item => typeof item === 'number'));
+}
+
+/** The kind of value a variable of `type` gives a formula: a number, true-or-false, a list of numbers (a vector, a
+ *  number list) — every other type's value is text. @public @advanced */
+export function formulaResultTypeOf(type: PxVariableType): PxFormulaResultType {
+    switch (type) {
+        case PxVariableType.number: return PxFormulaResultType.number;
+        case PxVariableType.boolean: return PxFormulaResultType.boolean;
+        case PxVariableType.vector:
+        case PxVariableType.numberList: return PxFormulaResultType.list;
+        case PxVariableType.color:
+        case PxVariableType.string:
+        case PxVariableType.image:
+        case PxVariableType.path: return PxFormulaResultType.string;
+    }
 }
 
 /** True when `value` fits a variable of `type`. A vector has 2 numbers (3 kept open for a later 3D vector). @public */

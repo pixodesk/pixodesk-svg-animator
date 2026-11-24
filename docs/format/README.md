@@ -1076,15 +1076,33 @@ A **binding** is a static value written as a reference instead of the value itse
 |---|---|
 | `"var(bg)"` | the variable's value, whatever its type |
 | `"var(player.pointer)"` | a [predefined variable](#predefined-variables--player) — nothing to declare |
-| `"calc(var(size) / 2)"` | a number computed from number variables: numbers, `var(name)`, `+ - * /`, brackets and a leading minus |
+| `"calc(var(size) / 2)"` | a number computed from variables: numbers, `var(name)`, `+ - * /`, brackets and a leading minus |
+| `"calc(var(big) ? 40 : 20)"` | one of two values, picked by a condition — numbers here, but a colour or a text works the same: `"calc(var(mode) == 'dark' ? '#000' : var(bg))"` |
+| `"calc(var(progress) >= 1 and not var(muted))"` | true or false, from comparisons joined with `and` · `or` · `not` |
 
 - **The whole value** is the binding — nothing before or after it. A pair is written item by item:
   `"translate": ["calc(var(x) + 5)", 60]`.
 - **A formula is parsed, never run.** The text is read into a tree of operators once and the tree is
-  evaluated — no code from a file is ever executed. A formula reads numbers only.
-- **No value, no attribute.** A binding that names an unknown variable, a formula over a value that is not a
-  number, a division by zero: the place reads as if it were not written. For an item of a pair or a list, the
-  whole attribute goes.
+  evaluated — no code from a file is ever executed.
+- **No value, no attribute.** A binding that names an unknown variable, an operator that gets a value of the wrong
+  kind (`var(bg) + 1` with `bg` a colour), a division by zero: the place reads as if it were not written. For an
+  item of a pair or a list, the whole attribute goes.
+
+What a formula is made of — each operator reads its own kind of value:
+
+<!-- px-check off formula grammar, prose -->
+| In `calc(…)`, loosest first | Reads → gives |
+|---|---|
+| `a ? b : c` | true-or-false, then two values of one kind → that kind. Only the picked value is read; the last one may be a choice again: `a ? 1 : b ? 2 : 3` |
+| `a or b` · `a and b` | two true-or-false → true-or-false. The right side is read only when the left one does not decide |
+| `not a` | true-or-false → true-or-false. It holds looser than a comparison: `not var(n) > 1` is `not (var(n) > 1)` |
+| `a == b` · `a != b` | two numbers, two texts or two true-or-false → true-or-false. Never two lists, never two kinds |
+| `a < b` · `a <= b` · `a > b` · `a >= b` | two numbers → true-or-false. They do not chain — no `a < b < c` |
+| `a + b` · `a - b` · `a * b` · `a / b` · `-a` | numbers → a number |
+| `12.5` · `'text'` · `true` · `false` · `var(name)` · `( … )` | text stands in single quotes; a quote or a backslash inside follows a backslash — `'it\'s'` |
+
+The words are `and`, `or`, `not` and `==` — `&&`, `||`, `!` and a single `=` do not parse, and the error says what to
+write. There are no functions (`min`, `round`) yet.
 
 Where a binding may stand — wherever a static value is written:
 
@@ -1160,7 +1178,7 @@ are checked on their own:
 | a variant value that does not fit the variable's type | `typeMismatch` |
 | a binding that does not parse (`"calc(var(x) +)"`) | `invalidValue` |
 | a binding naming a variable that is neither declared nor predefined | `missingReference` |
-| a formula reading a variable that is not a `number` | `typeMismatch` |
+| a formula whose operator gets a value of the wrong kind — `calc(var(bg) + 1)` with `bg` a colour, `calc(var(size) ? 1 : 2)` with `size` a number, two kinds on the sides of `==` or of `? :` | `typeMismatch` |
 | an attribute that is bound and animated on the same node | `invalidValue` — the animation wins |
 
 At runtime the player reports the same mistakes once, as [PX1701 – PX1704](../diagnostics.md#variables).
@@ -1976,9 +1994,14 @@ const drawn = new PxVariablesRuntime(doc, { variables: { bg: '#111827' } }, unde
   'copies']`), the `text` as written, and the parsed `binding` — or the `error` that says why it does not parse.
 - `PxVariableBinding.parse(text)` answers a `PxVariableBindingParseResult`, `{ binding?, error? }`. A binding
   knows the `names` it reads and whether it `isFormula`; `print()` writes it back normalised, and
-  `evaluate(read)` computes it through a `PxVariableReader` — `(name) => value | undefined`. Its `root` is a tree
-  of `PxFormulaNode`s: `PxFormulaNumber`, `PxFormulaVariable`, `PxFormulaNegate` (a leading minus) and
-  `PxFormulaBinary` (two operands and a `PxFormulaOperator`: `+` `-` `*` `/`).
+  `evaluate(read)` computes it through a `PxVariableReader` — `(name) => value | undefined`.
+  `resultType(typeOf, problems)` tells the kind of its value without evaluating — a `PxFormulaResultType`:
+  `number`, `boolean`, `string` or `list` — from a `PxFormulaTypeReader`, `(name) => kind | undefined`
+  (`formulaResultTypeOf(type)` gives the kind of a declared type, `formulaResultTypeOfValue(value)` of a value),
+  and adds a line to `problems` for every operator that gets the wrong kind. Its `root` is a tree of
+  `PxFormulaNode`s: `PxFormulaNumber`, `PxFormulaBoolean`, `PxFormulaText`, `PxFormulaVariable`,
+  `PxFormulaNegate` (a leading minus), `PxFormulaNot`, `PxFormulaBinary` (two operands and a `PxFormulaOperator`:
+  `+` `-` `*` `/`, `<` `<=` `>` `>=`, `==` `!=`, `and` `or`) and `PxFormulaChoice` (`a ? b : c`).
 - `renameInBinding(text, from, to)` returns text that is not a binding, or does not name `from`, unchanged.
 - `isVariableReadName(name)` is true for any name a binding may read — a declared one, or a dotted predefined
   one; `isPredefinedVariableName(name)` only for the player's own (`player.pointer`, …).

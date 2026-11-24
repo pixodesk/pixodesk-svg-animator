@@ -26,7 +26,7 @@ import { animatorOf } from './PxDocStage';
 import { isVariableName } from '../variables/PxFormula';
 import type { PxVariablesApi } from '../variables/PxVariablesRuntime';
 import type { PxFlowControls, PxFlowRuntime } from '../playback/PxFlows';
-import { collectBindingSites, firstKeyframeValue, isAnimatedVariableValue, nodeAtPath, predefinedVariableOf, resolveVariableBindings, variableDefaultFits, viewBoxCenterOf, type PxBindingSite } from '../variables/PxVariableBindings';
+import { collectBindingSites, firstKeyframeValue, formulaResultTypeOf, isAnimatedVariableValue, nodeAtPath, predefinedVariableOf, resolveVariableBindings, variableDefaultFits, viewBoxCenterOf, type PxBindingSite } from '../variables/PxVariableBindings';
 // The diagnostics channel's payload, named by `PxEngineCallbacks` below (review §5).
 // `PxDiagnostics` imports nothing, so this edge creates no cycle either.
 import type { PxDiagnosticKind, PxDiagnosticsConfig } from '../playback/PxDiagnostics';
@@ -2490,7 +2490,8 @@ function withDefaultsWrittenIn(doc: PxDocument, sites: ReadonlyArray<PxBindingSi
 
 /**
  * The variables' own problems (schema 1.27): a declaration's name, default and `defaultSource`; a variant's entries;
- * every binding — does it parse, does each name it reads exist, does a formula read numbers only, is its place also
+ * every binding — does it parse, does each name it reads exist, does each operator of a formula get the kind of value
+ * it reads, is its place also
  * animated (an attribute is animated or bound, never both).
  */
 function collectVariableProblems(root: PxNode, defs: PxDefinitions | undefined, sites: ReadonlyArray<PxBindingSite>, ctx: PxValidationContext): void {
@@ -2544,9 +2545,12 @@ function collectVariableProblems(root: PxNode, defs: PxDefinitions | undefined, 
             if (type === undefined) {
                 reportValidationError(ctx, path, PxValidationFindingKind.missingReference,
                     '"' + name + '" names no entry in animator.definitions.variables', { once: true });
-            } else if (site.binding.isFormula && type !== PxVariableType.number) {
-                reportValidationError(ctx, path, PxValidationFindingKind.typeMismatch, '"' + name + '" is a ' + type + ' variable — a formula reads numbers');
             }
+        }
+        if (site.binding.isFormula) {
+            const problems: Array<string> = [];
+            site.binding.resultType(name => { const type = typeOf(name); return type === undefined ? undefined : formulaResultTypeOf(type); }, problems);
+            for (const problem of problems) reportValidationError(ctx, path, PxValidationFindingKind.typeMismatch, problem);
         }
         const animate = nodeAtPath(root, site.nodePath)?.animate;
         if (animate && typeof animate === 'object' && !Array.isArray(animate) && site.keyPath.length >= 1

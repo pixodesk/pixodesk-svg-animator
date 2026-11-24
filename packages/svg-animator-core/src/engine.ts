@@ -64,7 +64,8 @@ export type { PxUnit, PxUnitPlan, PxPlannedStep, PxAttributeClaim, PxRunLists } 
 // Variables (schema 1.27) — one player's values, and the binding grammar (docs/library/variables.md)
 export { PxVariablesRuntime, applyVariablesProp } from './variables/PxVariablesRuntime';
 export type { PxVariableChanges } from './variables/PxVariablesRuntime';
-export { PxVariableBinding, PxFormulaNode, PxFormulaNumber, PxFormulaVariable, PxFormulaNegate, PxFormulaBinary, PxFormulaOperator, renameInBinding, isVariableReadName } from './variables/PxFormula';
-export type { PxVariableBindingParseResult, PxVariableReader } from './variables/PxFormula';
-export { collectBindingSites, isPredefinedVariableName } from './variables/PxVariableBindings';
+export { PxVariableBinding, PxFormulaNode, PxFormulaNumber, PxFormulaBoolean, PxFormulaText, PxFormulaVariable, PxFormulaNegate, PxFormulaNot, PxFormulaBinary, PxFormulaChoice,
+    PxFormulaOperator, PxFormulaResultType, formulaResultTypeOfValue, renameInBinding, isVariableReadName } from './variables/PxFormula';
+export type { PxVariableBindingParseResult, PxVariableReader, PxFormulaTypeReader } from './variables/PxFormula';
+export { collectBindingSites, formulaResultTypeOf, isPredefinedVariableName } from './variables/PxVariableBindings';
 export type { PxBindingSite } from './variables/PxVariableBindings';
