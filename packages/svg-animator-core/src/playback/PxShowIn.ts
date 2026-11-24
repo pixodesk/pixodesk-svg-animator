@@ -16,6 +16,9 @@
 // | `flowNameOfUnit` | what a unit is called — its flow's id, or the name of the timeline the page runs by name |
 //
 // A step id the file lacks is never current (`validateDocument` warns).
+//
+// `showOneOf` (1.32) lives here too — a group shows one of its children (`showOneOfTargetsOf`, `shownOptionOf`). The two
+// HIDE THE SAME WAY (`display: none` on the element itself); change both together.
 // ============================================================================
 
 import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
@@ -44,6 +47,41 @@ export function showInTargetsOf(doc: PxDocument): Array<PxShowInTarget> {
         out.push({ id, flowSteps: binding.showIn.flowSteps });
     }
     return out;
+}
+
+/** One group that shows one of its children: `which` — a number, or (a pre-rendered binding) binding text; `options` —
+ *  the children's bare ids, in order; none (a binding that lists none) — the children of `group` as rendered. @internal */
+export interface PxShowOneOfTarget {
+    readonly which: number | string | undefined;
+    readonly options?: ReadonlyArray<string>;
+    /** The group's bare id — a pre-rendered binding's element. */
+    readonly group?: string;
+}
+
+const bareId = (ref: string): string => ref.startsWith('#') ? ref.slice(1) : ref;
+
+/** Every group of `doc` that says `showOneOf` with its options listed (the lowering lists them), then the bindings. @internal */
+export function showOneOfTargetsOf(doc: PxDocument): Array<PxShowOneOfTarget> {
+    const out: Array<PxShowOneOfTarget> = [];
+    const walk = (node: PxNode): void => {
+        const fx = node.effects?.showOneOf;
+        if (fx?.options) out.push({ which: fx.which, options: fx.options.map(o => bareId(o.element)) });
+        if (Array.isArray(node.children)) node.children.forEach(walk);
+    };
+    walk(doc);
+    for (const binding of getBindings(doc) ?? []) {
+        const fx = binding.showOneOf;
+        if (fx) out.push(fx.options ? { which: fx.which, options: fx.options.map(o => bareId(o.element)) } : { which: fx.which, group: bareId(binding.element) });
+    }
+    return out;
+}
+
+/** The option shown: `which` rounded down, if it is a position among `count`; none otherwise (no default here — an absent
+ *  `which` was read as `0` by then). @internal */
+export function shownOptionOf(which: number | undefined, count: number): number | undefined {
+    if (which === undefined || !Number.isFinite(which)) return undefined;
+    const at = Math.floor(which);
+    return at >= 0 && at < count ? at : undefined;
 }
 
 /** The rule: shown while any listed step is current; an empty list — always. @internal */

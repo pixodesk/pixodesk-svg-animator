@@ -1276,7 +1276,7 @@ describe("SvgAnimationPlayer (React) — variables (2026-11-14)", () => {
     const varsDoc = (): PxDocument => JSON.parse(JSON.stringify({
         type: 'svg', viewBox: '0 0 400 400',
         animator: { definitions: { variables: { bg: { type: 'color', defaultValue: '#2a7fff' }, r: { type: 'number', defaultValue: 20 } } } },
-        children: [{ type: 'circle', id: 'ball', r: 'variable(r)', fill: 'variable(bg)' }],
+        children: [{ type: 'circle', id: 'ball', r: 'var(r)', fill: 'var(bg)' }],
     }));
 
     it("the first render has the values; a new prop value is written on the next frame — the same element, no remount", () => {
@@ -1302,7 +1302,7 @@ describe("SvgAnimationPlayer (React) — variables (2026-11-14)", () => {
         const doc = (): PxDocument => JSON.parse(JSON.stringify({
             type: 'svg', viewBox: '0 0 400 400',
             animator: { definitions: { variables: { count: { type: 'number', defaultValue: 2 } } } },
-            children: [{ type: 'rect', id: 'tile', width: 10, height: 10, effects: { repeater: { copies: 'variable(count)', translate: [20, 0] } } }],
+            children: [{ type: 'rect', id: 'tile', width: 10, height: 10, effects: { repeater: { copies: 'var(count)', translate: [20, 0] } } }],
         }));
         const { container, rerender } = render(<SvgAnimationPlayer document={doc()} variables={{ count: 2 }} />);
         const svg = container.querySelector('svg');

@@ -926,7 +926,7 @@ const _ck_PxGlyphFont: KeysMatch<PxGlyphFont, _PxGlyphFont> = true; // the key s
 
 /**
  * One declared variable (`definitions.variables.<name>`, schema 1.27; docs/library/variables.md):
- * a named, typed value with a default. A static value anywhere in the document may be written `"variable(name)"`
+ * a named, typed value with a default. A static value anywhere in the document may be written `"var(name)"`
  * or `"calc(…)"` instead of the value itself — see `PxBinding`.
  */
 export interface _PxVariableDefinition {
@@ -1439,7 +1439,7 @@ export interface _PxAnimatorConfig {
 /**
  * `effects.showIn` (1.31) — the element is shown only while one of these flow steps is current, in any flow; hidden
  * (`display: none`) otherwise, at once. A flow that does not run counts as at its start step. An empty list says
- * nothing: shown always. WHY an effect: it is the player's behaviour on the element, not an SVG attribute — and it
+ * nothing: shown always. HIDDEN THE SAME WAY AS `showOneOf` ({@link _PxShowOneOfEffect}) — change both together. WHY an effect: it is the player's behaviour on the element, not an SVG attribute — and it
  * needs the flows at run time, so it is the one effect the lowering keeps on the node (and the pre-rendered SVG on the
  * element's binding).
  * @public
@@ -1455,6 +1455,36 @@ export const PxShowInEffectSchema = implementsInterface<_PxShowInEffect>()(px.ob
 /** @public */
 export type PxShowInEffect = PxInfer<typeof PxShowInEffectSchema>;
 const _ck_PxShowInEffect: KeysMatch<PxShowInEffect, _PxShowInEffect> = true;
+
+/** One child `showOneOf` can show — as the lowering lists them (`element`: `'#id'`, the id renaming follows it). @public */
+export interface _PxShowOneOfOption {
+    element: string;
+}
+/** @public @advanced */
+export const PxShowOneOfOptionSchema = implementsInterface<_PxShowOneOfOption>()(px.object({
+    element: px.string(),
+}));
+
+/**
+ * `effects.showOneOf` (1.32) — on a group: of its children exactly ONE is shown, `which` says which; the others are hidden
+ * (`display: none`), at once. Rive's Solo. HIDDEN THE SAME WAY AS `showIn` ({@link _PxShowInEffect}) — change both together.
+ * @public
+ */
+export interface _PxShowOneOfEffect {
+    /** The child shown — its position among the group's children, `0` the first (a fraction is rounded down); a value that
+     *  fits no child shows none. Static, `var(name)` or `calc(…)`. Default `0`. */
+    which?: number;
+    /** The children, as the lowering lists them (the plain document, a pre-rendered file's binding) — none: the group's own. */
+    options?: Array<_PxShowOneOfOption>;
+}
+/** @public @advanced */
+export const PxShowOneOfEffectSchema = implementsInterface<_PxShowOneOfEffect>()(px.object({
+    which: px.number(0).optional(),
+    options: px.array(PxShowOneOfOptionSchema).optional(),
+}));
+/** @public */
+export type PxShowOneOfEffect = PxInfer<typeof PxShowOneOfEffectSchema>;
+const _ck_PxShowOneOfEffect: KeysMatch<PxShowOneOfEffect, _PxShowOneOfEffect> = true;
 
 /**
  * One binding: WHICH element (`target`, `#id`-spelled like every element reference) plays
@@ -1477,6 +1507,9 @@ export interface _PxBinding {
     animateWith: Array<string>;
     /** The element's `effects.showIn` (1.31) — a pre-rendered SVG has no nodes, so it rides here. */
     showIn?: _PxShowInEffect;
+    /** The group's `effects.showOneOf` (1.32) — `which` may be written as a binding (`var(name)`) here: the pre-rendered
+     *  player reads it from its variables. */
+    showOneOf?: _PxShowOneOfEffect;
 }
 
 /** @public @advanced */
@@ -1484,6 +1517,7 @@ export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
     element: px.string(),
     animateWith: px.array(px.string()),
     showIn: PxShowInEffectSchema.optional(),
+    showOneOf: PxShowOneOfEffectSchema.optional(),
 }));
 
 /** @public */
@@ -2131,6 +2165,7 @@ export interface _PxEffects {
     textPath?: _PxTextPathEffect;
     text?: _PxTextEffect;
     showIn?: _PxShowInEffect;
+    showOneOf?: _PxShowOneOfEffect;
 }
 /** @public @advanced */
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
@@ -2145,6 +2180,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     textPath: PxTextPathEffectSchema.optional(),
     text: PxTextEffectSchema.optional(),
     showIn: PxShowInEffectSchema.optional(),
+    showOneOf: PxShowOneOfEffectSchema.optional(),
 }));
 /** @public */
 export type PxEffects = PxInfer<typeof PxEffectsSchema>;
@@ -2417,7 +2453,7 @@ function collectDocumentProblems(doc: unknown, options?: { strict?: boolean }): 
     // wants: an unknown key usually means a newer writer — worth a warning, never a refusal.
     const strict = options?.strict !== false;
     const ctx = newCollectingContext(strict);
-    // Bindings (`"variable(x)"`, `"calc(…)"`) stand for values: the schema checks the document as it reads with the
+    // Bindings (`"var(x)"`, `"calc(…)"`) stand for values: the schema checks the document as it reads with the
     // defaults written in, and the bindings are checked on their own below.
     const sites = doc && typeof doc === 'object' ? collectBindingSites(doc as PxNode) : [];
     const subject = sites.length ? withDefaultsWrittenIn(doc as PxDocument, sites) : doc;

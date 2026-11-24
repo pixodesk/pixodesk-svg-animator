@@ -30,6 +30,9 @@ import type { PxBoundPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWe
 import { reportTriggerProblems, wireTriggers } from '../triggers/PxAnimatorTriggers';
 import { webRaf } from '../shared/PxWebRaf';
 import { createShowInWeb, type PxShowInWeb } from './PxShowInWeb';
+import { createHider, type PxHider } from './PxHideWeb';
+import { createShowOneOfWeb } from './PxShowOneOfWeb';
+import type { PxVariableValue } from '@pixodesk/svg-animator-core';
 
 /** Binds one document — a step's, or a whole one-timeline file — to an engine: the full player's choice of engine, or
  *  a pre-rendered build's own. `followed`: what a scroll timeline follows; `triggersByFlow`: a flow wires its triggers. */
@@ -38,13 +41,16 @@ export type PxStepBinder = (doc: PxDocument, callbacks: PxPlayerCallbacks | unde
 // @px-importance important
 /** The player of a document as the page runs it (2026-11-22): the document as it is when it is its default timeline
  *  alone, else its units side by side (`planUnits`). The full player and the pre-rendered builds both bind here. */
-export function bindPlanned(doc: PxDocument, binder: PxStepBinder, callbacks: PxPlayerCallbacks | undefined, followed: Element | undefined, run?: PxRunLists): PxPlayerEngineApi {
+export function bindPlanned(doc: PxDocument, binder: PxStepBinder, callbacks: PxPlayerCallbacks | undefined, followed: Element | undefined, run?: PxRunLists,
+    variables?: PxPrerenderedVariables): PxPlayerEngineApi {
     const plan = planUnits(doc, run);
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
     for (const unknown of unknownRunNames(doc, run)) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.runListNameUnknown, unknown.list, unknown.name);
+    const hider = createHider();
     if (!plan) {
         const api = binder(doc, callbacks, followed, false);
-        createShowInWeb(doc, () => api.getRootElement(), () => new Map());   // `showIn` (1.31): no flow — every list's steps are absent
+        createShowInWeb(doc, () => api.getRootElement(), () => new Map(), hider);   // `showIn` (1.31): no flow — every list's steps are absent
+        watchShowOneOf(doc, () => api.getRootElement(), hider, variables);
         return api;
     }
     // the step checks, once for the whole file — a unit wires only its own steps and rules
@@ -52,7 +58,22 @@ export function bindPlanned(doc: PxDocument, binder: PxStepBinder, callbacks: Px
     for (const id of duplicateFlowStepIds(config?.flowSteps)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepIdDuplicate, id);
     const showInSteps = showInTargetsOf(doc).flatMap(t => t.flowSteps);
     if (config) for (const issue of flowStepReferenceIssues(config, plan.timelines.map(t => t.stepId), showInSteps)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepNotFound, issue);
-    return bindUnits(doc, plan, binder, callbacks, followed);
+    const api = bindUnits(doc, plan, binder, callbacks, followed, hider);
+    watchShowOneOf(doc, () => api.getRootElement(), hider, variables);
+    return api;
+}
+
+/** A pre-rendered player's variables — `showOneOf` reads a bound `which` from them, again on every change. */
+export interface PxPrerenderedVariables {
+    read(name: string): PxVariableValue | undefined;
+    /** Told (on the next frame) when a value changes. */
+    onChange(listener: () => void): void;
+}
+
+/** `showOneOf` (1.32): applied now, and again whenever a pre-rendered player's variable changes. */
+function watchShowOneOf(doc: PxDocument, root: () => Element | null, hider: PxHider, variables: PxPrerenderedVariables | undefined): void {
+    const oneOf = createShowOneOfWeb(doc, root, hider, variables ? name => variables.read(name) : undefined);
+    if (oneOf && variables) variables.onChange(() => oneOf.update());
 }
 
 /** The callbacks a unit other than the first gets: its diagnostics and its changes of step, no playback events. */
@@ -118,6 +139,7 @@ function bindUnits(
     binder: PxStepBinder,
     callbacks: PxPlayerCallbacks | undefined,
     followed: Element | undefined,
+    hider: PxHider,
 ): PxPlayerEngineApi {
     const claims = attributeOwnersOf(doc, plan);
     let showIn: PxShowInWeb | undefined;
@@ -126,7 +148,7 @@ function bindUnits(
     const first = units[0];
     // `showIn` (1.31): shown while one of its steps is current — each running flow's, by its name
     showIn = createShowInWeb(doc, () => first?.flowSwitch.currentPlayer().getRootElement() ?? null,
-        () => new Map(plan.units.map((unit, i) => [flowNameOfUnit(plan, unit), units[i].flowSwitch.controls.get()[0]])));
+        () => new Map(plan.units.map((unit, i) => [flowNameOfUnit(plan, unit), units[i].flowSwitch.controls.get()[0]])), hider);
     const clocks = units.filter(u => !u.scroll);
     const each = (run: (t: PxTimelineControls) => void) => (): void => { for (const u of clocks) run(u.flowSwitch.timeline); };
 

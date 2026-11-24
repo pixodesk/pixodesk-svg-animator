@@ -9,11 +9,11 @@
  *
  * | Text                        | Meaning                                            |
  * |-----------------------------|----------------------------------------------------|
- * | `variable(name)`            | the variable's value, any type                     |
- * | `calc(variable(x) + 5)`     | a number computed from number variables            |
+ * | `var(name)`            | the variable's value, any type                     |
+ * | `calc(var(x) + 5)`     | a number computed from number variables            |
  *
  * The text is PARSED into a tree of operators once and the tree is evaluated — never `eval`, no code is ever run
- * from a file. Grammar of `calc(…)`: numbers, `variable(name)`, `+ - * /`, brackets, a leading minus.
+ * from a file. Grammar of `calc(…)`: numbers, `var(name)`, `+ - * /`, brackets, a leading minus.
  */
 
 /** The four operators of `calc(…)`. @public @advanced */
@@ -53,14 +53,14 @@ export class PxFormulaNumber extends PxFormulaNode {
     rename(): PxFormulaNode { return this; }
 }
 
-/** `variable(name)` inside a formula. @public @advanced */
+/** `var(name)` inside a formula. @public @advanced */
 export class PxFormulaVariable extends PxFormulaNode {
     constructor(readonly name: string) { super(); }
     evaluate(read: PxVariableReader): number | undefined {
         const value = read(this.name);
         return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
     }
-    print(): string { return 'variable(' + this.name + ')'; }
+    print(): string { return 'var(' + this.name + ')'; }
     collectNames(into: Set<string>): void { into.add(this.name); }
     rename(from: string, to: string): PxFormulaNode { return this.name === from ? new PxFormulaVariable(to) : this; }
 }
@@ -112,14 +112,15 @@ function precedenceOf(operator: PxFormulaOperator): number {
 
 // ── PARSING ──────────────────────────────────────────────────────────────────────────────────────
 
-const VARIABLE_FN = 'variable';
+const VARIABLE_FN = 'var';
 const CALC_FN = 'calc';
 /** A user name: a letter, then letters, digits, `_`, `-`. A predefined name joins such words with dots. */
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)*$/;
 /** A user-declared name: no dots — a dotted name belongs to the player (`player.pointer`). */
 const USER_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const NUMBER_PATTERN = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/;
-const BINDING_START = /^\s*(?:variable|calc)\s*\(/;
+/** `var(` (not CSS's own `var(--x)`: our names start with a letter) or `calc(` — 2026-11-24: `var` (was `variable`). */
+const BINDING_START = /^\s*(?:var\s*\((?!\s*--)|calc\s*\()/;
 
 /** True for a valid name of a declared variable: a letter, then letters, digits, `_` or `-`. @public */
 export function isVariableName(name: string): boolean {
@@ -131,7 +132,7 @@ export function isVariableReadName(name: string): boolean {
     return NAME_PATTERN.test(name);
 }
 
-/** True when a raw value is written as a binding — starts with `variable(` or `calc(`. It may still fail to parse.
+/** True when a raw value is written as a binding — starts with `var(` or `calc(`. It may still fail to parse.
  *  @public */
 export function isBindingText(raw: unknown): raw is string {
     return typeof raw === 'string' && BINDING_START.test(raw);
@@ -142,13 +143,13 @@ export class PxVariableBinding {
     private constructor(
         /** The parsed tree. */
         readonly root: PxFormulaNode,
-        /** `calc(…)`: the result is a number. A bare `variable(name)` passes any value through. */
+        /** `calc(…)`: the result is a number. A bare `var(name)` passes any value through. */
         readonly isFormula: boolean,
         /** Every variable the binding reads. */
         readonly names: ReadonlyArray<string>,
     ) { }
 
-    /** The text, normalised: `variable(x)`, `calc(variable(x) + 5)`. */
+    /** The text, normalised: `var(x)`, `calc(var(x) + 5)`. */
     print(): string {
         return this.isFormula ? CALC_FN + '(' + this.root.print() + ')' : this.root.print();
     }
@@ -275,7 +276,7 @@ class FormulaParser {
 
     private parseVariable(): PxFormulaVariable {
         this.skipSpaces();
-        if (!this.readWord(VARIABLE_FN)) throw this.error('a number, a bracket or variable(name) expected');
+        if (!this.readWord(VARIABLE_FN)) throw this.error('a number, a bracket or var(name) expected');
         this.expect('(');
         this.skipSpaces();
         const start = this.pos;

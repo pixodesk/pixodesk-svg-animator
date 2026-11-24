@@ -371,7 +371,7 @@ interface SVG_JSON extends NODE {
                 glyphs: Record<string, { width: number; pathData: string }>;  // keyed by the character
             }>;
             // named, typed values (schema 1.27) — a static value anywhere may be written
-            // "variable(name)" or "calc(…)" instead of the value; see Variables below
+            // "var(name)" or "calc(…)" instead of the value; see Variables below
             variables?: Record<string, {
                 type: 'number' | 'vector' | 'color' | 'string' | 'boolean' | 'image' | 'numberList' | 'path';
                 defaultValue: unknown;     // required — the file draws without any code. Plain, or { keyframes: [...] }
@@ -395,6 +395,8 @@ interface SVG_JSON extends NODE {
             element: string;            // one of this file's elements, '#id'-spelled like every element reference (`target` until 2026-11-15)
             animateWith: Array<string>; // names into definitions.animations, applied in order
             showIn?: { flowSteps: Array<string> };  // the element's `effects.showIn` (1.31) — no nodes to carry it here
+            showOneOf?: { which?: number | string, options?: Array<{ element: '#id' }> };  // a group's `showOneOf` (1.32);
+                                                // `which` may stay binding text here — the player reads its variables
         }>;
     };
 
@@ -407,7 +409,7 @@ interface NODE {
     type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
     id?: string;        // DOM id; required for href="#id" refs or as a binding's target
     [camelCaseDomKey: string]: unknown; // SVG attrs by camelCase DOM name — cx, cy, r, fill, strokeWidth, fontSize, transform, … (kebab-case is accepted too); pass-through
-                        // any static value here, in `style` or in `effects` may be "variable(name)" / "calc(…)" (schema 1.27)
+                        // any static value here, in `style` or in `effects` may be "var(name)" / "calc(…)" (schema 1.27)
     domType?: string;   // the `type` ATTRIBUTE of the few elements that have one (feTurbulence, …):
                         // `type` is taken by the tag name, so the attribute travels here
     textContent?: string; // text content for <text>/<tspan>
@@ -442,6 +444,8 @@ interface EFFECTS {
     text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.fonts)
     showIn?:          { flowSteps: Array<string> };  // shown only while one of these flow steps is current (1.31) — kept
                                                      // by the lowering; a pre-rendered SVG has it on the binding
+    showOneOf?:       { which?: number,              // on a group: only the child at this position is shown (1.32) — a
+                        options?: Array<{ element: '#id' }> };  // var(name) or calc(…) too; `options`: listed by the lowering
 }
 
 // Geometry slots animate like any other slot ({value} | {keyframes});
@@ -977,13 +981,13 @@ every element that needs it:
 | `easings` | named easing curves | a keyframe writes the name instead of the curve: `"easing": "smooth"` |
 | `animations` | named animations | a node writes the name instead of the keyframes: `"animate": "fadeIn"` (a bind-by-id document names them in its `bindings`) |
 | `fonts` | embedded fonts: for each FACE, the outline of every letter used, stored under that face's name (`"Roboto-Light"` — the same string the node's `fontFamily` carries). Each entry's own `glyphs` map holds the outlines | a `<text>` node with `effects.text.useGlyphs: true` is drawn from these outlines — its `fontFamily` names the face to use. `fontWeight` / `fontStyle` are styling on top of that face, not a way to select another one. No font file is needed on the viewer's machine |
-| `variables` | named, typed values with a default — [Variables](#variables) | a static value names one instead of holding the value: `"fill": "variable(bg)"` |
+| `variables` | named, typed values with a default — [Variables](#variables) | a static value names one instead of holding the value: `"fill": "var(bg)"` |
 | `variableVariants` | named sets of default values for the declared variables — [Variants](#variants--animatordefinitionsvariablevariants) | a player picks one by name: the `variant` option or prop |
 
 ### Variables
 
 A **variable** is a named, typed value, declared once in `animator.definitions.variables`. A static value
-anywhere in the document can name it instead of holding the value — `"fill": "variable(bg)"`. The file draws
+anywhere in the document can name it instead of holding the value — `"fill": "var(bg)"`. The file draws
 its defaults on its own; a page gives other values at runtime — from code, by picking a named variant, or from
 its stylesheet ([Variables guide](../library/variables.md)). Since schema 1.27.
 
@@ -1006,12 +1010,12 @@ its stylesheet ([Variables guide](../library/variables.md)). Since schema 1.27.
     }
   },
   "children": [
-    { "type": "circle", "cx": 100, "cy": 100, "r": "variable(size)", "fill": "variable(bg)",
+    { "type": "circle", "cx": 100, "cy": 100, "r": "var(size)", "fill": "var(bg)",
       "animate": { "transform": { "keyframes": [
         { "time": 0, "value": { "translate": [0, 0] } }, { "time": 1000, "value": { "translate": [200, 0] } } ] } } },
-    { "type": "text", "x": 200, "y": 190, "fontSize": 24, "textContent": "variable(title)" },
-    { "type": "rect", "x": 0, "y": 0, "height": 4, "fill": "variable(bg)",
-      "width": "calc(variable(player.timeline.iterationProgress) * 400)" }
+    { "type": "text", "x": 200, "y": 190, "fontSize": 24, "textContent": "var(title)" },
+    { "type": "rect", "x": 0, "y": 0, "height": 4, "fill": "var(bg)",
+      "width": "calc(var(player.timeline.iterationProgress) * 400)" }
   ]
 }
 ```
@@ -1063,19 +1067,19 @@ defaults — nothing else: the type, the `defaultSource` and the description sta
 - One variant at a time — the player's `variant` option or prop picks it
   ([Variants](../library/variables.md#variants)).
 
-#### Bindings — `variable(name)` and `calc(…)`
+#### Bindings — `var(name)` and `calc(…)`
 
 A **binding** is a static value written as a reference instead of the value itself:
 
 <!-- px-check off binding grammar, prose -->
 | Written | Means |
 |---|---|
-| `"variable(bg)"` | the variable's value, whatever its type |
-| `"variable(player.pointer)"` | a [predefined variable](#predefined-variables--player) — nothing to declare |
-| `"calc(variable(size) / 2)"` | a number computed from number variables: numbers, `variable(name)`, `+ - * /`, brackets and a leading minus |
+| `"var(bg)"` | the variable's value, whatever its type |
+| `"var(player.pointer)"` | a [predefined variable](#predefined-variables--player) — nothing to declare |
+| `"calc(var(size) / 2)"` | a number computed from number variables: numbers, `var(name)`, `+ - * /`, brackets and a leading minus |
 
 - **The whole value** is the binding — nothing before or after it. A pair is written item by item:
-  `"translate": ["calc(variable(x) + 5)", 60]`.
+  `"translate": ["calc(var(x) + 5)", 60]`.
 - **A formula is parsed, never run.** The text is read into a tree of operators once and the tree is
   evaluated — no code from a file is ever executed. A formula reads numbers only.
 - **No value, no attribute.** A binding that names an unknown variable, a formula over a value that is not a
@@ -1087,17 +1091,17 @@ Where a binding may stand — wherever a static value is written:
 <!-- px-check off where bindings may stand, prose -->
 | Place | Example |
 |---|---|
-| a node attribute | `"r": "variable(size)"`, `"textContent": "variable(title)"` |
-| an item of a pair or a list | `"strokeDasharray": ["variable(dash)", 8]` |
-| a part of a `transform` record | `"transform": { "translate": "variable(player.pointer)", "rotate": "variable(angle)" }` |
-| a `style` declaration | `"style": { "fill": "variable(bg)" }` |
-| a player effect's setting | `"effects": { "repeater": { "copies": "variable(count)" } }`, a gradient stop's `color` |
+| a node attribute | `"r": "var(size)"`, `"textContent": "var(title)"` |
+| an item of a pair or a list | `"strokeDasharray": ["var(dash)", 8]` |
+| a part of a `transform` record | `"transform": { "translate": "var(player.pointer)", "rotate": "var(angle)" }` |
+| a `style` declaration | `"style": { "fill": "var(bg)" }` |
+| a player effect's setting | `"effects": { "repeater": { "copies": "var(count)" } }`, a gradient stop's `color` |
 
 Never inside `animate` (keyframes cannot name a variable — animate the variable's default instead), never in
 `meta`, and never in the keys that name or structure a node: `type`, `id`, `children`, `domType`, `animator`.
 **An attribute is animated or bound, never both** — the animation wins, and validation says so.
 
-Text that must literally read `variable(x)` (or start with `calc(`) cannot be written: it is always read as a
+Text that must literally read `var(x)` (or start with `calc(`) cannot be written: it is always read as a
 binding.
 
 #### Predefined variables — `player.…`
@@ -1123,11 +1127,11 @@ Two ways to use one:
 
 ```json
 // 1 — directly: nothing to declare, the predefined default applies
-{ "type": "circle", "r": 20, "transform": { "translate": "variable(player.pointer)" } }
+{ "type": "circle", "r": 20, "transform": { "translate": "var(player.pointer)" } }
 
 // 2 — through a variable of your own: your name, your default, and a page can give it a value by that name
 "variables": { "spot": { "type": "vector", "defaultValue": [40, 40], "defaultSource": "player.pointer" } }
-{ "type": "circle", "r": 20, "transform": { "translate": "variable(spot)" } }
+{ "type": "circle", "r": 20, "transform": { "translate": "var(spot)" } }
 ```
 
 <!-- px-check off direct use versus defaultSource, prose -->
@@ -1142,7 +1146,7 @@ Which players feed them: [Predefined variables](../library/variables.md#predefin
 #### Validation
 
 `validateDocument` checks a document with variables in two passes: the schema sees every binding replaced by
-its default (so `"copies": "variable(title)"` in a repeater fails as a string `copies` would), and the variables
+its default (so `"copies": "var(title)"` in a repeater fails as a string `copies` would), and the variables
 are checked on their own:
 
 <!-- px-check off validation findings, prose -->
@@ -1154,7 +1158,7 @@ are checked on their own:
 | a `defaultSource` of another type | `typeMismatch` |
 | a variant entry naming no declared variable | `missingReference` |
 | a variant value that does not fit the variable's type | `typeMismatch` |
-| a binding that does not parse (`"calc(variable(x) +)"`) | `invalidValue` |
+| a binding that does not parse (`"calc(var(x) +)"`) | `invalidValue` |
 | a binding naming a variable that is neither declared nor predefined | `missingReference` |
 | a formula reading a variable that is not a `number` | `typeMismatch` |
 | an attribute that is bound and animated on the same node | `invalidValue` — the animation wins |
@@ -1243,7 +1247,7 @@ a document.
 - **Unknown attributes on a node** pass through to the DOM — that is how any SVG/CSS
   presentation attribute works. So a misspelled attribute with a plain value (`"fil": "red"`)
   is not an error and is not reported; one whose value is an object is.
-- **Bindings** (`"variable(name)"`, `"calc(…)"`) are checked as the defaults they stand for, and on their
+- **Bindings** (`"var(name)"`, `"calc(…)"`) are checked as the defaults they stand for, and on their
   own — [Validation](#validation); a binding with no value leaves its place as if it were not written.
 
 To check a generated document before it ships, call `validateDocument(doc)` — see
@@ -1405,6 +1409,7 @@ When an element has several effects, the player applies them in a fixed order �
 | 8 | [`transformBy`](#8--transformby) | per-part transforms with independent timing |
 | 9 | [`clone`](#9--clone) | `<use>` semantics: what it copies, and re-timing |
 | — | [`showIn`](#showin) | shown only while one of its flow steps is current — not applied: the player shows and hides the element as the flows move |
+| — | [`showOneOf`](#showoneof) | on a group: only one child shown, picked by a value — not applied: the player shows and hides the children |
 
 For example, `repeater` + `transformBy` on one element always means "repeat, then transform
 the whole row", because `repeater` (5) is applied before `transformBy` (8). For "transform
@@ -1699,6 +1704,42 @@ Its type is `PxShowInEffect`.
 - A pre-rendered SVG has no nodes, so the same object rides on the element's binding:
   `{ "element": "#ripples", "animateWith": [], "showIn": { "flowSteps": ["swimming"] } }`.
 
+### A pre-rendered file's binding
+
+A pre-rendered SVG has no nodes: each element the player drives has a binding in `animator.bindings` instead.
+
+<!-- px-check schema PxBindingSchema -->
+| Field | Means |
+|---|---|
+| `element` | the element, `"#id"` |
+| `animateWith` | names into `definitions.animations`, played on it in order |
+| `showIn` | its [`showIn`](#showin) |
+| `showOneOf` | a group's [`showOneOf`](#showoneof) — `which` may stay `var(name)` here: the player reads its variables; `options` left out: the group's children as rendered |
+
+### `showOneOf`
+
+On a group: of its children only one is shown — the one at position `which` (`0` the first); the others are hidden, at
+once (1.32). Rive calls it a Solo.
+
+```json
+{ "type": "g", "id": "mouth",
+  "effects": { "showOneOf": { "which": "var(mood)" } },
+  "children": [ { "type": "path", "d": "…" }, { "type": "path", "d": "…" }, { "type": "path", "d": "…" } ] }
+```
+
+<!-- px-check schema PxShowOneOfEffectSchema -->
+| Field | Means |
+|---|---|
+| `which` | the position of the child shown — a fraction is rounded down; a value that fits no child shows none. A number, `var(name)` or `calc(…)`. Default `0` |
+| `options` | the children, as the lowering lists them (`{ "element": "#id" }` each) — written by the player's pipeline and by a pre-rendered SVG; leave it out |
+
+Its type is `PxShowOneOfEffect`.
+
+- Hidden the same way as [`showIn`](#showin): the child's own `display: none` — not drawn, no clicks; its own attributes
+  and animations untouched. A child hidden by either is hidden.
+- With a variable, the page picks the child: `<SvgAnimationPlayer document={face} variables={{ mood: 2 }} />`.
+- No transition and no keyframes on `which` yet: the switch is sharp.
+
 ## Editor meta and applied effects
 
 The **editor app** writes its own information into a dedicated field that every **node** can
@@ -1889,12 +1930,12 @@ the flat shape back into one.
 
 ### Variables in a tool of your own
 
-The grammar of [bindings](#bindings--variablename-and-calc) is exported, so a tool reads, checks and rewrites
+The grammar of [bindings](#bindings--varname-and-calc) is exported, so a tool reads, checks and rewrites
 them the way the players do. Three checks are on the main entry:
 
 <!-- px-check signature pkg=core -->
 ```typescript
-// ● True when a raw value is written as a binding — it starts with `variable(` or `calc(`; it may still fail
+// ● True when a raw value is written as a binding — it starts with `var(` or `calc(`; it may still fail
 //   to parse. A type guard: true narrows to string.
 function isBindingText(raw: unknown): boolean;
 
@@ -1920,11 +1961,11 @@ for (const site of collectBindingSites(doc)) {
 }
 
 // one binding, parsed once, evaluated against any values — nothing is ever `eval`ed
-const { binding } = PxVariableBinding.parse('calc(variable(size) / 2)');
+const { binding } = PxVariableBinding.parse('calc(var(size) / 2)');
 binding?.evaluate(name => (name === 'size' ? 80 : undefined));   // 40
 
 // a rename that reaches inside formulas
-renameInBinding('calc(variable(size) / 2)', 'size', 'radius');     // 'calc(variable(radius) / 2)'
+renameInBinding('calc(var(size) / 2)', 'size', 'radius');     // 'calc(var(radius) / 2)'
 
 // a renderer of your own: the document with every binding's current value written in
 const drawn = new PxVariablesRuntime(doc, { variables: { bg: '#111827' } }, undefined).resolvedDocument(false);
@@ -2245,10 +2286,10 @@ adapter. You need it only to build a player; everything else is on the main entr
 | Diagnostics | `diagnoseDocument(doc)` → (`{ problems }`), `reportDocumentDiagnostics(doc, where, diag?)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
 | Validation | `isPxDocument`, `validateDocument(doc, options?)` → `PxValidationResult` | ● the shallow guard, and THE one deep check: `{ valid, errors, findings }` (review §15). `isValidPxDocument`, `validateNodeEffects`, `validateDeprecatedTransformChannels`, `validateEasingRefs`, `validateVersionStamp` (▪) moved to `/internal` |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals. `legacyAnimatorOf` (▪) is the raw config at the pre-rendered SVG's `meta.animator` address — unchecked: cast it with `PxAnimatorConfigSchema` |
-| Flows and rules | `PxFlowStep`, `PxFlow`, `PxShowInEffect`, `PxFlowAction`, `PxWhenLeaving`, `PxActionTriggerRule`, `PxActionName`, `PxActionEvent`, `PxStepEvent`, `PxActionObject`, `PxTimelineTrack`, `PxFlowControls`, `PxFlowStepProps`, `PxRunListProps`, `PX_DEFAULT_ID`, `PX_DEFAULT_TIMELINE`, `PxTriggerEventEntry`, `PxTriggerEventObject`, `PxTriggerEventFilter`, `PxPointerType` | ● several timelines, flows and flow steps, and the rules that move them (2026-11-22, [Flows](../library/playback-and-triggers.md#flows--named-steps-of-the-animation)) — the wire types (a step, a flow, one rule, its action name, its event — a page event or a step's end, `finished` — a go-to as a value, one `byTimeline` entry), the handle's `player.flow`, the components' `flowStep` prop and `flows` / `timelines` lists, `default` — the name of the flow (and the step) that needs none, `""` — the timeline with no id; an event in core's helpers: a word or `{ event, element, selector, with }` |
+| Flows and rules | `PxFlowStep`, `PxFlow`, `PxShowInEffect`, `PxShowOneOfEffect`, `PxFlowAction`, `PxWhenLeaving`, `PxActionTriggerRule`, `PxActionName`, `PxActionEvent`, `PxStepEvent`, `PxActionObject`, `PxTimelineTrack`, `PxFlowControls`, `PxFlowStepProps`, `PxRunListProps`, `PX_DEFAULT_ID`, `PX_DEFAULT_TIMELINE`, `PxTriggerEventEntry`, `PxTriggerEventObject`, `PxTriggerEventFilter`, `PxPointerType` | ● several timelines, flows and flow steps, and the rules that move them (2026-11-22, [Flows](../library/playback-and-triggers.md#flows--named-steps-of-the-animation)) — the wire types (a step, a flow, one rule, its action name, its event — a page event or a step's end, `finished` — a go-to as a value, one `byTimeline` entry), the handle's `player.flow`, the components' `flowStep` prop and `flows` / `timelines` lists, `default` — the name of the flow (and the step) that needs none, `""` — the timeline with no id; an event in core's helpers: a word or `{ event, element, selector, with }` |
 | Flows and rules — schemas | `PxFlowStepSchema`, `PxFlowSchema`, `PxActionTriggerRuleSchema`, `PxActionObjectSchema`, `PxTimelineTrackSchema`, `PxTriggerEventObjectSchema`, `PxTriggerEventFilterSchema` | ○ the schemas of the types above — one rule is a member per action, so a rule that does not fit is dropped whole |
 | Flows and rules — engine | `/engine`: `PX_ACTION_NAMES`, `isPlaybackAction`, `isFlowAction`, `flowStepMoveOf`, `flowStepIndexAfter`, `PxFlowStepMove`, `ruleEventEntry`, `ruleEntriesOf`, `rulesOfEntries`, `isFlowActionObject`, `isFlowStepEntry`, `flowStepReferenceIssues`, `PxFlowStepReferenceIssue`, `duplicateFlowStepIds`, `PxFlowTrigger`, `forwardFlowControls`, `shouldWireOwnTriggers`, `timelineIssues`, `PxTimelineIssue`, `PxTimelineIssueKind`, `PX_ALL_TRIGGER_EVENTS`, `PX_FLOW_ACTION_EVENTS`, `isPageEvent`, `isPageEventRule`, `ruleSpecOf`, `fromStepsOf`, `isTriggerEvents`, `triggerKeys`, `triggerKeyOf`, `triggerSpecOf`, `triggerEventOf`, `PxTriggerEventSpec` | ○ every action name and the playback / flow split; a next or previous action's move and the step it lands on (none past an end without wrapping); a rule's event as an entry and back; the `flow.goTo` that name nothing (PX1114), the ids used twice (PX1115); the forwarding `flow` a wrapper hands out; whether an engine wires its own triggers (not a flow's step: its flow does); the timeline checks (PX1116); the page events and the events a flow action may name, a rule's spec (its `from` and `behavior` part of its key) and the steps it is limited to; the resolved triggers' entry keys and what each listens for — [For player authors](../library/playback-and-triggers.md#for-player-authors--the-same-rules-exported) |
-| Flows — internal | `PxFlowRuntime`, `PxShowInTarget`, `showInTargetsOf`, `isShownIn`, `currentFlowStepsOf`, `flowNameOfUnit`, `PxUnit`, `PxUnitPlan`, `PxPlannedStep`, `PxAttributeClaim`, `PxRunLists`, `planUnits`, `stepDocumentOf`, `unitConfigOf`, `attributeOwnersOf`, `switchStepsOf`, `unknownRunNames`, `createFlowSwitch`, `PxFlowSwitch`, `PxFlowSwitchOptions`, `PxFlowSwitchStep`, `PxFlowStepPlayer`, `timelineWindowsOf` (**`/engine`**); `/internal`: `createFlowLever`, `PxFlowLever`, `PxFlowHolder`, `createRunLever`, `PxRunLever`, `upTimelinesStatesAndRules`, `upFlowWords` | ▪ the plan of a file with flows (a unit per running flow, the flow `default` with a step for every timeline no step names), one step's document, the clash rule, what a unit's triggers are wired from; the flow switch that keeps one step's ordinary playback live; every timeline's window by id; the levers a component's `flowStep` and `flows` / `timelines` props hold the player with; the steps that bring a document stamped 1.28 in the spelling of 2026-11-15, and of 2026-11-20, over |
+| Flows — internal | `PxFlowRuntime`, `PxShowInTarget`, `showInTargetsOf`, `isShownIn`, `currentFlowStepsOf`, `flowNameOfUnit`, `PxShowOneOfTarget`, `showOneOfTargetsOf`, `shownOptionOf`, `PxUnit`, `PxUnitPlan`, `PxPlannedStep`, `PxAttributeClaim`, `PxRunLists`, `planUnits`, `stepDocumentOf`, `unitConfigOf`, `attributeOwnersOf`, `switchStepsOf`, `unknownRunNames`, `createFlowSwitch`, `PxFlowSwitch`, `PxFlowSwitchOptions`, `PxFlowSwitchStep`, `PxFlowStepPlayer`, `timelineWindowsOf` (**`/engine`**); `/internal`: `createFlowLever`, `PxFlowLever`, `PxFlowHolder`, `createRunLever`, `PxRunLever`, `upTimelinesStatesAndRules`, `upFlowWords` | ▪ the plan of a file with flows (a unit per running flow, the flow `default` with a step for every timeline no step names), one step's document, the clash rule, what a unit's triggers are wired from; the flow switch that keeps one step's ordinary playback live; every timeline's window by id; the levers a component's `flowStep` and `flows` / `timelines` props hold the player with; the steps that bring a document stamped 1.28 in the spelling of 2026-11-15, and of 2026-11-20, over |
 | Timeline shape | `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig`, `defaultTimelineOf(view)`, `isOnDefaultTimeline(step)` | ○ the runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) → the default timeline as an entry of `timelines` again; `defaultTimelineOf` is the timeline with no id, `isOnDefaultTimeline` whether a step is a part of it (**`/engine`**: the two). The other direction, `resolveAnimatorTimeline` (▪), moved to `/internal` (review §17a): read the view through `getAnimatorConfig` / `prepareDocument` |
 | Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |
 | Playback override | `PxPlaybackOverride`, `PxTimelineOptions`, `PxTimelineTiming`, `PxRecursivePartial`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult` | ● the `timelineOptions` and `actions` overrides as every player takes them — `PxTimelineOptions`, a `PxRecursivePartial` (every key optional at every depth, arrays replaced whole, no delete) of `PxTimelineTiming` (the timeline's keys, `whenStopped` and `whenOutOfView` among them), merged over the file's (`PxActionsInput`, the timeline's `actions` block set instead of the file's, until 1.29) — and the companion types of the two merge functions above (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until 1.25) — [Overriding from a player](../library/playback-and-triggers.md#overriding-from-a-player) |
@@ -2256,7 +2297,7 @@ adapter. You need it only to build a player; everything else is on the main entr
 | Control-mode patches | `withControlMode(doc, mode)`, `withoutTriggerDriver(doc)`, `withStaticPicture(doc)` | ○ **`/engine`** · the document as a control mode plays it, applied after the override so nothing re-arms what the mode switched off: `withControlMode` picks — `static` → `withStaticPicture` (the triggers emptied and `whenIdle: 'static'`, the picture as drawn; a scroll-driven document as it is), the other modes that take the triggers over → `withoutTriggerDriver` (an EMPTY block — nothing starts it; a scroll-driven document is spared), `actions` → the document as it is. The web player and the pre-rendered builds call `withControlMode`; the components apply their own pose rules beside it |
 | Compiled animation | `PxCompiledAnimation`, `PxCompiledKeyframe`, `PxAnyPropertyAnimation`, `isCompiledAnimation(entry)`, `PxCompiledAnimationSchema`, `PxAnyPropertyAnimationSchema`, `PxRgba`, `PxRgbaSchema`, `PxCubicBezier`, `PxCubicBezierSchema`, `PxPathValue` | ○ the format's low layer — [Compiled animation](#compiled-animation--the-low-layer). `compileAnimation`, `compileAnimationDefinition`, `compileAnimationsInTree`, `PxCompileContext` (▪) lower authored entries to it; `toAuthoredAnimation`, `authorCompiledAnimations` (▪) read it back as the authored form (the editor's read path); `anyPropertyAnimationSchemaOf` (▪) builds the entry union around a widened authored schema (the editor's); `PxNormalizedPathValueSchema` (▪) casts a compiled `d` value (`{paths}`) |
 | Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxValueKind` | ○ **`/engine`** · what `normalizeBindings` hands the engines: compiled animations in window ms — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪); `movesAlongPath` (▪) says whether a compiled `transform` is a motion path the frame loop evaluates |
-| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxActionTriggersSchema`, `PxWhenFinishedSchema` (the timeline's when-finished enum), `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxVariableDefinitionSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxShowInEffectSchema`, `PxBindingSchema` (a pre-rendered file's binding), `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollTimelineSchema` (the scroll member), `PxScrollMomentSchema`, `PxScrollPlaceSchema`, `PxScrollScrolledSchema`, `PxScrollLineSchema`, `PxHoldOnScreenSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
+| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxActionTriggersSchema`, `PxWhenFinishedSchema` (the timeline's when-finished enum), `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxVariableDefinitionSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxShowInEffectSchema`, `PxShowOneOfEffectSchema`, `PxBindingSchema` (a pre-rendered file's binding), `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollTimelineSchema` (the scroll member), `PxScrollMomentSchema`, `PxScrollPlaceSchema`, `PxScrollScrolledSchema`, `PxScrollLineSchema`, `PxHoldOnScreenSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
 | Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead. **`/engine`**: `normalizeBindings`, `calcAnimationValues`. `calcAnimationValues(channels, ms, segments?)` takes an optional motion-path segment table (`createMotionPathSegments`, `MotionPathSegments` ▪) that its owner — an animator, one pass — keeps, so each curve segment is built once; there is no module-level cache |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
 | Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath` | ▪ glyph-text and text-on-path materialization |

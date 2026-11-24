@@ -12,7 +12,7 @@ import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import { webRaf } from '../shared/PxWebRaf';
-import { bindPlanned } from './PxAnimatorUnits';
+import { bindPlanned, type PxPrerenderedVariables } from './PxAnimatorUnits';
 import type { PxAnimationPlayerApi, PxBoundPlayerApi, PxEngineAnimationPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 import { applyHoldOnScreen, createNativeScrollTimeline, createScrollDriver } from '../scroll/PxScrollDriver';
@@ -299,8 +299,23 @@ function buildOrReport(options: PxPrerenderedAnimationPlayerOptions, build: () =
 export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
     const { doc, mode } = docToPlay(options);
     // planned as the full player plans it (2026-11-22): flows side by side, one step's playback live in each
-    return registered(options, callbacks => buildOrReport(options, () => bindPlanned(doc,
-        (d, cb, followed, byFlow) => bindWithEngineChoice(d, undefined, cb, null, mode, followed, byFlow), callbacks, undefined, runListsOf(options))));
+    const runtime = prerenderedVariablesOf(options);
+    return registered(options, runtime, callbacks => buildOrReport(options, () => bindPlanned(doc,
+        (d, cb, followed, byFlow) => bindWithEngineChoice(d, undefined, cb, null, mode, followed, byFlow), callbacks, undefined, runListsOf(options),
+        showOneOfVariables(runtime))));
+}
+
+/** A pre-rendered player's variables: the document's declarations. A value set is stored; only `showOneOf` draws it. */
+function prerenderedVariablesOf(options: PxPrerenderedAnimationPlayerOptions): PxVariablesRuntime {
+    return new PxVariablesRuntime(toPxDocument(options.document), undefined, createDiagnostics(options, '[PxAnimator]'));
+}
+
+/** What `showOneOf` (1.32) reads of a pre-rendered player's variables — a bound `which`, again on every change. */
+function showOneOfVariables(runtime: PxVariablesRuntime): PxPrerenderedVariables {
+    return {
+        read: name => runtime.valueOf(name),
+        onChange: listener => { runtime.attach(() => { runtime.takeChanges(); webRaf(listener); }); },
+    };
 }
 
 /**
@@ -308,11 +323,12 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerO
  * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
  * the playback events and the finish through the callbacks the player is given.
  */
-function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxPlayerCallbacks) => PxPlayerEngineApi): PxAnimationPlayerApi {
+function registered(options: PxPrerenderedAnimationPlayerOptions, runtime: PxVariablesRuntime, build: (callbacks: PxPlayerCallbacks) => PxPlayerEngineApi): PxAnimationPlayerApi {
     let apiRef: PxAnimationPlayerApi | undefined;
     // A pre-rendered SVG has its values baked in by the editor: `variables` reads the document's declarations, and
-    // a value set here is stored but not drawn (accepted limit — the JSON player draws every change).
-    const variables = new PxVariablesRuntime(toPxDocument(options.document), undefined, createDiagnostics(options, '[PxAnimator]')).api;
+    // a value set here is stored but not drawn (accepted limit — the JSON player draws every change) — but `showOneOf`
+    // (1.32) follows a bound `which` (`showOneOfVariables`).
+    const variables = runtime.api;
     const api: PxAnimationPlayerApi = { ...build(withRegistryEvents(toPlayerCallbacks(options), () => apiRef)), variables };
     if (api.isReady()) {
         apiRef = api;
@@ -331,11 +347,12 @@ function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callba
  */
 export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
     const { doc, mode } = docToPlay(options);
+    const runtime = prerenderedVariablesOf(options);
     // planned as the full player plans it (2026-11-22) — every step on WAAPI alone, so no frame loop is linked
-    return registered(options, callbacks => buildOrReport(options, () => bindPlanned(doc, (d, cb, _followed, byFlow) => {
+    return registered(options, runtime, callbacks => buildOrReport(options, () => bindPlanned(doc, (d, cb, _followed, byFlow) => {
         const api = finaliseAnimator(getAnimatorConfig(d) || {}, cb, ecb => createWebApiAnimator(d, ecb, null, true, undefined, byFlow), byFlow);
         return mode === PxControlMode.static ? guardStaticPlayback(createDiagnostics(cb, '[PxAnimator]'), api) : api;
-    }, callbacks, undefined, runListsOf(options))));
+    }, callbacks, undefined, runListsOf(options), showOneOfVariables(runtime))));
 }
 
 /** The page's lists of what runs (2026-11-22), from the options. */

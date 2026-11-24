@@ -228,7 +228,7 @@ export enum PxSchemaChangeCode {
     /**
      * Variables (docs/library/variables.md): `definitions.variables` declares named, typed values with a default,
      * `definitions.variableVariants` names sets of defaults, and a static value anywhere may be written
-     * `"variable(name)"` or `"calc(…)"` instead of the value. Nothing older has any of it, so there is nothing to
+     * `"var(name)"` or `"calc(…)"` instead of the value. Nothing older has any of it, so there is nothing to
      * convert up.
      */
     variables = 26,
@@ -289,6 +289,13 @@ export enum PxSchemaChangeCode {
      * otherwise, at once. A pre-rendered SVG carries the same object on the element's binding.
      */
     showIn = 30,
+
+    /**
+     * A group can show one of its children (2026-11-24, docs/format/README.md): `"effects": { "showOneOf": { "which": 1 } }`
+     * shows the second child and hides the others, at once; `which` may be a variable (`var(mood)`) or a formula. The same
+     * release writes a variable as `var(name)` (it was `variable(name)`; an older file reads it as text).
+     */
+    showOneOf = 31,
 }
 
 /** Where the words behind a code live. One string, shared by every code. */

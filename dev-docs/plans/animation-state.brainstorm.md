@@ -39,7 +39,7 @@ library survey is in [animation-state.survey.2026-11-09.md](./animation-state.su
 | **Return leg** | the picture moving back to the rest pose — after `timeline.stop: animateToStart` / `animateToEndAndBack` (state **`returning`**, no playback) or after `whenFinished: animateToStart` (state stays `finished`). `timeline.play()` turns it around; `timeline.start()` plays from the beginning | executor `reversed` |
 | **Readout** | what the box reports: `timeline.getState()` (`off` · `playing` · `paused` · `finished` · `returning` · `destroyed`), `timeline.isActive()` (the playback exists), `isPlaying()` (= `playing`); callbacks `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onPlaybackFinish`; registry events | `getState()`, callbacks, `PxAnimatorRegistry` |
 | **Request vs result** | a lever asks (`playback="on"`), a readout answers (`playing` or `finished`); the words are kept apart on purpose | — |
-| **Variable** (1.27) | a named, typed value the file declares (`definitions.variables`) and binds static values to — `"variable(bg)"`, `"calc(variable(size) / 2)"`. The page gives values from code (`variables`, `player.variables.set()`), by a named **variant**, or from its stylesheet (`cssVariables`). Not playback: a change never starts, seeks, pauses or restarts anything (§3.5) | `PxVariablesRuntime`, `PxVariablesApi` |
+| **Variable** (1.27) | a named, typed value the file declares (`definitions.variables`) and binds static values to — `"var(bg)"`, `"calc(var(size) / 2)"`. The page gives values from code (`variables`, `player.variables.set()`), by a named **variant**, or from its stylesheet (`cssVariables`). Not playback: a change never starts, seeks, pauses or restarts anything (§3.5) | `PxVariablesRuntime`, `PxVariablesApi` |
 | **Predefined variable** | a value the player provides, named `player.…` — the pointer, the playback's clocks, the system's preferences: a sensor or a readout that the *file* can bind to | `player.pointer`, `player.timeline.iterationProgress`, `player.prefers.reducedMotion` |
 | **Timeline** (1.28) | one clock of the file: a window of the keyframes with its own length, loop and speed — `animator.timelines: [ … ]`; the first is the default and needs no `id`. A timeline that no state uses plays by itself | `PxTimeline`, `player.getTimeline(id)` |
 | **Track** | an attribute's keyframes on another timeline — `byTimeline: [{ timeline, keyframes }]`; the plain keyframes are the first timeline's | `PxTimelineTrack` |
@@ -166,7 +166,7 @@ player.timeline.isActive();    // playing · paused · finished
 | File | `timelines: [{ … }]`, each with `actions: { "timeline.stop": jumpToStart · animateToStart · jumpToEnd · animateToEnd · animateToEndAndBack, outOfView: pause · continue · stop }` and `whenFinished: hold · jumpToStart · animateToStart`; `actionTriggers: [{ action, event, … }]` at the animator's root, one rule per event — `timeline.start` · `timeline.play` · `timeline.stop` · `timeline.pause` · `timeline.resume` |
 | Readouts | `timeline.getState()` → `off` · `playing` · `paused` · `finished` · `returning` (the request says `on`, the result says `playing` or `finished`); `timeline.isActive()`; callbacks `onPlaybackStart` `onPlaybackStop` `onPlaybackPause` `onPlaybackResume` `onPlaybackFinish` |
 | Editor | Start playback on · Play on · Stop playback on · Pause playback on · Resume playback on; Stop playback · When finished · Out-of-View Action |
-| Variables (1.27) | options and props `variables` · `variant` · `cssVariables`, beside any driver; the handle `player.variables`; in the file `definitions.variables` · `definitions.variableVariants` · `"variable(name)"` · `"calc(…)"` — §3.5 |
+| Variables (1.27) | options and props `variables` · `variant` · `cssVariables`, beside any driver; the handle `player.variables`; in the file `definitions.variables` · `definitions.variableVariants` · `"var(name)"` · `"calc(…)"` — §3.5 |
 | States (1.28) | in the file `animator.states` · `animator.stateMachines` · rules `state.goTo` · `state.next` · `state.previous` · `byTimeline`; the handle `player.state`, `player.getTimeline(id)`; the prop `state`, the callback `onStateChange` — §3.6 |
 
 Rules, written once:
@@ -482,7 +482,7 @@ page gives values while it runs. Variables sit **beside** the playback, not in i
       "size": { "type": "number", "defaultValue": 40 } },
     "variableVariants": { "dark": { "bg": "#111827" } } } },
 "children": [
-  { "type": "circle", "cy": 100, "r": "variable(size)", "fill": "variable(bg)", "cx": "calc(variable(size) + 10)" } ]
+  { "type": "circle", "cy": 100, "r": "var(size)", "fill": "var(bg)", "cx": "calc(var(size) + 10)" } ]
 ```
 
 ```js
@@ -507,8 +507,8 @@ player.variables.setVariant(null);           // back to the defaults
 
 ```json
 // THE PLAYER'S OWN VALUES — all named player.…; a file binds to them like to its own
-{ "type": "rect", "height": 4, "width": "calc(variable(player.timeline.iterationProgress) * 400)" }   // a progress bar
-{ "type": "circle", "r": 20, "transform": { "translate": "variable(player.pointer)" } }               // follows the pointer
+{ "type": "rect", "height": 4, "width": "calc(var(player.timeline.iterationProgress) * 400)" }   // a progress bar
+{ "type": "circle", "r": 20, "transform": { "translate": "var(player.pointer)" } }               // follows the pointer
 ```
 
 Where variables meet the playback model:
@@ -968,7 +968,7 @@ at once becomes a real request.
   on every surface; `playerActionTriggers` removed (no alias); `actionTriggers` (a whole block instead of the file's;
   `null` / `{}` = none), `disableActionTriggers` (manual), `showAsStatic` (the picture as drawn, playback calls ignored,
   PX1506); `actions` replaces the file's block (it merged). §2 and §3 updated; the 1.26 entry above keeps its words.
-- 2026-11-14: schema 1.27 — variables: `definitions.variables` and `variableVariants`, `"variable(name)"` and `"calc(…)"`
+- 2026-11-14: schema 1.27 — variables: `definitions.variables` and `variableVariants`, `"var(name)"` and `"calc(…)"`
   in place of a static value, the handle `player.variables`, the options and props `variables` · `variant` ·
   `cssVariables`, and the player's own `player.…` values. They change the picture, never the playback.
 - 2026-11-14: schema 1.28 — one scroll timeline in plain words (`follows`, `firstFrameWhen` / `lastFrameWhen`,

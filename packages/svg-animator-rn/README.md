@@ -345,6 +345,7 @@ player sees plain nodes. **All are supported:**
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.fonts` — no font needed |
 | `showIn` | ✅ | not drawn while none of its flow steps is current — the first flow's step; the others at their start |
+| `showOneOf` | ✅ | only the picked child is drawn |
 
 ### Motion, timing and references
 

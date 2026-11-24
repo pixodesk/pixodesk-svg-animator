@@ -5,15 +5,13 @@
  *---------------------------------------------------------------------------------------*/
 
 // SHOW IN ON THE WEB (1.31) — `effects.showIn`, core's rule (`PxShowIn.ts`) on the rendered picture: an element is hidden
-// with its own inline `display: none` (no wrapper), at once; shown again by clearing it. Applied when the player binds
-// and on every change of step. A pre-rendered SVG writes the start state into the markup, so nothing flashes first.
+// by the shared hider (`PxHideWeb.ts` — the same way as `showOneOf`), at once. Applied when the player binds and on every
+// change of step.
 
 import type { PxDocument } from '@pixodesk/svg-animator-core';
 import { currentFlowStepsOf, isShownIn, planUnits, showInTargetsOf } from '@pixodesk/svg-animator-core/engine';
 import { getSelector } from './PxAnimatorFrameLoop';
-
-/** What hides the element: its own inline style. */
-const HIDDEN = 'none';
+import { PxHideReason, type PxHider } from './PxHideWeb';
 
 /** The `showIn` elements of one player. */
 export interface PxShowInWeb {
@@ -23,7 +21,7 @@ export interface PxShowInWeb {
 
 /** The `showIn` elements of `doc` (the document the picture was rendered from), applied now — undefined when it has
  *  none. `current`: each running flow's current step, by flow name; a flow not in it is at its start. */
-export function createShowInWeb(doc: PxDocument, root: () => Element | null, current: () => ReadonlyMap<string, string>): PxShowInWeb | undefined {
+export function createShowInWeb(doc: PxDocument, root: () => Element | null, current: () => ReadonlyMap<string, string>, hider: PxHider): PxShowInWeb | undefined {
     const targets = showInTargetsOf(doc);
     if (!targets.length) return undefined;
     const all = planUnits(doc);   // every flow of the file — the page's run lists aside
@@ -33,9 +31,7 @@ export function createShowInWeb(doc: PxDocument, root: () => Element | null, cur
         const steps = all ? currentFlowStepsOf(all, current()) : new Set<string>();
         for (const target of targets) {
             const shown = isShownIn(target.flowSteps, steps);
-            r.querySelectorAll(getSelector(target.id)).forEach(el => {
-                if (el instanceof HTMLElement || el instanceof SVGElement) el.style.display = shown ? '' : HIDDEN;
-            });
+            r.querySelectorAll(getSelector(target.id)).forEach(el => hider.set(el, PxHideReason.showIn, !shown));
         }
     };
     update();

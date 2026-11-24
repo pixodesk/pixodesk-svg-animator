@@ -563,3 +563,14 @@ describe('1.31 (2026-11-23) — an element shown only in some flow steps', () =>
         expect(rawAnimator(r.doc)).toEqual({ version: '1.30.0', flowSteps: [{ id: 'a' }] });
     });
 });
+
+describe('1.32 (2026-11-24) — a group shows one of its children', () => {
+    it('down to 1.31 is REFUSED for a group\'s showOneOf; a file without it goes down', () => {
+        const to131 = { a: 1, b: 31, c: 0 };
+        const withIt = { type: 'svg', animator: { version: '1.32.0' }, children: [{ type: 'g', effects: { showOneOf: { which: 1 } }, children: [] }] };
+        const r = downgradeWireDocument(withIt, to131);
+        expect(r.ok).toBe(false);
+        if (!r.ok) expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.showOneOf]);
+        expect(downgradeWireDocument({ type: 'svg', animator: { version: '1.32.0' } }, to131).ok).toBe(true);
+    });
+});

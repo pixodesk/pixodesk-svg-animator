@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
 import { materializeNodeEffects } from '../effects/PlayerEffectsUtil';
-import { currentFlowStepsOf, isShownIn, showInTargetsOf } from './PxShowIn';
+import { currentFlowStepsOf, isShownIn, showInTargetsOf, showOneOfTargetsOf, shownOptionOf } from './PxShowIn';
 import { planUnits } from './PxUnits';
 
 const DOC: PxDocument = {
@@ -56,5 +56,28 @@ describe('effects.showIn (1.31) — the rule', () => {
         expect(typeof kids[1].id).toBe('string');
         expect(kids[1].effects).toEqual({ showIn: { flowSteps: ['a'] } });
         expect(showInTargetsOf(out as PxDocument).length).toBe(4);
+    });
+});
+
+describe('effects.showOneOf (1.32) — the rule and the lowering', () => {
+    it('a position, rounded down; out of range or absent — none (an absent `which` is read as 0 before)', () => {
+        expect(shownOptionOf(1, 3)).toBe(1);
+        expect(shownOptionOf(2.9, 3)).toBe(2);
+        expect(shownOptionOf(3, 3)).toBeUndefined();
+        expect(shownOptionOf(-1, 3)).toBeUndefined();
+        expect(shownOptionOf(undefined, 3)).toBeUndefined();
+    });
+
+    it('the lowering keeps it on the group with its children as options — each child given an id', () => {
+        const doc: PxDocument = { type: 'svg', children: [
+            { type: 'g', id: 'g', effects: { showOneOf: { which: 1 } }, children: [{ type: 'rect', id: 'a' }, { type: 'rect' }] },
+        ] };
+        const out = materializeNodeEffects(doc).root;
+        const g = (out.children ?? [])[0];
+        const options = g.effects?.showOneOf?.options ?? [];
+        expect(g.effects?.showOneOf?.which).toBe(1);
+        expect(options[0]).toEqual({ element: '#a' });
+        expect(options[1].element).toBe('#' + String((g.children ?? [])[1].id));
+        expect(showOneOfTargetsOf(out as PxDocument)).toEqual([{ which: 1, options: ['a', String((g.children ?? [])[1].id)] }]);
     });
 });

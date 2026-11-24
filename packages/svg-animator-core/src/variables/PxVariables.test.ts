@@ -27,7 +27,7 @@ const parse = (text: string) => {
 describe('the binding grammar — parsed into a tree, never eval', () => {
 
     it('a bare reference passes any value through', () => {
-        const b = parse('variable(bg)');
+        const b = parse('var(bg)');
         expect(b.isFormula).toBe(false);
         expect(b.names).toEqual(['bg']);
         expect(b.evaluate(() => '#ff0')).toBe('#ff0');
@@ -37,44 +37,44 @@ describe('the binding grammar — parsed into a tree, never eval', () => {
     it('calc: + - * /, brackets, a leading minus, precedence', () => {
         const values: Record<string, number> = { x: 10, y: 4 };
         const read = (n: string) => values[n];
-        expect(parse('calc(variable(x) + 5)').evaluate(read)).toBe(15);
-        expect(parse('calc(variable(x) - variable(y) * 2)').evaluate(read)).toBe(2);
-        expect(parse('calc((variable(x) - variable(y)) * 2)').evaluate(read)).toBe(12);
-        expect(parse('calc(-variable(y) / 2)').evaluate(read)).toBe(-2);
+        expect(parse('calc(var(x) + 5)').evaluate(read)).toBe(15);
+        expect(parse('calc(var(x) - var(y) * 2)').evaluate(read)).toBe(2);
+        expect(parse('calc((var(x) - var(y)) * 2)').evaluate(read)).toBe(12);
+        expect(parse('calc(-var(y) / 2)').evaluate(read)).toBe(-2);
         expect(parse('calc(1.5e1 + .5)').evaluate(read)).toBe(15.5);
-        expect(parse('calc(variable(x) / 0)').evaluate(read)).toBeUndefined();
-        expect(parse('calc(variable(missing) + 1)').evaluate(read)).toBeUndefined();
+        expect(parse('calc(var(x) / 0)').evaluate(read)).toBeUndefined();
+        expect(parse('calc(var(missing) + 1)').evaluate(read)).toBeUndefined();
     });
 
     it('a formula reads numbers only — a string variable gives no value', () => {
-        expect(parse('calc(variable(bg) + 1)').evaluate(() => '#fff')).toBeUndefined();
+        expect(parse('calc(var(bg) + 1)').evaluate(() => '#fff')).toBeUndefined();
     });
 
     it('prints normalised and keeps the brackets the tree needs', () => {
-        expect(parse('calc( variable(x)+5 )').print()).toBe('calc(variable(x) + 5)');
-        expect(parse('calc((variable(a) + variable(b)) * 2)').print()).toBe('calc((variable(a) + variable(b)) * 2)');
-        expect(parse('calc(variable(a) - (variable(b) - 1))').print()).toBe('calc(variable(a) - (variable(b) - 1))');
-        expect(parse('calc(variable(a) * variable(b) + 1)').print()).toBe('calc(variable(a) * variable(b) + 1)');
+        expect(parse('calc( var(x)+5 )').print()).toBe('calc(var(x) + 5)');
+        expect(parse('calc((var(a) + var(b)) * 2)').print()).toBe('calc((var(a) + var(b)) * 2)');
+        expect(parse('calc(var(a) - (var(b) - 1))').print()).toBe('calc(var(a) - (var(b) - 1))');
+        expect(parse('calc(var(a) * var(b) + 1)').print()).toBe('calc(var(a) * var(b) + 1)');
     });
 
     it('malformed text is an error with a position — no code is run', () => {
-        expect(PxVariableBinding.parse('calc(variable(x) +)').error).toMatch(/expected/);
+        expect(PxVariableBinding.parse('calc(var(x) +)').error).toMatch(/expected/);
         expect(PxVariableBinding.parse('calc(alert(1))').error).toMatch(/expected/);
-        expect(PxVariableBinding.parse('variable(1x)').error).toMatch(/not a variable name/);
-        expect(PxVariableBinding.parse('variable(x) extra').error).toMatch(/unexpected/);
+        expect(PxVariableBinding.parse('var(1x)').error).toMatch(/not a variable name/);
+        expect(PxVariableBinding.parse('var(x) extra').error).toMatch(/unexpected/);
     });
 
     it('names: a declared one has no dot; predefined ones start with player.', () => {
         expect(isVariableName('ball-Bg_2')).toBe(true);
         expect(isVariableName('player.pointer')).toBe(false);
-        expect(parse('variable(player.pointer.x)').names).toEqual(['player.pointer.x']);
+        expect(parse('var(player.pointer.x)').names).toEqual(['player.pointer.x']);
     });
 
     it('rename rewrites the names inside a formula and leaves other text alone', () => {
-        expect(renameInBinding('calc(variable(x) + variable(y))', 'x', 'left')).toBe('calc(variable(left) + variable(y))');
-        expect(renameInBinding('variable(x)', 'y', 'z')).toBe('variable(x)');
+        expect(renameInBinding('calc(var(x) + var(y))', 'x', 'left')).toBe('calc(var(left) + var(y))');
+        expect(renameInBinding('var(x)', 'y', 'z')).toBe('var(x)');
         expect(renameInBinding('#fff', 'x', 'y')).toBe('#fff');
-        expect(isBindingText('variable(x)')).toBe(true);
+        expect(isBindingText('var(x)')).toBe(true);
         expect(isBindingText(' calc (1)')).toBe(true);
         expect(isBindingText('red')).toBe(false);
     });
@@ -98,9 +98,9 @@ function card(): PxDocument {
             },
         },
         children: [
-            { type: 'circle', id: 'c', r: 'variable(size)', fill: 'variable(bg)', transform: { translate: ['calc(variable(x) + 5)', 60] } },
-            { type: 'rect', width: 10, height: 10, effects: { repeater: { copies: 'variable(count)', translate: [20, 0] } } },
-            { type: 'circle', r: 5, style: { fill: 'variable(bg)' } },
+            { type: 'circle', id: 'c', r: 'var(size)', fill: 'var(bg)', transform: { translate: ['calc(var(x) + 5)', 60] } },
+            { type: 'rect', width: 10, height: 10, effects: { repeater: { copies: 'var(count)', translate: [20, 0] } } },
+            { type: 'circle', r: 5, style: { fill: 'var(bg)' } },
         ],
     });
 }
@@ -118,8 +118,8 @@ describe('where a document reads its variables', () => {
 
     it('never inside animate / keyframes, never in meta or structural keys', () => {
         const doc: PxDocument = {
-            type: 'svg', id: 'variable(x)',
-            children: [{ type: 'circle', meta: { label: 'variable(x)' }, animate: { fill: { keyframes: [{ time: 0, value: 'variable(x)' }] } } }],
+            type: 'svg', id: 'var(x)',
+            children: [{ type: 'circle', meta: { label: 'var(x)' }, animate: { fill: { keyframes: [{ time: 0, value: 'var(x)' }] } } }],
         };
         expect(collectBindingSites(doc)).toEqual([]);
     });
@@ -134,7 +134,7 @@ describe('the document with the values written in', () => {
         const out = resolveVariableBindings(doc, sites, { read: n => values.get(n) });
         expect(nodeAtPath(out, [0])).toMatchObject({ r: 50, fill: 'red', transform: { translate: [15, 60] } });
         expect(nodeAtPath(out, [1])?.effects).toEqual({ repeater: { copies: 4, translate: [20, 0] } });
-        expect(nodeAtPath(doc, [0])?.['r']).toBe('variable(size)');
+        expect(nodeAtPath(doc, [0])?.['r']).toBe('var(size)');
         expect(out.animator).toBe(doc.animator);
     });
 
@@ -198,8 +198,8 @@ describe('validation — a document with bindings validates; the bindings are ch
         defs.variables['bad'] = { type: 'number', defaultValue: 'x' };
         defs.variableVariants['foggyDay'] = { bg: 7, nope: 1 };
         doc.children = [
-            { type: 'circle', r: 'variable(nope)', cx: 'calc(variable(size) +)', cy: 'calc(variable(bg) + 1)',
-                fill: 'variable(bg)', animate: { fill: { keyframes: [{ time: 0, value: '#000' }] } } },
+            { type: 'circle', r: 'var(nope)', cx: 'calc(var(size) +)', cy: 'calc(var(bg) + 1)',
+                fill: 'var(bg)', animate: { fill: { keyframes: [{ time: 0, value: '#000' }] } } },
         ];
         const reasons = validateDocument(doc).findings.map(f => f.reason);
         expect(reasons).toEqual(expect.arrayContaining([
@@ -300,5 +300,17 @@ describe('one player\'s runtime', () => {
         expect(variableValueFits('vector', [1])).toBe(false);
         expect(variableValueFits('color', '#fff')).toBe(true);
         expect(variableValueFits('number', Number.NaN)).toBe(false);
+    });
+});
+
+describe('the spelling: var(…) (2026-11-24; variable(…) until then)', () => {
+    it('var(name) and calc(…) are bindings; CSS\'s own var(--x) is not — it passes through as text', () => {
+        expect(isBindingText('var(size)')).toBe(true);
+        expect(isBindingText('calc(var(size) * 2)')).toBe(true);
+        expect(isBindingText('var(--brand)')).toBe(false);
+        expect(isBindingText(' var( --brand, red)')).toBe(false);
+        expect(PxVariableBinding.parse('calc(var(x) + 1)').binding?.print()).toBe('calc(var(x) + 1)');
+        // the old spelling is plain text now (no conversion — nothing was published with it)
+        expect(isBindingText('variable(size)')).toBe(false);
     });
 });

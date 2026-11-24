@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxDefinitions, type PxNode } from '@pixodesk/svg-animator-core';
-import { isShownIn, toDomProps } from '@pixodesk/svg-animator-core/engine';
+import { isShownIn, shownOptionOf, toDomProps } from '@pixodesk/svg-animator-core/engine';
 import { sanitizeAttributeValue, PX_DISALLOWED_SVG_TAGS_LOWER, PX_TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import { RN_SVG_COMPONENTS, type RnSvgComponent, type RnSvgProps } from './PxRnTypeMap';
@@ -18,6 +18,8 @@ export interface RenderRnNodeOptions {
     /** The flow steps current now — an element whose `effects.showIn` (1.31) names none of them is not drawn. Absent:
      *  every element is drawn. */
     currentFlowSteps?: ReadonlySet<string>;
+    /** Ids hidden by a `showOneOf` group above (1.32) — the same hide as `showIn`'s: not drawn. */
+    hiddenIds?: ReadonlySet<string>;
     /** `definitions` from the document, used to resolve named `style` presets. */
     defs?: PxDefinitions;
     /**
@@ -70,8 +72,16 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
 
     const { type, children, style, animate, meta, effects, ...props } = node;
     const tag = String(type || 'g');
-    // `showIn` (1.31): not drawn while none of its steps is current — the web's `display: none`
+    // `showIn` (1.31): not drawn while none of its steps is current — the web's `display: none`; `showOneOf` (1.32) the same
     if (effects?.showIn && opts.currentFlowSteps && !isShownIn(effects.showIn.flowSteps, opts.currentFlowSteps)) return null;
+    if (typeof node.id === 'string' && opts.hiddenIds?.has(node.id)) return null;
+    const oneOf = effects?.showOneOf;
+    if (oneOf?.options) {
+        const shown = shownOptionOf(oneOf.which, oneOf.options.length);
+        const hidden = new Set(opts.hiddenIds ?? []);
+        oneOf.options.forEach((o, i) => { if (i !== shown) hidden.add(o.element.startsWith('#') ? o.element.slice(1) : o.element); });
+        opts = { ...opts, hiddenIds: hidden };
+    }
 
     // ESCAPE KEY (S2): elements whose SVG `type` ATTRIBUTE collides with the reserved
     // `type` node-tag key carry it under `domType` — `feColorMatrix` (matrix/saturate/…),

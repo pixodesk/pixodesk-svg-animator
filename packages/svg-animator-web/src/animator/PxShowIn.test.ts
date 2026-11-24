@@ -121,3 +121,95 @@ describe('effects.showIn (1.31)', () => {
         expect([shownOf(root, '#x'), shownOf(root, '#y')]).toEqual([true, false]);
     });
 });
+
+// `effects.showOneOf` (1.32) — a group shows one of its children; hidden the same way as `showIn` (one shared hider)
+describe('effects.showOneOf (1.32)', () => {
+    let api: PxAnimationPlayerApi | undefined;
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="box"></div>';
+        vi.useFakeTimers({
+            toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame'],
+        });
+    });
+    afterEach(() => {
+        api?.destroy();
+        api = undefined;
+        vi.useRealTimers();
+    });
+
+    /** A face: three mouths in a group; `which` as given. */
+    const face = (which: number | string, extra: Record<string, unknown> = {}): PxDocument => ({
+        type: 'svg', viewBox: '0 0 10 10',
+        animator: { timelines: [{ engine: 'js', outTime: 1000 }], definitions: { variables: { mood: { type: 'number', defaultValue: 0 } } }, ...extra },
+        children: [
+            // `which` may be binding text: bindings are resolved before validation, so the type says number
+            { type: 'g', id: 'mouth', effects: { showOneOf: Object.assign({ which: 0 }, { which }) }, children: [
+                { type: 'rect', width: 1, height: 1 }, { type: 'rect', width: 2, height: 2 }, { type: 'rect', width: 3, height: 3 },
+            ] },
+        ],
+    });
+    const mouths = (): Array<boolean> => Array.from(document.querySelectorAll('#box g rect')).map(r => r instanceof SVGElement && r.style.display !== 'none');
+
+    it('a position: the second child only; a fraction is rounded down; out of range — none', () => {
+        api = createSvgAnimationPlayer({ container: '#box', document: face(1) });
+        expect(mouths()).toEqual([false, true, false]);
+        api.destroy();
+        api = createSvgAnimationPlayer({ container: '#box', document: face(2.7) });
+        expect(mouths()).toEqual([false, false, true]);
+        api.destroy();
+        api = createSvgAnimationPlayer({ container: '#box', document: face(5) });
+        expect(mouths()).toEqual([false, false, false]);
+    });
+
+    it('a variable: picked by the page, again when it changes', () => {
+        api = createSvgAnimationPlayer({ container: '#box', document: face('var(mood)'), variables: { mood: 2 } });
+        expect(mouths()).toEqual([false, false, true]);
+        api.variables.set('mood', 1);
+        vi.advanceTimersByTime(50);
+        expect(mouths()).toEqual([false, true, false]);
+        api.variables.set('mood', 0);
+        vi.advanceTimersByTime(50);
+        expect(mouths()).toEqual([true, false, false]);
+    });
+
+    it('with showIn on a child: hidden by either — the one hider', () => {
+        const d = face(0, { flowSteps: [{ id: 'a', inTime: 0, outTime: 500 }, { id: 'b', inTime: 500, outTime: 1000 }] });
+        const kids = d.children?.[0].children;
+        if (!kids) throw new Error('no kids');
+        kids[0] = { ...kids[0], effects: { showIn: { flowSteps: ['b'] } } };
+        api = createSvgAnimationPlayer({ container: '#box', document: d });
+        expect(mouths()).toEqual([false, false, false]);   // shown by showOneOf, hidden by showIn (step a)
+        api.flow.goTo('b');
+        expect(mouths()).toEqual([true, false, false]);
+    });
+
+    it('pre-rendered: the binding carries it — a bound `which` follows the player\'s variables', () => {
+        document.body.innerHTML = '<svg id="pic" viewBox="0 0 10 10"><g><rect id="m0"/><rect id="m1"/></g></svg>';
+        // a pre-rendered binding keeps `which` as binding text — the type says number (bindings are resolved before validation)
+        const showOneOf = Object.assign({ which: 0, options: [{ element: '#m0' }, { element: '#m1' }] }, { which: 'var(mood)' });
+        const pre: PxDocumentJson = {
+            id: 'pic', type: 'svg',
+            animator: {
+                timelines: [{ engine: 'js', outTime: 1000 }],
+                definitions: { variables: { mood: { type: 'number', defaultValue: 1 } } },
+                bindings: [{ element: '#pic', animateWith: [], showOneOf }],
+            },
+        };
+        api = createPrerenderedAnimator({ document: pre });
+        const shown = (): Array<boolean> => ['m0', 'm1'].map(id => (document.getElementById(id) as SVGElement | null)?.style.display !== 'none');
+        expect(shown()).toEqual([false, true]);
+        api.variables.set('mood', 0);
+        vi.advanceTimersByTime(50);
+        expect(shown()).toEqual([true, false]);
+    });
+
+    it('pre-rendered: a binding that lists no options — the group\'s children as rendered', () => {
+        document.body.innerHTML = '<svg id="pic" viewBox="0 0 10 10"><g id="grp"><rect/><rect/><rect/></g></svg>';
+        const pre: PxDocumentJson = {
+            id: 'pic', type: 'svg',
+            animator: { timelines: [{ engine: 'js', outTime: 1000 }], bindings: [{ element: '#grp', animateWith: [], showOneOf: { which: 2 } }] },
+        };
+        api = createPrerenderedAnimator({ document: pre });
+        expect(Array.from(document.querySelectorAll('#grp rect')).map(r => r instanceof SVGElement && r.style.display !== 'none')).toEqual([false, false, true]);
+    });
+});

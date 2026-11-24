@@ -1612,6 +1612,30 @@
             "flowSteps"
           ],
           "additionalProperties": false
+        },
+        "showOneOf": {
+          "type": "object",
+          "properties": {
+            "which": {
+              "type": "number"
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "element": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "element"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -4493,6 +4517,30 @@
                 "required": [
                   "flowSteps"
                 ],
+                "additionalProperties": false
+              },
+              "showOneOf": {
+                "type": "object",
+                "properties": {
+                  "which": {
+                    "type": "number"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "element": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "element"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
                 "additionalProperties": false
               }
             },

@@ -52,7 +52,7 @@ export type { PxDocument, PxDocumentJson, PxAnimationDefinition, PxAnimationPlay
 // and `start?: PxTriggerEvent` from one import.
 export { PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxPlaybackDirection, PxTriggerEvent, PxStepEvent, PxPlayback, PxFlowAction, PxWhenLeaving, PxPointerType } from './format/PxAnimatorConstants';
 
-// Variables (schema 1.27) — declared in `definitions.variables`, read by `"variable(name)"` / `"calc(…)"` bindings
+// Variables (schema 1.27) — declared in `definitions.variables`, read by `"var(name)"` / `"calc(…)"` bindings
 export { PxVariableType } from './format/PxAnimatorConstants';
 export { PxVariableDefinitionSchema } from './format/PxAnimatorTypes';
 export type { PxVariableDefinition } from './format/PxAnimatorTypes';
@@ -119,6 +119,7 @@ export {
     PxTextPathEffectSchema,
     PxTextEffectSchema,
     PxShowInEffectSchema,
+    PxShowOneOfEffectSchema,
     PxBindingSchema,
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
@@ -149,6 +150,7 @@ export {
 export type {
     PxEffects,
     PxShowInEffect,
+    PxShowOneOfEffect,
     PxVec2,
 } from './format/PxAnimatorTypes';
 

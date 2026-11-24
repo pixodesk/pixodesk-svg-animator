@@ -32,7 +32,7 @@ import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './text/textGlyp
 import { applyStrokeTrimEffect } from './stroke/strokeTrimEffect';
 import { getDefinitions } from '../format/PxAnimatorConstants';
 import { resolveTimelineEngine, getAnimatorConfig } from '../format/PxAnimatorConstants';
-import type { PxNode, PxShowInEffect } from '../format/PxAnimatorTypes';
+import type { PxNode, PxShowInEffect, PxShowOneOfEffect } from '../format/PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './shared/types';
 import { clone, genId, indexById, spliceDefs } from './shared/util';
 
@@ -103,7 +103,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformBy, repeater, maskedBy, clipPath, strokeTrim, clone: cloneFx, fillGradient, strokeGradient, textPath, text, showIn } = fx ?? {};
+    const { transformBy, repeater, maskedBy, clipPath, strokeTrim, clone: cloneFx, fillGradient, strokeGradient, textPath, text, showIn, showOneOf } = fx ?? {};
     if (fx) delete node.effects;
 
     let n = node;
@@ -158,7 +158,20 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     if (cloneFx?.retime) node.effects = { clone: { retime: cloneFx.retime } };
     if (originalId) ctx.idMap.set(originalId, n);                       // outer wrapper is the clone target
     keepShowIn(n, showIn, ctx);
+    keepShowOneOf(n, node, showOneOf, ctx);
     return n;
+}
+
+/** `showOneOf` (1.32) is kept like `showIn`, on the outermost node, with the group's children listed as its options — each
+ *  child's outermost node, given an id if it has none, so the player finds them after any wrapping and id renaming. */
+function keepShowOneOf(n: PxNode, group: PxNode, showOneOf: PxShowOneOfEffect | undefined, ctx: ApplyContext): void {
+    if (!showOneOf) return;
+    const children = Array.isArray(group.children) ? group.children : [];
+    const options = children.map(child => {
+        if (typeof child.id !== 'string') child.id = genId(ctx, 'one');
+        return { element: '#' + child.id };
+    });
+    n.effects = { ...(n.effects ?? {}), showOneOf: { which: showOneOf.which ?? 0, options } };
 }
 
 /** `showIn` (1.31) is the one effect kept: the flows need it at run time. It goes on the OUTERMOST node of the element's

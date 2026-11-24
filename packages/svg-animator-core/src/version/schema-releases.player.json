@@ -462,7 +462,7 @@
    "animator.definitions.variables{*}.type"
   ],
   "removed": [],
-  "note": "Variables (docs/library/variables.md): `definitions.variables` declares named, typed values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere may be written `\"variable(name)\"` or `\"calc(…)\"` instead of the value. Nothing older has any of it, so there is nothing to convert up."
+  "note": "Variables (docs/library/variables.md): `definitions.variables` declares named, typed values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere may be written `\"var(name)\"` or `\"calc(…)\"` instead of the value. Nothing older has any of it, so there is nothing to convert up."
  },
  {
   "version": "1.28",
@@ -955,5 +955,18 @@
   ],
   "removed": [],
   "note": "PXS30 — An element can be shown only in some flow steps (2026-11-23, docs/library/playback-and-triggers.md): `\"effects\": { \"showIn\": { \"flowSteps\": [\"swimming\", \"resting\"] } }` — shown while one of them is current, hidden otherwise, at once. A pre-rendered SVG carries the same object on the element's binding."
+ },
+ {
+  "version": "1.32",
+  "date": "2026-11-24",
+  "added": [
+   "animator.bindings[].showOneOf",
+   "effects.showOneOf",
+   "effects.showOneOf.options",
+   "effects.showOneOf.options[].element",
+   "effects.showOneOf.which"
+  ],
+  "removed": [],
+  "note": "PXS31 — A group can show one of its children (2026-11-24, docs/format/README.md): `\"effects\": { \"showOneOf\": { \"which\": 1 } }` shows the second child and hides the others, at once; `which` may be a variable (`var(mood)`) or a formula. The same release writes a variable as `var(name)` (it was `variable(name)`; an older file reads it as text)."
  }
 ]

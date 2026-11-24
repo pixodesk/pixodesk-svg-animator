@@ -29,8 +29,8 @@ function doc(): PxDocument {
             },
         },
         children: [
-            { type: 'circle', id: 'ball', r: 'variable(size)', fill: 'variable(bg)', transform: { translate: ['calc(variable(x) + 5)', 60] } },
-            { type: 'rect', id: 'tile', width: 10, height: 10, effects: { repeater: { copies: 'variable(count)', translate: [20, 0] } } },
+            { type: 'circle', id: 'ball', r: 'var(size)', fill: 'var(bg)', transform: { translate: ['calc(var(x) + 5)', 60] } },
+            { type: 'rect', id: 'tile', width: 10, height: 10, effects: { repeater: { copies: 'var(count)', translate: [20, 0] } } },
             { type: 'rect', id: 'spin', width: 5, height: 5, animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } },
         ],
     }));

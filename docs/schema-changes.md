@@ -112,7 +112,7 @@ State words and move words (dev-docs/plans/animation-state.feedback.2026-11-12.m
 
 ## <a id="pxs26"></a>PXS26 · 1.26 → 1.27
 
-Variables (docs/library/variables.md): `definitions.variables` declares named, typed values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere may be written `"variable(name)"` or `"calc(…)"` instead of the value. Nothing older has any of it, so there is nothing to convert up.
+Variables (docs/library/variables.md): `definitions.variables` declares named, typed values with a default, `definitions.variableVariants` names sets of defaults, and a static value anywhere may be written `"var(name)"` or `"calc(…)"` instead of the value. Nothing older has any of it, so there is nothing to convert up.
 
 ## <a id="pxs27"></a>PXS27 · 1.27 → 1.28
 
@@ -129,3 +129,7 @@ Next and previous stop at the ends of a flow (2026-11-23, docs/library/playback-
 ## <a id="pxs30"></a>PXS30 · 1.30 → 1.31
 
 An element can be shown only in some flow steps (2026-11-23, docs/library/playback-and-triggers.md): `"effects": { "showIn": { "flowSteps": ["swimming", "resting"] } }` — shown while one of them is current, hidden otherwise, at once. A pre-rendered SVG carries the same object on the element's binding.
+
+## <a id="pxs31"></a>PXS31 · 1.31 → 1.32
+
+A group can show one of its children (2026-11-24, docs/format/README.md): `"effects": { "showOneOf": { "which": 1 } }` shows the second child and hides the others, at once; `which` may be a variable (`var(mood)`) or a formula. The same release writes a variable as `var(name)` (it was `variable(name)`; an older file reads it as text).

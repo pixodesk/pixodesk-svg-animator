@@ -345,7 +345,7 @@ export enum PxDiagnosticCode {
     // ── 1700 · variables ─────────────────────────────────────────────────────────────────────
 
     /**
-     * A binding (`variable(name)`, `calc(…)`) or a `variables.set()` call names a variable the document does not
+     * A binding (`var(name)`, `calc(…)`) or a `variables.set()` call names a variable the document does not
      * declare and the player does not provide — ignored; a binding's place reads as if it were not written.
      * @data the name
      */

@@ -474,6 +474,7 @@ not supported.
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | |
 | `showIn` | ✅ | the first flow's current step; every other flow at its start (React Native plays one flow) |
+| `showOneOf` | ✅ | the other children are not drawn |
 
 ### Motion, timing, references
 

@@ -28,15 +28,15 @@ animation. Since schema 1.27.
     }
   },
   "children": [
-    { "type": "circle", "cx": 100, "cy": 100, "r": "variable(size)", "fill": "variable(bg)",
+    { "type": "circle", "cx": 100, "cy": 100, "r": "var(size)", "fill": "var(bg)",
       "animate": { "transform": { "keyframes": [
         { "time": 0, "value": { "translate": [0, 0] } }, { "time": 1000, "value": { "translate": [200, 0] } } ] } } },
-    { "type": "text", "x": 200, "y": 190, "fontSize": 24, "textContent": "variable(title)" }
+    { "type": "text", "x": 200, "y": 190, "fontSize": 24, "textContent": "var(title)" }
   ]
 }
 ```
 
-How to declare variables and write bindings — `"variable(name)"`, `"calc(variable(size) / 2)"`, where they may
+How to declare variables and write bindings — `"var(name)"`, `"calc(var(size) / 2)"`, where they may
 stand, what validation checks — is on the [JSON format page](../format/README.md#variables).
 
 ## Giving values
@@ -250,7 +250,7 @@ too:
 | `{ bg: 'brand-primary' }` | only `bg`, as `--brand-primary`; the others stay code-only |
 | `{ '*': 'card-*', bg: 'brand-primary' }` | `bg` as `--brand-primary`, the rest by the pattern — a named entry beats `*` |
 
-**Places.** A bare `variable(name)` that is the whole value — not a formula, not an item of a pair — on one of
+**Places.** A bare `var(name)` that is the whole value — not a formula, not an item of a pair — on one of
 these properties, as an attribute or in `style`: `fill`, `stroke`, `opacity`, `fillOpacity`, `strokeOpacity`,
 `strokeWidth`, `stopColor`, `stopOpacity`, `color`. Every other place of the same variable gets the value from
 code or the file. Only declared variables travel as CSS, never `player.…`.
@@ -285,10 +285,10 @@ The player provides some variables itself, all named `player.…` — the table 
 
 ```json
 // a dot that follows the pointer
-{ "type": "circle", "r": 20, "fill": "variable(bg)", "transform": { "translate": "variable(player.pointer)" } }
+{ "type": "circle", "r": 20, "fill": "var(bg)", "transform": { "translate": "var(player.pointer)" } }
 
 // a progress bar with no keyframes
-{ "type": "rect", "x": 0, "y": 196, "height": 4, "width": "calc(variable(player.timeline.iterationProgress) * 400)" }
+{ "type": "rect", "x": 0, "y": 196, "height": 4, "width": "calc(var(player.timeline.iterationProgress) * 400)" }
 ```
 
 <!-- px-check off who feeds the predefined variables, prose -->
@@ -349,7 +349,7 @@ The mistakes the player reports, once each — the full text is on the
 | The pre-rendered `bind` (an SVG + JS export) | `player.variables` reads the file's declarations and stores values, but does not draw them — the export wrote the values in |
 | React Native | a change compiles the document again; no `cssVariables`; the predefined variables are not fed yet |
 | A formula reads numbers only | `+ - * /`, brackets and a leading minus — no functions yet; a formula is never delivered as CSS |
-| Text that must literally read `variable(x)` | cannot be written — it is read as a binding |
+| Text that must literally read `var(x)` | cannot be written — it is read as a binding |
 | An animated default bound to an item of a pair or a transform part | shows its first keyframe — only a whole attribute or a whole effect setting animates |
 | A rebuild while the playback is finished | comes back paused at the last frame |
 | A value set only in the page's CSS | `get()` does not see it |
@@ -380,7 +380,7 @@ binding grammar itself — parsing, evaluating, renaming — is on the format pa
 <!-- px-check off naming rationale, prose -->
 | Name | Why |
 |---|---|
-| `"variable(name)"` in place | one rule for every place — an attribute, an item of a pair, a transform part, an effect setting — where a separate map beside the value would need a new key in every kind of object, and could not name one number of a pair. The default lives once, in the declaration |
+| `"var(name)"` in place | one rule for every place — an attribute, an item of a pair, a transform part, an effect setting — where a separate map beside the value would need a new key in every kind of object, and could not name one number of a pair. The default lives once, in the declaration |
 | `calc(…)` | CSS's own word for a computed value; a formula is parsed into a tree and evaluated, never run |
 | `player.…` | the variables this player provides; a declared name has no dot, so the two can never collide, and new ones can be added without breaking a file |
 | `defaultSource` | like `defaultValue`, it is what the file gives when your code gives nothing — a value from code makes it irrelevant, and `reset()` brings it back |

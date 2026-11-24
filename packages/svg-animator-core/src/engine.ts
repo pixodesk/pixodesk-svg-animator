@@ -57,7 +57,7 @@ export { timelineIssues, PxTimelineIssueKind, type PxTimelineIssue } from './pla
 export type { PxFlowRuntime, PxFlowStepReferenceIssue } from './playback/PxFlows';
 // several timelines (2026-11-20): the units a player binds side by side, each a one-timeline document
 export { planUnits, stepDocumentOf, unitConfigOf, attributeOwnersOf, switchStepsOf, unknownRunNames } from './playback/PxUnits';
-export { showInTargetsOf, isShownIn, currentFlowStepsOf, flowNameOfUnit, type PxShowInTarget } from './playback/PxShowIn';
+export { showInTargetsOf, isShownIn, currentFlowStepsOf, flowNameOfUnit, showOneOfTargetsOf, shownOptionOf, type PxShowInTarget, type PxShowOneOfTarget } from './playback/PxShowIn';
 export { timelineWindowsOf } from './playback/PxTimelineWindows';
 export type { PxUnit, PxUnitPlan, PxPlannedStep, PxAttributeClaim, PxRunLists } from './playback/PxUnits';
 
