@@ -344,6 +344,7 @@ player sees plain nodes. **All are supported:**
 | `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) | <!-- px names=fillGradient,strokeGradient -->
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.fonts` — no font needed |
+| `showIn` | ✅ | not drawn while none of its flow steps is current — the first flow's step; the others at their start |
 
 ### Motion, timing and references
 

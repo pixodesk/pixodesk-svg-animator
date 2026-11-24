@@ -473,6 +473,7 @@ not supported.
 | Animated `gradientTransform` | ❌ | not implemented in the shared core, so unavailable on every player; a static `gradientTransform` works | <!-- px skip -->
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | |
+| `showIn` | ✅ | the first flow's current step; every other flow at its start (React Native plays one flow) |
 
 ### Motion, timing, references
 

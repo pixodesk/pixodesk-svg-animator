@@ -1437,6 +1437,26 @@ export interface _PxAnimatorConfig {
 // ============================================================================
 
 /**
+ * `effects.showIn` (1.31) — the element is shown only while one of these flow steps is current, in any flow; hidden
+ * (`display: none`) otherwise, at once. A flow that does not run counts as at its start step. An empty list says
+ * nothing: shown always. WHY an effect: it is the player's behaviour on the element, not an SVG attribute — and it
+ * needs the flows at run time, so it is the one effect the lowering keeps on the node (and the pre-rendered SVG on the
+ * element's binding).
+ * @public
+ */
+export interface _PxShowInEffect {
+    /** The steps it is shown in — ids of `animator.flowSteps` (or a timeline's id: the step a timeline no step uses is). */
+    flowSteps: Array<string>;
+}
+/** @public @advanced */
+export const PxShowInEffectSchema = implementsInterface<_PxShowInEffect>()(px.object({
+    flowSteps: px.array(px.string()),
+}));
+/** @public */
+export type PxShowInEffect = PxInfer<typeof PxShowInEffectSchema>;
+const _ck_PxShowInEffect: KeysMatch<PxShowInEffect, _PxShowInEffect> = true;
+
+/**
  * One binding: WHICH element (`target`, `#id`-spelled like every element reference) plays
  * WHICH named animations (`animateWith` — names into `definitions.animations`, applied in
  * order, always an array).
@@ -1455,12 +1475,15 @@ export interface _PxBinding {
     element: string;
     /** Names into `definitions.animations`, applied in order. */
     animateWith: Array<string>;
+    /** The element's `effects.showIn` (1.31) — a pre-rendered SVG has no nodes, so it rides here. */
+    showIn?: _PxShowInEffect;
 }
 
 /** @public @advanced */
 export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
     element: px.string(),
     animateWith: px.array(px.string()),
+    showIn: PxShowInEffectSchema.optional(),
 }));
 
 /** @public */
@@ -2068,6 +2091,7 @@ export type PxTextEffect = PxInfer<typeof PxTextEffectSchema>;
 const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
 
 
+
 /**
  * The full `node.effects` bucket. Closed — each known effect is declared
  * (strict-mode validation flags an unknown effect key as a wire-format drift).
@@ -2106,6 +2130,7 @@ export interface _PxEffects {
     strokeGradient?: _PxStrokeGradientEffect;
     textPath?: _PxTextPathEffect;
     text?: _PxTextEffect;
+    showIn?: _PxShowInEffect;
 }
 /** @public @advanced */
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
@@ -2119,6 +2144,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     strokeGradient: PxStrokeGradientEffectSchema.optional(),
     textPath: PxTextPathEffectSchema.optional(),
     text: PxTextEffectSchema.optional(),
+    showIn: PxShowInEffectSchema.optional(),
 }));
 /** @public */
 export type PxEffects = PxInfer<typeof PxEffectsSchema>;

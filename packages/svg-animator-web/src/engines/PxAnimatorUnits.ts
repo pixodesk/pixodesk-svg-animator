@@ -16,11 +16,12 @@
 // | `getTimeline(id)` | the unit that plays that timeline (`PX_DEFAULT_TIMELINE`, "": the timeline with no id) |
 // | `flow` | `goTo` — the step's unit; `next` / `previous` — its flow's (none: `default`, else the first); `get` — each flow's current |
 // | playback events | the first unit's only; every unit tells `onFlowStepChange` |
+// | `effects.showIn` (1.31) | `PxShowInWeb`: applied at bind and on every change of step, in any unit |
 // ============================================================================
 
 import { PX_DEFAULT_ID, PxDiagnosticCode, PxDiagnosticKind, getAnimatorConfig, type PxDocument, type PxFlowControls, type PxTimelineControls } from '@pixodesk/svg-animator-core';
 import {
-    attributeOwnersOf, createFlowSwitch, duplicateFlowStepIds, flowStepReferenceIssues, forwardPlaybackControls, planUnits, stepDocumentOf, switchStepsOf, unitConfigOf, unknownRunNames,
+    attributeOwnersOf, createFlowSwitch, duplicateFlowStepIds, flowNameOfUnit, flowStepReferenceIssues, forwardPlaybackControls, planUnits, showInTargetsOf, stepDocumentOf, switchStepsOf, unitConfigOf, unknownRunNames,
     type PxAttributeClaim, type PxFlowSwitch, type PxRunLists, type PxUnitPlan,
 } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
@@ -28,6 +29,7 @@ import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxBoundPlayerApi, PxPlayerEngineApi } from '../shared/PxAnimatorWebTypes';
 import { reportTriggerProblems, wireTriggers } from '../triggers/PxAnimatorTriggers';
 import { webRaf } from '../shared/PxWebRaf';
+import { createShowInWeb, type PxShowInWeb } from './PxShowInWeb';
 
 /** Binds one document — a step's, or a whole one-timeline file — to an engine: the full player's choice of engine, or
  *  a pre-rendered build's own. `followed`: what a scroll timeline follows; `triggersByFlow`: a flow wires its triggers. */
@@ -40,11 +42,16 @@ export function bindPlanned(doc: PxDocument, binder: PxStepBinder, callbacks: Px
     const plan = planUnits(doc, run);
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
     for (const unknown of unknownRunNames(doc, run)) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.runListNameUnknown, unknown.list, unknown.name);
-    if (!plan) return binder(doc, callbacks, followed, false);
+    if (!plan) {
+        const api = binder(doc, callbacks, followed, false);
+        createShowInWeb(doc, () => api.getRootElement(), () => new Map());   // `showIn` (1.31): no flow — every list's steps are absent
+        return api;
+    }
     // the step checks, once for the whole file — a unit wires only its own steps and rules
     const config = getAnimatorConfig(doc);
     for (const id of duplicateFlowStepIds(config?.flowSteps)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepIdDuplicate, id);
-    if (config) for (const issue of flowStepReferenceIssues(config, plan.timelines.map(t => t.stepId))) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepNotFound, issue);
+    const showInSteps = showInTargetsOf(doc).flatMap(t => t.flowSteps);
+    if (config) for (const issue of flowStepReferenceIssues(config, plan.timelines.map(t => t.stepId), showInSteps)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.flowStepNotFound, issue);
     return bindUnits(doc, plan, binder, callbacks, followed);
 }
 
@@ -71,14 +78,15 @@ function bindUnit(
     binder: PxStepBinder,
     callbacks: PxPlayerCallbacks | undefined,
     followed: Element | undefined,
+    onStepChanged: () => void,
 ): PxBoundUnit {
     const unit = plan.units[unitIndex];
     const { onPlaybackFinish, onFlowStepChange, ...stepCallbacks } = callbacks ?? {};
     const flowSwitch = createFlowSwitch<PxBoundPlayerApi>({
-        flow: unit.flow ?? plan.timelines[unit.steps[0].timeline].name,
+        flow: flowNameOfUnit(plan, unit),
         steps: switchStepsOf(unit, plan, getAnimatorConfig(doc)?.actions ?? []),
         raf: webRaf,
-        onChange: (flowStep, previous, flow) => onFlowStepChange?.(flowStep, previous, flow),
+        onChange: (flowStep, previous, flow) => { onStepChanged(); onFlowStepChange?.(flowStep, previous, flow); },
         onPlaybackFinish: () => onPlaybackFinish?.(),
         bind: (stepIndex, events) => {
             const stepDoc = stepDocumentOf(doc, plan, unitIndex, stepIndex, claims);
@@ -112,8 +120,13 @@ function bindUnits(
     followed: Element | undefined,
 ): PxPlayerEngineApi {
     const claims = attributeOwnersOf(doc, plan);
-    const units = plan.units.map((_, i) => bindUnit(doc, plan, i, claims, binder, i === 0 ? callbacks : secondaryCallbacks(callbacks), followed));
+    let showIn: PxShowInWeb | undefined;
+    const units = plan.units.map((_, i) => bindUnit(doc, plan, i, claims, binder, i === 0 ? callbacks : secondaryCallbacks(callbacks), followed,
+        () => showIn?.update()));
     const first = units[0];
+    // `showIn` (1.31): shown while one of its steps is current — each running flow's, by its name
+    showIn = createShowInWeb(doc, () => first?.flowSwitch.currentPlayer().getRootElement() ?? null,
+        () => new Map(plan.units.map((unit, i) => [flowNameOfUnit(plan, unit), units[i].flowSwitch.controls.get()[0]])));
     const clocks = units.filter(u => !u.scroll);
     const each = (run: (t: PxTimelineControls) => void) => (): void => { for (const u of clocks) run(u.flowSwitch.timeline); };
 

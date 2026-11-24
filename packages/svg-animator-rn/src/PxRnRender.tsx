@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxDefinitions, type PxNode } from '@pixodesk/svg-animator-core';
-import { toDomProps } from '@pixodesk/svg-animator-core/engine';
+import { isShownIn, toDomProps } from '@pixodesk/svg-animator-core/engine';
 import { sanitizeAttributeValue, PX_DISALLOWED_SVG_TAGS_LOWER, PX_TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import { RN_SVG_COMPONENTS, type RnSvgComponent, type RnSvgProps } from './PxRnTypeMap';
@@ -15,6 +15,9 @@ import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 export interface RenderRnNodeOptions {
     /** Collects non-fatal issues (unsupported tags, dropped attrs). */
     warnings?: Array<string>;
+    /** The flow steps current now — an element whose `effects.showIn` (1.31) names none of them is not drawn. Absent:
+     *  every element is drawn. */
+    currentFlowSteps?: ReadonlySet<string>;
     /** `definitions` from the document, used to resolve named `style` presets. */
     defs?: PxDefinitions;
     /**
@@ -67,6 +70,8 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
 
     const { type, children, style, animate, meta, effects, ...props } = node;
     const tag = String(type || 'g');
+    // `showIn` (1.31): not drawn while none of its steps is current — the web's `display: none`
+    if (effects?.showIn && opts.currentFlowSteps && !isShownIn(effects.showIn.flowSteps, opts.currentFlowSteps)) return null;
 
     // ESCAPE KEY (S2): elements whose SVG `type` ATTRIBUTE collides with the reserved
     // `type` node-tag key carry it under `domType` — `feColorMatrix` (matrix/saturate/…),

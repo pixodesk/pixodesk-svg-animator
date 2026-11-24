@@ -15,7 +15,8 @@
  */
 
 import { PxVariableType } from '../format/PxAnimatorConstants';
-import type { PxDocument, PxNode, PxVariableDefinition } from '../format/PxAnimatorTypes';
+import { PxEffectsSchema, type PxDocument, type PxNode, type PxVariableDefinition } from '../format/PxAnimatorTypes';
+import { schemaKeys } from '../schema/PxSchema';
 import { isBindingText, PxVariableBinding, type PxVariableReader, type PxVariableValue } from './PxFormula';
 
 /** Node keys a binding never stands in. @internal */
@@ -53,10 +54,18 @@ export interface PxBindingSite {
     readonly error?: string;
 }
 
-/** True when a site's value can be written straight to the rendered element: on a node with no effects, outside
- *  `effects`. Everything else is rebuilt (§7). @internal */
+/** True when a site's value can be written straight to the rendered element: on a node with no effects (or only
+ *  `showIn`, 1.31 — it changes no geometry), outside `effects`. Everything else is rebuilt (§7). @internal */
 export function isDirectWriteSite(site: PxBindingSite, node: { readonly effects?: unknown }): boolean {
-    return node.effects === undefined && site.keyPath[0] !== EFFECTS_KEY;
+    return (node.effects === undefined || hasOnlyShowIn(node.effects)) && site.keyPath[0] !== EFFECTS_KEY;
+}
+
+/** An effects bucket that holds `showIn` alone. The key is read at call time: this module loads inside the format's
+ *  own import cycle, before the schema exists. */
+function hasOnlyShowIn(effects: unknown): boolean {
+    if (typeof effects !== 'object' || effects === null) return false;
+    const keys = Object.keys(effects);
+    return keys.length === 1 && keys[0] === schemaKeys(PxEffectsSchema).showIn;
 }
 
 /** A stable key for a node path — `""` for the root, `"0/2"` for the root's first child's third child. @internal */

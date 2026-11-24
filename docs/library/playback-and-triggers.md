@@ -813,6 +813,23 @@ step that ends is shown at its end without playing, one that repeats plays. The 
 handle's `PxFlowControls`, the wire types `PxFlowStep` and `PxFlow`. `player.flow.goTo(id, leaving?)` takes a way of
 leaving too — a `whenLeaving` word over the current step's.
 
+### Content shown only in some steps — `showIn`
+
+An element can be shown only while one of its steps is current — the pages of a presentation, the splash of a
+fish (1.31):
+
+```json
+"children": [
+  { "type": "g", "id": "page1", "effects": { "showIn": { "flowSteps": ["intro"] } } },
+  { "type": "g", "id": "page2", "effects": { "showIn": { "flowSteps": ["details", "summary"] } } },
+  { "type": "g", "id": "footer" }
+]
+```
+
+Any listed step of any flow counts; a flow the page does not run counts as at its start step. The element is hidden
+at once with its own `display: none` (no transition yet), so it takes no clicks either; while a step finishes its
+pass, its content stays until the flow lands. [The format](../format/README.md#showin) has the details.
+
 ### Only at some steps — `from`
 
 `from` limits a rule to some steps: it is heard only while a flow is at one of them (1.29).

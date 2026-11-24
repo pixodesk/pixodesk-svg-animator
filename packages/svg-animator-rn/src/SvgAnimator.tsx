@@ -6,7 +6,7 @@
 
 import type { PxRunListProps, PxTimelineControls } from '@pixodesk/svg-animator-core';
 import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxFlowAction, PxTimelineEngine, PxWhenFinished, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput, type PxVariablesOptions } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, forwardFlowControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride, controlModeTakesOverTrigger, PxVariablesRuntime, applyVariablesProp, attributeOwnersOf, planUnits, stepDocumentOf, switchStepsOf, unknownRunNames, flowStepMoveOf, flowStepIndexAfter, type PxRunLists, type PxUnitPlan } from '@pixodesk/svg-animator-core/engine';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, resolveActions, forwardPlaybackControls, forwardFlowControls, type PxPlayTarget, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride, controlModeTakesOverTrigger, PxVariablesRuntime, applyVariablesProp, attributeOwnersOf, planUnits, stepDocumentOf, switchStepsOf, unknownRunNames, flowStepMoveOf, flowStepIndexAfter, currentFlowStepsOf, flowNameOfUnit, type PxRunLists, type PxUnitPlan } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -291,7 +291,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
     // flows (2026-11-22): React Native plays ONE — the first that runs; the others are named once
     for (const unknown of unknownRunNames(prepared, run)) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.runListNameUnknown, unknown.list, unknown.name);
     const plan = planUnits(prepared, run);
-    if (plan && plan.units.length > 1) diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.rnPlaysOneFlow, plan.units.slice(1).map(u => u.flow ?? plan.timelines[u.steps[0].timeline].name));
+    if (plan && plan.units.length > 1) diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.rnPlaysOneFlow, plan.units.slice(1).map(u => flowNameOfUnit(plan, u)));
     return plan && plan.units.length ? { doc: prepared, tracks, error: null, plan } : { doc: prepared, tracks, error: null };
 }
 
@@ -418,6 +418,14 @@ export function SvgAnimationPlayer({
     const [step, setStep] = useState<{ of: Compiled; index: number }>({ of: whole, index: 0 });
     const stepIndex = step.of === whole ? step.index : Math.max(0, switchSteps.findIndex(s => s.initial));
     const compiled = useMemo(() => compileStep(whole, stepIndex), [whole, stepIndex]);
+    // `showIn` (1.31): the steps current now — the first flow's own, every other flow at its start
+    const currentFlowSteps = useMemo((): ReadonlySet<string> => {
+        const all = whole.doc ? planUnits(whole.doc) : undefined;
+        if (!all) return new Set();
+        const plan = whole.plan;
+        const at = plan ? plan.units[0].steps[Math.min(Math.max(stepIndex, 0), plan.units[0].steps.length - 1)]?.id : undefined;
+        return currentFlowStepsOf(all, plan && at !== undefined ? new Map([[flowNameOfUnit(plan, plan.units[0]), at]]) : new Map());
+    }, [whole, stepIndex]);
     /** A step was entered by the flow: its playback starts once its tracks are in place. */
     const startOnEnter = useRef(false);
     const goToStep = (index: number): void => {
@@ -769,6 +777,7 @@ export function SvgAnimationPlayer({
         const renderOpts: RenderRnNodeOptions = {
             warnings: warningsRef.current,
             defs: getDefinitions(compiled.doc),
+            currentFlowSteps,
         };
         try {
             // `showAsStatic`: the picture as drawn — the static tree, no animated element at all
@@ -820,7 +829,7 @@ export function SvgAnimationPlayer({
             return null;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, trackById, compMode]);
+    }, [compiled, trackById, compMode, currentFlowSteps]);
 
     useEffect(() => {
         const diag = makeDiag();

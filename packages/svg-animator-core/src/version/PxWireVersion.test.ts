@@ -12,7 +12,7 @@ import { PxSchemaChangeCode, schemaChangeRef } from './PxSchemaChangeCode';
 import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
-    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords, upActionsList, downActionsList, downFlowEnds,
+    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords, upActionsList, downActionsList, downFlowEnds, downShowIn,
 } from './PxWireVersion';
 import { isRecord } from '../schema/PxSchema';
 
@@ -537,5 +537,29 @@ describe('1.30 (2026-11-23) — next and previous stop at the ends; the `…OrWr
         expect(r.ok).toBe(false);
         if (r.ok) return;
         expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.flowEnds]);
+    });
+});
+
+describe('1.31 (2026-11-23) — an element shown only in some flow steps', () => {
+    const to130 = { a: 1, b: 30, c: 0 };
+    const withShowIn = { type: 'svg', animator: { version: '1.31.0', flowSteps: [{ id: 'a' }] },
+        children: [{ type: 'g', children: [{ type: 'rect', effects: { showIn: { flowSteps: ['a'] } } }] }] };
+    const onBinding = { type: 'svg', animator: { version: '1.31.0', bindings: [{ element: '#x', animateWith: [], showIn: { flowSteps: ['a'] } }] } };
+
+    it('down to 1.30 is REFUSED for a node\'s showIn and for a binding\'s', () => {
+        for (const doc of [withShowIn, onBinding]) {
+            expect(() => downShowIn(JSON.parse(JSON.stringify(doc)) as Record<string, unknown>)).toThrow();
+            const r = downgradeWireDocument(doc, to130);
+            expect(r.ok).toBe(false);
+            if (r.ok) return;
+            expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.showIn]);
+        }
+    });
+
+    it('down to 1.30 for a file without it changes nothing but the version', () => {
+        const r = downgradeWireDocument({ type: 'svg', animator: { version: '1.31.0', flowSteps: [{ id: 'a' }] } }, to130);
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(rawAnimator(r.doc)).toEqual({ version: '1.30.0', flowSteps: [{ id: 'a' }] });
     });
 });

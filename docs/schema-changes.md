@@ -125,3 +125,7 @@ One list says what happens on an event, a timeline's own keys say what it does b
 ## <a id="pxs29"></a>PXS29 · 1.29 → 1.30
 
 Next and previous stop at the ends of a flow (2026-11-23, docs/library/playback-and-triggers.md): `flow.next` on the last step and `flow.previous` on the first do nothing; the new `flow.nextOrWrap` and `flow.previousOrWrap` go round to the first or the last step, as `flow.next` and `flow.previous` did. A file from before keeps its meaning: its `flow.next` becomes `flow.nextOrWrap`, its `flow.previous` `flow.previousOrWrap`.
+
+## <a id="pxs30"></a>PXS30 · 1.30 → 1.31
+
+An element can be shown only in some flow steps (2026-11-23, docs/library/playback-and-triggers.md): `"effects": { "showIn": { "flowSteps": ["swimming", "resting"] } }` — shown while one of them is current, hidden otherwise, at once. A pre-rendered SVG carries the same object on the element's binding.

@@ -118,6 +118,8 @@ export {
     PxHoldOnScreenSchema,
     PxTextPathEffectSchema,
     PxTextEffectSchema,
+    PxShowInEffectSchema,
+    PxBindingSchema,
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
     validateDocument,
@@ -146,6 +148,7 @@ export {
 } from './format/PxAnimatorConstants';
 export type {
     PxEffects,
+    PxShowInEffect,
     PxVec2,
 } from './format/PxAnimatorTypes';
 

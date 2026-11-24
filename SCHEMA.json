@@ -1597,6 +1597,21 @@
             }
           },
           "additionalProperties": false
+        },
+        "showIn": {
+          "type": "object",
+          "properties": {
+            "flowSteps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "flowSteps"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -4464,6 +4479,21 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "showIn": {
+                "type": "object",
+                "properties": {
+                  "flowSteps": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "flowSteps"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [

@@ -32,7 +32,7 @@ import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './text/textGlyp
 import { applyStrokeTrimEffect } from './stroke/strokeTrimEffect';
 import { getDefinitions } from '../format/PxAnimatorConstants';
 import { resolveTimelineEngine, getAnimatorConfig } from '../format/PxAnimatorConstants';
-import type { PxNode } from '../format/PxAnimatorTypes';
+import type { PxNode, PxShowInEffect } from '../format/PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './shared/types';
 import { clone, genId, indexById, spliceDefs } from './shared/util';
 
@@ -103,7 +103,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformBy, repeater, maskedBy, clipPath, strokeTrim, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
+    const { transformBy, repeater, maskedBy, clipPath, strokeTrim, clone: cloneFx, fillGradient, strokeGradient, textPath, text, showIn } = fx ?? {};
     if (fx) delete node.effects;
 
     let n = node;
@@ -157,7 +157,16 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     // ref part (type/source) was consumed above.
     if (cloneFx?.retime) node.effects = { clone: { retime: cloneFx.retime } };
     if (originalId) ctx.idMap.set(originalId, n);                       // outer wrapper is the clone target
+    keepShowIn(n, showIn, ctx);
     return n;
+}
+
+/** `showIn` (1.31) is the one effect kept: the flows need it at run time. It goes on the OUTERMOST node of the element's
+ *  render — hiding that hides every wrapper an effect made — which gets an id if it has none, so the player finds it. */
+function keepShowIn(n: PxNode, showIn: PxShowInEffect | undefined, ctx: ApplyContext): void {
+    if (!showIn) return;
+    n.effects = { ...(n.effects ?? {}), showIn };
+    if (typeof n.id !== 'string') n.id = genId(ctx, 'show');
 }
 
 /** Pass 2 — apply retime to every `<use>` that carries it. Follows the

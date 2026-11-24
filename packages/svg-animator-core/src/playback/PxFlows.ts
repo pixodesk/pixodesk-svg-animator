@@ -108,7 +108,8 @@ export interface PxFlowStepReferenceIssue {
 
 /** Every `flow.goTo` of `actions` that names no step of the file. `extraIds`: the steps the timelines no step names are
  *  (their names). @public @advanced */
-export function flowStepReferenceIssues(cfg: Pick<PxAnimatorRuntimeConfig, 'flowSteps' | 'actions'>, extraIds: ReadonlyArray<string> = []): Array<PxFlowStepReferenceIssue> {
+export function flowStepReferenceIssues(cfg: Pick<PxAnimatorRuntimeConfig, 'flowSteps' | 'actions'>, extraIds: ReadonlyArray<string> = [],
+    showInSteps: ReadonlyArray<string> = []): Array<PxFlowStepReferenceIssue> {
     const steps = uniqueSteps((cfg.flowSteps ?? []).filter(isFlowStepEntry));
     const ids = [...steps.map(st => st.id), ...extraIds.filter(id => !steps.some(st => st.id === id))];
     const unknown = (target: string | undefined): target is string => target !== undefined && !ids.includes(target);
@@ -121,6 +122,8 @@ export function flowStepReferenceIssues(cfg: Pick<PxAnimatorRuntimeConfig, 'flow
         const from = rule.event === PxStepEvent.finished ? fromStepsOf(rule)?.[0] : undefined;
         issues.push(from !== undefined ? { target: rule.flowStep, flowStep: from, ids } : { target: rule.flowStep, ids });
     }
+    // an element's `showIn` naming no step: never current, so never shown for it (1.31)
+    for (const id of showInSteps) if (unknown(id) && !issues.some(i => i.target === id)) issues.push({ target: id, ids });
     return issues;
 }
 

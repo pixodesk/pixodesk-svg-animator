@@ -282,6 +282,13 @@ export enum PxSchemaChangeCode {
      * `flow.previousOrWrap`.
      */
     flowEnds = 29,
+
+    /**
+     * An element can be shown only in some flow steps (2026-11-23, docs/library/playback-and-triggers.md):
+     * `"effects": { "showIn": { "flowSteps": ["swimming", "resting"] } }` — shown while one of them is current, hidden
+     * otherwise, at once. A pre-rendered SVG carries the same object on the element's binding.
+     */
+    showIn = 30,
 }
 
 /** Where the words behind a code live. One string, shared by every code. */

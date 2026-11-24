@@ -445,7 +445,30 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: (doc) => { renameFlowSteppingActions(doc, FLOW_ENDS_RENAMES); },
         down: (doc) => { downFlowEnds(doc); },
     },
+    {
+        from: '1.30',
+        to: '1.31',
+        code: PxSchemaChangeCode.showIn,
+        kind: PxWireStepKind.additive,
+        down: (doc) => { downShowIn(doc); },
+    },
 ];
+
+/** 1.31 → 1.30 — the way back, refused (thrown) where 1.30 cannot say it: an element shown only in some steps (a node's
+ *  `effects.showIn`, a binding's `showIn`). @internal */
+export function downShowIn(doc: Record<string, unknown>): void {
+    const says = (o: unknown, key: string): boolean => !!o && typeof o === 'object' && !Array.isArray(o) && (o as Record<string, unknown>)[key] !== undefined;
+    const walk = (node: unknown): void => {
+        if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+        const n = node as Record<string, unknown>;
+        if (says(n['effects'], 'showIn')) throw new Error('an element is shown only in some steps');
+        if (Array.isArray(n['children'])) n['children'].forEach(walk);
+    };
+    walk(doc);
+    const animator = getAnimatorBlock(doc);
+    const bindings = animator && Array.isArray(animator['bindings']) ? animator['bindings'] : [];
+    if (bindings.some(b => says(b, 'showIn'))) throw new Error('an element is shown only in some steps');
+}
 
 /** 1.29 → 1.30 (see the step's `code`) — frozen at the words of the two versions: a stepping action of 1.29 wrapped,
  *  so it keeps doing so under its 1.30 name. */
