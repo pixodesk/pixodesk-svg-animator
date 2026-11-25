@@ -35,7 +35,8 @@ export {
     PxDefinitionsSchema,
     PxNodeBaseSchema,
     PxSvgNodeRootSchema,
-    PxActionTriggersSchema,
+    PxActionsSchema,
+    PxActionEntrySchema,
 } from '@pixodesk/svg-animator-core';
 
 // Types
@@ -49,8 +50,9 @@ export type {
     PxDefinitions,
     PxNode,
     PxSvgNode,
-    PxActionTriggers,
-    PxActionTriggersInput,
+    PxActions,
+    PxActionEntry,
+    PxActionsInput,
     PxActionEvent,
     PxTriggerEvent,
     PxTriggerEvents,

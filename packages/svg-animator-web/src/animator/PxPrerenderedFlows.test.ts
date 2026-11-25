@@ -17,7 +17,7 @@ const DOC: PxDocumentJson = {
     animator: {
         timelines: [{ engine: 'js', outTime: 1000, iterations: 'infinite' }, { id: 'p', engine: 'js', outTime: 1000, iterations: 'infinite' }],
         flowSteps: [{ id: 'beat', flow: 'pulse', timeline: 'p' }],
-        actions: [{ action: 'timeline.start', event: 'load' }],
+        actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
         definitions: { animations: {
             fade: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
             move: { x: { byTimeline: [{ timeline: 'p', keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 8 }] }] } },

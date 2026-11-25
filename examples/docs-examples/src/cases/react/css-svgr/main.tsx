@@ -3,7 +3,7 @@ import { SvgCssAnimationPlayer } from '@pixodesk/svg-animator-react';
 import AnimationSvg from '../../../fixtures/ball-css-manual.svg?react';   // vite-plugin-svgr
 
 createRoot(document.getElementById('root')!).render(
-  <SvgCssAnimationPlayer actions={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }]} className="stage">
+  <SvgCssAnimationPlayer actions={[{ name: 'timeline.start', triggers: [{ event: 'click' }] }, { name: 'timeline.pause', triggers: [{ event: 'click' }] }]} className="stage">
     <AnimationSvg />
   </SvgCssAnimationPlayer>
 );

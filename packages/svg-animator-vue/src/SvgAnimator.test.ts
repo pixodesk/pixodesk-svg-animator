@@ -585,7 +585,7 @@ function getTestJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actions: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
         },
 
         children: [
@@ -625,7 +625,7 @@ function getTestJson1000(): PxDocument {
                 outTime: 1000,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actions: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
         },
 
         children: [
@@ -691,7 +691,7 @@ function getTreeJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actions: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
         },
 
         children: [
@@ -746,7 +746,7 @@ function getRectJson(): PxDocument {
                 outTime: 128,
                 whenFinished: "hold",
                 iterationDirection: "normal",
-            }], actions: [{ action: 'timeline.start', event: 'load' }],
+            }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
         },
 
         children: [
@@ -769,7 +769,7 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timelines: [{ engine: 'js', outTime: 1000 }], actions: [{ action: 'timeline.start', event: 'load' }] },
+        animator: { timelines: [{ engine: 'js', outTime: 1000 }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }] },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -792,12 +792,13 @@ describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
 
     it('an `actions` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarning = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actions: [{ action: 'timeline.start', event: 'click' }], onWarning } });
+        const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, actions: [{ name: 'timeline.start', triggers: [{ event: 'click' }] }], onWarning } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarning.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
 
     it('takes no JSON-string form of timelineOptions any more — a string is ignored, the document stays as it is', () => {
+        // @ts-expect-error — `timelineOptions` is the patch object, not a string
         const { container } = render(SvgAnimationPlayer, { props: { document: wireJson(), showAtProgress: 0.5, timelineOptions: '{"outTime":4000}' } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);   // the document's own 1000 ms, untouched
     });
@@ -818,8 +819,7 @@ function getEffectsOnlyJson(): PxDocument {
                 outTime: 1000,
 whenOutOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }], actions: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }],
-            version: "1.9.1",
+            }], actions: [{ name: 'timeline.start', triggers: [{ event: 'hoverIn' }] }, { name: 'timeline.pause', triggers: [{ event: 'hoverOut' }] }],
         },
         children: [
             {
@@ -882,8 +882,7 @@ function getMaskedLoadJson(): PxDocument {
                 outTime: 1000,
 whenOutOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
-            }], actions: [{ action: 'timeline.start', event: 'load' }],
-            version: "1.9.1",
+            }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
         },
         children: [
             {

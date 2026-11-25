@@ -5,12 +5,14 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
+import type { PxConditionSources } from '@pixodesk/svg-animator-core/engine';
 import { forwardPlaybackControls, forwardFlowControls, PxVariablesRuntime } from '@pixodesk/svg-animator-core/engine';
 
 /** The player's callbacks as they travel through the web builders — the public set: the playback events (the
  *  executor's to tell), the teardown, the diagnostics channel. The ENGINES get a slice of it
- *  ({@link toEngineCallbacks}); their raw `onPlay` / `onPause` / `onFinish` never come from here. */
-export type PxPlayerCallbacks = PxAnimationPlayerCallbacks;
+ *  ({@link toEngineCallbacks}); their raw `onPlay` / `onPause` / `onFinish` never come from here. `conditionSources`: what
+ *  the conditions of `actions` read (1.33) — the player's variables, set by the player itself, never by a page. */
+export type PxPlayerCallbacks = PxAnimationPlayerCallbacks & { readonly conditionSources?: PxConditionSources };
 import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
 
 /**

@@ -9,7 +9,7 @@ import { normalizeBindings, PxValueKind, type PxRuntimeAnimation, clampSeekMs, i
 import { cssPlaybackDirection, PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
-import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
+import { setupEngineTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxEngineAnimationPlayerApi, PxNativeRangeOffset } from '../shared/PxAnimatorWebTypes';
 
 
@@ -438,7 +438,7 @@ export function createWebApiAnimator(
         if (config.actions) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else if (shouldWireOwnTriggers(callbacks)) {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
-        const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.playbackListeners);
+        const detachTriggers = setupEngineTriggers(api, config, diag, callbacks?.playbackListeners, callbacks?.conditionSources);
         const destroyEngine = api.destroy.bind(api);
         api.destroy = () => { detachTriggers(); destroyEngine(); };
     }

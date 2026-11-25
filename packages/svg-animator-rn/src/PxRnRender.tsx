@@ -15,10 +15,10 @@ import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 export interface RenderRnNodeOptions {
     /** Collects non-fatal issues (unsupported tags, dropped attrs). */
     warnings?: Array<string>;
-    /** The flow steps current now — an element whose `effects.showIn` (1.31) names none of them is not drawn. Absent:
+    /** The flow steps current now — an element whose `effects.show` (1.33) names none of them is not drawn. Absent:
      *  every element is drawn. */
     currentFlowSteps?: ReadonlySet<string>;
-    /** Ids hidden by a `showOneOf` group above (1.32) — the same hide as `showIn`'s: not drawn. */
+    /** Ids hidden by a `showOneChild` group above (1.33) — the same hide as `show`'s: not drawn. */
     hiddenIds?: ReadonlySet<string>;
     /** `definitions` from the document, used to resolve named `style` presets. */
     defs?: PxDefinitions;
@@ -72,12 +72,12 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
 
     const { type, children, style, animate, meta, effects, ...props } = node;
     const tag = String(type || 'g');
-    // `showIn` (1.31): not drawn while none of its steps is current — the web's `display: none`; `showOneOf` (1.32) the same
-    if (effects?.showIn && opts.currentFlowSteps && !isShownIn(effects.showIn.flowSteps, opts.currentFlowSteps)) return null;
+    // `show` (1.33): not drawn while none of its steps is current — the web's `display: none`; `showOneChild` the same
+    if (effects?.show && opts.currentFlowSteps && !isShownIn(effects.show.when.flowSteps, opts.currentFlowSteps)) return null;
     if (typeof node.id === 'string' && opts.hiddenIds?.has(node.id)) return null;
-    const oneOf = effects?.showOneOf;
+    const oneOf = effects?.showOneChild;
     if (oneOf?.options) {
-        const shown = shownOptionOf(oneOf.which, oneOf.options.length);
+        const shown = shownOptionOf(oneOf.when?.index, oneOf.options.length);
         const hidden = new Set(opts.hiddenIds ?? []);
         oneOf.options.forEach((o, i) => { if (i !== shown) hidden.add(o.element.startsWith('#') ? o.element.slice(1) : o.element); });
         opts = { ...opts, hiddenIds: hidden };

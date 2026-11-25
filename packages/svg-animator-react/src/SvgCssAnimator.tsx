@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { PxOutOfViewBehavior, PxPlaybackState, PxTriggerAction, PxTriggerEvent, PxWhenFinished } from '@pixodesk/svg-animator-core';
-import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
+import { actionRulesOf, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { FC, Fragment, ReactNode, useEffect, useRef, useState } from "react";
 import type { SvgAnimationPlayerProps } from './SvgAnimator';
@@ -86,7 +86,7 @@ type AssertNever<T extends never> = T;
  */
 const SvgCssAnimationPlayer: FC<SvgCssAnimationPlayerProps> = ({ className, style, children, actions, timelineOptions }) => {
     // one rule with the JSON player: the lists normalised, the gate defaulted
-    const resolved = resolveTriggers(actions ?? undefined);
+    const resolved = resolveTriggers(actionRulesOf(actions ?? undefined));
     const gateConfig = resolveGate({ whenOutOfView: timelineOptions?.whenOutOfView, inViewThreshold: timelineOptions?.inViewThreshold, inViewDebounce: timelineOptions?.inViewDebounce });
     const loadPresses = resolved.startPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.startPlayback
         : resolved.playPlayback.includes(PxTriggerEvent.load) ? PxTriggerAction.playPlayback : undefined;

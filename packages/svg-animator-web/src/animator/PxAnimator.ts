@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxTimelineControls, PxTriggerEvent, PxTriggerList, type PxActionTriggerRule, type PxRunListProps } from '@pixodesk/svg-animator-core';
-import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, forwardFlowControls, timelineIssues, type PxRunLists, resolveControlMode, PxVariablesRuntime, withActions, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlaybackState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxCommonControlProps, type PxVariablesApi, type PxVariablesOptions, type PxTimelineControls, PxTriggerEvent, PxTriggerList, type PxRunListProps } from '@pixodesk/svg-animator-core';
+import { withControlMode, applyPlaybackOverride, resolveTimelineEngine, forwardPlaybackControls, forwardFlowControls, timelineIssues, type PxRunLists, resolveControlMode, PxVariablesRuntime, withActions, type PxControlMode, type PxResolvedControlMode, type PxPlatformAdapter, type PxConditionSources } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, takeFollowedOut, validateDeprecatedTransformChannels, type PxFlowLever, type PxRunLever } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_DOCUMENT_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -299,11 +299,15 @@ function restorePlayback(playback: PxTimelineControls, s: PxPlaybackSnapshot): v
 
 /** The document without its `load` start and play rules — a rebuild must not start the animation again. */
 function withoutLoadTriggers(doc: PxDocument): PxDocument {
-    const rules = getAnimatorConfig(doc)?.actions;
-    if (!rules) return doc;
-    const startsOnLoad = (r: PxActionTriggerRule): boolean => r.event === PxTriggerEvent.load
-        && (r.action === PxTriggerList.startPlayback || r.action === PxTriggerList.playPlayback);
-    return withActions(doc, rules.filter(r => !startsOnLoad(r)));
+    const entries = getAnimatorConfig(doc)?.actions;
+    if (!entries) return doc;
+    const kept = entries.flatMap(entry => {
+        if ((entry.name !== PxTriggerList.startPlayback && entry.name !== PxTriggerList.playPlayback) || !entry.triggers) return [entry];
+        const triggers = entry.triggers.filter(t => t.event !== PxTriggerEvent.load);
+        if (triggers.length === entry.triggers.length) return [entry];
+        return triggers.length ? [{ ...entry, triggers }] : [];
+    });
+    return withActions(doc, kept);
 }
 
 /** The callbacks, silent while `muted()` — a rebuild's own starts, pauses and destroy are not the caller's events. */
@@ -409,6 +413,14 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     // Building the player threw: a broken document past validation, or a player bug — never a
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
     const engineCallbacks = mutedWhile(callbacks, () => muted, () => variables?.onPlaybackActivity());
+    // what the conditions of `actions` read (1.33): the runtime's values now, told after the variables draw a change
+    const conditionListeners = new Set<() => void>();
+    const conditionSourcesOf = (actOnStart: boolean): PxConditionSources => ({
+        read: name => runtime?.valueOf(name),
+        onChange: listener => { conditionListeners.add(listener); return () => { conditionListeners.delete(listener); }; },
+        actOnStart,
+    });
+    const tellConditions = (): void => { for (const listener of [...conditionListeners]) listener(); };
     const build = (document: PxDocument): void => {
         try {
             const rt = providedRuntime ?? new PxVariablesRuntime(document, options, diag);
@@ -418,10 +430,11 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
             rt.takeChanges();   // the first build reads them all
             // a component that rendered the document passes the document it rendered: resolved already
             const toBuild = providedRuntime || !rt.hasVariables() ? document : rt.resolvedDocument(true);
-            const first = createAnimatorImpl(toBuild, control.mode, adapter, engineCallbacks, container, override, providedRoot, false, followed, runLists());
+            const first = createAnimatorImpl(toBuild, control.mode, adapter, { ...engineCallbacks, conditionSources: conditionSourcesOf(true) }, container, override,
+                providedRoot, false, followed, runLists());
             built = first;
             if (rt.hasVariables()) {
-                variables = new PxWebVariables(rt, { playback: () => animator?.timeline, rebuild });
+                variables = new PxWebVariables(rt, { playback: () => animator?.timeline, rebuild, changed: tellConditions });
                 variables.bind(first.doc, first.root);
             }
             ready(first.api);
@@ -443,7 +456,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         muted = true;
         try {
             const doc = withoutLoadTriggers(rt.resolvedDocument(true));
-            const quiet: PxPlayerCallbacks = { ...engineCallbacks, onWarning: undefined, suppressWarnings: true };
+            const quiet: PxPlayerCallbacks = { ...engineCallbacks, onWarning: undefined, suppressWarnings: true, conditionSources: conditionSourcesOf(false) };
             const next = createAnimatorImpl(doc, control.mode, adapter, quiet, container, override, providedRoot, !container, followed, runLists());
             previous.destroy();
             animator = next.api;
@@ -464,7 +477,8 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         if (!current || destroyed) return;
         try {
             current.unbind();
-            const engine = createAnimatorFromConfig(current.doc, control.mode, adapter, engineCallbacks, current.root, followed, lists);
+            const engine = createAnimatorFromConfig(current.doc, control.mode, adapter, { ...engineCallbacks, conditionSources: conditionSourcesOf(false) },
+                current.root, followed, lists);
             const api = withContainerRemoval(engine, container, current.root);
             built = { api, doc: current.doc, root: current.root, unbind: engine.destroy.bind(engine) };
             animator = api;

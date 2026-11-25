@@ -55,17 +55,17 @@ export interface PxBindingSite {
 }
 
 /** True when a site's value can be written straight to the rendered element: on a node with no effects (or only
- *  `showIn`, 1.31 — it changes no geometry), outside `effects`. Everything else is rebuilt (§7). @internal */
+ *  `show`, 1.33 — it changes no geometry), outside `effects`. Everything else is rebuilt (§7). @internal */
 export function isDirectWriteSite(site: PxBindingSite, node: { readonly effects?: unknown }): boolean {
-    return (node.effects === undefined || hasOnlyShowIn(node.effects)) && site.keyPath[0] !== EFFECTS_KEY;
+    return (node.effects === undefined || hasOnlyShow(node.effects)) && site.keyPath[0] !== EFFECTS_KEY;
 }
 
-/** An effects bucket that holds `showIn` alone. The key is read at call time: this module loads inside the format's
+/** An effects bucket that holds `show` alone. The key is read at call time: this module loads inside the format's
  *  own import cycle, before the schema exists. */
-function hasOnlyShowIn(effects: unknown): boolean {
+function hasOnlyShow(effects: unknown): boolean {
     if (typeof effects !== 'object' || effects === null) return false;
     const keys = Object.keys(effects);
-    return keys.length === 1 && keys[0] === schemaKeys(PxEffectsSchema).showIn;
+    return keys.length === 1 && keys[0] === schemaKeys(PxEffectsSchema).show;
 }
 
 /** A stable key for a node path — `""` for the root, `"0/2"` for the root's first child's third child. @internal */

@@ -96,19 +96,31 @@ export function timelineIssues(doc: PxDocument): Array<PxTimelineIssue> {
         const at = idOf(step);
         if (!timelineKnown(step.timeline)) notFound('timeline', typeof step.timeline === 'string' ? step.timeline : PX_DEFAULT_TIMELINE, at);
         const t = timelines.find(x => x.name === (typeof step.timeline === 'string' ? step.timeline : PX_DEFAULT_TIMELINE));
-        if (t?.scroll && (step.inTime !== undefined || step.outTime !== undefined)) issues.push({ kind: PxTimelineIssueKind.partOfScrollTimeline, id: t.name, at });
+        const options = isRecord(step.timelineOptions) ? step.timelineOptions : {};
+        if (t?.scroll && (options.inTime !== undefined || options.outTime !== undefined)) issues.push({ kind: PxTimelineIssueKind.partOfScrollTimeline, id: t.name, at });
     }
 
-    // the rules' references
-    for (const rule of listOf(animator.actions)) {
-        const action = typeof rule.action === 'string' ? rule.action : undefined;
-        // the steps an entry is limited to (1.29)
-        const from = typeof rule.from === 'string' ? [rule.from] : Array.isArray(rule.from) ? rule.from.filter((x): x is string => typeof x === 'string') : [];
-        for (const id of from) if (!stepIds.has(id)) notFound('from', id, action);
-        if (typeof rule.timeline === 'string' && !timelineNames.has(rule.timeline)) notFound('timeline', rule.timeline, action);
-        if (typeof rule.flow === 'string' && !flowIds.has(rule.flow)) notFound('flow', rule.flow, action);
+    // where each flow starts (1.33): a step of that flow — or, for `default`, a timeline's own step
+    for (const f of flows) {
+        const id = idOf(f) ?? undefined;
+        const start = typeof f.initialFlowStep === 'string' ? f.initialFlowStep : undefined;
+        if (id === undefined || start === undefined) continue;
+        const own = steps.some(s => idOf(s) === start && (typeof s.flow === 'string' ? s.flow : PX_DEFAULT_ID) === id)
+            || (id === PX_DEFAULT_ID && timelines.some(t => t.stepId === start) && !steps.some(s => idOf(s) === start));
+        if (!own) notFound('initialFlowStep', start, id);
+    }
+
+    // the entries' references (1.33: what it acts on in `with`, the steps in `when.flowSteps`)
+    for (const entry of listOf(animator.actions)) {
+        const action = typeof entry.name === 'string' ? entry.name : undefined;
+        const args = isRecord(entry.with) ? entry.with : {};
+        const when = isRecord(entry.when) ? entry.when : {};
+        const from = Array.isArray(when.flowSteps) ? when.flowSteps.filter((x): x is string => typeof x === 'string') : [];
+        for (const id of from) if (!stepIds.has(id)) notFound('flowSteps', id, action);
+        if (typeof args.timeline === 'string' && !timelineNames.has(args.timeline)) notFound('timeline', args.timeline, action);
+        if (typeof args.flow === 'string' && !flowIds.has(args.flow)) notFound('flow', args.flow, action);
         // a go-to naming no step is PX1114
-        if (action !== PxFlowAction.goTo && typeof rule.flowStep === 'string' && !stepIds.has(rule.flowStep)) notFound('flowStep', rule.flowStep, action);
+        if (action !== PxFlowAction.goTo && typeof args.flowStep === 'string' && !stepIds.has(args.flowStep)) notFound('flowStep', args.flowStep, action);
     }
 
     // the tracks' references, and plain keyframes with no default timeline to be on
@@ -136,7 +148,8 @@ export function timelineIssues(doc: PxDocument): Array<PxTimelineIssue> {
         for (const d of plan.droppedSteps) issues.push({ kind: PxTimelineIssueKind.timelineShared, id: plan.timelines[d.timeline].name, at: d.flowStep });
         for (const claim of attributeOwnersOf(doc, plan)) {
             if (claim.units.length < 2) continue;
-            issues.push({ kind: PxTimelineIssueKind.attributeSplit, at: typeof claim.node.id === 'string' ? claim.node.id : undefined, attribute: claim.attribute });
+            const at = typeof claim.node?.id === 'string' ? claim.node.id : claim.element;
+            issues.push({ kind: PxTimelineIssueKind.attributeSplit, at, attribute: claim.attribute });
         }
     }
     return issues;

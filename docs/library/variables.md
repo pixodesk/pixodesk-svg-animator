@@ -14,7 +14,7 @@ animation. Since schema 1.27.
   "type": "svg", "viewBox": "0 0 400 200",
   "animator": {
     "timelines": [ { "outTime": 1000, "iterations": "infinite", "iterationDirection": "alternate" } ],
-    "actions": [ { "action": "timeline.start", "event": "load" } ],
+    "actions": [ { "name": "timeline.start", "triggers": [ { "event": "load" } ] } ],
     "definitions": {
       "variables": {
         "bg":    { "type": "color",  "defaultValue": "#2a7fff", "description": "Ball colour" },

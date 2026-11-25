@@ -268,8 +268,8 @@ interface SvgAnimationPlayerProps {
 
     // Control — `PxControlProps`: ONE at a time compiles (Control modes above); none of them = the
     // file's own triggers drive it
-    actions?: PxActionTriggersInput | null; // these rules INSTEAD of the file's — a list of
-                                          //   { action, event, … } (`PxActionTriggersInput`); null or []: none. `click` = a tap;
+    actions?: PxActionsInput | null;      // these entries INSTEAD of the file's — a list of { name, with,
+                                          //   triggers, when } (`PxActionsInput`); null or []: none. `click` = a tap;
                                           //   `hoverIn` / `hoverOut` never fire (no hover on a touch screen);
                                           //   visibility is measured every 200 ms
     disableActions?: boolean;             // manual: the file's triggers off — your code drives it through playerRef
@@ -316,7 +316,7 @@ The package exports the component (`SvgAnimationPlayer`, also its default export
 `PxDocument` (a JSON import — [TypeScript](./installation.md#typescript)); nothing else.
 
 With none of the control props set, the file's own triggers drive it — a file saved with
-`{ "action": "timeline.start", "event": "load" }` plays on mount. React Native plays **one flow** — the first that
+`{ "name": "timeline.start", "triggers": [{ "event": "load" }] }` plays on mount. React Native plays **one flow** — the first that
 runs (PX1605); its steps change at once (no `whenLeaving`), there is no `flowStep` prop yet, and `getTimeline()` answers
 `undefined`.
 
@@ -326,7 +326,7 @@ The same document can play differently on each screen. Two props, the same on ev
 ([Overriding from a player](./playback-and-triggers.md#overriding-from-a-player)), and the
 document you passed is never modified: `timelineOptions` carries corrections to the file's first
 timeline (`animator.timelines[0]`) — an object shaped like the file, `whenStopped` and `whenOutOfView` included;
-`actions` is the whole list of rules to use instead of the file's (`actionTriggers` until 1.29).
+`actions` is the whole list of entries to use instead of the file's (`actionTriggers` until 1.29).
 
 Merge or replace — the one rule for the two:
 
@@ -334,7 +334,7 @@ Merge or replace — the one rule for the two:
 | | |
 |---|---|
 | `timelineOptions` | **a recursive partial** — objects merge key by key, values replace, a key left out keeps the file's value |
-| `actions` | **a list** that replaces the file's as a whole — its rules belong together; a rule left out is not there |
+| `actions` | **a list** that replaces the file's as a whole — its entries belong together; an entry left out is not there |
 
 ```tsx
 // The file loops twice and plays on load; here it loops forever and finishes the beat before stopping.
@@ -345,7 +345,10 @@ Merge or replace — the one rule for the two:
 
 // These triggers instead of the file's: a tap plays, a second tap pauses
 <SvgAnimationPlayer document={animation}
-  actions={[{ action: 'timeline.play', event: 'click' }, { action: 'timeline.pause', event: 'click' }]} />
+  actions={[
+    { name: 'timeline.play', triggers: [{ event: 'click' }] },
+    { name: 'timeline.pause', triggers: [{ event: 'click' }] },
+  ]} />
 ```
 
 There is no delete in `timelineOptions`: a key you leave out keeps the file's value. To get a default back, set
@@ -473,8 +476,8 @@ not supported.
 | Animated `gradientTransform` | ❌ | not implemented in the shared core, so unavailable on every player; a static `gradientTransform` works | <!-- px skip -->
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | |
-| `showIn` | ✅ | the first flow's current step; every other flow at its start (React Native plays one flow) |
-| `showOneOf` | ✅ | the other children are not drawn |
+| `show` | ✅ | the first flow's current step; every other flow at its start (React Native plays one flow) |
+| `showOneChild` | ✅ | the other children are not drawn |
 
 ### Motion, timing, references
 
@@ -507,7 +510,7 @@ not supported.
 | The gate: `whenOutOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility measured against the window every 200 ms — React Native has no `IntersectionObserver` |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
-| Several flows at once; a step's `whenLeaving`; the `flowStep` prop, `onFlowStepChange` | ❌ | one flow — the first that runs (PX1605); its steps change at once; `getTimeline()` answers `undefined`; `onFlowStepChange` is typed but not called yet ([Flows](./playback-and-triggers.md#flows--named-steps-of-the-animation)) |
+| Several flows at once; `whenLeaving` (a timeline's, a step's, a go-to's); the `flowStep` prop, `onFlowStepChange` | ❌ | one flow — the first that runs (PX1605); its steps change at once; `getTimeline()` answers `undefined`; `onFlowStepChange` is typed but not called yet ([Flows](./playback-and-triggers.md#flows--named-steps-of-the-animation)) |
 | Following the scroll (`timeline.type: 'scroll'`) | ❌ | measure your `ScrollView` and pass the progress with `showAtProgress`, on a clock timeline — `timelineOptions={{ type: 'time' }}` for a file saved to follow the scroll ([Following the scroll](./playback-and-triggers.md#following-the-scroll)) |
 
 ## Monorepo setup

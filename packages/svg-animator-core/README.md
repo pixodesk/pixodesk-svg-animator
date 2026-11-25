@@ -109,7 +109,7 @@ field neither of them was given. `PxTimelineSchema` is a union of the two timeli
 `PxTimeTimelineSchema` is the time-driven member an absent `type` selects, exported so its own
 defaults can be read the same way.
 
-There is one schema value per block, named after it: `PxActionTriggersSchema`, `PxElementAnimationSchema`,
+There is one schema value per block, named after it: `PxActionsSchema`, `PxElementAnimationSchema`,
 `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxBezierPathSchema`,
 `PxScrollTimelineSchema`, `PxScrollMomentSchema`, `PxHoldOnScreenSchema`, `PxRetimeEffectSchema` and
 `PxGradientStopSchema` among them. Two hold a node's shared halves rather than a block of their

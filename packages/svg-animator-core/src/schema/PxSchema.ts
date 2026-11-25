@@ -617,6 +617,8 @@ class DiscriminatedUnion<T> extends Base<T> {
         private readonly _key: string,
         members: ReadonlyArray<{ schema: PxSchema<T>; shape: AnyDiscriminantShape<string> }>,
         absent?: PxSchema<T>,
+        /** An unknown discriminant cannot be repaired — a list drops the item (`px.closedDiscriminatedUnion`). */
+        private readonly _closed: boolean = false,
     ) {
         super(false);
         // the absent member first: it is also what an unknown discriminant is repaired into
@@ -670,7 +672,7 @@ class DiscriminatedUnion<T> extends Base<T> {
     override _canSanitize(raw: unknown): boolean {
         if (!isRecord(raw)) return false;
         const schema = this._findSchema(raw);
-        return schema ? schema._canSanitize(raw) : this._schemas[0]._canSanitize(raw);
+        return schema ? schema._canSanitize(raw) : !this._closed && this._schemas[0]._canSanitize(raw);
     }
 
     override describe(): PxSchemaDesc { return { kind: 'discriminatedUnion', key: this._key, members: this._schemas }; }
@@ -1357,6 +1359,14 @@ export const px = {
         A = never,
     >(key: K, schemas: T, absent?: PxSchema<A>): PxSchema<UnionMembers<T> | A> =>
         new DiscriminatedUnion<UnionMembers<T> | A>(key, schemas.map((s, i) => ({ schema: asMembersOf(schemas)[i], shape: s._shape })), absent),
+
+    /** {@link px.discriminatedUnion} whose unknown discriminant cannot be repaired — a list DROPS such an item (an entry naming
+     *  an action the player does not know), where the open one repairs it into its first member. */
+    closedDiscriminatedUnion: <
+        K extends string,
+        const T extends ReadonlyArray<PxAnySchema & { readonly _shape: AnyDiscriminantShape<K> }>,
+    >(key: K, schemas: T): PxSchema<UnionMembers<T>> =>
+        new DiscriminatedUnion<UnionMembers<T>>(key, schemas.map((s, i) => ({ schema: asMembersOf(schemas)[i], shape: s._shape })), undefined, true),
 
     /** Typed object — unknown keys are stripped. Required fields fall back to their default.
      *  Its `defaults` say what each stated field means when a document leaves it out. */

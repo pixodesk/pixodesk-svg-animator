@@ -10,13 +10,13 @@
 // So triggers + `progress={0.5}` played on two and seeked on the third, and React let a REF decide the mode — which
 // silently disabled the triggers. (`playerActionTriggers` until 1.25; an `actions` block since 1.26.)
 
-import type { PxActionTriggers } from './PxAnimatorTypes';
+import type { PxActions } from './PxAnimatorTypes';
 import { describe, expect, it } from 'vitest';
 import { PxControlMode, controlModeTakesOverTrigger, resolveControlMode, type PxControlProps } from './PxAnimatorConstants';
 
 // 1.26 (2026-11-13): `playerActionTriggers` is gone — its tier is an `actions` block (`TRIGGERS` below), and with
 // no control prop the file's own triggers drive (`actions` mode), no longer `static`.
-const TRIGGERS: PxActionTriggers = [{ action: 'timeline.start', event: 'click' }];
+const TRIGGERS: PxActions = [{ name: 'timeline.start', triggers: [{ event: 'click' }] }];
 
 describe('resolveControlMode — precedence', () => {
 
@@ -102,7 +102,7 @@ describe('PxControlProps — one driver family at a time, checked by TypeScript 
     it('each family alone compiles; two at once do not; the JavaScript reader still warns on any mix', () => {
         const ok: Array<PxControlProps> = [
             {}, { playback: 'on' }, { playback: 'paused' }, { playback: 'off' }, { showAtProgress: 0.5 }, { showAtTime: 100 },
-            { actions: TRIGGERS }, { actions: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.resume', event: 'hoverIn' }] },
+            { actions: TRIGGERS }, { actions: [{ name: 'timeline.start', triggers: [{ event: 'hoverIn' }] }, { name: 'timeline.resume', triggers: [{ event: 'hoverIn' }] }] },
         ];
         // @ts-expect-error — the lever and the triggers are two drivers
         const two: PxControlProps = { playback: 'on', actions: TRIGGERS };
@@ -139,12 +139,12 @@ describe('resolveControlMode — the file drives by default; showAsStatic, disab
     });
 
     it('an actions block — the empty one included — is the triggers tier', () => {
-        expect(resolveControlMode({ actions: [{ action: 'timeline.start', event: 'click' }] })).toEqual({ mode: PxControlMode.actions, warnings: [] });
+        expect(resolveControlMode({ actions: [{ name: 'timeline.start', triggers: [{ event: 'click' }] }] })).toEqual({ mode: PxControlMode.actions, warnings: [] });
         expect(resolveControlMode({ actions: [] }).mode).toBe(PxControlMode.actions);
     });
 
     it('disableActions beats a block; the lever beats both', () => {
-        expect(resolveControlMode({ disableActions: true, actions: [{ action: 'timeline.start', event: 'click' }] })).toEqual({
+        expect(resolveControlMode({ disableActions: true, actions: [{ name: 'timeline.start', triggers: [{ event: 'click' }] }] })).toEqual({
             mode: PxControlMode.manual,
             warnings: ['disableActions and actions were both set — disableActions wins, actions is ignored.'],
         });
@@ -167,12 +167,12 @@ describe('resolveControlMode — the file drives by default; showAsStatic, disab
 
     it('the types: each new family alone compiles; mixed with another does not', () => {
         const ok: Array<PxControlProps> = [
-            {}, { showAsStatic: true }, { disableActions: true }, { actions: null }, { actions: [{ action: 'timeline.start', event: 'click' }] },
+            {}, { showAsStatic: true }, { disableActions: true }, { actions: null }, { actions: [{ name: 'timeline.start', triggers: [{ event: 'click' }] }] },
         ];
         // @ts-expect-error — the still and the lever are two drivers
         const still: PxControlProps = { showAsStatic: true, playback: 'on' };
         // @ts-expect-error — manual and a triggers block are two drivers
-        const manual: PxControlProps = { disableActions: true, actions: [{ action: 'timeline.start', event: 'click' }] };
+        const manual: PxControlProps = { disableActions: true, actions: [{ name: 'timeline.start', triggers: [{ event: 'click' }] }] };
         expect([ok, still, manual]).toHaveLength(3);
     });
 });

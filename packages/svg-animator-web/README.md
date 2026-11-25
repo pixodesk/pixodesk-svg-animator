@@ -94,7 +94,7 @@ player.destroy();             // cleanup
 | `onFlowStepChange` | `(flowStep: string, previous: string, flow: string) => void` | a flow went to another [step](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation); `flow` is its id, `default` for the flow `default` |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says: no triggers, no scroll; every playback call is ignored with a warning (PX1506). Beats every other option |
 | `disableActions` | `boolean` | manual: the file's triggers are switched off — nothing starts by itself, the returned api drives playback |
-| `actions` | `PxActionTriggersInput \| null` | the rules to use instead of the file's — the whole list, `[{ action: 'timeline.start', event: 'load' }]` (a rule left out is not there); `null` or `[]`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
+| `actions` | `PxActionsInput \| null` | the entries to use instead of the file's — the whole list, `[{ name: 'timeline.start', triggers: [{ event: 'load' }] }]` (an entry left out is not there); `null` or `[]`: none. Left out (with the two above): the document's own triggers start, pause and stop it, the way the editor saved it |
 | `timelineOptions` | `PxTimelineOptions` | per-instance override of the document's first timeline (how a stop looks too: `{ whenStopped: 'animateToStart' }`), merged over it — same shape as the file; a key left out keeps the file's value. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `variables` | `Record<string, PxVariableValue>` | values for the document's variables, by name — they win over the file's defaults; applied before the first paint. See [Variables](../../docs/library/variables.md) |
 | `variant` | `string \| null` | a named set of defaults from the file's `definitions.variableVariants` |
@@ -120,7 +120,7 @@ It returns a `PxAnimationPlayerApi` — the player's lifecycle, `timeline` and `
 | Member                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `timeline`              | Everything a page does to the animation — a `PxTimelineControls`, below. One object per player, made of closures (`const { start } = player.timeline` works) |
-| `flow`                 | The file's [flows](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation) — a `PxFlowControls`: `goTo(id)` · `next(flow?)` · `previous(flow?)` · `get(flow?)` (one id per flow) · `getAll()` |
+| `flow`                 | The file's [flows](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation) — a `PxFlowControls`: `goTo({ flowStep, whenLeaving? })` · `next({ flow? })` · `previous({ flow? })` · `get(flow?)` (one id per flow) · `getAll()` |
 | `getTimeline(id)`       | One timeline of the file by its `id` — the same controls as `timeline`, on that timeline alone; `undefined` for an id the file does not have |
 | `variables`             | The document's variables — `get` / `set` / `setVariables` / `reset`, `setVariant` … (a `PxVariablesApi`); a change is drawn on the next frame and never touches the playback. See [Variables](../../docs/library/variables.md) |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) — calls made before are queued |

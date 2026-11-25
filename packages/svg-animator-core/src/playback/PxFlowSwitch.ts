@@ -167,7 +167,7 @@ export function createFlowSwitch<P extends PxFlowStepPlayer>(o: PxFlowSwitchOpti
         previous: () => step(PxFlowAction.previous),
         nextOrWrap: () => step(PxFlowAction.nextOrWrap),
         previousOrWrap: () => step(PxFlowAction.previousOrWrap),
-        goTo: (id: string, how?: PxWhenLeaving) => request(indexOf(id), how),
+        goTo: args => request(indexOf(args.flowStep), args.whenLeaving),
         get: () => [o.steps[index].id],
         getAll: () => o.steps.map(s => s.id),
     };

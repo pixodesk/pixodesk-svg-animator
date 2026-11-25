@@ -24,14 +24,20 @@ const animation: PxDocument = _animation;
 
 With no control prop the component plays the file the way it was saved — the triggers defined in the
 animation document (load, hover, click — behind the visibility gate). `actions` gives other
-triggers instead of the file's (the whole list of rules):
+triggers instead of the file's (the whole list of entries):
 
 ```tsx
 <SvgAnimationPlayer document={animation} />
 <SvgAnimationPlayer document={animation}
-  actions={[{ action: 'timeline.play', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }]} />
+  actions={[
+    { name: 'timeline.play', triggers: [{ event: 'hoverIn' }] },
+    { name: 'timeline.pause', triggers: [{ event: 'hoverOut' }] },
+  ]} />
 <SvgAnimationPlayer document={animation}
-  actions={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />   {/* a click starts, the next stops */}
+  actions={[
+    { name: 'timeline.start', triggers: [{ event: 'click' }] },
+    { name: 'timeline.stop', triggers: [{ event: 'click' }] },
+  ]} />   {/* a click starts, the next stops */}
 <SvgAnimationPlayer document={animation} showAsStatic />   {/* the picture as drawn — nothing plays */}
 ```
 
@@ -74,7 +80,7 @@ const playerRef = useRef<PxAnimationPlayerHandle>(null);
 ```
 
 <!-- px-check members PxTimelineControls pkg=react extra=PxAnimationPlayerHandle,PxTimelineControls,PxFlowControls,playback,variables,playOnce,jumpToStart,jumpToEnd,timeline,flow,getTimeline,next,previous,nextOrWrap,previousOrWrap,goTo,get,getAll -->
-`PxAnimationPlayerHandle` is `{ timeline, flow, getTimeline, variables }` — `variables` is the document's variables ([Variables](#variables)); `timeline` the same `PxTimelineControls` as the web player: the five buttons `timeline.start()` (always from the start, in every state), `timeline.play()` (start, or carry on — a paused playback resumes, a picture on its way back turns around, nothing while playing), `timeline.stop()` (the configured stop, `actions["timeline.stop"]` — its animate-to-end presets stop after the current pass), `timeline.pause()`, `timeline.resume()`; the state `timeline.getState()` (off · playing · paused · finished · returning · destroyed), `timeline.isActive()`, `timeline.isPlaying()`; one iteration — `timeline.getDuration()` (one pass, ms — a looping file's slider maximum), `getCurrentTime()` / `setCurrentTime(ms)` (the frame inside the current iteration), `getCurrentProgress()` / `setCurrentProgress(p)` (counted in iterations — `1.2` is 20 % into the second), `getCurrentIteration()`; the whole playback — `getTotalDuration()` (null when infinite), `getTotalTime()` / `setTotalTime(ms)`, `getTotalProgress()`; the speed — `timeline.getSpeed()` / `timeline.setSpeed(speed)` (1 normal, 2 double, negative = reverse) and the same values at it, `getDurationAtSpeed()` / `setDurationAtSpeed(ms)`, `getTotalDurationAtSpeed()`, `getCurrentTimeAtSpeed()`, `getTotalTimeAtSpeed()`. `flow` is the file's flows, a `PxFlowControls` — `goTo(id)`, `next()`, `previous()` (nothing past an end), `nextOrWrap()`, `previousOrWrap()` (round), `get()` (one id per flow), `getAll()` ([States](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation)); `getTimeline(id)` the same controls as `timeline` for one timeline of the file. Plain names are content ms inside the iteration, `total…` the playback (including repeats, GSAP's words), `…AtSpeed` the same at the current speed ([Two clocks](../../docs/library/playback-and-triggers.md#two-clocks)). A seek while playing keeps playing; in any other state the playback becomes paused at that frame ([Moving the playhead](../../docs/library/playback-and-triggers.md#moving-the-playhead)). One spelling per act (until 1.25 the methods sat flat on the handle, and `playOnce()`, `jumpToStart()` and `jumpToEnd()` existed — a one-iteration timeline and `start()`, `stop()` and `setCurrentProgress()` say the same).
+`PxAnimationPlayerHandle` is `{ timeline, flow, getTimeline, variables }` — `variables` is the document's variables ([Variables](#variables)); `timeline` the same `PxTimelineControls` as the web player: the five buttons `timeline.start()` (always from the start, in every state), `timeline.play()` (start, or carry on — a paused playback resumes, a picture on its way back turns around, nothing while playing), `timeline.stop()` (the configured stop, `actions["timeline.stop"]` — its animate-to-end presets stop after the current pass), `timeline.pause()`, `timeline.resume()`; the state `timeline.getState()` (off · playing · paused · finished · returning · destroyed), `timeline.isActive()`, `timeline.isPlaying()`; one iteration — `timeline.getDuration()` (one pass, ms — a looping file's slider maximum), `getCurrentTime()` / `setCurrentTime(ms)` (the frame inside the current iteration), `getCurrentProgress()` / `setCurrentProgress(p)` (counted in iterations — `1.2` is 20 % into the second), `getCurrentIteration()`; the whole playback — `getTotalDuration()` (null when infinite), `getTotalTime()` / `setTotalTime(ms)`, `getTotalProgress()`; the speed — `timeline.getSpeed()` / `timeline.setSpeed(speed)` (1 normal, 2 double, negative = reverse) and the same values at it, `getDurationAtSpeed()` / `setDurationAtSpeed(ms)`, `getTotalDurationAtSpeed()`, `getCurrentTimeAtSpeed()`, `getTotalTimeAtSpeed()`. `flow` is the file's flows, a `PxFlowControls` — `goTo({ flowStep })`, `next()`, `previous()` (nothing past an end), `nextOrWrap()`, `previousOrWrap()` (round), `get()` (one id per flow), `getAll()` ([States](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation)); `getTimeline(id)` the same controls as `timeline` for one timeline of the file. Plain names are content ms inside the iteration, `total…` the playback (including repeats, GSAP's words), `…AtSpeed` the same at the current speed ([Two clocks](../../docs/library/playback-and-triggers.md#two-clocks)). A seek while playing keeps playing; in any other state the playback becomes paused at that frame ([Moving the playhead](../../docs/library/playback-and-triggers.md#moving-the-playhead)). One spelling per act (until 1.25 the methods sat flat on the handle, and `playOnce()`, `jumpToStart()` and `jumpToEnd()` existed — a one-iteration timeline and `start()`, `stop()` and `setCurrentProgress()` say the same).
 
 ### Controlled time
 
@@ -112,7 +118,7 @@ playerRef.current?.variables.set('size', 60);   // or from code, through the han
 | Prop | Type | Description |
 |---|---|---|
 | `document` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is (inline only, no URL form yet) |
-| `actions` | `PxActionTriggersInput \| null` | these rules instead of the document's own — a list of `{ action, event, … }`, `[{ action: 'timeline.start', event: 'load' }]`; a rule whose action may not name its event is dropped; `timeline.resume` is derived when no rule names it; `null` or `[]`: none. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `actions` | `PxActionsInput \| null` | these entries instead of the document's own — a list of `{ name, with, triggers, when }`, `[{ name: 'timeline.start', triggers: [{ event: 'load' }] }]`; a trigger whose event its action may not name is dropped; `timeline.resume` is derived when no entry names it; `null` or `[]`: none. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
 | `disableActions` | `boolean` | manual: the document's triggers are switched off — your code drives it through `playerRef` |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says; playback calls on `playerRef` are ignored with a warning (PX1506). Beats every other control prop |
 | `playback` | `'off' \| 'on' \| 'paused'` | A lever (`PxPlayback`): its position is held, and a change presses one button — `off` → `on` `timeline.start()`, `on` → `paused` `timeline.pause()`, `paused` → `on` `timeline.resume()`, → `off` `timeline.stop()`. How a stop looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#how-a-stop-looks--whenstopped); `'on'` always plays from the start. A mount with `'off'` presses nothing; with `'paused'` starts the playback frozen |
@@ -133,7 +139,7 @@ playerRef.current?.variables.set('size', 60);   // or from code, through the han
 | `onPlaybackFinish` | `() => void` | The last pass ended by playing — the state is `finished`, whatever `whenFinished` then shows. Never for a stop that goes to the end (that is `onPlaybackStop`), never for a loop without end |
 | `onDestroy` | `() => void` | Called when the animation is destroyed (e.g. unmount) |
 | `onPlaybackStop` | `() => void` | The playback was stopped — a `timeline.stop` trigger, `playback` `'off'`, `timeline.stop()` or the visibility gate's `stop`; at once, or on arrival for the stops that finish the pass first. A pause, the end and a destroy each fire their own; a seek reports nothing |
-| `onFlowStepChange` | `(flowStep: string, previous: string, flow: string) => void` | A flow went to another step — a rule, a step's `whenFinished`, `flow.goTo()` or the `flowStep` prop; `flow` is its id, `default` for the flow `default` |
+| `onFlowStepChange` | `(flowStep: string, previous: string, flow: string) => void` | A flow went to another step — an entry of `actions` (a step's end too), `flow.goTo()` or the `flowStep` prop; `flow` is its id, `default` for the flow `default` |
 | `onWarning` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
 | `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
 | `suppressWarnings` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarning`, if you gave it, still fires: this is about the console, not about you |

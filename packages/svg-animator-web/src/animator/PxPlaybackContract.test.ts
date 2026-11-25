@@ -212,7 +212,7 @@ describe('the playback contract — a scroll timeline', () => {
         // a JavaScript caller: a clock key beside the scroll type (TypeScript would not let a literal say it)
         const timelineOptions = { type: 'scroll' as const, follows: section, playbackSpeed: 3 };
         const api = createSvgAnimationPlayer({
-            document: doc({ playbackSpeed: 2, actions: [{ action: 'timeline.start', event: 'load' }] }), container: '#box',
+            document: doc({ playbackSpeed: 2, actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }] }), container: '#box',
             onWarning: d => said.push(d),
             timelineOptions,
         });

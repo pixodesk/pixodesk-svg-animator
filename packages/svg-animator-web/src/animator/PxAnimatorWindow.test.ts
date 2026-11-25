@@ -7,10 +7,10 @@
 // timers, like index.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../index';
-import type { PxActionTriggers, PxDocument } from '@pixodesk/svg-animator-core';
+import type { PxActions, PxDocument } from '@pixodesk/svg-animator-core';
 
 /** Opacity 0 → 1 over content 500…1500 ms; keyframes also exist OUTSIDE the window below. */
-function windowDoc(extra: Record<string, unknown> = {}, actions?: PxActionTriggers): PxDocument {
+function windowDoc(extra: Record<string, unknown> = {}, actions?: PxActions): PxDocument {
     return {
         type: 'svg', viewBox: '0 0 10 10',
         animator: { timelines: [{ engine: 'js', inTime: 500, outTime: 1500, ...extra }], ...(actions ? { actions } : {}) },
@@ -48,7 +48,7 @@ describe('the content window (§4)', () => {
 
     it('playbackSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
         // window 1000 ms at speed 0.5: after 500 real ms, content time 250
-        const api = createSvgAnimationPlayer({ document: windowDoc({ playbackSpeed: 0.5 }, [{ action: 'timeline.start', event: 'load' }]), container: '#box' });
+        const api = createSvgAnimationPlayer({ document: windowDoc({ playbackSpeed: 0.5 }, [{ name: 'timeline.start', triggers: [{ event: 'load' }] }]), container: '#box' });
         vi.advanceTimersByTime(500);
         expect(api.timeline.getSpeed()).toBe(0.5);
         expect(api.timeline.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real

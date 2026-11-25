@@ -11,8 +11,8 @@
 import { describe, expect, it } from 'vitest';
 import { convertWireDocument } from './PxWireVersion';
 import { isRecord } from '../schema/PxSchema';
-import { validateDocument, type PxDocument } from '../format/PxAnimatorTypes';
-import { getAnimatorConfig } from '../format/PxAnimatorConstants';
+import { PxActionsSchema, validateDocument, type PxDocument } from '../format/PxAnimatorTypes';
+import { actionRulesOf, getAnimatorConfig } from '../format/PxAnimatorConstants';
 import { scrollMomentU } from '../playback/PxScrollMath';
 import { untyped } from '../effects/effectTestKit';
 
@@ -23,12 +23,14 @@ function doc127(timeline: Record<string, unknown>): Record<string, unknown> {
 
 
 /** A converted document's rules read back as the map by action the older steps spoke of (2026-11-20: the current
- *  spelling is a list of rules) — so these cases keep testing the older steps' words. A list is turned into
- *  `{ action: event | [events] }`; anything else is returned as it is. */
+ *  spelling is a list of rules; 1.33: entries, laid flat by `actionRulesOf`) — so these cases keep testing the older
+ *  steps' words. A list is turned into `{ action: event | [events] }`; anything else is returned as it is. */
 function asTriggerMap(triggers: unknown): unknown {
     if (!Array.isArray(triggers)) return triggers;
+    // 1.33: `{ name, with, triggers, when }` entries — one flat rule per trigger
+    const rules: Array<unknown> = triggers.some(t => isRecord(t) && typeof t.name === 'string') ? actionRulesOf(PxActionsSchema.cast(triggers)) : triggers;
     const map: Record<string, unknown> = {};
-    for (const rule of triggers) {
+    for (const rule of rules) {
         if (!isRecord(rule) || typeof rule.action !== 'string') continue;
         const { action, ...rest } = rule;
         const entry = Object.keys(rest).length === 1 && typeof rest.event === 'string' ? rest.event : rest;

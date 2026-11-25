@@ -7,6 +7,7 @@ import { PxDocStage, documentStage } from '../format/PxDocStage';
 import { PX_WIRE_SCHEMA_VERSION } from '../version/PxSchemaVersion';
 import { getAnimatorConfig, materializeAllInTree, PxTimelineEngine, validateDocument, convertWireDocument, type PxDocument } from '../index';
 import { PxAnimationDefinitionSchema, PxKeyframeSchema } from '../format/PxAnimatorTypes';
+import { actionRulesOf } from '../format/PxAnimatorConstants';
 
 /** A small but real document: an animated rect plus a gradient effect to materialize. */
 function makeDoc(): PxDocument {
@@ -134,13 +135,13 @@ describe('prepareDocument — the checked stage', () => {
 
     it('repairs what does not match the schema, reports it, and plays the rest', () => {
         const doc = makeDoc();
-        (doc.animator as Record<string, unknown>).actions = [{ action: 'timeline.start', event: 'onLoad' }];
+        (doc.animator as Record<string, unknown>).actions = [{ name: 'timeline.start', triggers: [{ event: 'onLoad' }] }];
         const seen: Array<string> = [];
         const out = prep(doc, { stage: PxDocStage.checked, onProblems: ps => ps.forEach(p => seen.push(p.message)) });
         expect(seen.length).toBe(1);
         expect(seen[0]).toContain('actions');
-        expect((out.animator as { actions: Array<unknown> }).actions).toEqual([]);   // the bad rule is gone
-        expect((doc.animator as { actions: Array<{ event: string }> }).actions[0].event).toBe('onLoad');   // input untouched
+        expect(actionRulesOf(out.animator?.actions)).toEqual([]);   // the bad rule is gone
+        expect(doc.animator?.actions?.[0]?.triggers?.[0]?.event).toBe('onLoad');   // input untouched
     });
 
     it('a valid document reports nothing and comes out type-stamped', () => {

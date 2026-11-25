@@ -31,22 +31,22 @@ function bell(): PxDocument {
                 { id: 'reveal', type: 'scroll', outTime: 1000 },
             ],
             flowSteps: [
-                { id: 'idle', flow: 'pointer', timeline: 'grow', inTime: 0, outTime: 0 },
+                { id: 'idle', flow: 'pointer', timeline: 'grow', timelineOptions: { inTime: 0, outTime: 0 } },
                 { id: 'hover', flow: 'pointer', timeline: 'grow' },
                 { id: 'press', flow: 'pointer', timeline: 'dip' },
-                { id: 'calm', flow: 'notice', timeline: 'ring', inTime: 0, outTime: 0 },
-                { id: 'ringing', flow: 'notice', timeline: 'ring', inTime: 0, outTime: 600 },
+                { id: 'calm', flow: 'notice', timeline: 'ring', timelineOptions: { inTime: 0, outTime: 0 } },
+                { id: 'ringing', flow: 'notice', timeline: 'ring', timelineOptions: { inTime: 0, outTime: 600 } },
                 { id: 'shown', flow: 'scrollIn', timeline: 'reveal' },
             ],
             flows: [{ id: 'pointer' }, { id: 'notice' }, { id: 'scrollIn' }],
             actions: [
-                { action: 'timeline.start', event: 'load' },
-                { action: 'flow.goTo', flowStep: 'hover', event: 'hoverIn' },
-                { action: 'flow.goTo', flowStep: 'ringing', event: 'click' },
-                { action: 'flow.next', flow: 'notice', event: 'keyDown' },
-                { action: 'timeline.pause', timeline: 'ring', event: 'hoverOut' },
+                { name: 'timeline.start', triggers: [{ event: 'load' }] },
+                { name: 'flow.goTo', with: { flowStep: 'hover' }, triggers: [{ event: 'hoverIn' }] },
+                { name: 'flow.goTo', with: { flowStep: 'ringing' }, triggers: [{ event: 'click' }] },
+                { name: 'flow.next', with: { flow: 'notice' }, triggers: [{ event: 'keyDown' }] },
+                { name: 'timeline.pause', with: { timeline: 'ring' }, triggers: [{ event: 'hoverOut' }] },
                 // 1.29: "at its end, go to hover" is an entry of the list
-                { action: 'flow.goTo', flowStep: 'hover', event: 'finished', from: 'press' },
+                { name: 'flow.goTo', with: { flowStep: 'hover' }, triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['press'] } },
             ],
         },
         children: [
@@ -133,7 +133,7 @@ describe('the plan', () => {
         // c — the default timeline cut into intro · loop; `outro`, a second timeline no step names, comes after them
         const c = planOf(plain({ type: 'svg', animator: {
             timelines: [{ outTime: 2000 }, { id: 'outro', outTime: 500 }],
-            flowSteps: [{ id: 'intro', inTime: 0, outTime: 1000 }, { id: 'loop', inTime: 1000, outTime: 2000 }],
+            flowSteps: [{ id: 'intro', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'loop', timelineOptions: { inTime: 1000, outTime: 2000 } }],
         }, children: [] }));
         expect(c.units[0].steps.map(s => s.id)).toEqual(['intro', 'loop', 'outro']);
         // d — the default timeline, no step names it (an idle loop), before hover · press on their own timelines
@@ -177,7 +177,7 @@ describe('a step\'s document', () => {
         expect(shine.animator?.actions).toBeUndefined();
         expect(Object.keys(nodeById(shine, 'shine')?.animate ?? {})).toEqual(['x']);
         expect(nodeById(shine, 'bg')?.animate).toBeUndefined();
-        expect(unitConfigOf(doc, plan.units[0], plan).animator?.actions).toEqual([{ action: 'timeline.start', event: 'load' }]);
+        expect(unitConfigOf(doc, plan.units[0], plan).animator?.actions).toEqual([{ name: 'timeline.start', triggers: [{ event: 'load' }] }]);
     });
 
     it('a step on another timeline: its part and settings, its own track only — an attribute with no track there has no entry', () => {
@@ -193,8 +193,8 @@ describe('a step\'s document', () => {
         expect(stepDocumentOf(doc, plan, 1, 0, claims).animator?.timelines?.[0]).toMatchObject({ inTime: 0, outTime: 1, iterations: 1 });
         // 1.29: the press's "at its end, go to hover" is the flow's entry too
         expect(unitConfigOf(doc, plan.units[1], plan).animator?.actions).toEqual([
-            { action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'hover', event: 'hoverIn' },
-            { action: 'flow.goTo', flowStep: 'hover', event: 'finished', from: 'press' },
+            { name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.goTo', with: { flowStep: 'hover' }, triggers: [{ event: 'hoverIn' }] },
+            { name: 'flow.goTo', with: { flowStep: 'hover' }, triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['press'] } },
         ]);
     });
 
@@ -247,10 +247,10 @@ describe('a step\'s document', () => {
         const doc = plain(bell());
         const plan = planOf(doc);
         expect(unitConfigOf(doc, plan.units[2], plan).animator?.actions).toEqual([
-            { action: 'timeline.start', event: 'load' },
-            { action: 'flow.goTo', flowStep: 'ringing', event: 'click' },
-            { action: 'flow.next', flow: 'notice', event: 'keyDown' },
-            { action: 'timeline.pause', event: 'hoverOut' },
+            { name: 'timeline.start', triggers: [{ event: 'load' }] },
+            { name: 'flow.goTo', with: { flowStep: 'ringing' }, triggers: [{ event: 'click' }] },
+            { name: 'flow.next', with: { flow: 'notice' }, triggers: [{ event: 'keyDown' }] },
+            { name: 'timeline.pause', triggers: [{ event: 'hoverOut' }] },
         ]);
         expect(unitConfigOf(doc, plan.units[3], plan).animator?.actions).toBeUndefined();   // scroll: no list
         expect(stepDocumentOf(doc, plan, 3, 0, attributeOwnersOf(doc, plan)).animator?.timelines?.[0]).toMatchObject({ type: 'scroll', outTime: 1000 });
@@ -277,5 +277,27 @@ describe('a step\'s document', () => {
         const first = stepDocumentOf(doc, flipped, 0, 0, attributeOwnersOf(doc, flipped));
         // f2 owns both now: its own tracks play (the opacity, the rotation); `scale` has no track on its timeline
         expect(Object.keys(nodeById(first, 'r')?.animate ?? {}).sort()).toEqual(['opacity', 'rotate']);
+    });
+
+    // 2026-11-24 (F2): a pre-rendered file has no tree — the shared animations a binding plays are claimed by the element
+    it('the clash rule on a pre-rendered file: by the binding\'s element — the second flow does not move what the first does', () => {
+        const doc: PxDocument = { type: 'svg', animator: {
+            timelines: [{ id: 'a', outTime: 100 }, { id: 'b', outTime: 100 }],
+            flowSteps: [{ id: 'one', flow: 'f1', timeline: 'a' }, { id: 'two', flow: 'f2', timeline: 'b' }],
+            flows: [{ id: 'f1' }, { id: 'f2' }],
+            definitions: { animations: { fade: {
+                opacity: { byTimeline: [{ timeline: 'a', keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] }, { timeline: 'b', keyframes: [{ time: 0, value: 1 }, { time: 100, value: 0 }] }] },
+            } } },
+            bindings: [{ element: '#r', animateWith: ['fade'] }],
+        } };
+        const plan = planOf(doc);
+        const claims = attributeOwnersOf(doc, plan);
+        expect(claims.map(c => [c.element, c.attribute, c.units])).toEqual([['r', 'opacity', [0, 1]]]);
+        const opacityOf = (d: PxDocument): unknown => {
+            const animations = d.animator?.definitions?.animations;
+            return animations && 'fade' in animations ? animations.fade?.opacity : undefined;
+        };
+        expect(opacityOf(stepDocumentOf(doc, plan, 0, 0, claims))).toBeDefined();
+        expect(opacityOf(stepDocumentOf(doc, plan, 1, 0, claims))).toBeUndefined();   // f1 moves it: f2 does not
     });
 });

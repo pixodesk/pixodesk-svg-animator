@@ -7,7 +7,7 @@
   </head>
   <body>
     <h1>Triggers — play on click</h1>
-    <p class="summary">The document's triggers are <code>[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }]</code>. The player wires the event on the rendered SVG — nothing to write. Click to start, click again to pause: the player's state picks the rule an event is read from.</p>
+    <p class="summary">The document's triggers are <code>[{ name: 'timeline.start', triggers: [{ event: 'click' }] }, { name: 'timeline.pause', triggers: [{ event: 'click' }] }]</code>. The player wires the event on the rendered SVG — nothing to write. Click to start, click again to pause: the player's state picks the rule an event is read from.</p>
     <div id="box" class="stage"></div>
     <script type="module" src="./main.ts"></script>
   </body>

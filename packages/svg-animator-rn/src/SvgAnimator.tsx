@@ -414,7 +414,7 @@ export function SvgAnimationPlayer({
     }, [runtime, overrideKey, compMode, variablesVersion]);
 
     // Flows (2026-11-22): the first flow's current step — its own document and tracks; a new document starts at its first step
-    const switchSteps = useMemo(() => (whole.plan ? switchStepsOf(whole.plan.units[0], whole.plan, (whole.doc ? getAnimatorConfig(whole.doc)?.actions : undefined) ?? []) : []), [whole]);
+    const switchSteps = useMemo(() => (whole.plan ? switchStepsOf(whole.plan.units[0], whole.plan, (whole.doc ? getAnimatorConfig(whole.doc)?.actionRules : undefined) ?? []) : []), [whole]);
     const [step, setStep] = useState<{ of: Compiled; index: number }>({ of: whole, index: 0 });
     const stepIndex = step.of === whole ? step.index : Math.max(0, switchSteps.findIndex(s => s.initial));
     const compiled = useMemo(() => compileStep(whole, stepIndex), [whole, stepIndex]);
@@ -609,7 +609,7 @@ export function SvgAnimationPlayer({
             previous: () => step(PxFlowAction.previous),
             nextOrWrap: () => step(PxFlowAction.nextOrWrap),
             previousOrWrap: () => step(PxFlowAction.previousOrWrap),
-            goTo: (id: string) => goToStep(switchSteps.findIndex(s => s.id === id)),
+            goTo: args => goToStep(switchSteps.findIndex(s => s.id === args.flowStep)),
             get: () => [switchSteps[stepIndex].id],
             getAll: () => switchSteps.map(s => s.id),
         };
@@ -663,7 +663,7 @@ export function SvgAnimationPlayer({
     // already reflect the `timelineOptions` override and an `actions` list given, all applied before
     // compilation. Resolved through core's one table, so a document means the same here as on the
     // web: no `whenOutOfView` = 'pause'.
-    const trigger = resolveTriggers(view?.actions);
+    const trigger = resolveTriggers(view?.actionRules);
     const gate = resolveGate(view);
     const whenFinished = resolveActions(view).whenFinished;
     /** What a `load` presses — a start, a play, or nothing. */

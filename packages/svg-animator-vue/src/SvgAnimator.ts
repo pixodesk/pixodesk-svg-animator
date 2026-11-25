@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionTriggersInput, PxPlaybackOverride, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelineOptions, PxActionsInput, PxPlaybackOverride, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxWhenFinished, PxPlaybackState, PxWhenIdle, type PxAnimationPlayerHandle, type PxPlayback, type PxVariablesApi, type PxVariableValue } from '@pixodesk/svg-animator-core';
@@ -123,7 +123,7 @@ export const svgAnimationPlayerProps = {
     // -- Control — one at a time; none: the file's own triggers drive it
     showAsStatic: { type: Boolean, default: undefined },   // the picture as drawn; playback calls ignored
     disableActions: { type: Boolean, default: undefined },   // manual: no entries, code presses the buttons
-    actions: { type: Array as PropType<PxActionTriggersInput | null>, default: undefined },   // the whole list instead of the file's; null = none
+    actions: { type: Array as PropType<PxActionsInput | null>, default: undefined },   // the whole list instead of the file's; null = none
     playback: { type: String as PropType<PxPlayback>, default: undefined },   // the lever: the playback's position, off · on · paused
 
     // -- Variables (docs/library/variables.md): values from the host, a variant, CSS delivery. Same names as React / RN.

@@ -16,8 +16,9 @@ import SvgAnimationPlayer from './SvgAnimator';
 const DOC: PxDocument = {
     type: 'svg', viewBox: '0 0 10 10',
     animator: {
-        timelines: [{ engine: 'js', outTime: 3000 }], flowSteps: [{ id: 'intro', inTime: 0, outTime: 1000, whenFinished: { action: 'flow.next' } }, { id: 'loop', inTime: 1000, outTime: 2000, iterations: 'infinite' }, { id: 'success', inTime: 2000, outTime: 3000 }],
-        actions: [{ action: 'timeline.start', event: 'load' }, { action: 'flow.next', event: 'click' }],
+        timelines: [{ engine: 'js', outTime: 3000 }], flowSteps: [{ id: 'intro', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'loop', timelineOptions: { inTime: 1000, outTime: 2000, iterations: 'infinite' } }, { id: 'success', timelineOptions: { inTime: 2000, outTime: 3000 } }],
+        // intro goes next at its end (a step's `whenFinished` object until 1.29)
+        actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.next', triggers: [{ event: 'click' }] }, { name: 'flow.next', triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['intro'] } }],
     },
     children: [
         { type: 'rect', id: 'r', width: 10, height: 10,

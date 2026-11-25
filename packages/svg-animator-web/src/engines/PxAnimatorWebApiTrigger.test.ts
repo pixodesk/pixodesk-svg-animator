@@ -8,7 +8,7 @@
 // Web Animations API, so the two classes the engine constructs are stubbed with the bare minimum.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../animator/PxAnimator';
-import type { PxDocument, PxActionTriggers } from '@pixodesk/svg-animator-core';
+import type { PxDocument, PxActions } from '@pixodesk/svg-animator-core';
 
 class StubKeyframeEffect {
     constructor(readonly target: Element, readonly keyframes: unknown, private readonly timing: EffectTiming) {}
@@ -29,7 +29,7 @@ class StubAnimation {
     finish(): void { this.playState = 'finished'; }
 }
 
-function doc(actions?: PxActionTriggers): PxDocument {
+function doc(actions?: PxActions): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -57,7 +57,7 @@ describe('WAAPI engine — trigger wiring', () => {
     it('a document with no trigger block waits for play() — absent ≡ {} ≡ manual (1.17); `startPlayback: load` plays', () => {
         const manual = createSvgAnimationPlayer({ document: doc(), container: '#stage' });
         expect(manual.timeline.isPlaying()).toBe(false);
-        const api = createSvgAnimationPlayer({ document: doc([{ action: 'timeline.start', event: 'load' }]), container: '#stage' });
+        const api = createSvgAnimationPlayer({ document: doc([{ name: 'timeline.start', triggers: [{ event: 'load' }] }]), container: '#stage' });
         expect(api.timeline.isPlaying()).toBe(true);
     });
 

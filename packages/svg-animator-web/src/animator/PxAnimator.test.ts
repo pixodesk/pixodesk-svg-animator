@@ -122,7 +122,7 @@ describe('createSvgAnimationPlayer', () => {
     it('a load trigger on an ungated document reports onPlaybackStart — the listeners are attached before the engine presses the first button', () => {
         const onPlaybackStart = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timelines: [{ engine: 'js', outTime: DUR, whenOutOfView: 'continue' }], actions: [{ action: 'timeline.start', event: 'load' }] };
+        doc.animator = { timelines: [{ engine: 'js', outTime: DUR, whenOutOfView: 'continue' }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }] };
         const api = createSvgAnimationPlayer({ document: doc, container: '#svg-container', onPlaybackStart });
         window.dispatchEvent(new Event('load'));     // a no-op when the document was already complete at creation
 
@@ -438,7 +438,7 @@ describe('createSvgAnimationPlayersFromPage', () => {
 
         // One trigger block for every player — start on click, not on load — plus an inline callback: both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ actions: [{ action: 'timeline.start', event: 'click' }], onPlaybackStart: onPlay });
+        createSvgAnimationPlayersFromPage({ actions: [{ name: 'timeline.start', triggers: [{ event: 'click' }] }], onPlaybackStart: onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-document]'))

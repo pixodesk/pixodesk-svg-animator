@@ -7,7 +7,7 @@
 import { getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxDocument, type PxEngineCallbacks, type PxDiagnostics } from '@pixodesk/svg-animator-core';
 import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter, shouldWireOwnTriggers } from '@pixodesk/svg-animator-core/engine';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
-import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
+import { setupEngineTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 
 // Re-export the platform-neutral pieces from their historical home so the
@@ -99,7 +99,7 @@ export function createFrameLoopAnimator(
         if (config.actions) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else if (shouldWireOwnTriggers(callbacks)) {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
-        const detachTriggers = setupAnimationTriggers(api, config, diag, callbacks?.playbackListeners);
+        const detachTriggers = setupEngineTriggers(api, config, diag, callbacks?.playbackListeners, callbacks?.conditionSources);
         const destroyEngine = api.destroy.bind(api);
         api.destroy = () => { detachTriggers(); destroyEngine(); };
     }

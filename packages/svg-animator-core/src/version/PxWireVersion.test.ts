@@ -13,8 +13,10 @@ import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
     PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords, upActionsList, downActionsList, downFlowEnds, downShowIn,
+    upActionsAndFlowsShape,
 } from './PxWireVersion';
 import { isRecord } from '../schema/PxSchema';
+import { validateDocument } from '../format/PxAnimatorTypes';
 
 const doc = (version?: string) => ({
     type: 'svg',
@@ -374,16 +376,16 @@ describe('1.28 amended a third time (2026-11-22) — the flow words', () => {
         const r = convertWireDocument(old());
         const animator = isRecord(r.doc) && isRecord(r.doc.animator) ? r.doc.animator : {};
         expect(animator.states).toBeUndefined();
-        // 1.29: the list is `actions`, and "at its end, the next" is an entry of it (`finished`, `from`); 1.30: a next of
-        // before wrapped, so it arrives as `flow.nextOrWrap`
+        // 1.29: the list is `actions`, and "at its end, the next" is an entry of it; 1.30: a next of before wrapped, so it
+        // arrives as `flow.nextOrWrap`; 1.33: a step's part in `timelineOptions`, an entry `{ name, with, triggers, when }`
         expect(animator.flowSteps).toEqual([
-            { id: 'intro', inTime: 0, outTime: 1000 },
-            { id: 'loop', inTime: 1000, outTime: 3000 },
+            { id: 'intro', timelineOptions: { inTime: 0, outTime: 1000 } },
+            { id: 'loop', timelineOptions: { inTime: 1000, outTime: 3000 } },
         ]);
         expect(animator.actions).toEqual([
-            { action: 'flow.goTo', flowStep: 'loop', event: 'click' },
-            { action: 'timeline.start', event: 'load' },
-            { action: 'flow.nextOrWrap', event: 'finished', from: 'intro' },
+            { name: 'flow.goTo', with: { flowStep: 'loop' }, triggers: [{ event: 'click' }] },
+            { name: 'timeline.start', triggers: [{ event: 'load' }] },
+            { name: 'flow.nextOrWrap', triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['intro'] } },
         ]);
     });
 
@@ -508,26 +510,31 @@ describe('1.30 (2026-11-23) — next and previous stop at the ends; the `…OrWr
         },
     });
     const to129 = { a: 1, b: 29, c: 0 };
+    // 1.33 has no way back: the round trip stops at 1.30
+    const STEPS_TO_1_30 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.30') + 1);
+    const upTo130 = (d: unknown) => applyWireSteps(d, { steps: STEPS_TO_1_30, target: { a: 1, b: 30, c: 0 }, readerReadsEditorPart: false });
 
     it('a 1.29 file keeps its meaning: its next and previous wrapped, so they arrive as `…OrWrap`', () => {
         const r = convertWireDocument(at129());
-        expect(r.applied.map(s => s.to)).toEqual(['1.30']);
+        expect(r.applied.map(s => s.to)).toEqual(['1.30', '1.33']);
+        // 1.33: an entry `{ name, with, triggers, when }`
         expect(rawAnimator(r.doc).actions).toEqual([
-            { action: 'timeline.start', event: 'load' },
-            { action: 'flow.nextOrWrap', event: 'click', selector: '.next' },
-            { action: 'flow.previousOrWrap', event: 'click', selector: '.back' },
-            { action: 'flow.nextOrWrap', event: 'finished', from: 'a' },
-            { action: 'flow.goTo', flowStep: 'a', event: 'keyDown' },
+            { name: 'timeline.start', triggers: [{ event: 'load' }] },
+            { name: 'flow.nextOrWrap', triggers: [{ event: 'click', selector: '.next' }] },
+            { name: 'flow.previousOrWrap', triggers: [{ event: 'click', selector: '.back' }] },
+            { name: 'flow.nextOrWrap', triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['a'] } },
+            { name: 'flow.goTo', with: { flowStep: 'a' }, triggers: [{ event: 'keyDown' }] },
         ]);
     });
 
     it('down to 1.29 and up again gives the same file', () => {
-        const up = convertWireDocument(at129());
+        const up = upTo130(at129());
+        expect(up.applied.map(s => s.to)).toEqual(['1.30']);
         const back = downgradeWireDocument(up.doc, to129);
         expect(back.ok).toBe(true);
         if (!back.ok) return;
         expect(rawAnimator(back.doc).actions).toEqual(rawAnimator(at129()).actions);
-        expect(convertWireDocument(back.doc).doc).toEqual(up.doc);
+        expect(upTo130(back.doc).doc).toEqual(up.doc);
     });
 
     it.each([['flow.next'], ['flow.previous']])('down to 1.29 is REFUSED for a %s that stops at the ends', (action) => {
@@ -572,5 +579,113 @@ describe('1.32 (2026-11-24) — a group shows one of its children', () => {
         expect(r.ok).toBe(false);
         if (!r.ok) expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.showOneOf]);
         expect(downgradeWireDocument({ type: 'svg', animator: { version: '1.32.0' } }, to131).ok).toBe(true);
+    });
+});
+
+describe('1.33 (2026-11-24) — an entry `{ name, with, triggers, when }`, a step\'s `timelineOptions`, a flow\'s `initialFlowStep`', () => {
+    /** A 1.32 file with every old spelling the step converts. */
+    const at132 = (): Record<string, unknown> => ({
+        type: 'svg', viewBox: '0 0 100 100',
+        animator: {
+            version: '1.32.0',
+            timelines: [{ name: 'Main', outTime: 3000 }, { id: 'lamp', name: 'Lamp', outTime: 1000 }],
+            flows: [{ id: 'pages', name: 'Pages' }],
+            flowSteps: [
+                { id: 'intro', name: 'Intro', inTime: 0, outTime: 1000, iterations: 2, whenFinished: 'hold' },
+                { id: 'loop', name: 'Loop', inTime: 1000, outTime: 3000, iterationDirection: 'alternate', playbackSpeed: 2, whenLeaving: 'animateToEnd', initial: true },
+                { id: 'off', flow: 'pages', timeline: 'lamp', inTime: 0, outTime: 500, initial: false },
+                { id: 'on', flow: 'pages', timeline: 'lamp', inTime: 500, outTime: 1000, initial: true },
+            ],
+            actions: [
+                { action: 'timeline.start', event: 'load' },
+                { action: 'timeline.pause', timeline: 'lamp', event: 'click', element: '#bulb' },
+                { action: 'flow.nextOrWrap', flow: 'pages', event: 'keyDown', selector: '.deck', with: { key: 'ArrowRight', metaOrCtrlKey: true } },
+                { action: 'flow.next', event: 'click' },
+                { action: 'timeline.stop', event: 'hoverOut', behavior: 'animateToStart' },
+                { action: 'flow.goTo', flowStep: 'loop', event: 'finished', from: 'intro' },
+                { action: 'flow.goTo', flowStep: 'intro', event: 'click', selector: '.restart', from: ['loop'], behavior: 'animateToStart' },
+                { action: 'flow.previous', flow: 'pages', event: 'click', from: ['on', 'off'] },
+            ],
+            bindings: [
+                { element: '#pre', animateWith: [], showIn: { flowSteps: ['on'] } },
+                { element: '#face', animateWith: [], showOneOf: { which: 1, options: [{ element: '#f0' }, { element: '#f1' }] } },
+            ],
+        },
+        children: [
+            { type: 'g', id: 'face', effects: { showOneOf: { which: 1 } }, children: [{ type: 'rect', id: 'f0' }, { type: 'rect', id: 'f1' }] },
+            { type: 'rect', id: 'bulb', effects: { showIn: { flowSteps: ['on', 'loop'] } } },
+            { type: 'rect', id: 'pre' },
+        ],
+    });
+
+    it('twice is the same as once — an entry already in the 1.33 shape is left as it is', () => {
+        const once = at132();
+        upActionsAndFlowsShape(once);
+        const twice = JSON.parse(JSON.stringify(once));
+        upActionsAndFlowsShape(twice);
+        expect(twice).toEqual(once);
+    });
+
+    it('a 1.32 file arrives in the 1.33 shape, exactly, and validates with no finding', () => {
+        const r = convertWireDocument(at132());
+        expect(r.applied.map(s => s.to)).toEqual(['1.33']);
+        expect(r.doc).toEqual({
+            type: 'svg', viewBox: '0 0 100 100',
+            animator: {
+                version: '1.33.0',
+                // every `name` of a timeline, a flow and a step is dropped
+                timelines: [{ outTime: 3000 }, { id: 'lamp', outTime: 1000 }],
+                // a step's `initial` → its flow's `initialFlowStep`; a step of no flow → the flow `default`
+                flows: [{ id: 'pages', initialFlowStep: 'on' }, { id: 'default', initialFlowStep: 'loop' }],
+                flowSteps: [
+                    { id: 'intro', timelineOptions: { inTime: 0, outTime: 1000, iterations: 2, whenFinished: 'hold' } },
+                    { id: 'loop', timelineOptions: { inTime: 1000, outTime: 3000, iterationDirection: 'alternate', playbackSpeed: 2, whenLeaving: 'animateToEnd' } },
+                    { id: 'off', flow: 'pages', timeline: 'lamp', timelineOptions: { inTime: 0, outTime: 500 } },
+                    { id: 'on', flow: 'pages', timeline: 'lamp', timelineOptions: { inTime: 500, outTime: 1000 } },
+                ],
+                actions: [
+                    { name: 'timeline.start', triggers: [{ event: 'load' }] },
+                    { name: 'timeline.pause', with: { timeline: 'lamp' }, triggers: [{ event: 'click', element: '#bulb' }] },
+                    { name: 'flow.nextOrWrap', with: { flow: 'pages' }, triggers: [{ event: 'keyDown', selector: '.deck', with: { key: 'ArrowRight', metaOrCtrlKey: true } }] },
+                    { name: 'flow.next', triggers: [{ event: 'click' }] },
+                    // `behavior` → the stop's `whenStopped`, the go-to's `whenLeaving`; `finished` → `flowStep.finished`
+                    { name: 'timeline.stop', with: { whenStopped: 'animateToStart' }, triggers: [{ event: 'hoverOut' }] },
+                    { name: 'flow.goTo', with: { flowStep: 'loop' }, triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['intro'] } },
+                    { name: 'flow.goTo', with: { flowStep: 'intro', whenLeaving: 'animateToStart' }, triggers: [{ event: 'click', selector: '.restart' }], when: { flowSteps: ['loop'] } },
+                    { name: 'flow.previous', with: { flow: 'pages' }, triggers: [{ event: 'click' }], when: { flowSteps: ['on', 'off'] } },
+                ],
+                bindings: [
+                    { element: '#pre', animateWith: [], show: { when: { flowSteps: ['on'] } } },
+                    { element: '#face', animateWith: [], showOneChild: { when: { index: 1 }, options: [{ element: '#f0' }, { element: '#f1' }] } },
+                ],
+            },
+            children: [
+                { type: 'g', id: 'face', effects: { showOneChild: { when: { index: 1 } } }, children: [{ type: 'rect', id: 'f0' }, { type: 'rect', id: 'f1' }] },
+                { type: 'rect', id: 'bulb', effects: { show: { when: { flowSteps: ['on', 'loop'] } } } },
+                { type: 'rect', id: 'pre' },
+            ],
+        });
+        const checked = validateDocument(r.doc);
+        expect(checked.errors).toEqual([]);
+        expect(checked.findings).toEqual([]);
+    });
+
+    it('a flow already listed keeps its own `initialFlowStep`; the first step marked `initial` wins', () => {
+        const d: Record<string, unknown> = { type: 'svg', animator: {
+            flows: [{ id: 'm', initialFlowStep: 'b' }],
+            flowSteps: [{ id: 'a', flow: 'm', initial: true }, { id: 'b', flow: 'm' }, { id: 'c', initial: true }, { id: 'd', initial: true }],
+        } };
+        upActionsAndFlowsShape(d);
+        expect(rawAnimator(d)).toEqual({
+            flows: [{ id: 'm', initialFlowStep: 'b' }, { id: 'default', initialFlowStep: 'c' }],
+            flowSteps: [{ id: 'a', flow: 'm' }, { id: 'b', flow: 'm' }, { id: 'c' }, { id: 'd' }],
+        });
+    });
+
+    it('down to 1.32 is REFUSED — 1.33 has no way back', () => {
+        const r = downgradeWireDocument(convertWireDocument(at132()).doc, { a: 1, b: 32, c: 0 });
+        expect(r.ok).toBe(false);
+        if (r.ok) return;
+        expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.actionsAndFlowsShape]);
     });
 });

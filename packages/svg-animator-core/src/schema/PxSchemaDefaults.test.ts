@@ -14,7 +14,7 @@ import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_
 import {
     PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxHoldOnScreenSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
-    PxTimeTimelineSchema, PxActionTriggersSchema, type PxDocument, type PxActionTriggers,
+    PxTimeTimelineSchema, PxActionsSchema, type PxDocument, type PxActions,
 } from '../format/PxAnimatorTypes';
 import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
 import { untyped } from '../effects/effectTestKit';
@@ -66,7 +66,7 @@ describe('schema.defaults — what an absent field means', () => {
         const visitCounting = (name: string, schema: PxAnySchema) => { visited++; visit(name, schema); };
         visitCounting('loop', PxLoopSchema);
         visitCounting('propertyAnimation', PxPropertyAnimationSchema);
-        visitCounting('actions', PxActionTriggersSchema);
+        visitCounting('actions', PxActionsSchema);
         // Every member of the timeline union — time, scroll and view have fields of their own.
         const timeline = describeSchema(PxTimelineSchema);
         for (const member of timeline.kind === 'discriminatedUnion' ? timeline.members : []) visitCounting('timeline', member);
@@ -91,15 +91,15 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxTimeTimelineSchema.defaults.whenStopped).toBe(d.stopPlaybackBehavior);
         expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(d.whenFinished);
         expect(PxTimeTimelineSchema.defaults.whenOutOfView).toBe(d.outOfViewBehavior);
-        expect(PxActionTriggersSchema.isValid([])).toBe(true);
+        expect(PxActionsSchema.isValid([])).toBe(true);
         expect(resolveTriggers(undefined).startPlayback).toEqual([]);
         // `whenFinished` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
         expect(PxTimeTimelineSchema.defaults.whenFinished).toBe(PxWhenFinished.hold);
-        const flat = resolveAnimatorTimeline({ timelines: [{ }], actions: [{ action: 'timeline.start', event: PxTriggerEvent.load }] });
+        const flat = resolveAnimatorTimeline({ timelines: [{ }], actions: [{ name: 'timeline.start', triggers: [{ event: PxTriggerEvent.load }] }] });
         expect(flat.resetOnFinish).toBeFalsy();
         expect(resolveAnimatorTimeline({ timelines: [{ whenFinished: PxWhenFinished.jumpToStart }] }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timelines: [{ }], actions: untyped<PxActionTriggers>({ finish: 'reset' }) }).resetOnFinish).toBeUndefined();
+        expect(resolveAnimatorTimeline({ timelines: [{ }], actions: untyped<PxActions>({ finish: 'reset' }) }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -123,10 +123,10 @@ describe('schema.defaults — what an absent field means', () => {
     it('the reported document: an omitted resume is the start list — hovering in resumes what hovering out paused', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timelines: [{ outTime: 1000, iterations: 1 }], actions: [{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }] },
+            animator: { timelines: [{ outTime: 1000, iterations: 1 }], actions: [{ name: 'timeline.start', triggers: [{ event: 'hoverIn' }] }, { name: 'timeline.pause', triggers: [{ event: 'hoverOut' }] }] },
             children: [],
         };
-        expect(resolveTriggers(getAnimatorConfig(doc)?.actions).resumePlayback).toEqual(['hoverIn']);
+        expect(resolveTriggers(getAnimatorConfig(doc)?.actionRules).resumePlayback).toEqual(['hoverIn']);
     });
 
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {

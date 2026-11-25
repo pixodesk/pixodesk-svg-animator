@@ -16,14 +16,16 @@ import {
     type PxPlayExecutor,
     PxFlowAction,
     PxStopPlaybackBehavior,
+    PxTriggerList,
     PxWhenLeaving,
+    type PxConditionRule,
 } from '@pixodesk/svg-animator-core';
 
 const isWhenLeaving = (v: string): v is PxWhenLeaving => v === PxWhenLeaving.jump || v === PxWhenLeaving.animateToEnd || v === PxWhenLeaving.animateToStart;
 /** A stop's manner — `animateToStart` and `animateToEnd` are a go-to's ways of leaving too; an entry's action says which it is. */
 const isStopBehavior = (v: string): v is PxStopPlaybackBehavior => v === PxStopPlaybackBehavior.jumpToStart || v === PxStopPlaybackBehavior.animateToStart
     || v === PxStopPlaybackBehavior.jumpToEnd || v === PxStopPlaybackBehavior.animateToEnd || v === PxStopPlaybackBehavior.animateToEndAndBack;
-import { duplicateFlowStepIds, ensurePlayExecutor, resolveActions, resolveGate, resolveTriggers, flowStepReferenceIssues, triggerActionFor, triggerIssues, triggerKeys, type PxFlowRuntime, type PxTriggerEventSpec } from '@pixodesk/svg-animator-core/engine';
+import { duplicateFlowStepIds, ensurePlayExecutor, isConditionTrue, resolveActions, resolveGate, resolveTriggers, flowStepReferenceIssues, triggerActionFor, triggerIssues, triggerKeys, type PxConditionSources, type PxFlowRuntime, type PxTriggerEventSpec } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 import { webRaf } from '../shared/PxWebRaf';
@@ -68,6 +70,18 @@ export function setupAnimationTriggers(
     diag?: PxDiagnostics,
     playbackListeners?: PxPlaybackListeners
 ): () => void {
+    return setupEngineTriggers(api, config, diag, playbackListeners, undefined);
+}
+
+/** {@link setupAnimationTriggers} with what the conditions read (1.33, `when.condition`) — what the engines call with their
+ *  callbacks' `conditionSources`. @internal */
+export function setupEngineTriggers(
+    api: PxEngineAnimationPlayerApi,
+    config: PxAnimatorRuntimeConfig,
+    diag: PxDiagnostics | undefined,
+    playbackListeners: PxPlaybackListeners | undefined,
+    sources: PxConditionSources | undefined,
+): () => void {
     // Public export, so the channel is optional and falls back to the console (review §5).
     const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
     reportTriggerProblems(config, report);
@@ -82,12 +96,12 @@ export function setupAnimationTriggers(
     const executor = ensurePlayExecutor(api, config, webRaf);
     // attached BEFORE anything below can press a button: a `load` trigger fires right here when the document is complete
     if (playbackListeners) executor.setListeners(playbackListeners);
-    return wireTriggers(root, executor, api.flowRuntime, config, report);
+    return wireTriggers(root, executor, api.flowRuntime, config, report, sources);
 }
 
 /** What `triggerIssues` finds in the rules — a disallowed event, a named resume list that differs, a collision. @internal */
 export function reportTriggerProblems(config: PxAnimatorRuntimeConfig, report: PxDiagnostics): void {
-    for (const issue of triggerIssues(config.actions)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
+    for (const issue of triggerIssues(config.actionRules)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
 }
 
 /**
@@ -102,11 +116,13 @@ export function wireTriggers(
     flows: PxFlowRuntime | undefined,
     config: PxAnimatorRuntimeConfig,
     report: PxDiagnostics,
+    sources?: PxConditionSources,
+    onStepChange?: (listener: () => void) => () => void,
 ): () => void {
     // Everything attached below registers its own undo here, so one call detaches it all.
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
-    const trigger = resolveTriggers(config.actions, (config.flowSteps ?? []).map(s => s.id));
+    const trigger = resolveTriggers(config.actionRules, (config.flowStepViews ?? []).map(s => s.id));
 
     // Permission to run, for every document and whatever starts it. Leaving and returning are the executor's buttons.
     const gateRule = resolveGate(config);
@@ -117,14 +133,39 @@ export function wireTriggers(
     cleanups.push(() => gate.dispose());
 
     const whenFinished = resolveActions(config).whenFinished;
+    /** A variable's value now — none without the player's variables (only a formula of constants is true then). */
+    const read = (name: string): ReturnType<PxConditionSources['read']> => sources?.read(name);
+    /** A watched entry's `when` now: the flow at one of its steps (none listed: any), and its condition true. */
+    const holdsNow = (rule: PxConditionRule): boolean => (!rule.from?.length || !!flows?.controls.get().some(id => rule.from?.includes(id)))
+        && isConditionTrue(rule.condition, read);
+    /** A watched entry's action — what an event would do; a component holding the step keeps the flow where it is. */
+    const act = (rule: PxConditionRule): void => {
+        const leaving = rule.behavior !== undefined && isWhenLeaving(rule.behavior) ? rule.behavior : undefined;
+        const stopping = rule.behavior !== undefined && isStopBehavior(rule.behavior) ? rule.behavior : undefined;
+        const moves = flows && !flows.isHeld() ? flows : undefined;
+        switch (rule.action) {
+            case PxFlowAction.goTo: if (rule.flowStep !== undefined) moves?.controls.goTo({ flowStep: rule.flowStep, whenLeaving: leaving }); break;
+            case PxFlowAction.next: moves?.controls.next(); break;
+            case PxFlowAction.previous: moves?.controls.previous(); break;
+            case PxFlowAction.nextOrWrap: moves?.controls.nextOrWrap(); break;
+            case PxFlowAction.previousOrWrap: moves?.controls.previousOrWrap(); break;
+            case PxTriggerList.startPlayback: gate.requestStart(false, () => executor.startPlayback()); break;
+            case PxTriggerList.playPlayback: gate.requestStart(false, () => executor.playPlayback()); break;
+            case PxTriggerList.resumePlayback: executor.resumePlayback(); break;
+            case PxTriggerList.pausePlayback: executor.pausePlayback(); break;
+            case PxTriggerList.stopPlayback: executor.stopPlayback(stopping); break;
+        }
+    };
 
     /** The state rule (core's `triggerActionFor`): the player's state picks the lists an event is read
      *  from — off · playing · paused · finished · returning. `direct` is a pointer interaction — it never waits out
      *  the gate; a resume never does either (a paused playback was seen). */
     const fire = (event: string, direct: boolean): void => {
         const spec = trigger.specs.get(event);
-        // an entry limited to some steps (`from`, 1.29) holds only while a flow is at one of them
+        // an entry limited to some steps (`when.flowSteps`) holds only while a flow is at one of them
         if (spec?.from && !(flows && flows.controls.get().some(id => spec.from?.includes(id)))) return;
+        // and only while its `when.condition` is true (1.33)
+        if (spec?.condition !== undefined && !isConditionTrue(spec.condition, read)) return;
         // an entry's own manner (`behavior`): a stop's, or a go-to's way of leaving
         const leaving = spec?.behavior !== undefined && isWhenLeaving(spec.behavior) ? spec.behavior : undefined;
         const stopping = spec?.behavior !== undefined && isStopBehavior(spec.behavior) ? spec.behavior : undefined;
@@ -136,7 +177,7 @@ export function wireTriggers(
                 else if (s.action === PxFlowAction.previous) flows.controls.previous();
                 else if (s.action === PxFlowAction.nextOrWrap) flows.controls.nextOrWrap();
                 else if (s.action === PxFlowAction.previousOrWrap) flows.controls.previousOrWrap();
-                else if (s.flowStep !== undefined) flows.controls.goTo(s.flowStep, leaving);
+                else if (s.flowStep !== undefined) flows.controls.goTo({ flowStep: s.flowStep, whenLeaving: leaving });
             }
         }
         switch (triggerActionFor(trigger, executor.state(), event, whenFinished)) {
@@ -147,6 +188,10 @@ export function wireTriggers(
             case PxTriggerAction.stopPlayback: executor.stopPlayback(stopping); break;
         }
     };
+
+    // the entries with no triggers (1.33, D5): each acts at the moment its `when` becomes true
+    const watched = config.conditionRules ?? [];
+    if (watched.length) cleanups.push(watchConditions(watched, sources?.actOnStart !== false, rule => act(rule), holdsNow, sources, onStepChange));
 
     // one listener per entry — a bare word on the whole picture as before, an event object where it says (2026-11-15)
     const page = root.ownerDocument;
@@ -169,6 +214,53 @@ export function wireTriggers(
     }
 
     return dispose;
+}
+
+/**
+ * The entries with no triggers (1.33, D5): each acts at the moment its `when` becomes true — the condition turns true, or the
+ * flow arrives at one of its steps with the condition already true. Checked on the next frame after a variable or the step
+ * changes — so two entries that are always true cannot spin: at most one act per frame, the others wait for the next.
+ * `actOnStart`: an entry already true when wired acts (not in a rebuild). Returns the undo.
+ */
+function watchConditions(
+    rules: ReadonlyArray<PxConditionRule>,
+    actOnStart: boolean,
+    act: (rule: PxConditionRule) => void,
+    holdsNow: (rule: PxConditionRule) => boolean,
+    sources: PxConditionSources | undefined,
+    onStepChange: ((listener: () => void) => () => void) | undefined,
+): () => void {
+    const holding = rules.map(() => false);
+    let first = true;
+    let scheduled = false;
+    let disposed = false;
+    const check = (): void => {
+        scheduled = false;
+        if (disposed) return;
+        for (let i = 0; i < rules.length; i++) {
+            const now = holdsNow(rules[i]);
+            const acts = now && !holding[i] && (actOnStart || !first);
+            holding[i] = now;
+            if (acts) {
+                act(rules[i]);
+                // one act per frame: what it changed is read on the next
+                schedule();
+                break;
+            }
+        }
+        first = false;
+    };
+    const schedule = (): void => {
+        if (scheduled || disposed) return;
+        scheduled = true;
+        webRaf(check);
+    };
+    const undo = [sources?.onChange(schedule), onStepChange?.(schedule)];
+    schedule();
+    return () => {
+        disposed = true;
+        for (const u of undo) u?.();
+    };
 }
 
 /** The DOM event an entry listens to; hover is `pointerover` / `pointerout` on a part, `mouseenter` / `mouseleave` on

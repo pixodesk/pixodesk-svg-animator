@@ -113,16 +113,22 @@ filled in every one of them.
 
 ### Action triggers — the default
 
-Uses the triggers defined in the animation document (a `timeline.start` rule on `load` plays once enough of it is
+Uses the triggers defined in the animation document (a `timeline.start` entry on `load` plays once enough of it is
 on screen; `click` is a tap; `hoverIn` / `hoverOut` never fire — there is no hover on a touch
 screen), or the `actions` list you pass instead of the file's:
 
 ```tsx
 <SvgAnimationPlayer document={animation} />
 <SvgAnimationPlayer document={animation}
-  actions={[{ action: 'timeline.play', event: 'click' }, { action: 'timeline.pause', event: 'click' }]} />   {/* tap plays, tap again pauses */}
+  actions={[
+    { name: 'timeline.play', triggers: [{ event: 'click' }] },
+    { name: 'timeline.pause', triggers: [{ event: 'click' }] },
+  ]} />   {/* tap plays, tap again pauses */}
 <SvgAnimationPlayer document={animation}
-  actions={[{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'click' }]} />   {/* tap plays, tap again stops */}
+  actions={[
+    { name: 'timeline.start', triggers: [{ event: 'click' }] },
+    { name: 'timeline.stop', triggers: [{ event: 'click' }] },
+  ]} />   {/* tap plays, tap again stops */}
 <SvgAnimationPlayer document={animation} showAsStatic />   {/* the picture as drawn — nothing plays */}
 ```
 
@@ -208,7 +214,7 @@ variables. See [Variables](../../docs/library/variables.md#react-native).
 | Prop | Type | Description |
 |---|---|---|
 | `document` | `PxDocumentJson` | The animation document to render (required); a `.json` import passes as-is (inline only, no URL form yet) |
-| `actions` | `PxActionTriggersInput \| null` | these rules instead of the document's own — a list of `{ action, event, … }`, `[{ action: 'timeline.start', event: 'load' }]`; a rule whose action may not name its event is dropped; `timeline.resume` is derived when no rule names it; `null` or `[]`: none. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `actions` | `PxActionsInput \| null` | these entries instead of the document's own — a list of `{ name, with, triggers, when }`, `[{ name: 'timeline.start', triggers: [{ event: 'load' }] }]`; a trigger whose event its action may not name is dropped; `timeline.resume` is derived when no entry names it; `null` or `[]`: none. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
 | `disableActions` | `boolean` | manual: the document's triggers are switched off — your code drives it through `playerRef` |
 | `showAsStatic` | `boolean` | the picture as drawn — nothing plays, whatever the file says; playback calls on `playerRef` are ignored with a warning (PX1506). Beats every other control prop |
 | `playback` | `'off' \| 'on' \| 'paused'` | A lever (`PxPlayback`): its position is held, and a change presses one button — `off` → `on` `timeline.start()`, `on` → `paused` `timeline.pause()`, `paused` → `on` `timeline.resume()`, → `off` `timeline.stop()`. How a stop looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#how-a-stop-looks--whenstopped); `'on'` always plays from the start. A mount with `'off'` presses nothing; with `'paused'` starts the playback frozen |
@@ -344,8 +350,8 @@ player sees plain nodes. **All are supported:**
 | `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) | <!-- px names=fillGradient,strokeGradient -->
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.fonts` — no font needed |
-| `showIn` | ✅ | not drawn while none of its flow steps is current — the first flow's step; the others at their start |
-| `showOneOf` | ✅ | only the picked child is drawn |
+| `show` | ✅ | not drawn while none of its flow steps is current — the first flow's step; the others at their start |
+| `showOneChild` | ✅ | only the picked child is drawn |
 
 ### Motion, timing and references
 

@@ -7,34 +7,33 @@
 // the ids, the rules' repair.
 
 import { describe, expect, it } from 'vitest';
-import { PxActionTriggersSchema, type PxActionObject, type PxActionTriggerRule, type PxDocument, type PxFlowStep } from '../format/PxAnimatorTypes';
-import { PxFlowAction, PxStepEvent, PxTriggerList, PxWhenFinished, PxWhenLeaving } from '../format/PxAnimatorConstants';
-import { atEndActionOf, duplicateFlowStepIds, isFlowActionObject, flowStepReferenceIssues } from './PxFlows';
+import { PxActionsSchema, PxFlowStepTimelineOptionsSchema, type PxActionObject, type PxActionRule, type PxDocument, type PxFlowStep } from '../format/PxAnimatorTypes';
+import { PxFlowAction, PxStepEvent, PxTriggerList, PxWhenFinished, PxWhenLeaving, actionEntryOf, actionRulesOf } from '../format/PxAnimatorConstants';
+import { atEndActionOf, duplicateFlowStepIds, flowStepReferenceIssues } from './PxFlows';
 import { planUnits, switchStepsOf } from './PxUnits';
 
-// 1.29: a step's "at its end, go there" is an entry of `actions` (`event: 'finished'`, `from`) — the helper still takes it
-// on the step, as the tests read it, and writes it as the file has it.
-type TestStep = Omit<PxFlowStep, 'whenFinished'> & { whenFinished?: PxFlowStep['whenFinished'] | PxActionObject };
+// 1.29: a step's "at its end, go there" is an entry of `actions` (`flowStep.finished`, `when.flowSteps`) — the helper takes
+// it on the step as `atEnd`, as the tests read it, and writes it as the file has it.
+type TestStep = PxFlowStep & { atEnd?: PxActionObject };
 
 /** A one-timeline document (0…3000 ms) with these steps — and the steps of its one flow as the switch reads them. */
 function flowOf(testSteps: Array<TestStep>, timeline: Record<string, unknown> = { outTime: 3000 }) {
-    const actions: Array<PxActionTriggerRule> = [];
-    const steps = testSteps.map(({ whenFinished, ...st }): PxFlowStep => {
-        if (whenFinished === undefined || typeof whenFinished === 'string') return whenFinished === undefined ? st : { ...st, whenFinished };
-        actions.push({ ...whenFinished, event: PxStepEvent.finished, from: st.id });
+    const rules: Array<PxActionRule> = [];
+    const steps = testSteps.map(({ atEnd, ...st }): PxFlowStep => {
+        if (atEnd !== undefined) rules.push({ ...atEnd, event: PxStepEvent.finished, from: [st.id] });
         return st;
     });
-    const doc = { type: 'svg', animator: { timelines: [timeline], flowSteps: steps, actions } } as PxDocument;
+    const doc = { type: 'svg', animator: { timelines: [timeline], flowSteps: steps, actions: rules.map(actionEntryOf) } } as PxDocument;
     const plan = planUnits(doc);
     const unit = plan?.units[0];
-    return { plan, unit, steps: unit && plan ? switchStepsOf(unit, plan, actions) : [] };
+    return { plan, unit, steps: unit && plan ? switchStepsOf(unit, plan, rules) : [] };
 }
 
 describe('flows — the steps as a flow plays them', () => {
     it('in LIST order — not by their place on the timeline — with the defaults stated', () => {
         const { unit, steps } = flowOf([
-            { id: 'late', inTime: 2000, outTime: 3000 },
-            { id: 'early', inTime: 0, outTime: 1000, whenFinished: { action: PxFlowAction.next }, iterations: 'infinite' },
+            { id: 'late', timelineOptions: { inTime: 2000, outTime: 3000 } },
+            { id: 'early', timelineOptions: { inTime: 0, outTime: 1000, iterations: 'infinite' }, atEnd: { action: PxFlowAction.next } },
         ]);
         expect(steps.map(s => s.id)).toEqual(['late', 'early']);   // `next` from `late` goes to `early`
         expect(unit?.steps.map(s => s.step.inTime)).toEqual([2000, 0]);
@@ -43,7 +42,7 @@ describe('flows — the steps as a flow plays them', () => {
     });
 
     it('an id used twice: the first wins, the later is reported (PX1115)', () => {
-        const cfg = { flowSteps: [{ id: 'a', inTime: 0, outTime: 1000 }, { id: 'a', inTime: 1000, outTime: 2000 }, { id: 'b' }] };
+        const cfg = { flowSteps: [{ id: 'a', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'a', timelineOptions: { inTime: 1000, outTime: 2000 } }, { id: 'b' }] };
         const { unit } = flowOf(cfg.flowSteps);
         expect(unit?.steps.map(s => [s.id, s.step.inTime])).toEqual([['a', 0], ['b', undefined]]);
         expect(duplicateFlowStepIds(cfg.flowSteps)).toEqual(['a']);
@@ -52,9 +51,9 @@ describe('flows — the steps as a flow plays them', () => {
 
     it('a go-to names its step; a go-to to nothing reads as hold; previous steps back', () => {
         const [a, b, c] = flowOf([
-            { id: 'a', inTime: 0, outTime: 1000, whenFinished: { action: PxFlowAction.goTo, flowStep: 'b' } },
-            { id: 'b', inTime: 1000, outTime: 2000, whenFinished: { action: PxFlowAction.goTo, flowStep: 'nope' } },
-            { id: 'c', inTime: 2000, outTime: 3000, whenFinished: { action: PxFlowAction.previous } },
+            { id: 'a', timelineOptions: { inTime: 0, outTime: 1000 }, atEnd: { action: PxFlowAction.goTo, flowStep: 'b' } },
+            { id: 'b', timelineOptions: { inTime: 1000, outTime: 2000 }, atEnd: { action: PxFlowAction.goTo, flowStep: 'nope' } },
+            { id: 'c', timelineOptions: { inTime: 2000, outTime: 3000 }, atEnd: { action: PxFlowAction.previous } },
         ]).steps;
         expect(a.then).toEqual({ flowStep: 'b' });
         expect(b.then).toBeUndefined();
@@ -64,28 +63,31 @@ describe('flows — the steps as a flow plays them', () => {
     it('a scroll timeline: a part of it is no step; the whole of it is one (2026-11-22)', () => {
         const scroll = { type: 'scroll', outTime: 1000 };
         // a part of a scroll timeline is not read — the timeline is then alone, as it plays today: no plan
-        expect(flowOf([{ id: 'a', inTime: 0, outTime: 500 }], scroll).plan).toBeUndefined();
+        expect(flowOf([{ id: 'a', timelineOptions: { inTime: 0, outTime: 500 } }], scroll).plan).toBeUndefined();
         // the whole of it is a step, and the flow is moved by the scrolling
         const whole = flowOf([{ id: 'a' }], scroll);
         expect(whole.unit?.steps.map(s => s.id)).toEqual(['a']);
         expect(whole.unit?.scroll).toBe(true);
     });
 
+    // 1.33: `isFlowActionObject` is gone — a step's end is a flow action's rule; its `whenFinished` a picture word only
     it('an action object is told from a picture word', () => {
-        expect(isFlowActionObject({ action: PxFlowAction.next })).toBe(true);
-        expect(isFlowActionObject(PxWhenFinished.hold)).toBe(false);
-        expect(isFlowActionObject({ action: PxTriggerList.startPlayback })).toBe(false);
+        const atEnd = (name: PxFlowAction | PxTriggerList) => actionRulesOf([{ name, triggers: [{ event: PxStepEvent.finished }] }]);
+        expect(atEndActionOf('a', atEnd(PxFlowAction.next))).toEqual({ action: PxFlowAction.next });
+        expect(atEndActionOf('a', atEnd(PxTriggerList.startPlayback))).toBeUndefined();
+        expect(PxFlowStepTimelineOptionsSchema.isValid({ whenFinished: PxWhenFinished.hold })).toBe(true);
+        expect(PxFlowStepTimelineOptionsSchema.isValid({ whenFinished: { action: PxFlowAction.next } })).toBe(false);
     });
 });
 
-describe('flows — where a step goes on at its end (1.29: a `finished` entry)', () => {
-    const entries: Array<PxActionTriggerRule> = [
-        { action: PxTriggerList.startPlayback, event: 'click' },                                     // not a step's end
-        { action: PxFlowAction.goTo, flowStep: 'c', event: PxStepEvent.finished, from: ['a', 'b'] },
-        { action: PxFlowAction.next, event: PxStepEvent.finished },                                  // no `from`: any step
-    ];
+describe('flows — where a step goes on at its end (1.29: a `flowStep.finished` entry)', () => {
+    const entries = actionRulesOf([
+        { name: PxTriggerList.startPlayback, triggers: [{ event: 'click' }] },                                                    // not a step's end
+        { name: PxFlowAction.goTo, with: { flowStep: 'c' }, triggers: [{ event: PxStepEvent.finished }], when: { flowSteps: ['a', 'b'] } },
+        { name: PxFlowAction.next, triggers: [{ event: PxStepEvent.finished }] },                                                 // no `when`: any step
+    ]);
 
-    it('the first entry whose `from` names the step; one with no `from` is every step\'s', () => {
+    it('the first entry whose `when.flowSteps` names the step; one with none is every step\'s', () => {
         expect(atEndActionOf('a', entries)).toEqual({ action: PxFlowAction.goTo, flowStep: 'c' });
         expect(atEndActionOf('b', entries)).toEqual({ action: PxFlowAction.goTo, flowStep: 'c' });
         expect(atEndActionOf('c', entries)).toEqual({ action: PxFlowAction.next });
@@ -98,16 +100,16 @@ describe('flows — where a step goes on at its end (1.29: a `finished` entry)',
 });
 
 describe('flows — the ids a go-to may use (PX1114)', () => {
-    // 1.29: a step's end is an entry (`finished`, `from`) — the issue names that step
+    // 1.29: a step's end is an entry (`flowStep.finished`, `when.flowSteps`) — the issue names that step
     it('reports an event\'s go-to and a step\'s end that name no step; the known ones and the other entries pass', () => {
         const issues = flowStepReferenceIssues({
             flowSteps: [{ id: 'intro' }, { id: 'loop' }],
-            actions: [
-                { action: PxTriggerList.startPlayback, event: 'load' },
-                { action: PxFlowAction.goTo, flowStep: 'loop', event: 'click' },
-                { action: PxFlowAction.goTo, flowStep: 'sucess', event: 'click' },
-                { action: PxFlowAction.goTo, flowStep: 'lop', event: PxStepEvent.finished, from: 'intro' },
-            ],
+            actionRules: actionRulesOf([
+                { name: PxTriggerList.startPlayback, triggers: [{ event: 'load' }] },
+                { name: PxFlowAction.goTo, with: { flowStep: 'loop' }, triggers: [{ event: 'click' }] },
+                { name: PxFlowAction.goTo, with: { flowStep: 'sucess' }, triggers: [{ event: 'click' }] },
+                { name: PxFlowAction.goTo, with: { flowStep: 'lop' }, triggers: [{ event: PxStepEvent.finished }], when: { flowSteps: ['intro'] } },
+            ]),
         });
         expect(issues).toEqual([
             { target: 'sucess', ids: ['intro', 'loop'] },
@@ -116,14 +118,14 @@ describe('flows — the ids a go-to may use (PX1114)', () => {
     });
 });
 
-describe('flows — a `from` that names no step (PX1114, 1.29)', () => {
-    it('each unknown id of a `from` is reported; the known ones and a timeline\'s own step pass', () => {
+describe('flows — a `when.flowSteps` that names no step (PX1114, 1.29)', () => {
+    it('each unknown id of a `when.flowSteps` is reported; the known ones and a timeline\'s own step pass', () => {
         const issues = flowStepReferenceIssues({
             flowSteps: [{ id: 'intro' }],
-            actions: [
-                { action: PxTriggerList.pausePlayback, event: 'click', from: ['intro', 'gone'] },
-                { action: PxFlowAction.next, event: PxStepEvent.finished, from: 'hover' },
-            ],
+            actionRules: actionRulesOf([
+                { name: PxTriggerList.pausePlayback, triggers: [{ event: 'click' }], when: { flowSteps: ['intro', 'gone'] } },
+                { name: PxFlowAction.next, triggers: [{ event: PxStepEvent.finished }], when: { flowSteps: ['hover'] } },
+            ]),
         }, ['hover']);
         expect(issues).toEqual([{ target: 'gone', ids: ['intro', 'hover'] }]);
     });
@@ -131,13 +133,14 @@ describe('flows — a `from` that names no step (PX1114, 1.29)', () => {
 
 describe('rules — the repair drops a rule that does not fit, rule by rule', () => {
     it('a rule with an unknown action or event is dropped; a good rule stays as written', () => {
-        const fixed = PxActionTriggersSchema.castOrFix([
-            { action: 'timeline.start', event: 'load' },
-            { action: 'timeline.jump', event: 'click' },
-            { action: 'timeline.start', event: 'click', selector: '.go', with: { metaOrCtrlKey: true } },
-            { action: 'timeline.start', event: 'wave' },
-        ]);
-        expect(fixed.value).toEqual([
+        const good = [
+            { name: 'timeline.start', triggers: [{ event: 'load' }] },
+            { name: 'timeline.start', triggers: [{ event: 'click', selector: '.go', with: { metaOrCtrlKey: true } }] },
+        ];
+        const fixed = PxActionsSchema.castOrFix([good[0], { name: 'timeline.jump', triggers: [{ event: 'click' }] }, good[1], { name: 'timeline.start', triggers: [{ event: 'wave' }] }]);
+        // the good entries as written; the unknown event heard nowhere
+        expect(fixed.value.filter(e => e.triggers?.length)).toEqual(good);
+        expect(actionRulesOf(fixed.value)).toEqual([
             { action: 'timeline.start', event: 'load' },
             { action: 'timeline.start', event: 'click', selector: '.go', with: { metaOrCtrlKey: true } },
         ]);
@@ -145,12 +148,12 @@ describe('rules — the repair drops a rule that does not fit, rule by rule', ()
     });
 
     it('a state action takes any event and names its state', () => {
-        const rules = [
-            { action: PxFlowAction.next, event: 'keyDown', with: { key: 'ArrowRight' } },
-            { action: PxFlowAction.goTo, flowStep: 'b', event: 'pointerUp' },
+        const entries = [
+            { name: PxFlowAction.next, triggers: [{ event: 'keyDown', with: { key: 'ArrowRight' } }] },
+            { name: PxFlowAction.goTo, with: { flowStep: 'b' }, triggers: [{ event: 'pointerUp' }] },
         ];
-        const fixed = PxActionTriggersSchema.castOrFix(rules);
-        expect(fixed.value).toEqual(rules);
+        const fixed = PxActionsSchema.castOrFix(entries);
+        expect(fixed.value).toEqual(entries);
         expect(fixed.problems).toEqual([]);
     });
 });

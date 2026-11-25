@@ -37,9 +37,9 @@
 // | `flow.next` / `flow.previous` | the unit of its `flow` — none: `default`, else the first |
 // ============================================================================
 
-import { isCompiledAnimation, type PxActionObject, type PxActionTriggerRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStep, type PxNode } from '../format/PxAnimatorTypes';
-import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, PxWhenFinished, PxWhenIdle, PxWhenLeaving, flowStepIndexAfter, flowStepMoveOf, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
-import { atEndActionOf, isFlowStepEntry } from './PxFlows';
+import { isCompiledAnimation, type PxActionObject, type PxActionRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStepView, type PxNode } from '../format/PxAnimatorTypes';
+import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, actionEntryOf, conditionEntryOf, flowStepViewsOf, initialFlowStepsOf, PxWhenFinished, PxWhenIdle, PxWhenLeaving, flowStepIndexAfter, flowStepMoveOf, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
+import { atEndActionOf } from './PxFlows';
 import type { PxFlowSwitchStep } from './PxFlowSwitch';
 import { timelinesOf, timelineWindowsOf, type PxTimelineInfo } from './PxTimelineWindows';
 import { animatorOf } from '../format/PxDocStage';
@@ -65,8 +65,10 @@ export interface PxPlannedStep {
     readonly id: string;
     /** Its timeline — an index into the plan's `timelines`. */
     readonly timeline: number;
-    /** As written; for a timeline's own step `{ id }` (and its `timeline`). */
-    readonly step: PxFlowStep;
+    /** As written, its `timelineOptions` laid flat; for a timeline's own step `{ id }` (and its `timeline`). */
+    readonly step: PxFlowStepView;
+    /** Where its flow starts — the flow's `initialFlowStep` names it. */
+    readonly initial: boolean;
     /** The step a timeline no written step names is — it plays as the timeline alone does. */
     readonly implied: boolean;
 }
@@ -98,12 +100,12 @@ function indexOfTimeline(timelines: ReadonlyArray<PxTimelineInfo>, ref: unknown)
 }
 
 /** The step a timeline is when no written step names it — the whole of it, called by its `stepId`. */
-function impliedStepOf(t: PxTimelineInfo): PxPlannedStep {
-    return { id: t.stepId, timeline: t.index, step: t.isDefault ? { id: t.stepId } : { id: t.stepId, timeline: t.id }, implied: true };
+function impliedStepOf(t: PxTimelineInfo, initial = false): PxPlannedStep {
+    return { id: t.stepId, timeline: t.index, step: t.isDefault ? { id: t.stepId } : { id: t.stepId, timeline: t.id }, implied: true, initial };
 }
 
 /** A step is a PART of its timeline when it says where it begins or ends. */
-const isPartOfTimeline = (step: PxFlowStep): boolean => step.inTime !== undefined || step.outTime !== undefined;
+const isPartOfTimeline = (step: PxFlowStepView): boolean => step.inTime !== undefined || step.outTime !== undefined;
 
 /** A unit of `flow` (or of a timeline the page runs) over `steps`. */
 function unitOf(flow: string | undefined, steps: ReadonlyArray<PxPlannedStep>, timelines: ReadonlyArray<PxTimelineInfo>): PxUnit {
@@ -121,24 +123,25 @@ export function planUnits(doc: PxDocument, run?: PxRunLists): PxUnitPlan | undef
     const timelines = timelinesOf(doc);
     if (timelines.length === 0) return undefined;
     const animator = animatorOf(doc);
-    const rawSteps = isRecord(animator) && Array.isArray(animator.flowSteps) ? animator.flowSteps : [];
+    // the steps as the engines read them (1.33): their options laid flat, `initial` from their flow's `initialFlowStep`
+    const rawSteps = isRecord(animator) ? flowStepViewsOf(Array.isArray(animator.flowSteps) ? animator.flowSteps : [], Array.isArray(animator.flows) ? animator.flows : []) : [];
+    const startOf = isRecord(animator) && Array.isArray(animator.flows) ? initialFlowStepsOf(animator.flows) : new Map<string, string>();
 
     // the written steps — the first id wins; a timeline the file lacks, or a part of a scroll timeline: not read
     const written: Array<PxPlannedStep & { flow: string }> = [];
     const ids = new Set<string>();
-    for (const raw of rawSteps) {
-        if (!isFlowStepEntry(raw) || ids.has(raw.id)) continue;
-        const step = raw;
+    for (const step of rawSteps) {
+        if (ids.has(step.id)) continue;
         const at = indexOfTimeline(timelines, step.timeline);
         if (at < 0 || (timelines[at].scroll && isPartOfTimeline(step))) continue;
         ids.add(step.id);
-        written.push({ id: step.id, timeline: at, step, implied: false, flow: typeof step.flow === 'string' ? step.flow : PX_DEFAULT_ID });
+        written.push({ id: step.id, timeline: at, step, implied: false, initial: step.initial === true, flow: typeof step.flow === 'string' ? step.flow : PX_DEFAULT_ID });
     }
     // a timeline no written step names is a step of `default` — unless a written step has its name
     const named = new Set(written.map(s => s.timeline));
     const implied: Array<PxPlannedStep> = timelines
         .filter(t => !named.has(t.index) && !ids.has(t.stepId))
-        .map(t => impliedStepOf(t));
+        .map(t => impliedStepOf(t, startOf.get(PX_DEFAULT_ID) === t.stepId));
 
     /** The steps of a flow in order; in `default` a timeline's own step stands at its timeline's place. */
     const stepsOf = (flow: string): Array<PxPlannedStep> => {
@@ -217,7 +220,9 @@ function timelinesOfEntry(entry: unknown, timelines: ReadonlyArray<PxTimelineInf
 
 /** Who moves one attribute: the units that do, in run order — the first owns it. @internal */
 export interface PxAttributeClaim {
-    readonly node: PxNode;
+    /** The element of the tree — or, a pre-rendered file's binding (no tree), its element's id (`element`). */
+    readonly node?: PxNode;
+    readonly element?: string;
     readonly attribute: string;
     /** Indexes into the plan's `units`, in run order. */
     readonly units: ReadonlyArray<number>;
@@ -245,20 +250,44 @@ export function attributeOwnersOf(doc: PxDocument, plan: PxUnitPlan): Array<PxAt
         if (Array.isArray(node.children)) node.children.forEach(visit);
     };
     visit(doc);
+    // the shared animations a binding plays on an element (the pre-rendered path, F2) — by the element's id
+    const animator = animatorOf(doc);
+    const animations = isRecord(animator) && isRecord(animator.definitions) && isRecord(animator.definitions.animations) ? animator.definitions.animations : undefined;
+    const bindings = isRecord(animator) && Array.isArray(animator.bindings) ? animator.bindings.filter(isRecord) : [];
+    if (animations) for (const binding of bindings) {
+        const element = typeof binding.element === 'string' ? binding.element.replace(/^#/, '') : '';
+        if (!element || !Array.isArray(binding.animateWith)) continue;
+        const byGroup = new Map<string, Array<number>>();
+        for (const name of binding.animateWith) {
+            const animation = typeof name === 'string' ? animations[name] : undefined;
+            if (!isRecord(animation)) continue;
+            for (const [key, entry] of Object.entries(animation)) {
+                const group = attributeGroupOf(key);
+                const units = byGroup.get(group) ?? [];
+                for (const t of timelinesOfEntry(entry, plan.timelines)) {
+                    plan.units.forEach((u, i) => { if (u.timelines.includes(t) && !units.includes(i)) units.push(i); });
+                }
+                byGroup.set(group, units);
+            }
+        }
+        for (const [attribute, units] of byGroup) if (units.length) out.push({ element, attribute, units: [...units].sort((a, b) => a - b) });
+    }
     return out;
 }
 
-/** Whether unit `unit` may move `prop` of `node` — no other unit before it does. */
-function ownsOf(claims: ReadonlyArray<PxAttributeClaim>, unit: number): (node: PxNode | undefined, prop: string) => boolean {
+/** Whether unit `unit` may move `prop` of `node` (or, with no tree, of the element `element`) — no other unit before it
+ *  does. */
+function ownsOf(claims: ReadonlyArray<PxAttributeClaim>, unit: number): (node: PxNode | undefined, prop: string, element?: string) => boolean {
     const byNode = new Map<PxNode, Map<string, number>>();
+    const byElement = new Map<string, Map<string, number>>();
     for (const c of claims) {
-        const m = byNode.get(c.node) ?? new Map<string, number>();
-        m.set(c.attribute, c.units[0]);
-        byNode.set(c.node, m);
+        if (c.node) byNode.set(c.node, (byNode.get(c.node) ?? new Map<string, number>()).set(c.attribute, c.units[0]));
+        if (c.element !== undefined) byElement.set(c.element, (byElement.get(c.element) ?? new Map<string, number>()).set(c.attribute, c.units[0]));
     }
-    return (node, prop) => {
-        if (!node) return true;
-        const first = byNode.get(node)?.get(attributeGroupOf(prop));
+    return (node, prop, element) => {
+        const group = attributeGroupOf(prop);
+        const id = element ?? (typeof node?.id === 'string' ? node.id : undefined);
+        const first = (node ? byNode.get(node)?.get(group) : undefined) ?? (id !== undefined ? byElement.get(id)?.get(group) : undefined);
         return first === undefined || first === unit;
     };
 }
@@ -266,11 +295,11 @@ function ownsOf(claims: ReadonlyArray<PxAttributeClaim>, unit: number): (node: P
 // ── what a unit hears ──────────────────────────────────────────────────────────────────────
 
 /** The rules a unit hears — see the table at the top of the file; `timeline` is dropped (a step has one). */
-function rulesForUnit(rules: ReadonlyArray<PxActionTriggerRule>, unit: PxUnit, plan: PxUnitPlan): Array<PxActionTriggerRule> {
+function rulesForUnit<R extends Pick<PxActionRule, 'action' | 'timeline' | 'flowStep' | 'flow'>>(rules: ReadonlyArray<R>, unit: PxUnit, plan: PxUnitPlan): Array<R> {
     const stepIds = new Set(unit.steps.map(s => s.id));
     const flowUnits = plan.units.filter(u => u.flow !== undefined);
     const defaultFlow = flowUnits.find(u => u.flow === PX_DEFAULT_ID) ?? flowUnits[0];
-    const out: Array<PxActionTriggerRule> = [];
+    const out: Array<R> = [];
     for (const rule of rules) {
         let mine: boolean;
         if (isPlaybackAction(rule.action)) {
@@ -289,12 +318,15 @@ function rulesForUnit(rules: ReadonlyArray<PxActionTriggerRule>, unit: PxUnit, p
 /** What a unit's triggers are wired from (2026-11-22): its rules, its steps, and the gate — the in-view numbers and
  *  `actions` of its first step's timeline. A one-timeline document whose triggers wire the picture. @internal */
 export function unitConfigOf(doc: PxDocument, unit: PxUnit, plan: PxUnitPlan): PxDocument {
-    const rules = rulesForUnit(getAnimatorConfig(doc)?.actions ?? [], unit, plan);
+    const config0 = getAnimatorConfig(doc);
+    const rules = rulesForUnit(config0?.actionRules ?? [], unit, plan);
+    // the entries that act when their `when` becomes true (1.33) — split the same way
+    const conditions = rulesForUnit(config0?.conditionRules ?? [], unit, plan);
     const first = plan.timelines[unit.steps[0]?.timeline ?? 0]?.timeline ?? {};
     const timeline: Record<string, unknown> = {};
     for (const key of ['whenStopped', 'whenOutOfView', 'inViewThreshold', 'inViewDebounce']) if (first[key] !== undefined) timeline[key] = first[key];
     const config: Record<string, unknown> = { timelines: [timeline], flowSteps: unit.steps.map(s => ({ id: s.id })) };
-    if (rules.length) config.actions = rules;
+    if (rules.length || conditions.length) config.actions = [...rules.map(actionEntryOf), ...conditions.map(conditionEntryOf)];
     return { type: 'svg', animator: config } as PxDocument;
 }
 
@@ -312,9 +344,10 @@ const HELD_FRAME_MS = 1;
 const isPictureWord = (v: unknown): v is PxWhenFinished =>
     v === PxWhenFinished.hold || v === PxWhenFinished.jumpToStart || v === PxWhenFinished.animateToStart;
 
-/** A written step's timeline: its part, and what it says over the timeline (repeats, direction, speed, its end —
- *  an action at its end is the flow's: the playback holds). No delay; before anything plays, its first frame. */
-function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStep, goesOn: boolean): Record<string, unknown> {
+/** A written step's timeline: its part, and what it says over the timeline (repeats, direction, speed, delay, how it is
+ *  stopped, its end — an action at its end is the flow's: the playback holds). No delay of the timeline's — only its
+ *  own; before anything plays, its first frame. */
+function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStepView, goesOn: boolean): Record<string, unknown> {
     const out = asOnlyTimeline(timeline);
     if (typeof step.inTime === 'number') out.inTime = step.inTime;
     if (typeof step.outTime === 'number') out.outTime = step.outTime;
@@ -323,10 +356,12 @@ function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStep, goesO
     if (step.iterations !== undefined) out.iterations = step.iterations;
     if (step.iterationDirection !== undefined) out.iterationDirection = step.iterationDirection;
     if (step.playbackSpeed !== undefined) out.playbackSpeed = step.playbackSpeed;
+    if (step.whenStopped !== undefined) out.whenStopped = step.whenStopped;
     // it goes on at its end (a `finished` entry, 1.29): the flow's — the playback holds
     if (goesOn) out.whenFinished = PxWhenFinished.hold;
     else if (isPictureWord(step.whenFinished)) out.whenFinished = step.whenFinished;
     delete out.delay;
+    if (typeof step.delay === 'number') out.delay = step.delay;
     out.whenIdle = PxWhenIdle.firstFrame;
     return out;
 }
@@ -375,18 +410,20 @@ function projectDefinitions(
     doc: PxDocument,
     animator: Record<string, unknown>,
     plan: PxUnitPlan,
-    project: (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string) => PxCompiledAnimation | undefined,
+    project: (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string, element: string | undefined) => PxCompiledAnimation | undefined,
 ): Record<string, unknown> | undefined {
     const defs = isRecord(animator.definitions) ? animator.definitions : undefined;
     const animations = defs && isRecord(defs.animations) ? defs.animations : undefined;
     if (!defs || !animations) return undefined;
     const nodes = nodesById(doc as PxNode);
     const bindings = Array.isArray(animator.bindings) ? animator.bindings.filter(isRecord) : [];
-    const nodeOf = (name: string): PxNode | undefined => {
+    /** The id of the element a binding plays `name` on. */
+    const elementOf = (name: string): string | undefined => {
         const binding = bindings.find(b => Array.isArray(b.animateWith) && b.animateWith.includes(name));
         const element = binding && typeof binding.element === 'string' ? binding.element : undefined;
-        return element === undefined ? undefined : nodes.get(element.startsWith('#') ? element.slice(1) : element);
+        return element === undefined ? undefined : element.startsWith('#') ? element.slice(1) : element;
     };
+    const nodeOf = (name: string): PxNode | undefined => { const id = elementOf(name); return id === undefined ? undefined : nodes.get(id); };
     // a plain document keeps its shared animations AUTHORED (`normalizeBindings` compiles them at bind time): they are
     // compiled here — every track against its own timeline's window, the engine as the player resolves it
     const def = plan.timelines.find(t => t.isDefault) ?? plan.timelines[0];
@@ -405,7 +442,7 @@ function projectDefinitions(
                 ? { [prop]: entry as PxCompiledAnimation }
                 : compileAnimationDefinition({ [prop]: entry } as PxAnimationDefinition, node?.transform, ctx);
             for (const [key, ch] of Object.entries(compiled)) {
-                const kept = project(ch, node, key);
+                const kept = project(ch, node, key, elementOf(name));
                 if (kept) projected[key] = kept;
             }
         }
@@ -428,12 +465,12 @@ export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: num
     const animator = animatorOf(doc);
     const base: Record<string, unknown> = isRecord(animator) ? { ...animator } : {};
     delete base.timelines; delete base.flowSteps; delete base.flows; delete base.actions;
-    const goesOn = goesOnAtEnd(atEndActionOf(planned.id, getAnimatorConfig(doc)?.actions), stepIndex, unit.steps.length);
+    const goesOn = goesOnAtEnd(atEndActionOf(planned.id, getAnimatorConfig(doc)?.actionRules), stepIndex, unit.steps.length);
     base.timelines = [planned.implied ? asOnlyTimeline(t.timeline) : stepTimeline(t.timeline, planned.step, goesOn)];
     const owns = ownsOf(claims, unitIndex);
     const trackId = t.isDefault ? undefined : t.id;
-    const promote = (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string): PxCompiledAnimation | undefined =>
-        owns(node, prop) ? timelineTrackOf(ch, trackId) : undefined;
+    const promote = (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string, element?: string): PxCompiledAnimation | undefined =>
+        owns(node, prop, element) ? timelineTrackOf(ch, trackId) : undefined;
     const tree = projectTree(doc as PxNode, promote);
     const definitions = projectDefinitions(doc, base, plan, promote);
     if (definitions) base.definitions = definitions;
@@ -451,9 +488,10 @@ function goesOnAtEnd(then: PxActionObject | undefined, stepIndex: number, count:
 const isLeaving = (v: unknown): v is PxWhenLeaving =>
     v === PxWhenLeaving.jump || v === PxWhenLeaving.animateToEnd || v === PxWhenLeaving.animateToStart;
 
-/** A unit's steps as its flow switch reads them: where each goes at its end (the `finished` entries of `rules`, 1.29),
- *  how it is left, where the flow starts, whether it repeats for ever (its own `iterations`, else its timeline's). @internal */
-export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan, rules: ReadonlyArray<PxActionTriggerRule> = []): Array<PxFlowSwitchStep> {
+/** A unit's steps as its flow switch reads them: where each goes at its end (the `flowStep.finished` rules, 1.29), how
+ *  it is left (its own `whenLeaving`, else its timeline's), where the flow starts (its flow's `initialFlowStep`), whether
+ *  it repeats for ever (its own `iterations`, else its timeline's). @internal */
+export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan, rules: ReadonlyArray<PxActionRule> = []): Array<PxFlowSwitchStep> {
     const ids = unit.steps.map(s => s.id);
     return unit.steps.map((planned): PxFlowSwitchStep => {
         const step = planned.implied ? undefined : planned.step;
@@ -462,12 +500,15 @@ export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan, rules: ReadonlyArr
         const then: PxFlowSwitchStep['then'] = wf === undefined ? undefined
             : move ? (move.wrap ? { step: move.delta, wrap: true } : { step: move.delta })
             : wf.flowStep !== undefined && ids.includes(wf.flowStep) ? { flowStep: wf.flowStep } : undefined;
-        const iterations = step?.iterations ?? plan.timelines[planned.timeline].timeline.iterations;
+        const timeline = plan.timelines[planned.timeline].timeline;
+        const iterations = step?.iterations ?? timeline.iterations;
+        // how it is left: its own, else its timeline's (1.33), else a cut
+        const leaving = isLeaving(step?.whenLeaving) ? step.whenLeaving : isLeaving(timeline.whenLeaving) ? timeline.whenLeaving : PxWhenLeaving.jump;
         return {
             id: planned.id,
             then,
-            whenLeaving: isLeaving(step?.whenLeaving) ? step.whenLeaving : PxWhenLeaving.jump,
-            initial: step?.initial === true,
+            whenLeaving: leaving,
+            initial: planned.initial,
             endless: iterations === 'infinite',
         };
     });

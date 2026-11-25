@@ -63,11 +63,12 @@ export function bindPlanned(doc: PxDocument, binder: PxStepBinder, callbacks: Px
     return api;
 }
 
-/** A pre-rendered player's variables — `showOneOf` reads a bound `which` from them, again on every change. */
+/** A pre-rendered player's variables — `showOneOf` reads a bound `which` from them, again on every change; the
+ *  conditions of `actions` read them too (1.33). */
 export interface PxPrerenderedVariables {
     read(name: string): PxVariableValue | undefined;
-    /** Told (on the next frame) when a value changes. */
-    onChange(listener: () => void): void;
+    /** Told (on the next frame) when a value changes; returns the undo. */
+    onChange(listener: () => void): () => void;
 }
 
 /** `showOneOf` (1.32): applied now, and again whenever a pre-rendered player's variable changes. */
@@ -79,8 +80,8 @@ function watchShowOneOf(doc: PxDocument, root: () => Element | null, hider: PxHi
 /** The callbacks a unit other than the first gets: its diagnostics and its changes of step, no playback events. */
 function secondaryCallbacks(callbacks: PxPlayerCallbacks | undefined): PxPlayerCallbacks | undefined {
     if (!callbacks) return undefined;
-    const { onWarning, onError, suppressWarnings, suppressErrors, onFlowStepChange } = callbacks;
-    return { onWarning, onError, suppressWarnings, suppressErrors, onFlowStepChange };
+    const { onWarning, onError, suppressWarnings, suppressErrors, onFlowStepChange, conditionSources } = callbacks;
+    return { onWarning, onError, suppressWarnings, suppressErrors, onFlowStepChange, conditionSources };
 }
 
 /** One unit at work: its switch, and what the flow wired. */
@@ -102,12 +103,19 @@ function bindUnit(
     onStepChanged: () => void,
 ): PxBoundUnit {
     const unit = plan.units[unitIndex];
-    const { onPlaybackFinish, onFlowStepChange, ...stepCallbacks } = callbacks ?? {};
+    const { onPlaybackFinish, onFlowStepChange, conditionSources, ...stepCallbacks } = callbacks ?? {};
+    // told after the flow moves — what a condition entry's `when.flowSteps` reads (1.33)
+    const stepListeners = new Set<() => void>();
+    const onStepChange = (listener: () => void): (() => void) => { stepListeners.add(listener); return () => { stepListeners.delete(listener); }; };
     const flowSwitch = createFlowSwitch<PxBoundPlayerApi>({
         flow: flowNameOfUnit(plan, unit),
-        steps: switchStepsOf(unit, plan, getAnimatorConfig(doc)?.actions ?? []),
+        steps: switchStepsOf(unit, plan, getAnimatorConfig(doc)?.actionRules ?? []),
         raf: webRaf,
-        onChange: (flowStep, previous, flow) => { onStepChanged(); onFlowStepChange?.(flowStep, previous, flow); },
+        onChange: (flowStep, previous, flow) => {
+            onStepChanged();
+            onFlowStepChange?.(flowStep, previous, flow);
+            for (const listener of [...stepListeners]) listener();
+        },
         onPlaybackFinish: () => onPlaybackFinish?.(),
         bind: (stepIndex, events) => {
             const stepDoc = stepDocumentOf(doc, plan, unitIndex, stepIndex, claims);
@@ -122,7 +130,7 @@ function bindUnit(
         const config = getAnimatorConfig(unitConfigOf(doc, unit, plan)) ?? {};
         const report = createDiagnostics(callbacks, '[PxAnimator]');
         reportTriggerProblems(config, report);
-        detach = wireTriggers(root, flowSwitch.executor, unit.flow !== undefined ? flowSwitch : undefined, config, report);
+        detach = wireTriggers(root, flowSwitch.executor, unit.flow !== undefined ? flowSwitch : undefined, config, report, conditionSources, onStepChange);
     }
     return {
         flowSwitch,
@@ -168,11 +176,11 @@ function bindUnits(
         : flows.find(x => x.unit.flow === flow);
     const ownerOf = (flowStep: string) => flows.find(x => x.unit.steps.some(s => s.id === flowStep));
     const flow: PxFlowControls = {
-        "goTo": (id) => ownerOf(id)?.bound.flowSwitch.controls.goTo(id),
-        "next": (name) => flowOf(name)?.bound.flowSwitch.controls.next(),
-        "previous": (name) => flowOf(name)?.bound.flowSwitch.controls.previous(),
-        "nextOrWrap": (name) => flowOf(name)?.bound.flowSwitch.controls.nextOrWrap(),
-        "previousOrWrap": (name) => flowOf(name)?.bound.flowSwitch.controls.previousOrWrap(),
+        "goTo": (args) => ownerOf(args.flowStep)?.bound.flowSwitch.controls.goTo(args),
+        "next": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.next(),
+        "previous": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.previous(),
+        "nextOrWrap": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.nextOrWrap(),
+        "previousOrWrap": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.previousOrWrap(),
         "get": (name) => name === undefined ? flows.flatMap(x => x.bound.flowSwitch.controls.get()) : flowOf(name)?.bound.flowSwitch.controls.get() ?? [],
         "getAll": () => flows.flatMap(x => x.bound.flowSwitch.controls.getAll()),
     };

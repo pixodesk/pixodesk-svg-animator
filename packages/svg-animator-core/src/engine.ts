@@ -39,7 +39,7 @@ export { PxValueKind } from './format/PxAnimatorConstants';
 export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Which trigger, which engine
-export { resolveTriggers, resolveActions, resolveGate, fromStepsOf, isPageEvent, isPageEventRule, ruleSpecOf, triggerEventList, triggerIssues, derivedResume, ruleEventEntry, ruleEntriesOf, rulesOfEntries, isPlaybackAction, defaultTimelineOf, isOnDefaultTimeline, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, triggerKeys, triggerKeyOf, triggerSpecOf, triggerEventOf, isTriggerEvents, PX_ALL_TRIGGER_EVENTS, PX_FLOW_ACTION_EVENTS, PX_ACTION_NAMES, isFlowAction, flowStepMoveOf, flowStepIndexAfter, type PxFlowStepMove, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
+export { actionRulesOf, actionEntryOf, conditionRulesOf, conditionEntryOf, flowStepViewsOf, initialFlowStepsOf, resolveTriggers, resolveActions, resolveGate, fromStepsOf, isPageEvent, isPageEventRule, ruleSpecOf, triggerEventList, triggerIssues, derivedResume, ruleEventEntry, ruleEntriesOf, rulesOfEntries, isPlaybackAction, defaultTimelineOf, isOnDefaultTimeline, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, triggerKeys, triggerKeyOf, triggerSpecOf, triggerEventOf, isTriggerEvents, PX_ALL_TRIGGER_EVENTS, PX_FLOW_ACTION_EVENTS, PX_ACTION_NAMES, isFlowAction, flowStepMoveOf, flowStepIndexAfter, type PxFlowStepMove, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
 
 // Adapter-driven frame-loop engine (platform-neutral playback) + the node props every renderer shares
 export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
@@ -48,9 +48,10 @@ export type { PxEngineAnimationPlayerApi } from './format/PxAnimatorTypes';
 export { shouldWireOwnTriggers } from './format/PxAnimatorTypes';
 export { toDomProps } from './util/PxNodeProps';
 
+export type { PxConditionSources } from './format/PxAnimatorTypes';
 export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue, PxTriggerEventSpec, PxFlowTrigger } from './format/PxAnimatorConstants';
 // states (2026-11-20; segments 2026-11-15): the engine's view of a document with states, the states in their settings form
-export { flowStepReferenceIssues, duplicateFlowStepIds, isFlowActionObject, isFlowStepEntry } from './playback/PxFlows';
+export { flowStepReferenceIssues, duplicateFlowStepIds, isFlowStepEntry } from './playback/PxFlows';
 export { createFlowSwitch } from './playback/PxFlowSwitch';
 export type { PxFlowSwitch, PxFlowSwitchOptions, PxFlowSwitchStep, PxFlowStepPlayer } from './playback/PxFlowSwitch';
 export { timelineIssues, PxTimelineIssueKind, type PxTimelineIssue } from './playback/PxTimelineChecks';
@@ -65,7 +66,7 @@ export type { PxUnit, PxUnitPlan, PxPlannedStep, PxAttributeClaim, PxRunLists } 
 export { PxVariablesRuntime, applyVariablesProp } from './variables/PxVariablesRuntime';
 export type { PxVariableChanges } from './variables/PxVariablesRuntime';
 export { PxVariableBinding, PxFormulaNode, PxFormulaNumber, PxFormulaBoolean, PxFormulaText, PxFormulaVariable, PxFormulaNegate, PxFormulaNot, PxFormulaBinary, PxFormulaChoice,
-    PxFormulaOperator, PxFormulaResultType, formulaResultTypeOfValue, renameInBinding, isVariableReadName } from './variables/PxFormula';
+    PxFormulaOperator, PxFormulaResultType, formulaResultTypeOfValue, renameInBinding, isVariableReadName, isConditionTrue } from './variables/PxFormula';
 export type { PxVariableBindingParseResult, PxVariableReader, PxFormulaTypeReader } from './variables/PxFormula';
 export { collectBindingSites, formulaResultTypeOf, isPredefinedVariableName } from './variables/PxVariableBindings';
 export type { PxBindingSite } from './variables/PxVariableBindings';

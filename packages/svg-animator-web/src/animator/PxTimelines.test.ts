@@ -30,16 +30,16 @@ function buttonDoc(): PxDocument {
             ],
             // the pointer steps name their flow: only flows run side by side (2026-11-22)
             flowSteps: [
-                { id: 'idle', flow: 'pointer', timeline: 'grow', inTime: 0, outTime: 0 },
+                { id: 'idle', flow: 'pointer', timeline: 'grow', timelineOptions: { inTime: 0, outTime: 0 } },
                 { id: 'hover', flow: 'pointer', timeline: 'grow' },
                 { id: 'press', flow: 'pointer', timeline: 'dip' },
             ],
             flows: [{ id: 'pointer' }],
             actions: [
-                { action: 'timeline.start', event: 'load' },
-                { action: 'flow.goTo', flowStep: 'press', event: 'click', element: '#btn' },
-                // 1.29: "at its end, go to hover" is an entry of the list
-                { action: 'flow.goTo', flowStep: 'hover', event: 'finished', from: 'press' },
+                { name: 'timeline.start', triggers: [{ event: 'load' }] },
+                { name: 'flow.goTo', with: { flowStep: 'press' }, triggers: [{ event: 'click', element: '#btn' }] },
+                // 1.29: "at its end, go to hover" is an entry of the list (1.33: `flowStep.finished`, `when.flowSteps`)
+                { name: 'flow.goTo', with: { flowStep: 'hover' }, triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['press'] } },
             ],
         },
         children: [
@@ -85,7 +85,7 @@ describe('several timelines — units side by side (2026-11-20)', () => {
     it('a step on the other timeline plays its track; the first timeline\'s attribute holds the node\'s own value', () => {
         const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box' });
         vi.advanceTimersByTime(100);
-        api.flow.goTo('press');
+        api.flow.goTo({ flowStep: 'press' });
         expect(api.flow.get('pointer')).toEqual(['press']);
         vi.advanceTimersByTime(500);
         expect(width()).toBeGreaterThan(13);
@@ -94,9 +94,9 @@ describe('several timelines — units side by side (2026-11-20)', () => {
         expect(shineX()).toBeGreaterThan(5);     // the shine goes on
     });
 
-    it('`whenFinished` goes to a state on another timeline; its track plays from 0', () => {
+    it('a `flowStep.finished` entry goes to a state on another timeline; its track plays from 0', () => {
         const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box' });
-        api.flow.goTo('press');
+        api.flow.goTo({ flowStep: 'press' });
         vi.advanceTimersByTime(1200);
         expect(api.flow.get('pointer')).toEqual(['hover']);
         vi.advanceTimersByTime(400);
@@ -105,7 +105,7 @@ describe('several timelines — units side by side (2026-11-20)', () => {
         expect(width()).toBeCloseTo(5, 1);       // `dip` is not showing any more
     });
 
-    it('a rule on an element of the picture moves the flow; the free timeline is not touched', () => {
+    it('an entry on an element of the picture moves the flow; the free timeline is not touched', () => {
         const api = createSvgAnimationPlayer({ document: buttonDoc(), container: '#box' });
         vi.advanceTimersByTime(100);
         button()?.dispatchEvent(new MouseEvent('click', { bubbles: true }));

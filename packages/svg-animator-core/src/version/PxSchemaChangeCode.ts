@@ -296,6 +296,23 @@ export enum PxSchemaChangeCode {
      * release writes a variable as `var(name)` (it was `variable(name)`; an older file reads it as text).
      */
     showOneOf = 31,
+
+    /**
+     * Fewer words and structures for actions, flows and steps (2026-11-24, docs/library/playback-and-triggers.md). An
+     * entry of `actions` reads in three parts — `{ "name": "flow.goTo", "with": { "flowStep": "save" }, "triggers": [ {
+     * "event": "click" } ], "when": { "flowSteps": ["idle"] } }`: its `action` is `name`; what it acts on and how
+     * (`timeline`, `flow`, `flowStep`, `behavior`) is its arguments' object `with` — `behavior` becomes `whenStopped` or
+     * `whenLeaving`; its event (`event`, `element`, `selector`, `with`) is one object of the list `triggers`; `from` is
+     * `when.flowSteps`, always a list; `when.condition` is new. The event `finished` is `flowStep.finished`. A step's
+     * timeline keys (`inTime`, `outTime`, `iterations`, `iterationDirection`, `playbackSpeed`, `whenFinished`,
+     * `whenLeaving`) move into its `timelineOptions`, which also takes `delay` and `whenStopped`; a timeline has
+     * `whenLeaving` too. Where a flow starts is its `initialFlowStep` (a step's `initial: true` until then). Timelines,
+     * flows and steps have no `name` — the id is the name. `effects.showIn: { flowSteps }` is `effects.show: { when: {
+     * flowSteps } }`, `effects.showOneOf: { which }` is `effects.showOneChild: { when: { index } }` — on a pre-rendered
+     * binding too. A formula (`calc(…)`) may compare, join conditions with `and` · `or` · `not` and pick one of two
+     * values (`a ? b : c`).
+     */
+    actionsAndFlowsShape = 32,
 }
 
 /** Where the words behind a code live. One string, shared by every code. */

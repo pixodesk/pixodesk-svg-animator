@@ -5,8 +5,9 @@
  *---------------------------------------------------------------------------------------*/
 
 // ============================================================================
-// SHOW IN (1.31) — `effects.showIn`: an element shown only while one of its flow steps is current; hidden
-// (`display: none`) otherwise, at once. One plain rule for every platform:
+// SHOW (1.33; `showIn` 1.31) — `effects.show: { when: { flowSteps } }`: an element shown only while one of its flow steps
+// is current; hidden (`display: none`) otherwise, at once. One plain rule for every platform (the names here keep the
+// 1.31 word — they are the player's own):
 //
 // | piece | what it does |
 // |---|---|
@@ -17,8 +18,8 @@
 //
 // A step id the file lacks is never current (`validateDocument` warns).
 //
-// `showOneOf` (1.32) lives here too — a group shows one of its children (`showOneOfTargetsOf`, `shownOptionOf`). The two
-// HIDE THE SAME WAY (`display: none` on the element itself); change both together.
+// `showOneChild` (1.33; `showOneOf` 1.32) lives here too — a group shows one of its children (`showOneOfTargetsOf`,
+// `shownOptionOf`). The two HIDE THE SAME WAY (`display: none` on the element itself); change both together.
 // ============================================================================
 
 import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
@@ -31,25 +32,25 @@ export interface PxShowInTarget {
     readonly flowSteps: ReadonlyArray<string>;
 }
 
-/** Every element of `doc` that says `showIn`: the tree's nodes with an id, then the bindings (a pre-rendered file has
- *  no nodes). @internal */
+/** Every element of `doc` that says `effects.show`: the tree's nodes with an id, then the bindings (a pre-rendered file
+ *  has no nodes). @internal */
 export function showInTargetsOf(doc: PxDocument): Array<PxShowInTarget> {
     const out: Array<PxShowInTarget> = [];
     const walk = (node: PxNode): void => {
-        const showIn = node.effects?.showIn;
-        if (showIn && typeof node.id === 'string') out.push({ id: node.id, flowSteps: showIn.flowSteps });
+        const show = node.effects?.show;
+        if (show && typeof node.id === 'string') out.push({ id: node.id, flowSteps: show.when.flowSteps });
         if (Array.isArray(node.children)) node.children.forEach(walk);
     };
     walk(doc);
     for (const binding of getBindings(doc) ?? []) {
-        if (!binding.showIn) continue;
+        if (!binding.show) continue;
         const id = binding.element.startsWith('#') ? binding.element.slice(1) : binding.element;
-        out.push({ id, flowSteps: binding.showIn.flowSteps });
+        out.push({ id, flowSteps: binding.show.when.flowSteps });
     }
     return out;
 }
 
-/** One group that shows one of its children: `which` — a number, or (a pre-rendered binding) binding text; `options` —
+/** One group that shows one of its children: `which` — its `when.index`: a number, or (a pre-rendered binding) binding text; `options` —
  *  the children's bare ids, in order; none (a binding that lists none) — the children of `group` as rendered. @internal */
 export interface PxShowOneOfTarget {
     readonly which: number | string | undefined;
@@ -60,18 +61,18 @@ export interface PxShowOneOfTarget {
 
 const bareId = (ref: string): string => ref.startsWith('#') ? ref.slice(1) : ref;
 
-/** Every group of `doc` that says `showOneOf` with its options listed (the lowering lists them), then the bindings. @internal */
+/** Every group of `doc` that says `effects.showOneChild` with its options listed (the lowering lists them), then the bindings. @internal */
 export function showOneOfTargetsOf(doc: PxDocument): Array<PxShowOneOfTarget> {
     const out: Array<PxShowOneOfTarget> = [];
     const walk = (node: PxNode): void => {
-        const fx = node.effects?.showOneOf;
-        if (fx?.options) out.push({ which: fx.which, options: fx.options.map(o => bareId(o.element)) });
+        const fx = node.effects?.showOneChild;
+        if (fx?.options) out.push({ which: fx.when?.index, options: fx.options.map(o => bareId(o.element)) });
         if (Array.isArray(node.children)) node.children.forEach(walk);
     };
     walk(doc);
     for (const binding of getBindings(doc) ?? []) {
-        const fx = binding.showOneOf;
-        if (fx) out.push(fx.options ? { which: fx.which, options: fx.options.map(o => bareId(o.element)) } : { which: fx.which, group: bareId(binding.element) });
+        const fx = binding.showOneChild;
+        if (fx) out.push(fx.options ? { which: fx.when?.index, options: fx.options.map(o => bareId(o.element)) } : { which: fx.when?.index, group: bareId(binding.element) });
     }
     return out;
 }
@@ -95,9 +96,9 @@ export function flowNameOfUnit(plan: PxUnitPlan, unit: PxUnit): string {
     return unit.flow ?? plan.timelines[unit.steps[0].timeline].name;
 }
 
-/** Where a unit starts: the step marked `initial`, else the first. */
+/** Where a unit starts: the step its flow's `initialFlowStep` names, else the first. */
 function startStepOf(unit: PxUnit): string {
-    return (unit.steps.find(s => !s.implied && s.step.initial === true) ?? unit.steps[0]).id;
+    return (unit.steps.find(s => s.initial) ?? unit.steps[0]).id;
 }
 
 /** The steps current now — each unit of `all` (every flow of the file) at `current`'s step for it (by

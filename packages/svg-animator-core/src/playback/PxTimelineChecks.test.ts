@@ -23,15 +23,15 @@ function bell(): PxDocument {
                 { id: 'reveal', type: 'scroll', outTime: 1000 },
             ],
             flowSteps: [
-                { id: 'idle', timeline: 'grow', inTime: 0, outTime: 0 },
+                { id: 'idle', timeline: 'grow', timelineOptions: { inTime: 0, outTime: 0 } },
                 { id: 'press', timeline: 'dip' },
                 { id: 'ringing', flow: 'notice', timeline: 'ring' },
             ],
             flows: [{ id: 'notice' }],
             actions: [
-                { action: 'timeline.start', event: 'load' },
-                { action: 'flow.next', flow: 'notice', event: 'keyDown' },
-                { action: 'timeline.pause', timeline: 'ring', event: 'hoverOut' },
+                { name: 'timeline.start', triggers: [{ event: 'load' }] },
+                { name: 'flow.next', with: { flow: 'notice' }, triggers: [{ event: 'keyDown' }] },
+                { name: 'timeline.pause', with: { timeline: 'ring' }, triggers: [{ event: 'hoverOut' }] },
             ],
         },
         children: [
@@ -73,7 +73,7 @@ describe('timeline checks', () => {
     it('references that name nothing: a step\'s timeline, a rule\'s, a track\'s timeline — a flow only steps name is a flow', () => {
         const doc = bell();
         doc.animator?.flowSteps?.push({ id: 'lost', timeline: 'nope', flow: 'gone' });
-        doc.animator?.actions?.push({ action: 'timeline.stop', timeline: 'nope2', event: 'click' });
+        doc.animator?.actions?.push({ name: 'timeline.stop', with: { timeline: 'nope2' }, triggers: [{ event: 'click' }] });
         doc.children?.push({ type: 'rect', id: 'stray', animate: { x: { byTimeline: [{ timeline: 'nope3', keyframes: [{ time: 0, value: 1 }] }] } } });
         expect(kinds(doc)).toEqual([
             [PxTimelineIssueKind.referenceNotFound, 'timeline', 'nope', 'lost'],
@@ -84,7 +84,7 @@ describe('timeline checks', () => {
 
     it('one timeline in two flows; a step on a PART of the scroll timeline (the whole of it is a step)', () => {
         const doc = bell();
-        doc.animator?.flowSteps?.push({ id: 'taken', flow: 'notice', timeline: 'grow' }, { id: 'scrolled', timeline: 'reveal', inTime: 0, outTime: 500 });
+        doc.animator?.flowSteps?.push({ id: 'taken', flow: 'notice', timeline: 'grow' }, { id: 'scrolled', timeline: 'reveal', timelineOptions: { inTime: 0, outTime: 500 } });
         expect(kinds(doc)).toEqual([
             [PxTimelineIssueKind.partOfScrollTimeline, '', 'reveal', 'scrolled'],
             [PxTimelineIssueKind.timelineShared, '', 'grow', 'taken'],

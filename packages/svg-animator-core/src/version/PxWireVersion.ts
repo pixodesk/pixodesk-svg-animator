@@ -459,7 +459,110 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         kind: PxWireStepKind.additive,
         down: (doc) => { downEffect(doc, 'showOneOf', 'a group shows one of its children'); },
     },
+    {
+        from: '1.32',
+        to: '1.33',
+        code: PxSchemaChangeCode.actionsAndFlowsShape,
+        kind: PxWireStepKind.converted,
+        up: (doc) => { upActionsAndFlowsShape(doc); },
+        // No `down`: 1.33 says what 1.32 could not — several triggers on one entry, a condition, a step's own delay and
+        // way of stopping, a timeline's way of being left, a formula that compares.
+    },
 ];
+
+/** 1.32 → 1.33 (see the step's `code`) — frozen at the words of the two versions. Each entry stays one entry (one
+ *  trigger); a step's `initial` goes to its flow; every `name` of a timeline, a flow and a step is dropped (a label —
+ *  nothing referred to it). @internal */
+export function upActionsAndFlowsShape(doc: Record<string, unknown>): void {
+    const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+    const animator = getAnimatorBlock(doc);
+    if (animator) {
+        // a rule of 1.32 has an `action`; an entry already in the 1.33 shape is left as it is (twice is the same as once)
+        if (Array.isArray(animator['actions'])) animator['actions'] = animator['actions'].map(entry => isObj(entry) && entry['action'] !== undefined ? entryOfRule(entry) : entry);
+        for (const timeline of Array.isArray(animator['timelines']) ? animator['timelines'] : []) if (isObj(timeline)) delete timeline['name'];
+        const flows: Array<Record<string, unknown>> = Array.isArray(animator['flows']) ? animator['flows'].filter(isObj) : [];
+        for (const flow of flows) delete flow['name'];
+        const steps = Array.isArray(animator['flowSteps']) ? animator['flowSteps'].filter(isObj) : [];
+        for (const step of steps) {
+            delete step['name'];
+            const options: Record<string, unknown> = {};
+            for (const key of STEP_TIMELINE_KEYS_1_32) {
+                if (step[key] === undefined) continue;
+                options[key] = step[key];
+                delete step[key];
+            }
+            if (Object.keys(options).length) step['timelineOptions'] = options;
+            const initial = step['initial'];
+            delete step['initial'];
+            if (initial !== true || typeof step['id'] !== 'string') continue;
+            const flowId = typeof step['flow'] === 'string' ? step['flow'] : 'default';
+            let flow = flows.find(f => f['id'] === flowId);
+            if (!flow) {
+                flow = { id: flowId };
+                flows.push(flow);
+            }
+            // the first step marked `initial` was where the flow started
+            if (flow['initialFlowStep'] === undefined) flow['initialFlowStep'] = step['id'];
+        }
+        if (flows.length) animator['flows'] = flows;
+        const bindings = Array.isArray(animator['bindings']) ? animator['bindings'] : [];
+        for (const binding of bindings) if (isObj(binding)) upShowEffects(binding);
+    }
+    const walk = (node: unknown): void => {
+        if (!isObj(node)) return;
+        if (isObj(node['effects'])) upShowEffects(node['effects']);
+        if (Array.isArray(node['children'])) node['children'].forEach(walk);
+    };
+    walk(doc);
+}
+
+/** The keys a 1.32 step carried of its timeline — 1.33 puts them in `timelineOptions`. */
+const STEP_TIMELINE_KEYS_1_32: ReadonlyArray<string> = ['inTime', 'outTime', 'iterations', 'iterationDirection', 'playbackSpeed', 'whenFinished', 'whenLeaving'];
+
+/** A 1.32 rule as a 1.33 entry: `action` → `name`, its targets and `behavior` → `with`, its event → one trigger, `from` →
+ *  `when.flowSteps`, `finished` → `flowStep.finished`. */
+function entryOfRule(rule: Record<string, unknown>): Record<string, unknown> {
+    const action = rule['action'];
+    const entry: Record<string, unknown> = { name: action };
+    const args: Record<string, unknown> = {};
+    const behavior = rule['behavior'];
+    if (action === 'flow.goTo') {
+        if (rule['flowStep'] !== undefined) args['flowStep'] = rule['flowStep'];
+        if (behavior !== undefined) args['whenLeaving'] = behavior;
+    } else if (action === 'flow.next' || action === 'flow.previous' || action === 'flow.nextOrWrap' || action === 'flow.previousOrWrap') {
+        if (rule['flow'] !== undefined) args['flow'] = rule['flow'];
+    } else {
+        if (rule['timeline'] !== undefined) args['timeline'] = rule['timeline'];
+        if (action === 'timeline.stop' && behavior !== undefined) args['whenStopped'] = behavior;
+    }
+    if (Object.keys(args).length) entry['with'] = args;
+    if (rule['event'] !== undefined) {
+        const trigger: Record<string, unknown> = { event: rule['event'] === 'finished' ? 'flowStep.finished' : rule['event'] };
+        for (const key of ['element', 'selector', 'with']) if (rule[key] !== undefined) trigger[key] = rule[key];
+        entry['triggers'] = [trigger];
+    }
+    const from = rule['from'];
+    const steps = typeof from === 'string' ? [from] : Array.isArray(from) ? from : [];
+    if (steps.length) entry['when'] = { flowSteps: steps };
+    return entry;
+}
+
+/** `showIn: { flowSteps }` → `show: { when: { flowSteps } }`, `showOneOf: { which, options }` → `showOneChild: { when:
+ *  { index }, options }` — on a node's `effects`, or a pre-rendered binding. */
+function upShowEffects(holder: Record<string, unknown>): void {
+    const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+    const showIn = holder['showIn'];
+    if (isObj(showIn)) holder['show'] = { when: { flowSteps: showIn['flowSteps'] ?? [] } };
+    delete holder['showIn'];
+    const old = holder['showOneOf'];
+    if (isObj(old)) {
+        const next: Record<string, unknown> = {};
+        if (old['which'] !== undefined) next['when'] = { index: old['which'] };
+        if (old['options'] !== undefined) next['options'] = old['options'];
+        holder['showOneChild'] = next;
+    }
+    delete holder['showOneOf'];
+}
 
 /** 1.31 → 1.30 — the way back, refused (thrown) where 1.30 cannot say it: an element shown only in some steps (a node's
  *  `effects.showIn`, a binding's `showIn`). @internal */

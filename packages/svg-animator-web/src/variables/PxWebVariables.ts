@@ -32,6 +32,8 @@ export interface PxWebVariablesHost {
     playback(): PxTimelineControls | undefined;
     /** Build the player again from the runtime's current document, its state and time kept. */
     rebuild(): void;
+    /** Values changed and were drawn — the conditions of `actions` read them again (1.33). */
+    changed?(): void;
 }
 
 const POINTER_PREFIX = 'player.pointer';
@@ -131,6 +133,7 @@ export class PxWebVariables {
             written.add(group);
             this.write(site, key);
         }
+        this.host.changed?.();
     }
 
     private canWriteDirectly(site: PxBindingSite): boolean {

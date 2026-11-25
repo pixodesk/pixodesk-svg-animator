@@ -8,7 +8,7 @@
     "timelines": [
       { "outTime": 1000, "whenOutOfView": "continue", "iterations": 2, "iterationDirection": "normal" }
     ],
-    "actions": [{ "action": "timeline.start", "event": "load" }]
+    "actions": [{ "name": "timeline.start", "triggers": [{ "event": "load" }] }]
   },
   "children": [
     {

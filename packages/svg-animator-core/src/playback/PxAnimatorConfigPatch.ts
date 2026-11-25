@@ -24,7 +24,7 @@
  */
 import { controlModeTakesOverTrigger, getAnimatorConfig, PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxControlMode, PxScrollFollows, PxWhenIdle } from '../format/PxAnimatorConstants';
 import { isScrollTimeline } from './PxScrollMath';
-import type { PxDocument, PxAnimatorConfig, PxTimeline, PxActionTriggersInput } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxTimeline, PxActionsInput } from '../format/PxAnimatorTypes';
 import { legacyAnimatorOf } from '../format/PxDocStage';
 
 /**
@@ -214,7 +214,7 @@ export interface PxPlaybackOverride<TFollowed = never> {
 export interface PxPlaybackOverrideInput extends PxPlaybackOverride {
     /** A list — the WHOLE list to use instead of the file's; `null` — none (an empty list); left out — the file's own
      *  (see {@link PxCommonControlProps}). */
-    actions?: PxActionTriggersInput | null;
+    actions?: PxActionsInput | null;
 }
 
 /** What {@link applyPlaybackOverride} reports beside the document. @public @advanced */
@@ -262,7 +262,7 @@ const uncheckedPatch = (p: JsonRecord): PxAnimatorConfigPatch => p as PxAnimator
  * untouched subtree; the animator lives at either of its two addresses. (`withActionTriggers` until 1.29.)
  * @public @advanced
  */
-export function withActions(doc: PxDocument, actions: PxActionTriggersInput): PxDocument {
+export function withActions(doc: PxDocument, actions: PxActionsInput): PxDocument {
     return withAnimatorBlock(doc, animator => ({ ...animator, actions: [...actions] }));
 }
 

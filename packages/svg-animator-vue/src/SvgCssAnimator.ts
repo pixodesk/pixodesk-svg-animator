@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxOutOfViewBehavior, PxPlaybackState, PxTriggerAction, PxTriggerEvent, PxWhenFinished, type PxActionTriggersInput, type PxTimelineOptions } from '@pixodesk/svg-animator-core';
-import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
+import { PxOutOfViewBehavior, PxPlaybackState, PxTriggerAction, PxTriggerEvent, PxWhenFinished, type PxActionsInput, type PxTimelineOptions } from '@pixodesk/svg-animator-core';
+import { actionRulesOf, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { computed, defineComponent, Fragment, h, onBeforeUnmount, onMounted, ref, watch, type ExtractPropTypes, type PropType } from 'vue';
 import type { svgAnimationPlayerProps } from './SvgAnimator';
@@ -21,7 +21,7 @@ import type { svgAnimationPlayerProps } from './SvgAnimator';
  * @internal
  */
 export const svgCssAnimationPlayerProps = {
-    actions: { type: Array as PropType<PxActionTriggersInput | null> },
+    actions: { type: Array as PropType<PxActionsInput | null> },
     timelineOptions: { type: Object as PropType<Pick<Extract<PxTimelineOptions, { type?: 'time' }>, 'inViewThreshold' | 'inViewDebounce' | 'whenOutOfView'>> },
 } as const;
 
@@ -83,7 +83,7 @@ const SvgCssAnimationPlayer = defineComponent({
     props: svgCssAnimationPlayerProps,
     setup(props, { slots, attrs }) {
         // one rule with the JSON player: the lists normalised, the gate defaulted
-        const resolved = computed(() => resolveTriggers(props.actions ?? undefined));
+        const resolved = computed(() => resolveTriggers(actionRulesOf(props.actions ?? undefined)));
         const gateConfig = computed(() => resolveGate({
             whenOutOfView: props.timelineOptions?.whenOutOfView, inViewThreshold: props.timelineOptions?.inViewThreshold, inViewDebounce: props.timelineOptions?.inViewDebounce,
         }));

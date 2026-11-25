@@ -15,7 +15,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("renders children inside the wrapper div", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer actions={[{ action: 'timeline.start', event: 'load' }]}>
+            <SvgCssAnimationPlayer actions={[{ name: 'timeline.start', triggers: [{ event: 'load' }] }]}>
                 <svg data-testid="inner-svg" />
             </SvgCssAnimationPlayer>
         );
@@ -26,7 +26,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("plays immediately with start='load' (an absent block is manual since 1.17)", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer actions={[{ action: 'timeline.start', event: 'load' }]}>
+            <SvgCssAnimationPlayer actions={[{ name: 'timeline.start', triggers: [{ event: 'load' }] }]}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -36,7 +36,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("joins className correctly ('foo px-anim-enabled px-anim-playing')", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer className="foo" actions={[{ action: 'timeline.start', event: 'load' }]}>
+            <SvgCssAnimationPlayer className="foo" actions={[{ name: 'timeline.start', triggers: [{ event: 'load' }] }]}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -46,7 +46,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("has no 'undefined' prefix when className is absent", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer actions={[{ action: 'timeline.start', event: 'load' }]}>
+            <SvgCssAnimationPlayer actions={[{ name: 'timeline.start', triggers: [{ event: 'load' }] }]}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -67,7 +67,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("toggles classes for start 'hoverIn' + pause 'hoverOut'", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer actions={[{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.pause', event: 'hoverOut' }]}>
+            <SvgCssAnimationPlayer actions={[{ name: 'timeline.start', triggers: [{ event: 'hoverIn' }] }, { name: 'timeline.pause', triggers: [{ event: 'hoverOut' }] }]}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -87,7 +87,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("resets to idle on mouse-out when hoverOut is a stop", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer actions={[{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.stop', event: 'hoverOut' }]}>
+            <SvgCssAnimationPlayer actions={[{ name: 'timeline.start', triggers: [{ event: 'hoverIn' }] }, { name: 'timeline.stop', triggers: [{ event: 'hoverOut' }] }]}>
                 <svg />
             </SvgCssAnimationPlayer>
         );

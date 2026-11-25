@@ -9,13 +9,13 @@
 // (SCHEMA-NAMING-REVIEW §2.1; dev-docs/plans/playback-layers.md).
 import { describe, expect, it } from 'vitest';
 import { describeSchema } from '../schema/PxSchema';
-import { allowedTriggerEvents, counterpartTriggerEvent, PxWhenFinished, derivedResume, PX_PLAYBACK_DEFAULTS, PxPlaybackState, PxTriggerAction, PxTriggerIssueKind, PxTriggerList, resolveActions, resolveGate, resolveTriggers, triggerActionFor, triggerEventList, triggerIssues, triggerListsEvent } from './PxAnimatorConstants';
-import { PxTimeTimelineSchema, PxActionTriggersSchema, type PxActionTriggers } from './PxAnimatorTypes';
+import { actionRulesOf, allowedTriggerEvents, counterpartTriggerEvent, PxWhenFinished, derivedResume, PX_PLAYBACK_DEFAULTS, PxPlaybackState, PxTriggerAction, PxTriggerIssueKind, PxTriggerList, resolveActions, resolveGate, resolveTriggers, triggerActionFor, triggerEventList, triggerIssues, triggerListsEvent } from './PxAnimatorConstants';
+import { PxTimeTimelineSchema, PxActionsSchema, type PxActionRule } from './PxAnimatorTypes';
 
 /** The five playback lists of the resolved block — entry keys; a bare word's key is the word. Since 2026-11-15 the
  *  resolved view also carries `segments` and `specs` (the segment triggers, what each key listens for). */
-function listsOf(triggers: PxActionTriggers | undefined) {
-    const t = resolveTriggers(triggers);
+function listsOf(rules: ReadonlyArray<PxActionRule> | undefined) {
+    const t = resolveTriggers(rules);
     return { startPlayback: t.startPlayback, playPlayback: t.playPlayback, stopPlayback: t.stopPlayback, pausePlayback: t.pausePlayback, resumePlayback: t.resumePlayback };
 }
 
@@ -53,7 +53,7 @@ describe('trigger defaults', () => {
         expect(triggerEventList(undefined)).toEqual([]);
         expect(triggerEventList('click')).toEqual(['click']);
         expect(triggerEventList(['hoverIn', 'click'])).toEqual(['hoverIn', 'click']);
-        const stated: PxActionTriggers = [{ action: 'timeline.start', event: 'load' }, { action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'hoverOut' }, { action: 'timeline.pause', event: 'click' }];
+        const stated: Array<PxActionRule> = [{ action: 'timeline.start', event: 'load' }, { action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'hoverOut' }, { action: 'timeline.pause', event: 'click' }];
         // the wire's dotted names in, the resolved view's plain fields out
         expect(listsOf(stated)).toEqual({ startPlayback: ['load', 'click'], playPlayback: [], stopPlayback: ['hoverOut'], pausePlayback: ['click'], resumePlayback: ['click', 'load'] });
     });
@@ -115,7 +115,7 @@ describe('trigger defaults', () => {
         expect(allowedTriggerEvents(PxTriggerList.stopPlayback)).toEqual(['hoverOut', 'click', ...PRESSED]);
         expect(allowedTriggerEvents(PxTriggerList.pausePlayback)).toEqual(['hoverIn', 'hoverOut', 'click', ...PRESSED]);
         expect(allowedTriggerEvents(PxTriggerList.resumePlayback)).toEqual(['hoverIn', 'hoverOut', 'click', ...PRESSED]);
-        const odd: PxActionTriggers = [{ action: 'timeline.start', event: 'hoverOut' }, { action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'load' }, { action: 'timeline.pause', event: 'load' }];
+        const odd: Array<PxActionRule> = [{ action: 'timeline.start', event: 'hoverOut' }, { action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'load' }, { action: 'timeline.pause', event: 'load' }];
         expect(listsOf(odd)).toEqual({ startPlayback: ['click'], playPlayback: [], stopPlayback: [], pausePlayback: [], resumePlayback: ['click'] });
         expect(triggerIssues(odd)).toEqual([
             { kind: PxTriggerIssueKind.eventNotAllowed, list: PxTriggerList.startPlayback, event: 'hoverOut' },
@@ -135,21 +135,30 @@ describe('trigger defaults', () => {
     });
 
     it('the document repair drops a disallowed event — never the whole list, never a default in its place', () => {
-        expect(PxActionTriggersSchema.castOrFix([{ action: 'timeline.start', event: 'hoverOut' }, { action: 'timeline.start', event: 'click' }]).value).toEqual([{ action: 'timeline.start', event: 'click' }]);
-        // a disallowed event drops its rule — the other rules stay
-        expect(PxActionTriggersSchema.castOrFix([{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'load' }]).value).toEqual([{ action: 'timeline.start', event: 'click' }]);
-        expect(PxActionTriggersSchema.castOrFix([{ action: 'timeline.resume', event: 'load' }]).value).toEqual([]);
-        const clean = PxActionTriggersSchema.castOrFix([{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'hoverOut' }]);
-        expect(clean.value).toEqual([{ action: 'timeline.start', event: 'hoverIn' }, { action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'hoverOut' }]);
+        const heard = (entries: unknown) => actionRulesOf(PxActionsSchema.castOrFix(entries).value);
+        expect(heard([{ name: 'timeline.start', triggers: [{ event: 'hoverOut' }] }, { name: 'timeline.start', triggers: [{ event: 'click' }] }])).toEqual([{ action: 'timeline.start', event: 'click' }]);
+        // a disallowed event drops its trigger — the other entries stay
+        expect(heard([{ name: 'timeline.start', triggers: [{ event: 'click' }] }, { name: 'timeline.stop', triggers: [{ event: 'load' }] }])).toEqual([{ action: 'timeline.start', event: 'click' }]);
+        expect(heard([{ name: 'timeline.resume', triggers: [{ event: 'load' }] }])).toEqual([]);
+        const entries = [{ name: 'timeline.start', triggers: [{ event: 'hoverIn' }, { event: 'click' }] }, { name: 'timeline.pause', triggers: [{ event: 'hoverOut' }] }];
+        const clean = PxActionsSchema.castOrFix(entries);
+        expect(clean.value).toEqual(entries);
         expect(clean.problems).toEqual([]);
-        expect(PxActionTriggersSchema.castOrFix([{ action: 'timeline.start', event: 'hoverOut' }, { action: 'timeline.start', event: 'click' }]).problems.length).toBe(1);
+        expect(PxActionsSchema.castOrFix([{ name: 'timeline.start', triggers: [{ event: 'hoverOut' }] }, { name: 'timeline.start', triggers: [{ event: 'click' }] }]).problems.length).toBe(1);
+    });
+
+    // 1.33: several triggers on one entry — `PxActionEntrySchema`'s doc: "the document repair drops that trigger"
+    it('the document repair drops a disallowed trigger — the entry and its other triggers stay', () => {
+        const fixed = PxActionsSchema.castOrFix([{ name: 'timeline.start', triggers: [{ event: 'hoverOut' }, { event: 'click' }] }]);
+        expect(actionRulesOf(fixed.value)).toEqual([{ action: 'timeline.start', event: 'click' }]);
+        expect(fixed.problems.length).toBe(1);
     });
 
     it('the schema states the same allowed events — a document naming another fails strict validation', () => {
-        expect(PxActionTriggersSchema.isValid([{ action: 'timeline.start', event: 'click' }, { action: 'timeline.stop', event: 'hoverOut' }, { action: 'timeline.stop', event: 'click' }, { action: 'timeline.pause', event: 'hoverIn' }])).toBe(true);
-        expect(PxActionTriggersSchema.isValid([{ action: 'timeline.start', event: 'hoverOut' }])).toBe(false);
-        expect(PxActionTriggersSchema.isValid([{ action: 'timeline.stop', event: 'click' }, { action: 'timeline.stop', event: 'load' }])).toBe(false);
-        expect(PxActionTriggersSchema.isValid([{ action: 'timeline.resume', event: 'load' }])).toBe(false);
+        expect(PxActionsSchema.isValid([{ name: 'timeline.start', triggers: [{ event: 'click' }] }, { name: 'timeline.stop', triggers: [{ event: 'hoverOut' }, { event: 'click' }] }, { name: 'timeline.pause', triggers: [{ event: 'hoverIn' }] }])).toBe(true);
+        expect(PxActionsSchema.isValid([{ name: 'timeline.start', triggers: [{ event: 'hoverOut' }] }])).toBe(false);
+        expect(PxActionsSchema.isValid([{ name: 'timeline.stop', triggers: [{ event: 'click' }, { event: 'load' }] }])).toBe(false);
+        expect(PxActionsSchema.isValid([{ name: 'timeline.resume', triggers: [{ event: 'load' }] }])).toBe(false);
     });
 
     it('the state rule: the state picks the list an event is read from; pause and resume win over stop', () => {
@@ -198,7 +207,7 @@ describe('trigger defaults', () => {
     });
 
     it("the schema states NO default for a list — absent inside a block means 'not listed', and so does the absent BLOCK", () => {
-        expect(PxActionTriggersSchema.isValid([])).toBe(true);
+        expect(PxActionsSchema.isValid([])).toBe(true);
         expect(listsOf(undefined).startPlayback).toEqual([]);
     });
 

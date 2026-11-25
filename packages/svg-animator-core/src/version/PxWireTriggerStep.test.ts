@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest';
 import { applyWireSteps, applyWireStepsDown, convertWireDocument, PX_WIRE_STEPS } from './PxWireVersion';
 import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
 import { isRecord } from '../schema/PxSchema';
+import { actionRulesOf } from '../format/PxAnimatorConstants';
+import { PxActionsSchema } from '../format/PxAnimatorTypes';
 
 /** A 1.1 document carrying `trigger`, stamped so the step is due. */
 function doc11(trigger: Record<string, unknown>): Record<string, unknown> {
@@ -23,12 +25,14 @@ function doc11(trigger: Record<string, unknown>): Record<string, unknown> {
 
 
 /** A converted document's rules read back as the map by action the older steps spoke of (2026-11-20: the current
- *  spelling is a list of rules) — so these cases keep testing the older steps' words. A list is turned into
- *  `{ action: event | [events] }`; anything else is returned as it is. */
+ *  spelling is a list of rules; 1.33: entries, laid flat by `actionRulesOf`) — so these cases keep testing the older
+ *  steps' words. A list is turned into `{ action: event | [events] }`; anything else is returned as it is. */
 function asTriggerMap(triggers: unknown): unknown {
     if (!Array.isArray(triggers)) return triggers;
+    // 1.33: `{ name, with, triggers, when }` entries — one flat rule per trigger
+    const rules: Array<unknown> = triggers.some(t => isRecord(t) && typeof t.name === 'string') ? actionRulesOf(PxActionsSchema.cast(triggers)) : triggers;
     const map: Record<string, unknown> = {};
-    for (const rule of triggers) {
+    for (const rule of rules) {
         if (!isRecord(rule) || typeof rule.action !== 'string') continue;
         const { action, ...rest } = rule;
         const entry = Object.keys(rest).length === 1 && typeof rest.event === 'string' ? rest.event : rest;
@@ -379,7 +383,7 @@ describe('wire step 1.14 → 1.15 — `timeline.beforeStart` → `showWhenStoppe
     });
 
     it('a current document is left alone', () => {
-        const current = { type: 'svg', animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timeline: { outTime: 1000, actionTriggers: { 'playback.start': 'load' } } }, children: [] };
+        const current = { type: 'svg', animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timelines: [{ outTime: 1000 }], actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }] }, children: [] };
         expect(convertWireDocument(current).applied).toEqual([]);
     });
 });
@@ -474,7 +478,7 @@ describe('wire step 1.24 → 1.25 — playback is the noun (animation-state.play
     });
 
     it('only 1.25 (and then 1.26) is applied to a 1.24 file; a file without lists or slots passes untouched', () => {
-        expect(convertWireDocument(at('1.24.1', runWords)).applied.map(s => s.to)).toEqual(['1.25', '1.26', '1.28', '1.29', '1.30']);   // 1.27 converts nothing up; 1.28, 1.29 and 1.30 run
+        expect(convertWireDocument(at('1.24.1', runWords)).applied.map(s => s.to)).toEqual(['1.25', '1.26', '1.28', '1.29', '1.30', '1.33']);   // 1.27, 1.31 and 1.32 convert nothing up; 1.28, 1.29, 1.30 and 1.33 run
         expect(timelineOf(convertTo125(at('1.24.0', { iterations: 2 })).doc)).toEqual({ outTime: 1000, iterations: 2 });
     });
 });
@@ -509,7 +513,7 @@ describe('wire step 1.25 → 1.26 — state words and move words (animation-stat
     });
 
     it('only 1.26 is applied to a 1.25 file, and it has no way back', () => {
-        expect(convertWireDocument(at('1.25.1', { atEnd: 'hold' })).applied.map(s => s.to)).toEqual(['1.26', '1.28', '1.29', '1.30']);   // 1.28, 1.29 and 1.30 run
+        expect(convertWireDocument(at('1.25.1', { atEnd: 'hold' })).applied.map(s => s.to)).toEqual(['1.26', '1.28', '1.29', '1.30', '1.33']);   // 1.28, 1.29, 1.30 and 1.33 run
         const result = applyWireStepsDown(at('1.26.0', { whenFinished: 'hold' }), { steps: PX_WIRE_STEPS, target: { a: 1, b: 25, c: 0 }, readerReadsEditorPart: false });
         expect(result.ok).toBe(false);
     });

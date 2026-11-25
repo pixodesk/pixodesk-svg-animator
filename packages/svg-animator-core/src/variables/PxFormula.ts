@@ -449,6 +449,12 @@ export class PxVariableBinding {
     }
 }
 
+/** Whether a condition holds now — `var(name)` or `calc(…)` giving `true` (1.33, `when.condition`); anything else — false,
+ *  an unknown name, a text that does not parse — is false. @public @advanced */
+export function isConditionTrue(condition: string, read: PxVariableReader): boolean {
+    return PxVariableBinding.parse(condition).binding?.evaluate(read) === true;
+}
+
 /** What {@link PxVariableBinding.parse} returns: the binding, or why the text is not one. @public @advanced */
 export interface PxVariableBindingParseResult {
     readonly binding?: PxVariableBinding;

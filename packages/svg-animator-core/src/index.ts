@@ -42,11 +42,11 @@ export type { PxValidationResult } from './format/PxAnimatorTypes';
 export { PxValidationFindingKind } from './schema/PxSchema';
 
 // Wire-format schemas
-export { toPxDocument, isCompiledAnimation, PxDocumentSchema, PxAnimatorConfigSchema, PxAnyPropertyAnimationSchema, PxAttrValueSchema, PxBezierPathSchema, PxCompiledAnimationSchema, PxCubicBezierSchema, PxRgbaSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxActionTriggersSchema, PxTriggerEventFilterSchema, PxTriggerEventObjectSchema, PxFlowStepSchema, PxFlowSchema, PxActionTriggerRuleSchema, PxActionObjectSchema, PxTimelineTrackSchema, PxWhenFinishedSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
+export { toPxDocument, isCompiledAnimation, PxDocumentSchema, PxAnimatorConfigSchema, PxAnyPropertyAnimationSchema, PxAttrValueSchema, PxBezierPathSchema, PxCompiledAnimationSchema, PxCubicBezierSchema, PxRgbaSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxActionsSchema, PxTriggerEventFilterSchema, PxTriggerEventObjectSchema, PxFlowStepSchema, PxFlowSchema, PxActionEntrySchema, PxActionWhenSchema, PxTimelineTrackSchema, PxWhenFinishedSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
 export { PxTimelineEngine, PxCloneOmit, PxTimelineEngineSetting, PX_PLAYBACK_DEFAULTS, PX_TRANSFORM_PART_KEYS, PX_DEFAULT_ID, PX_DEFAULT_TIMELINE } from './format/PxAnimatorConstants';
 
 // Document / model types
-export type { PxDocument, PxDocumentJson, PxAnimationDefinition, PxAnimationPlayerApi, PxTimelineControls, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScrollMomentWire, PxHoldOnScreen, PxSvgNode, PxTimeline, PxTransformParts, PxActionTriggers, PxTriggerEventFilter, PxTriggerEventObject, PxFlowStep, PxFlow, PxActionTriggerRule, PxActionObject, PxTimelineTrack, PxActionTriggersInput, PxTransformValue, PxRunListProps } from './format/PxAnimatorTypes';
+export type { PxDocument, PxDocumentJson, PxAnimationDefinition, PxAnimationPlayerApi, PxTimelineControls, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScrollMomentWire, PxHoldOnScreen, PxSvgNode, PxTimeline, PxTransformParts, PxActions, PxTriggerEventFilter, PxTriggerEventObject, PxFlowStep, PxFlow, PxActionEntry, PxActionRule, PxConditionRule, PxActionWhen, PxActionArgs, PxTimelineActionArgs, PxStopActionArgs, PxGoToActionArgs, PxFlowStepActionArgs, PxTimelineTrack, PxActionsInput, PxTransformValue, PxRunListProps } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerEvent.click`
 // and `start?: PxTriggerEvent` from one import.
@@ -118,8 +118,15 @@ export {
     PxHoldOnScreenSchema,
     PxTextPathEffectSchema,
     PxTextEffectSchema,
-    PxShowInEffectSchema,
-    PxShowOneOfEffectSchema,
+    PxShowEffectSchema,
+    PxTimelineActionArgsSchema,
+    PxStopActionArgsSchema,
+    PxGoToActionArgsSchema,
+    PxFlowStepActionArgsSchema,
+    PxShowWhenSchema,
+    PxShowOneChildEffectSchema,
+    PxShowOneChildWhenSchema,
+    PxFlowStepTimelineOptionsSchema,
     PxBindingSchema,
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
@@ -149,8 +156,10 @@ export {
 } from './format/PxAnimatorConstants';
 export type {
     PxEffects,
-    PxShowInEffect,
-    PxShowOneOfEffect,
+    PxShowEffect,
+    PxShowOneChildEffect,
+    PxFlowStepTimelineOptions,
+    PxFlowStepView,
     PxVec2,
 } from './format/PxAnimatorTypes';
 

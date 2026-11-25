@@ -7,7 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer as createPlayer } from '../index';
-import { PxDiagnosticCode, PxStepEvent, type PxActionObject, type PxActionTriggers, type PxDocument, type PxFlowStep } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxStepEvent, type PxActionEntry, type PxActions, type PxDocument, type PxFlowStep, type PxFlowStepTimelineOptions } from '@pixodesk/svg-animator-core';
 
 /** Every player a test makes is destroyed after it — a live frame loop otherwise outlives its test's fake timers. */
 const made: Array<ReturnType<typeof createPlayer>> = [];
@@ -19,15 +19,21 @@ const createSvgAnimationPlayer: typeof createPlayer = (options) => {
 
 /** Opacity runs 0 → 1 over content 0…3000 ms, so the opacity says where the playhead is (content ms / 3000). */
 /** The test's states by id, written as the file's list in that order. */
-// 1.29: a step's "at its end, go there" is an entry of `actions` (`event: 'finished'`, `from`) — the helper still takes it
-// on the step, as the tests read it, and writes it as the file has it.
-type TestStep = Omit<PxFlowStep, 'id' | 'whenFinished'> & { whenFinished?: PxFlowStep['whenFinished'] | PxActionObject };
-function doc(byId: Record<string, TestStep>, actions: PxActionTriggers = [{ action: 'timeline.start', event: 'load' }]): PxDocument {
-    const atEnd: PxActionTriggers = [];
-    const states: Array<PxFlowStep> = Object.entries(byId).map(([id, { whenFinished, ...st }]) => {
-        if (whenFinished === undefined || typeof whenFinished === 'string') return whenFinished === undefined ? { id, ...st } : { id, ...st, whenFinished };
-        atEnd.push({ ...whenFinished, event: PxStepEvent.finished, from: id });
-        return { id, ...st };
+// 1.33: a step's "at its end, go there" is an entry of `actions` (`flowStep.finished`, `when.flowSteps`) and its timing is
+// `timelineOptions` — the helper takes both flat on the step, as the tests read it, and writes them as the file has them.
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+/** What a step does at its end, as the test writes it on the step: an entry of `actions` without its triggers and `when`. */
+type AtEnd = DistributiveOmit<PxActionEntry, 'triggers' | 'when'>;
+type TestStep = Omit<PxFlowStepTimelineOptions, 'whenFinished'> & { whenFinished?: PxFlowStepTimelineOptions['whenFinished'] | AtEnd };
+function doc(byId: Record<string, TestStep>, actions: PxActions = [{ name: 'timeline.start', triggers: [{ event: 'load' }] }]): PxDocument {
+    const atEnd: PxActions = [];
+    const states: Array<PxFlowStep> = Object.entries(byId).map(([id, { whenFinished, ...options }]) => {
+        if (whenFinished === undefined || typeof whenFinished === 'string') {
+            const all = whenFinished === undefined ? options : { ...options, whenFinished };
+            return Object.keys(all).length ? { id, timelineOptions: all } : { id };
+        }
+        atEnd.push({ ...whenFinished, triggers: [{ event: PxStepEvent.finished }], when: { flowSteps: [id] } });
+        return Object.keys(options).length ? { id, timelineOptions: options } : { id };
     });
     return {
         type: 'svg', viewBox: '0 0 10 10',
@@ -41,7 +47,7 @@ function doc(byId: Record<string, TestStep>, actions: PxActionTriggers = [{ acti
 }
 
 const THREE = {
-    intro:   { inTime: 0,    outTime: 1000, whenFinished: { action: 'flow.next' as const } },
+    intro:   { inTime: 0,    outTime: 1000, whenFinished: { name: 'flow.next' as const } },
     loop:    { inTime: 1000, outTime: 2000, iterations: 'infinite' as const },
     success: { inTime: 2000, outTime: 3000 },
 };
@@ -72,7 +78,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         expect(api.timeline.getDuration()).toBe(1000);   // the state's pass, not the timeline's
     });
 
-    it('`whenFinished: state.next` goes on by itself; an endless state repeats inside its part', () => {
+    it('a `flowStep.finished` entry: `flow.next` goes on by itself; an endless state repeats inside its part', () => {
         const changes: Array<[string, string]> = [];
         const api = createSvgAnimationPlayer({ document: doc(THREE), container: '#box', onFlowStepChange: (s, p) => changes.push([s, p]) });
         vi.advanceTimersByTime(1200);
@@ -88,7 +94,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
     it('goTo from code changes and plays; a state that ends holds its last frame, finished', () => {
         const api = createSvgAnimationPlayer({ document: doc(THREE), container: '#box' });
         vi.advanceTimersByTime(100);
-        api.flow.goTo('success');
+        api.flow.goTo({ flowStep: 'success' });
         expect(api.flow.get()).toEqual(['success']);
         vi.advanceTimersByTime(1200);
         expect(contentMs()).toBeCloseTo(3000, 0);
@@ -97,10 +103,10 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
 
     it('an id the file does not have is ignored; going to the current state does nothing', () => {
         const api = createSvgAnimationPlayer({ document: doc(THREE), container: '#box' });
-        api.flow.goTo('nope');
+        api.flow.goTo({ flowStep: 'nope' });
         expect(api.flow.get()).toEqual(['intro']);
         vi.advanceTimersByTime(300);
-        api.flow.goTo('intro');
+        api.flow.goTo({ flowStep: 'intro' });
         vi.advanceTimersByTime(100);
         expect(contentMs()).toBeGreaterThan(300);   // not restarted
     });
@@ -118,13 +124,13 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         const api = createSvgAnimationPlayer({ document: doc(THREE, []), container: '#box' });
         api.flow.previous();
         expect(api.flow.get()).toEqual(['intro']);
-        api.flow.goTo('success');
+        api.flow.goTo({ flowStep: 'success' });
         api.flow.next();
         expect(api.flow.get()).toEqual(['success']);
     });
 
-    it('a rule names a flowStep: `flow.goTo` success on a click', () => {
-        const api = createSvgAnimationPlayer({ document: doc(THREE, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'success', event: 'click' }]), container: '#box' });
+    it('an entry names a flowStep: `flow.goTo` success on a click', () => {
+        const api = createSvgAnimationPlayer({ document: doc(THREE, [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.goTo', with: { flowStep: 'success' }, triggers: [{ event: 'click' }] }]), container: '#box' });
         vi.advanceTimersByTime(100);
         document.querySelector('svg')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(api.flow.get()).toEqual(['success']);
@@ -133,7 +139,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
     it('an event on one element of the picture, and one on an element of the page', () => {
         const api = createSvgAnimationPlayer({
             // 1.30: `flow.nextOrWrap`, so the page button is seen to move the flow from the last step
-            document: doc(THREE, [{ action: 'flow.goTo', flowStep: 'success', event: 'click', element: '#btn' }, { action: 'flow.nextOrWrap', event: 'click', selector: '.next' }]),
+            document: doc(THREE, [{ name: 'flow.goTo', with: { flowStep: 'success' }, triggers: [{ event: 'click', element: '#btn' }] }, { name: 'flow.nextOrWrap', triggers: [{ event: 'click', selector: '.next' }] }]),
             container: '#box',
         });
         document.querySelector('rect')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -146,7 +152,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
 
     it('a key, narrowed by `with` — heard while the picture is in view and no field has the focus', () => {
         const api = createSvgAnimationPlayer({
-            document: doc(THREE, [{ action: 'flow.next', event: 'keyDown', with: { key: 'Enter', metaOrCtrlKey: true } }]),
+            document: doc(THREE, [{ name: 'flow.next', triggers: [{ event: 'keyDown', with: { key: 'Enter', metaOrCtrlKey: true } }] }]),
             container: '#box',
         });
         const svg = document.querySelector('svg');
@@ -167,7 +173,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         });
         vi.advanceTimersByTime(1300);                    // intro done, 300 ms into the loop
         expect(api.flow.get()).toEqual(['loop']);
-        api.flow.goTo('success');
+        api.flow.goTo({ flowStep: 'success' });
         expect(api.flow.get()).toEqual(['loop']);   // still finishing its pass
         vi.advanceTimersByTime(900);
         expect(api.flow.get()).toEqual(['success']);
@@ -179,8 +185,8 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
             container: '#box',
         });
         vi.advanceTimersByTime(1300);
-        api.flow.goTo('success');
-        api.flow.goTo('intro');
+        api.flow.goTo({ flowStep: 'success' });
+        api.flow.goTo({ flowStep: 'intro' });
         vi.advanceTimersByTime(900);
         expect(api.flow.get()).toEqual(['intro']);
     });
@@ -188,8 +194,8 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
     it('an automatic ring of empty states cannot spin within one frame', () => {
         const api = createSvgAnimationPlayer({
             document: doc({
-                a: { inTime: 0, outTime: 0, whenFinished: { action: 'flow.goTo' as const, flowStep: 'b' } },
-                b: { inTime: 0, outTime: 0, whenFinished: { action: 'flow.goTo' as const, flowStep: 'a' } },
+                a: { inTime: 0, outTime: 0, whenFinished: { name: 'flow.goTo' as const, with: { flowStep: 'b' } } },
+                b: { inTime: 0, outTime: 0, whenFinished: { name: 'flow.goTo' as const, with: { flowStep: 'a' } } },
             }),
             container: '#box',
         });
@@ -198,11 +204,11 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         api.destroy();
     });
 
-    it('a goTo naming a state the file lacks is reported (1114) — in a rule and in `whenFinished`', () => {
+    it('a goTo naming a state the file lacks is reported (1114) — on a click and at a step\'s end (`flowStep.finished`)', () => {
         const warnings: Array<PxDiagnosticCode> = [];
         createSvgAnimationPlayer({
-            document: doc({ ...THREE, intro: { ...THREE.intro, whenFinished: { action: 'flow.goTo' as const, flowStep: 'lop' } } },
-                [{ action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'sucess', event: 'click' }]),
+            document: doc({ ...THREE, intro: { ...THREE.intro, whenFinished: { name: 'flow.goTo' as const, with: { flowStep: 'lop' } } } },
+                [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.goTo', with: { flowStep: 'sucess' }, triggers: [{ event: 'click' }] }]),
             container: '#box',
             onWarning: (w) => warnings.push(w.code),
         });
@@ -222,7 +228,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         const twice: PxDocument = doc(THREE);
         const states = twice.animator?.flowSteps;
         if (!states) throw new Error('no states');
-        states.push({ id: 'intro', inTime: 2500, outTime: 3000 });
+        states.push({ id: 'intro', timelineOptions: { inTime: 2500, outTime: 3000 } });
         const api = createSvgAnimationPlayer({ document: twice, container: '#box', onWarning: (w) => warnings.push(w.code) });
         expect(api.flow.getAll()).toEqual(['intro', 'loop', 'success']);
         expect(warnings).toContain(PxDiagnosticCode.flowStepIdDuplicate);
@@ -230,9 +236,9 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
 
     const click = (): void => { document.querySelector('svg')?.dispatchEvent(new MouseEvent('click', { bubbles: true })); };
 
-    it('1.29 `from`: an entry holds only while the flow is at one of its steps', () => {
+    it('`when.flowSteps` (1.29 `from`): an entry holds only while the flow is at one of its steps', () => {
         const api = createSvgAnimationPlayer({
-            document: doc(THREE, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'success', event: 'click', from: 'loop' }]),
+            document: doc(THREE, [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.goTo', with: { flowStep: 'success' }, triggers: [{ event: 'click' }], when: { flowSteps: ['loop'] } }]),
             container: '#box',
         });
         vi.advanceTimersByTime(100);
@@ -243,10 +249,10 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         expect(api.flow.get()).toEqual(['success']);
     });
 
-    it('1.29: a `finished` entry with no `from` is every step\'s end', () => {
+    it('a `flowStep.finished` entry with no `when.flowSteps` is every step\'s end', () => {
         const api = createSvgAnimationPlayer({
             document: doc({ a: { inTime: 0, outTime: 500 }, b: { inTime: 500, outTime: 1000 }, c: { inTime: 1000, outTime: 3000 } },
-                [{ action: 'timeline.start', event: 'load' }, { action: 'flow.next', event: PxStepEvent.finished }]),
+                [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.next', triggers: [{ event: PxStepEvent.finished }] }]),
             container: '#box',
         });
         vi.advanceTimersByTime(600);
@@ -255,10 +261,10 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         expect(api.flow.get()).toEqual(['c']);
     });
 
-    it('1.30: a `finished` next at the last step\'s end — it stays there, finished; `flow.nextOrWrap` goes round', () => {
+    it('1.30: a `flowStep.finished` next at the last step\'s end — it stays there, finished; `flow.nextOrWrap` goes round', () => {
         const steps = { a: { inTime: 0, outTime: 500 }, b: { inTime: 500, outTime: 1000 } };
         const stays = createSvgAnimationPlayer({
-            document: doc(steps, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.next', event: PxStepEvent.finished }]),
+            document: doc(steps, [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.next', triggers: [{ event: PxStepEvent.finished }] }]),
             container: '#box',
         });
         vi.advanceTimersByTime(1200);
@@ -266,7 +272,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         expect(stays.timeline.getState()).toBe('finished');
         stays.destroy();
         const wraps = createSvgAnimationPlayer({
-            document: doc(steps, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.nextOrWrap', event: PxStepEvent.finished }]),
+            document: doc(steps, [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.nextOrWrap', triggers: [{ event: PxStepEvent.finished }] }]),
             container: '#box',
         });
         vi.advanceTimersByTime(1200);
@@ -292,9 +298,9 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         expect(api.flow.get()).toEqual(['c']);
     });
 
-    it('1.29: a go-to\'s own `behavior` overrides the step\'s way of leaving', () => {
+    it('a go-to\'s own `with.whenLeaving` (1.29 `behavior`) overrides the step\'s way of leaving', () => {
         const api = createSvgAnimationPlayer({
-            document: doc(THREE, [{ action: 'timeline.start', event: 'load' }, { action: 'flow.goTo', flowStep: 'success', event: 'click', behavior: 'animateToEnd' }]),
+            document: doc(THREE, [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.goTo', with: { flowStep: 'success', whenLeaving: 'animateToEnd' }, triggers: [{ event: 'click' }] }]),
             container: '#box',
         });
         vi.advanceTimersByTime(1300);                        // 300 ms into the loop (it leaves at once by itself)
@@ -304,9 +310,9 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         expect(api.flow.get()).toEqual(['success']);
     });
 
-    it('1.29: a stop\'s own `behavior` — the picture travels back instead of jumping', () => {
+    it('a stop\'s own `with.whenStopped` (1.29 `behavior`) — the picture travels back instead of jumping', () => {
         const api = createSvgAnimationPlayer({
-            document: doc({}, [{ action: 'timeline.start', event: 'load' }, { action: 'timeline.stop', event: 'click', behavior: 'animateToStart' }]),
+            document: doc({}, [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'timeline.stop', with: { whenStopped: 'animateToStart' }, triggers: [{ event: 'click' }] }]),
             container: '#box',
         });
         vi.advanceTimersByTime(1000);

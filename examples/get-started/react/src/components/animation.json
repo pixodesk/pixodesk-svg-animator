@@ -10,7 +10,7 @@
         "iterationDirection": "alternate"
       }
     ],
-    "actions": [{ "action": "timeline.start", "event": "load" }]
+    "actions": [{ "name": "timeline.start", "triggers": [{ "event": "load" }] }]
   },
   "children": [
     {

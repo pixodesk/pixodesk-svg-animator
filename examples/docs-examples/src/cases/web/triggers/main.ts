@@ -11,7 +11,7 @@ const doc = {
   ...animation,
   animator: {
     ...animation.animator,
-    actions: [{ action: 'timeline.start', event: 'click' }, { action: 'timeline.pause', event: 'click' }],
+    actions: [{ name: 'timeline.start', triggers: [{ event: 'click' }] }, { name: 'timeline.pause', triggers: [{ event: 'click' }] }],
   },
 };
 
