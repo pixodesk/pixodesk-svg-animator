@@ -40,10 +40,14 @@ export function mergeStaticTransformIntoAnimDef(
     staticTransform: unknown,
 ): PxAnimationDefinition {
     if (!animDef) return animDef;
+    // the `{ value: parts }` spelling — what a static part wrapper of `transformBy` carries — is its parts (2026-11-25:
+    // the wrapper itself was merged, every keyframe got a stray `value` key)
+    const unwrapped = staticTransform && typeof staticTransform === 'object' && !Array.isArray(staticTransform)
+        && 'value' in staticTransform && PxTransformPartsSchema.is(staticTransform.value) ? staticTransform.value : staticTransform;
     const staticParts: PxTransformParts | undefined =
-        staticTransform && typeof staticTransform === 'object' && !Array.isArray(staticTransform)
-            ? staticTransform as PxTransformParts
-            : parseTransformParts(staticTransform as string);
+        unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)
+            ? unwrapped as PxTransformParts
+            : parseTransformParts(unwrapped as string);
     if (!staticParts || !Object.keys(staticParts).length) return animDef;
 
     // a transform-parts value takes the static parts underneath; any other value stays as it is

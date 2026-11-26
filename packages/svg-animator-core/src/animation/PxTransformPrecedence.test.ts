@@ -56,6 +56,13 @@ describe('mergeStaticTransformIntoAnimDef — the merge rules', () => {
         expect(kfs[1].value).toEqual({ rotate: 90, scale: [2, 2], translate: [80, 0] }); // kf rotate wins
     });
 
+    it('a static transform spelled { value: parts } (a static part wrapper) merges its parts, not the wrapper', () => {
+        const out = mergeStaticTransformIntoAnimDef({
+            transform: { keyframes: [{ time: 0, value: { scale: [2, 2] } }] },
+        }, { value: { translate: [200, 93] } });
+        expect(authoredTransform(out).keyframes?.[0].value).toEqual({ translate: [200, 93], scale: [2, 2] });
+    });
+
     it('a string static transform is parsed before merging', () => {
         const out = mergeStaticTransformIntoAnimDef({
             transform: { keyframes: [{ time: 0, value: { translate: [1, 1] } }] },
