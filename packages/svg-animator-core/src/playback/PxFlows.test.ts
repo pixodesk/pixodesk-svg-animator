@@ -7,7 +7,7 @@
 // the ids, the rules' repair.
 
 import { describe, expect, it } from 'vitest';
-import { PxActionsSchema, PxFlowStepTimelineOptionsSchema, type PxActionObject, type PxActionRule, type PxDocument, type PxFlowStep } from '../format/PxAnimatorTypes';
+import { PxActionsSchema, PxFlowStepSegmentSchema, type PxActionObject, type PxActionRule, type PxDocument, type PxFlowStep } from '../format/PxAnimatorTypes';
 import { PxFlowAction, PxStepEvent, PxTriggerList, PxWhenFinished, PxWhenLeaving, actionEntryOf, actionRulesOf } from '../format/PxAnimatorConstants';
 import { atEndActionOf, duplicateFlowStepIds, flowStepReferenceIssues } from './PxFlows';
 import { planUnits, switchStepsOf } from './PxUnits';
@@ -32,8 +32,8 @@ function flowOf(testSteps: Array<TestStep>, timeline: Record<string, unknown> = 
 describe('flows — the steps as a flow plays them', () => {
     it('in LIST order — not by their place on the timeline — with the defaults stated', () => {
         const { unit, steps } = flowOf([
-            { id: 'late', timelineOptions: { inTime: 2000, outTime: 3000 } },
-            { id: 'early', timelineOptions: { inTime: 0, outTime: 1000, iterations: 'infinite' }, atEnd: { action: PxFlowAction.next } },
+            { id: 'late', segment: { inTime: 2000, outTime: 3000 } },
+            { id: 'early', segment: { inTime: 0, outTime: 1000, iterations: 'infinite' }, atEnd: { action: PxFlowAction.next } },
         ]);
         expect(steps.map(s => s.id)).toEqual(['late', 'early']);   // `next` from `late` goes to `early`
         expect(unit?.steps.map(s => s.step.inTime)).toEqual([2000, 0]);
@@ -42,7 +42,7 @@ describe('flows — the steps as a flow plays them', () => {
     });
 
     it('an id used twice: the first wins, the later is reported (PX1115)', () => {
-        const cfg = { flowSteps: [{ id: 'a', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'a', timelineOptions: { inTime: 1000, outTime: 2000 } }, { id: 'b' }] };
+        const cfg = { flowSteps: [{ id: 'a', segment: { inTime: 0, outTime: 1000 } }, { id: 'a', segment: { inTime: 1000, outTime: 2000 } }, { id: 'b' }] };
         const { unit } = flowOf(cfg.flowSteps);
         expect(unit?.steps.map(s => [s.id, s.step.inTime])).toEqual([['a', 0], ['b', undefined]]);
         expect(duplicateFlowStepIds(cfg.flowSteps)).toEqual(['a']);
@@ -51,9 +51,9 @@ describe('flows — the steps as a flow plays them', () => {
 
     it('a go-to names its step; a go-to to nothing reads as hold; previous steps back', () => {
         const [a, b, c] = flowOf([
-            { id: 'a', timelineOptions: { inTime: 0, outTime: 1000 }, atEnd: { action: PxFlowAction.goTo, flowStep: 'b' } },
-            { id: 'b', timelineOptions: { inTime: 1000, outTime: 2000 }, atEnd: { action: PxFlowAction.goTo, flowStep: 'nope' } },
-            { id: 'c', timelineOptions: { inTime: 2000, outTime: 3000 }, atEnd: { action: PxFlowAction.previous } },
+            { id: 'a', segment: { inTime: 0, outTime: 1000 }, atEnd: { action: PxFlowAction.goTo, flowStep: 'b' } },
+            { id: 'b', segment: { inTime: 1000, outTime: 2000 }, atEnd: { action: PxFlowAction.goTo, flowStep: 'nope' } },
+            { id: 'c', segment: { inTime: 2000, outTime: 3000 }, atEnd: { action: PxFlowAction.previous } },
         ]).steps;
         expect(a.then).toEqual({ flowStep: 'b' });
         expect(b.then).toBeUndefined();
@@ -63,7 +63,7 @@ describe('flows — the steps as a flow plays them', () => {
     it('a scroll timeline: a part of it is no step; the whole of it is one (2026-11-22)', () => {
         const scroll = { type: 'scroll', outTime: 1000 };
         // a part of a scroll timeline is not read — the timeline is then alone, as it plays today: no plan
-        expect(flowOf([{ id: 'a', timelineOptions: { inTime: 0, outTime: 500 } }], scroll).plan).toBeUndefined();
+        expect(flowOf([{ id: 'a', segment: { inTime: 0, outTime: 500 } }], scroll).plan).toBeUndefined();
         // the whole of it is a step, and the flow is moved by the scrolling
         const whole = flowOf([{ id: 'a' }], scroll);
         expect(whole.unit?.steps.map(s => s.id)).toEqual(['a']);
@@ -75,8 +75,8 @@ describe('flows — the steps as a flow plays them', () => {
         const atEnd = (name: PxFlowAction | PxTriggerList) => actionRulesOf([{ name, triggers: [{ event: PxStepEvent.finished }] }]);
         expect(atEndActionOf('a', atEnd(PxFlowAction.next))).toEqual({ action: PxFlowAction.next });
         expect(atEndActionOf('a', atEnd(PxTriggerList.startPlayback))).toBeUndefined();
-        expect(PxFlowStepTimelineOptionsSchema.isValid({ whenFinished: PxWhenFinished.hold })).toBe(true);
-        expect(PxFlowStepTimelineOptionsSchema.isValid({ whenFinished: { action: PxFlowAction.next } })).toBe(false);
+        expect(PxFlowStepSegmentSchema.isValid({ whenFinished: PxWhenFinished.hold })).toBe(true);
+        expect(PxFlowStepSegmentSchema.isValid({ whenFinished: { action: PxFlowAction.next } })).toBe(false);
     });
 });
 

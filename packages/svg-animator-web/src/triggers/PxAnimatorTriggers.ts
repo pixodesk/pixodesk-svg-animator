@@ -144,11 +144,11 @@ export function wireTriggers(
         const stopping = rule.behavior !== undefined && isStopBehavior(rule.behavior) ? rule.behavior : undefined;
         const moves = flows && !flows.isHeld() ? flows : undefined;
         switch (rule.action) {
-            case PxFlowAction.goTo: if (rule.flowStep !== undefined) moves?.controls.goTo({ flowStep: rule.flowStep, whenLeaving: leaving }); break;
-            case PxFlowAction.next: moves?.controls.next(); break;
-            case PxFlowAction.previous: moves?.controls.previous(); break;
-            case PxFlowAction.nextOrWrap: moves?.controls.nextOrWrap(); break;
-            case PxFlowAction.previousOrWrap: moves?.controls.previousOrWrap(); break;
+            case PxFlowAction.goTo: if (rule.flowStep !== undefined) moves?.controls.goTo({ flowStep: rule.flowStep, whenLeaving: leaving, transition: rule.transition }); break;
+            case PxFlowAction.next: moves?.controls.next({ transition: rule.transition }); break;
+            case PxFlowAction.previous: moves?.controls.previous({ transition: rule.transition }); break;
+            case PxFlowAction.nextOrWrap: moves?.controls.nextOrWrap({ transition: rule.transition }); break;
+            case PxFlowAction.previousOrWrap: moves?.controls.previousOrWrap({ transition: rule.transition }); break;
             case PxTriggerList.startPlayback: gate.requestStart(false, () => executor.startPlayback()); break;
             case PxTriggerList.playPlayback: gate.requestStart(false, () => executor.playPlayback()); break;
             case PxTriggerList.resumePlayback: executor.resumePlayback(); break;
@@ -173,11 +173,13 @@ export function wireTriggers(
         if (flows && !flows.isHeld()) {
             for (const s of trigger.flows) {
                 if (!s.keys.includes(event)) continue;
-                if (s.action === PxFlowAction.next) flows.controls.next();
-                else if (s.action === PxFlowAction.previous) flows.controls.previous();
-                else if (s.action === PxFlowAction.nextOrWrap) flows.controls.nextOrWrap();
-                else if (s.action === PxFlowAction.previousOrWrap) flows.controls.previousOrWrap();
-                else if (s.flowStep !== undefined) flows.controls.goTo({ flowStep: s.flowStep, whenLeaving: leaving });
+                // the entry's hand-over (1.34) travels with it
+                const transition = s.transition;
+                if (s.action === PxFlowAction.next) flows.controls.next({ transition });
+                else if (s.action === PxFlowAction.previous) flows.controls.previous({ transition });
+                else if (s.action === PxFlowAction.nextOrWrap) flows.controls.nextOrWrap({ transition });
+                else if (s.action === PxFlowAction.previousOrWrap) flows.controls.previousOrWrap({ transition });
+                else if (s.flowStep !== undefined) flows.controls.goTo({ flowStep: s.flowStep, whenLeaving: leaving, transition });
             }
         }
         switch (triggerActionFor(trigger, executor.state(), event, whenFinished)) {

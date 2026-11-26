@@ -101,13 +101,17 @@ function startStepOf(unit: PxUnit): string {
     return (unit.steps.find(s => s.initial) ?? unit.steps[0]).id;
 }
 
-/** The steps current now — each unit of `all` (every flow of the file) at `current`'s step for it (by
- *  {@link flowNameOfUnit}), else at its start: a flow the page does not run stays there. @internal */
-export function currentFlowStepsOf(all: PxUnitPlan, current: ReadonlyMap<string, string>): Set<string> {
+/** The steps current now — each unit of `all` (every flow of the file) at `current`'s steps for it (by
+ *  {@link flowNameOfUnit}; two while a change's window plays, 1.34 R2), else at its start: a flow the page does not run
+ *  stays there. @internal */
+export function currentFlowStepsOf(all: PxUnitPlan, current: ReadonlyMap<string, string | ReadonlyArray<string>>): Set<string> {
     const out = new Set<string>();
     for (const unit of all.units) {
         if (!unit.steps.length) continue;
-        out.add(current.get(flowNameOfUnit(all, unit)) ?? startStepOf(unit));
+        const now = current.get(flowNameOfUnit(all, unit));
+        if (now === undefined) out.add(startStepOf(unit));
+        else if (typeof now === 'string') out.add(now);
+        else for (const id of now) out.add(id);
     }
     return out;
 }

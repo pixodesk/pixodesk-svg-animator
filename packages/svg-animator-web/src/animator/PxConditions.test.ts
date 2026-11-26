@@ -27,9 +27,9 @@ function doc(actions: PxActions): PxDocument {
             timelines: [{ engine: 'js', outTime: 3000 }],
             definitions: { variables: { unlocked: { type: 'boolean', defaultValue: false }, progress: { type: 'number', defaultValue: 0 } } },
             flowSteps: [
-                { id: 'idle', timelineOptions: { inTime: 0, outTime: 1000 } },
-                { id: 'loading', timelineOptions: { inTime: 1000, outTime: 2000, iterations: 'infinite' } },
-                { id: 'done', timelineOptions: { inTime: 2000, outTime: 3000 } },
+                { id: 'idle', segment: { inTime: 0, outTime: 1000 } },
+                { id: 'loading', segment: { inTime: 1000, outTime: 2000, iterations: 'infinite' } },
+                { id: 'done', segment: { inTime: 2000, outTime: 3000 } },
             ],
             actions,
         },
@@ -131,7 +131,7 @@ describe('when.condition (1.33)', () => {
             animator: {
                 timelines: [{ engine: 'js', outTime: 2000 }],
                 definitions: { variables: { unlocked: { type: 'boolean', defaultValue: false } } },
-                flowSteps: [{ id: 'idle', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'done', timelineOptions: { inTime: 1000, outTime: 2000 } }],
+                flowSteps: [{ id: 'idle', segment: { inTime: 0, outTime: 1000 } }, { id: 'done', segment: { inTime: 1000, outTime: 2000 } }],
                 actions: [{ name: 'flow.goTo', with: { flowStep: 'done' }, triggers: [{ event: 'click' }], when: { condition: 'var(unlocked)' } }],
             },
         };

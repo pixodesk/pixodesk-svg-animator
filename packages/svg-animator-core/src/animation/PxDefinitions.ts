@@ -234,8 +234,9 @@ function normalizePathValue(value: unknown): PxPathValue | undefined {
  * @param easing The easing reference (string name or bezier array)
  * @param defs The definitions containing named easings
  * @returns The resolved cubic-bezier array or undefined
+ * @internal
  */
-function resolveEasing(
+export function resolveEasing(
     easing: string | [number, number, number, number] | undefined,
     defs?: PxDefinitions
 ): [number, number, number, number] | undefined {

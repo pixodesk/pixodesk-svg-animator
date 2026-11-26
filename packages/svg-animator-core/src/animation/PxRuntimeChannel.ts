@@ -13,9 +13,9 @@
  * pose, the loop expansion — switches on that kind and reads typed values.
  */
 
-import { PxValueKind } from '../format/PxAnimatorConstants';
+import { PxTransitionMix, PxValueKind } from '../format/PxAnimatorConstants';
 import type { PxCompiledAnimation, PxCompiledKeyframe, PxPathValue, PxRgba, PxTransformParts, PxVec2 } from '../format/PxAnimatorTypes';
-import { camelCaseToKebabWordIfNeeded, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PX_COLOR_ATTR_NAMES, PX_PCT_BASED_ATTR_NAMES } from '../util/PxAnimatorUtil';
+import { camelCaseToKebabWordIfNeeded, clamp, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PX_COLOR_ATTR_NAMES, PX_PCT_BASED_ATTR_NAMES } from '../util/PxAnimatorUtil';
 
 /** An element's channels: its compiled animations in window ms, keyed by the property name as written. @public @advanced */
 export type PxRuntimeAnimation = Record<string, PxCompiledAnimation>;
@@ -252,5 +252,122 @@ export function concatChannels(template: PxCompiledAnimation, regions: ReadonlyA
         case PxValueKind.translate: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.translate ? ch.keyframes : undefined), interpolateVec) }; }
         case PxValueKind.scale: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.scale ? ch.keyframes : undefined), interpolateVec) }; }
         case PxValueKind.discrete: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: concatKeyframes(typedRegions(regions, ch => ch.kind === PxValueKind.discrete ? ch.keyframes : undefined), switchAtHalf) }; }
+    }
+}
+
+// ============================================================================
+// THE FLOW WINDOW'S MIX (2026-11-26, kf app/docs/app-design/flow-step-transitions.build.md) — the overlap of a change
+// A → B as one channel per attribute: each side sampled where it plays (its pieces: A's tail; B's in-transition, then
+// its segment), mixed by `transition.mix` with the crossfade's weight. One case per kind, so every value keeps its type.
+//
+// | mix | an attribute both sides animate |
+// |---|---|
+// | crossfade | A's value → B's by the weight; a value that cannot be mixed (two paths of different shape, a word) switches at the middle |
+// | nextOnTop | B's |
+// | previousOnTop | A's |
+// An attribute one side alone animates keeps that side's values.
+// ============================================================================
+
+/** One stretch of a window's side: the channel its document has for the attribute (none — it does not animate it),
+ *  the window ms it covers, and the channel's own ms at a window ms. @internal */
+export interface PxWindowPiece {
+    readonly ch: PxCompiledAnimation | undefined;
+    readonly from: number;
+    readonly to: number;
+    readonly localMs: (windowMs: number) => number;
+}
+
+/** What a window channel is made of. @internal */
+export interface PxWindowMixSpec {
+    readonly leaving: ReadonlyArray<PxWindowPiece>;
+    readonly entering: ReadonlyArray<PxWindowPiece>;
+    /** The window ms it is sampled at, in order. */
+    readonly times: ReadonlyArray<number>;
+    /** The crossfade's weight of B at a window ms, 0..1. */
+    readonly weight: (windowMs: number) => number;
+    readonly mix: PxTransitionMix;
+}
+
+/** A channel's value at `ms` — its keyframes' blend, the source keyframe's easing applied. */
+function valueAt<V>(keyframes: ReadonlyArray<PxCompiledKeyframe<V>>, lerp: PxChannelLerp<V>, ms: number): V | undefined {
+    if (!keyframes.length) return undefined;
+    if (ms <= keyframes[0].time) return keyframes[0].value;
+    const last = keyframes[keyframes.length - 1];
+    if (ms >= last.time) return last.value;
+    for (let j = 0; j < keyframes.length - 1; j++) {
+        const a = keyframes[j];
+        const b = keyframes[j + 1];
+        if (ms < a.time || ms > b.time) continue;
+        let p = b.time > a.time ? clamp((ms - a.time) / (b.time - a.time), 0, 1) : 0;
+        if (a.easing) p = cubicBezier(a.easing)(p);
+        return lerp(a.value, b.value, p);
+    }
+    return last.value;
+}
+
+/** One side's value at a window ms: the piece that covers it (the last one past the end); a piece that does not
+ *  animate the attribute — the nearest one of the side that does, at its edge. */
+function sideValueAt<V>(pieces: ReadonlyArray<PxWindowPiece>, get: (ch: PxCompiledAnimation) => Array<PxCompiledKeyframe<V>> | undefined, lerp: PxChannelLerp<V>, w: number): V | undefined {
+    if (!pieces.length) return undefined;
+    const at = pieces.findIndex((p, i) => w >= p.from && (w <= p.to || i === pieces.length - 1));
+    const own = pieces[at < 0 ? 0 : at];
+    const kf = own.ch ? get(own.ch) : undefined;
+    if (kf) return valueAt(kf, lerp, own.localMs(w));
+    let best: { v: V; d: number } | undefined;
+    for (const p of pieces) {
+        const k = p.ch ? get(p.ch) : undefined;
+        if (!k) continue;
+        const edge = w < p.from ? p.from : p.to;
+        const d = Math.abs(w - edge);
+        const v = valueAt(k, lerp, p.localMs(edge));
+        if (v !== undefined && (!best || d < best.d)) best = { v, d };
+    }
+    return best?.v;
+}
+
+/** The window's keyframes of one kind — see the top of this section. `mixable`: whether two values can be blended. */
+function windowKeyframes<V>(spec: PxWindowMixSpec, get: (ch: PxCompiledAnimation) => Array<PxCompiledKeyframe<V>> | undefined, lerp: PxChannelLerp<V>,
+    mixable: (a: V, b: V) => boolean = () => true): Array<PxCompiledKeyframe<V>> {
+    const out: Array<PxCompiledKeyframe<V>> = [];
+    for (const w of spec.times) {
+        const a = sideValueAt(spec.leaving, get, lerp, w);
+        const b = sideValueAt(spec.entering, get, lerp, w);
+        let v: V | undefined;
+        if (a === undefined) v = b;
+        else if (b === undefined) v = a;
+        else if (spec.mix === PxTransitionMix.nextOnTop) v = b;
+        else if (spec.mix === PxTransitionMix.previousOnTop) v = a;
+        else {
+            const k = clamp(spec.weight(w), 0, 1);
+            v = mixable(a, b) ? lerp(a, b, k) : (k < 0.5 ? a : b);
+        }
+        if (v !== undefined) out.push({ time: w, value: v });
+    }
+    return out;
+}
+
+/** Two path values that blend point by point — the same number of paths, each the same number of points, open or
+ *  closed alike. */
+const pathsMixable = (a: PxPathValue, b: PxPathValue): boolean =>
+    a.paths.length === b.paths.length && a.paths.every((p, i) => p.v.length === b.paths[i].v.length && !!p.c === !!b.paths[i].c);
+
+/** The window channel of one attribute, of `template`'s kind (its unit, its auto-orient kept; no tracks). @internal */
+export function windowChannel(template: PxCompiledAnimation, spec: PxWindowMixSpec): PxCompiledAnimation {
+    switch (template.kind) {
+        case PxValueKind.number: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.number ? ch.keyframes : undefined, interpolateNum) }; }
+        case PxValueKind.percent: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.percent ? ch.keyframes : undefined, interpolateNum) }; }
+        case PxValueKind.rotate: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.rotate ? ch.keyframes : undefined, interpolateNum) }; }
+        case PxValueKind.skew: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.skew ? ch.keyframes : undefined, interpolateNum) }; }
+        case PxValueKind.color: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.color ? ch.keyframes : undefined, blendColors) }; }
+        case PxValueKind.path: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.path ? ch.keyframes : undefined, blendPaths, pathsMixable) }; }
+        case PxValueKind.transform: {
+            // a motion path's tangents are not carried: the window is sampled densely enough to follow the curve
+            const { byTimeline: _t, autoOrient: _o, ...base } = template;
+            return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.transform ? ch.keyframes.map(k => ({ time: k.time, value: k.value, ...(k.easing ? { easing: k.easing } : {}) })) : undefined, interpolateTransformParts) };
+        }
+        case PxValueKind.numberList: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.numberList ? ch.keyframes : undefined, interpolateVec, (a, b) => a.length === b.length) }; }
+        case PxValueKind.translate: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.translate ? ch.keyframes : undefined, interpolateVec) }; }
+        case PxValueKind.scale: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.scale ? ch.keyframes : undefined, interpolateVec) }; }
+        case PxValueKind.discrete: { const { byTimeline: _t, ...base } = template; return { ...base, keyframes: windowKeyframes(spec, ch => ch.kind === PxValueKind.discrete ? ch.keyframes : undefined, switchAtHalf, () => false) }; }
     }
 }

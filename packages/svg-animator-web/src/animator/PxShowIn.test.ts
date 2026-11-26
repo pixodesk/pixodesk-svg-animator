@@ -19,9 +19,9 @@ function doc(children: PxDocument['children']): PxDocument {
         animator: {
             timelines: [{ engine: 'js', outTime: 2000 }, { id: 'l', engine: 'js', outTime: 2000 }],
             flowSteps: [
-                { id: 'a', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'b', timelineOptions: { inTime: 1000, outTime: 2000 } },
-                { id: 'off', flow: 'lamp', timeline: 'l', timelineOptions: { inTime: 0, outTime: 1000 } },
-                { id: 'on', flow: 'lamp', timeline: 'l', timelineOptions: { inTime: 1000, outTime: 2000 } },
+                { id: 'a', segment: { inTime: 0, outTime: 1000 } }, { id: 'b', segment: { inTime: 1000, outTime: 2000 } },
+                { id: 'off', flow: 'lamp', segment: { timeline: 'l', inTime: 0, outTime: 1000 } },
+                { id: 'on', flow: 'lamp', segment: { timeline: 'l', inTime: 1000, outTime: 2000 } },
             ],
             flows: [{ id: 'lamp' }],
         },
@@ -93,7 +93,7 @@ describe('effects.show (1.33; showIn 1.31)', () => {
         const d = doc([{ type: 'rect', id: 'pa', width: 2, height: 2, effects: { show: { when: { flowSteps: ['a'] } } } }]);
         const steps = d.animator?.flowSteps;
         if (!steps) throw new Error('no steps');
-        steps[0] = { ...steps[0], timelineOptions: { ...steps[0].timelineOptions, iterations: 'infinite', whenLeaving: 'animateToEnd' } };
+        steps[0] = { ...steps[0], segment: { ...steps[0].segment, iterations: 'infinite', whenLeaving: 'animateToEnd' } };
         d.animator = { ...d.animator, actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }] };
         api = createSvgAnimationPlayer({ container: '#box', document: d });
         const root = api.getRootElement();
@@ -111,7 +111,7 @@ describe('effects.show (1.33; showIn 1.31)', () => {
             id: 'pic', type: 'svg',
             animator: {
                 timelines: [{ engine: 'js', outTime: 2000 }],
-                flowSteps: [{ id: 'a', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'b', timelineOptions: { inTime: 1000, outTime: 2000 } }],
+                flowSteps: [{ id: 'a', segment: { inTime: 0, outTime: 1000 } }, { id: 'b', segment: { inTime: 1000, outTime: 2000 } }],
                 bindings: [{ element: '#x', animateWith: [], show: { when: { flowSteps: ['b'] } } }, { element: '#y', animateWith: [], show: { when: { flowSteps: ['a'] } } }],
             },
         };
@@ -174,7 +174,7 @@ describe('effects.showOneChild (1.33; showOneOf 1.32)', () => {
     });
 
     it('with show on a child: hidden by either — the one hider', () => {
-        const d = face(0, { flowSteps: [{ id: 'a', timelineOptions: { inTime: 0, outTime: 500 } }, { id: 'b', timelineOptions: { inTime: 500, outTime: 1000 } }] });
+        const d = face(0, { flowSteps: [{ id: 'a', segment: { inTime: 0, outTime: 500 } }, { id: 'b', segment: { inTime: 500, outTime: 1000 } }] });
         const kids = d.children?.[0].children;
         if (!kids) throw new Error('no kids');
         kids[0] = { ...kids[0], effects: { show: { when: { flowSteps: ['b'] } } } };

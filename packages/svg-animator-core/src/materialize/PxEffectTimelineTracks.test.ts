@@ -14,7 +14,7 @@ import { effectTrackTimelines } from './PxEffectTimelineTracks';
 
 const doc = (child: PxNode): PxDocument => ({
     type: 'svg',
-    animator: { timelines: [{ outTime: 2000 }, { id: 'dip', outTime: 500 }], flowSteps: [{ id: 'pressed', timeline: 'dip' }] },
+    animator: { timelines: [{ outTime: 2000 }, { id: 'dip', outTime: 500 }], flowSteps: [{ id: 'pressed', segment: { timeline: 'dip' } }] },
     children: [child],
 });
 

@@ -97,13 +97,22 @@ export function timelineIssues(doc: PxDocument): Array<PxTimelineIssue> {
     const timelineKnown = (ref: unknown): boolean => ref === undefined ? hasDefault : typeof ref === 'string' && timelineNames.has(ref);
     const notFound = (key: string, id: string, at?: string): void => { issues.push({ kind: PxTimelineIssueKind.referenceNotFound, key, id, at }); };
 
-    // the steps: their references and the scroll rule
+    // the steps: their references and the scroll rule — the segment (1.34), and each transition segment (its timeline
+    // none: the step's own; a part of a scroll timeline is not played)
     for (const step of steps) {
         const at = idOf(step);
-        if (!timelineKnown(step.timeline)) notFound('timeline', typeof step.timeline === 'string' ? step.timeline : PX_DEFAULT_TIMELINE, at);
-        const t = timelines.find(x => x.name === (typeof step.timeline === 'string' ? step.timeline : PX_DEFAULT_TIMELINE));
-        const options = isRecord(step.timelineOptions) ? step.timelineOptions : {};
-        if (t?.scroll && (options.inTime !== undefined || options.outTime !== undefined)) issues.push({ kind: PxTimelineIssueKind.partOfScrollTimeline, id: t.name, at });
+        const segment = isRecord(step.segment) ? step.segment : {};
+        const own = typeof segment.timeline === 'string' ? segment.timeline : undefined;
+        if (!timelineKnown(own)) notFound('timeline', own ?? PX_DEFAULT_TIMELINE, at);
+        const t = timelines.find(x => x.name === (own ?? PX_DEFAULT_TIMELINE));
+        if (t?.scroll && (segment.inTime !== undefined || segment.outTime !== undefined)) issues.push({ kind: PxTimelineIssueKind.partOfScrollTimeline, id: t.name, at });
+        for (const part of [step.inTransitionSegment, step.outTransitionSegment]) {
+            if (!isRecord(part)) continue;
+            const ref = typeof part.timeline === 'string' ? part.timeline : own;
+            if (!timelineKnown(ref)) { notFound('timeline', ref ?? PX_DEFAULT_TIMELINE, at); continue; }
+            const pt = timelines.find(x => x.name === (ref ?? PX_DEFAULT_TIMELINE));
+            if (pt?.scroll) issues.push({ kind: PxTimelineIssueKind.partOfScrollTimeline, id: pt.name, at });
+        }
     }
 
     // where each flow starts (1.33): a step of that flow — or, for `default`, a timeline's own step

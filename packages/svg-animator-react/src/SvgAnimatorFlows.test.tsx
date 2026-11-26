@@ -15,7 +15,7 @@ import SvgAnimationPlayer from './SvgAnimator';
 const DOC: PxDocument = {
     type: 'svg', viewBox: '0 0 10 10',
     animator: {
-        timelines: [{ engine: 'js', outTime: 3000 }], flowSteps: [{ id: 'intro', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'loop', timelineOptions: { inTime: 1000, outTime: 2000, iterations: 'infinite' } }, { id: 'success', timelineOptions: { inTime: 2000, outTime: 3000 } }],
+        timelines: [{ engine: 'js', outTime: 3000 }], flowSteps: [{ id: 'intro', segment: { inTime: 0, outTime: 1000 } }, { id: 'loop', segment: { inTime: 1000, outTime: 2000, iterations: 'infinite' } }, { id: 'success', segment: { inTime: 2000, outTime: 3000 } }],
         // intro goes next at its end (a step's `whenFinished` object until 1.29)
         actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }, { name: 'flow.next', triggers: [{ event: 'click' }] }, { name: 'flow.next', triggers: [{ event: 'flowStep.finished' }], when: { flowSteps: ['intro'] } }],
     },
@@ -76,7 +76,7 @@ describe('SvgAnimationPlayer — the `flowStep` prop (React)', () => {
             type: 'svg', viewBox: '0 0 10 10',
             animator: {
                 timelines: [{ engine: 'js', outTime: 1000, iterations: 'infinite' }, { id: 'p', engine: 'js', outTime: 1000, iterations: 'infinite' }],
-                flowSteps: [{ id: 'beat', flow: 'pulse', timeline: 'p' }],
+                flowSteps: [{ id: 'beat', flow: 'pulse', segment: { timeline: 'p' } }],
                 actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
             },
             children: [

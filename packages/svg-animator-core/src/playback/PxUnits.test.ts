@@ -31,12 +31,12 @@ function bell(): PxDocument {
                 { id: 'reveal', type: 'scroll', outTime: 1000 },
             ],
             flowSteps: [
-                { id: 'idle', flow: 'pointer', timeline: 'grow', timelineOptions: { inTime: 0, outTime: 0 } },
-                { id: 'hover', flow: 'pointer', timeline: 'grow' },
-                { id: 'press', flow: 'pointer', timeline: 'dip' },
-                { id: 'calm', flow: 'notice', timeline: 'ring', timelineOptions: { inTime: 0, outTime: 0 } },
-                { id: 'ringing', flow: 'notice', timeline: 'ring', timelineOptions: { inTime: 0, outTime: 600 } },
-                { id: 'shown', flow: 'scrollIn', timeline: 'reveal' },
+                { id: 'idle', flow: 'pointer', segment: { timeline: 'grow', inTime: 0, outTime: 0 } },
+                { id: 'hover', flow: 'pointer', segment: { timeline: 'grow' } },
+                { id: 'press', flow: 'pointer', segment: { timeline: 'dip' } },
+                { id: 'calm', flow: 'notice', segment: { timeline: 'ring', inTime: 0, outTime: 0 } },
+                { id: 'ringing', flow: 'notice', segment: { timeline: 'ring', inTime: 0, outTime: 600 } },
+                { id: 'shown', flow: 'scrollIn', segment: { timeline: 'reveal' } },
             ],
             flows: [{ id: 'pointer' }, { id: 'notice' }, { id: 'scrollIn' }],
             actions: [
@@ -103,7 +103,7 @@ describe('the plan', () => {
 
     it('a step on a timeline the file lacks, or on one another flow uses, is not read', () => {
         const doc = bell();
-        doc.animator?.flowSteps?.push({ id: 'lost', timeline: 'nope' }, { id: 'taken', flow: 'other', timeline: 'ring' });
+        doc.animator?.flowSteps?.push({ id: 'lost', segment: { timeline: 'nope' } }, { id: 'taken', flow: 'other', segment: { timeline: 'ring' } });
         const plan = planOf(plain(doc));
         expect(plan.units.flatMap(u => u.steps.map(s => s.id))).toEqual(['default', 'idle', 'hover', 'press', 'calm', 'ringing', 'shown']);
         expect(plan.droppedSteps).toEqual([{ timeline: 3, flowStep: 'taken' }]);
@@ -133,13 +133,13 @@ describe('the plan', () => {
         // c — the default timeline cut into intro · loop; `outro`, a second timeline no step names, comes after them
         const c = planOf(plain({ type: 'svg', animator: {
             timelines: [{ outTime: 2000 }, { id: 'outro', outTime: 500 }],
-            flowSteps: [{ id: 'intro', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'loop', timelineOptions: { inTime: 1000, outTime: 2000 } }],
+            flowSteps: [{ id: 'intro', segment: { inTime: 0, outTime: 1000 } }, { id: 'loop', segment: { inTime: 1000, outTime: 2000 } }],
         }, children: [] }));
         expect(c.units[0].steps.map(s => s.id)).toEqual(['intro', 'loop', 'outro']);
         // d — the default timeline, no step names it (an idle loop), before hover · press on their own timelines
         const d = planOf(plain({ type: 'svg', animator: {
             timelines: [{ outTime: 2000 }, { id: 'h', outTime: 150 }, { id: 'p', outTime: 200 }],
-            flowSteps: [{ id: 'hover', timeline: 'h' }, { id: 'press', timeline: 'p' }],
+            flowSteps: [{ id: 'hover', segment: { timeline: 'h' } }, { id: 'press', segment: { timeline: 'p' } }],
         }, children: [] }));
         expect(d.units[0].steps.map(s => s.id)).toEqual(['default', 'hover', 'press']);
     });
@@ -234,7 +234,7 @@ describe('a step\'s document', () => {
             type: 'svg',
             animator: {
                 timelines: [{ id: 'main', outTime: 500 }, { id: 'other', outTime: 300 }],
-                flowSteps: [{ id: 'a', flow: 'm1', timeline: 'main' }, { id: 'b', flow: 'm2', timeline: 'other' }],
+                flowSteps: [{ id: 'a', flow: 'm1', segment: { timeline: 'main' } }, { id: 'b', flow: 'm2', segment: { timeline: 'other' } }],
                 flows: [{ id: 'm1' }, { id: 'm2' }],
             },
             children: [{ type: 'rect', id: 'r', x: 0, animate: { x: track } }],
@@ -259,7 +259,7 @@ describe('a step\'s document', () => {
     it('the clash rule: an attribute two running flows move stays with the first — a node\'s transform parts count as one', () => {
         const doc = plain({ type: 'svg', animator: {
             timelines: [{ id: 'a', outTime: 100 }, { id: 'b', outTime: 100 }],
-            flowSteps: [{ id: 'one', flow: 'f1', timeline: 'a' }, { id: 'two', flow: 'f2', timeline: 'b' }],
+            flowSteps: [{ id: 'one', flow: 'f1', segment: { timeline: 'a' } }, { id: 'two', flow: 'f2', segment: { timeline: 'b' } }],
             flows: [{ id: 'f1' }, { id: 'f2' }],
         }, children: [{ type: 'rect', id: 'r', opacity: 1, animate: {
             opacity: { byTimeline: [{ timeline: 'a', keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] }, { timeline: 'b', keyframes: [{ time: 0, value: 1 }, { time: 100, value: 0 }] }] },
@@ -283,7 +283,7 @@ describe('a step\'s document', () => {
     it('the clash rule on a pre-rendered file: by the binding\'s element — the second flow does not move what the first does', () => {
         const doc: PxDocument = { type: 'svg', animator: {
             timelines: [{ id: 'a', outTime: 100 }, { id: 'b', outTime: 100 }],
-            flowSteps: [{ id: 'one', flow: 'f1', timeline: 'a' }, { id: 'two', flow: 'f2', timeline: 'b' }],
+            flowSteps: [{ id: 'one', flow: 'f1', segment: { timeline: 'a' } }, { id: 'two', flow: 'f2', segment: { timeline: 'b' } }],
             flows: [{ id: 'f1' }, { id: 'f2' }],
             definitions: { animations: { fade: {
                 opacity: { byTimeline: [{ timeline: 'a', keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] }, { timeline: 'b', keyframes: [{ time: 0, value: 1 }, { time: 100, value: 0 }] }] },

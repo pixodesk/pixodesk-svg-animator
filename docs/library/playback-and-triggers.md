@@ -307,8 +307,8 @@ A trigger with no `element` or `selector` hears the whole picture
 |---|---|---|
 | `timeline.start` · `timeline.play` · `timeline.pause` · `timeline.resume` | `timeline` — the timeline it acts on, by its `id` (`PxTimelineActionArgs`) | the whole picture — every timeline and every flow | <!-- px names=timeline.start,timeline.play,timeline.pause,timeline.resume -->
 | `timeline.stop` | `timeline`, as above · `whenStopped` — how this stop looks, a `whenStopped` word ([below](#an-entrys-own-manner--whenstopped-and-whenleaving)) (`PxStopActionArgs`) | the whole picture; the timeline's `whenStopped` |
-| `flow.goTo` | `flowStep` — the step it goes to, by its `id`, or a timeline's id: the step a timeline no step names is · `whenLeaving` — how the current step is left this time (`PxGoToActionArgs`) | `flowStep` is required; `whenLeaving`: the step's own |
-| `flow.next` · `flow.previous` · `flow.nextOrWrap` · `flow.previousOrWrap` | `flow` — the flow it steps through, by its `id` (`PxFlowStepActionArgs`) | `default` | <!-- px names=flow.next,flow.previous,flow.nextOrWrap,flow.previousOrWrap -->
+| `flow.goTo` | `flowStep` — the step it goes to, by its `id`, or a timeline's id: the step a timeline no step names is · `whenLeaving` — how the current step is left this time · `transition` — how the two steps hand over this time ([Transitions between steps](#transitions-between-steps)) (`PxGoToActionArgs`) | `flowStep` is required; `whenLeaving`: the step's own; `transition`: the flow's |
+| `flow.next` · `flow.previous` · `flow.nextOrWrap` · `flow.previousOrWrap` | `flow` — the flow it steps through, by its `id` · `transition`, as above (`PxFlowStepActionArgs`) | `default`; the flow's `transition` | <!-- px names=flow.next,flow.previous,flow.nextOrWrap,flow.previousOrWrap -->
 
 ### Which events each action may name
 
@@ -496,7 +496,8 @@ here the default `jumpToStart`. Two actions take a manner (until 1.33 both were 
 | `timeline.stop` | `whenStopped` — a `whenStopped` word | the timeline's `whenStopped` |
 | `flow.goTo` | `whenLeaving` — how the current step is left: `jump` · `animateToEnd` · `animateToStart` | the current step's `whenLeaving` |
 
-`playback="off"` and `timeline.stop()` have no entry, so they always stop the timeline's way.
+`playback="off"` and `timeline.stop()` have no entry, so they always stop the timeline's way. The flow actions also
+take a `transition` — how the two steps hand over ([Transitions between steps](#transitions-between-steps)).
 
 ### Once finished — `whenFinished`
 
@@ -668,9 +669,9 @@ run at the same time. The page, or the file's own `actions`, moves from step to 
 "animator": {
   "timelines": [ { "outTime": 3000 } ],
   "flowSteps": [
-    { "id": "intro",   "timelineOptions": { "inTime": 0, "outTime": 1000 } },
-    { "id": "loading", "timelineOptions": { "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" } },
-    { "id": "success", "timelineOptions": { "inTime": 2000, "outTime": 3000 } }
+    { "id": "intro",   "segment": { "inTime": 0, "outTime": 1000 } },
+    { "id": "loading", "segment": { "inTime": 1000, "outTime": 2000, "iterations": "infinite", "whenLeaving": "animateToEnd" } },
+    { "id": "success", "segment": { "inTime": 2000, "outTime": 3000 } }
   ],
   "actions": [
     { "name": "timeline.start", "triggers": [ { "event": "load" } ] },
@@ -682,33 +683,38 @@ run at the same time. The page, or the file's own `actions`, moves from step to 
 
 Read cold: the intro plays once and goes on to the loading loop by itself; a click on the page's *Save* button asks
 for the success — the loop first finishes its pass, then the success plays and holds its last frame. The three
-steps name no `flow`, so they are the flow `default`, and no `timeline`, so they are parts of the default timeline.
-(Until 1.33 a step's timeline keys stood on the step itself and an entry said `"event": "finished"`, `"from": "intro"`;
+steps name no `flow`, so they are the flow `default`, and no `segment.timeline`, so they are parts of the default
+timeline. (Until 1.34 a step said `"timeline"` and `"timelineOptions"`, two keys; until 1.33 a step's timeline keys
+stood on the step itself and an entry said `"event": "finished"`, `"from": "intro"`;
 until 1.29 a step said where it goes on at its end in its own `whenFinished`; until 2026-11-22 the steps were `states`
 in `stateMachines`, until 2026-11-20 the timeline's `segments`; older files are converted on read.)
 
-**A step is its timeline with some options changed** — `timelineOptions`, the same word as the page's override: its
-part, its repeats, direction, speed, delay and end, how it is stopped and how it is left. What it does not say, it takes
-from the timeline (but a timeline's `delay` is waited only by the timeline's own step). While a flow is at a step,
-**the playback is that step's**: `timeline.start()` plays it, `getDuration()` is its pass, a seek lands inside it. A
-step of no length (`inTime` = `outTime`) holds that frame.
+**A step's `segment` is its timeline with some options changed**: which timeline, its part, its repeats, direction,
+speed, delay and end, how it is stopped and how it is left — one object, `PxFlowStepSegment`. What it does not say, it
+takes from the timeline (but a timeline's `delay` is waited only by the timeline's own step). While a flow is at a
+step, **the playback is that step's**: `timeline.start()` plays it, `getDuration()` is its pass, a seek lands inside
+it. A step of no length (`inTime` = `outTime`) holds that frame. A step may also have an `inTransitionSegment` and an
+`outTransitionSegment` — played once on the way in and once on the way out
+([Transitions between steps](#transitions-between-steps)).
 
 <!-- px-check schema PxFlowStepSchema -->
 | Field | Means |
 |---|---|
 | `id` | what entries of `actions` (`with.flowStep`, `when.flowSteps`), `effects.show` and the page call it — unique in `flowSteps`: a later step with an id already used is ignored, with a warning ([PX1115](../diagnostics.md#what-the-document-says)). It is the step's name too (a separate `name` label until 1.33) |
 | `flow` | the flow it belongs to, by its `id`. None: the flow `default` |
-| `timeline` | the timeline it is a part of, by its `id`. None (or `""`): the default timeline |
-| `timelineOptions` | the keys of that timeline it plays differently (`PxFlowStepTimelineOptions`) — the rows below, each optional |
-| `timelineOptions.inTime` | where its part of that timeline starts, ms (default: the timeline's window) |
-| `timelineOptions.outTime` | …and ends |
-| `timelineOptions.iterations` | passes, or `"infinite"` (default: the timeline's) |
-| `timelineOptions.iterationDirection` | as the timeline's |
-| `timelineOptions.playbackSpeed` | as the timeline's, on top of the player's speed |
-| `timelineOptions.delay` | waited whenever the step starts to play, ms. None: no wait — a written step never waits its timeline's `delay` |
-| `timelineOptions.whenFinished` | after its last pass, what the picture shows: `hold` · `jumpToStart` · `animateToStart` (default: the timeline's, else `hold`). Going on is an entry's — [a step's end](#a-steps-end--flowstepfinished) |
-| `timelineOptions.whenStopped` | how a stop looks while it is current — a `whenStopped` word (default: the timeline's) |
-| `timelineOptions.whenLeaving` | how it is left when another step is asked for (`PxWhenLeaving`): `jump` at once · `animateToEnd` this pass first · `animateToStart` played back to its start (default: the timeline's `whenLeaving`, else `jump`) |
+| `segment` | where it rests or loops — the rows below, each optional. None: the whole of the default timeline (`timeline` + `timelineOptions` until 1.34) |
+| `segment.timeline` | the timeline it is a part of, by its `id`. None (or `""`): the default timeline |
+| `segment.inTime` | where its part of that timeline starts, ms (default: the timeline's window) |
+| `segment.outTime` | …and ends |
+| `segment.iterations` | passes, or `"infinite"` (default: the timeline's) |
+| `segment.iterationDirection` | as the timeline's |
+| `segment.playbackSpeed` | as the timeline's, on top of the player's speed |
+| `segment.delay` | waited whenever the step starts to play, ms. None: no wait — a written step never waits its timeline's `delay` |
+| `segment.whenFinished` | after its last pass, what the picture shows: `hold` · `jumpToStart` · `animateToStart` (default: the timeline's, else `hold`). Going on is an entry's — [a step's end](#a-steps-end--flowstepfinished) |
+| `segment.whenStopped` | how a stop looks while it is current — a `whenStopped` word (default: the timeline's) |
+| `segment.whenLeaving` | how it is left when another step is asked for (`PxWhenLeaving`): `jump` at once · `animateToEnd` this pass first · `animateToStart` played back to its start (default: the timeline's `whenLeaving`, else `jump`) |
+| `inTransitionSegment` | played once, each time the step is entered, before its `segment` — [Transitions between steps](#transitions-between-steps) |
+| `outTransitionSegment` | played once, each time the step is left, after its `segment` lets go by its `whenLeaving` |
 
 Where a flow starts is not a step's key: it is the flow's `initialFlowStep` ([Several flows](#several-flows)).
 
@@ -768,14 +774,15 @@ button's pointer steps and its notification badge each have their own, and both 
 |---|---|
 | `id` | what a step's `flow`, a `flow.next`'s `with.flow` and the page call it — unique in the list; its name too (a separate `name` label until 1.33). `default` only labels the flow `default` |
 | `initialFlowStep` | the step it starts at, by its `id`. None: its first step (a step's `initial: true` until 1.33) |
+| `transition` | how its steps hand over — every change in it whose entry or call says none (1.34) — [Transitions between steps](#transitions-between-steps) |
 
 ```json
 "flowSteps": [
-  { "id": "idle",    "flow": "pointer", "timeline": "grow", "timelineOptions": { "inTime": 0, "outTime": 0 } },
-  { "id": "hover",   "flow": "pointer", "timeline": "grow", "timelineOptions": { "whenLeaving": "animateToStart" } },
-  { "id": "calm",    "flow": "notice",  "timeline": "ring", "timelineOptions": { "inTime": 0, "outTime": 0 } },
-  { "id": "ringing", "flow": "notice",  "timeline": "ring", "timelineOptions": { "inTime": 0, "outTime": 600, "iterations": 3 } },
-  { "id": "unread",  "flow": "notice",  "timeline": "ring", "timelineOptions": { "inTime": 600, "outTime": 1400 } }
+  { "id": "idle",    "flow": "pointer", "segment": { "timeline": "grow", "inTime": 0, "outTime": 0 } },
+  { "id": "hover",   "flow": "pointer", "segment": { "timeline": "grow", "whenLeaving": "animateToStart" } },
+  { "id": "calm",    "flow": "notice",  "segment": { "timeline": "ring", "inTime": 0, "outTime": 0 } },
+  { "id": "ringing", "flow": "notice",  "segment": { "timeline": "ring", "inTime": 0, "outTime": 600, "iterations": 3 } },
+  { "id": "unread",  "flow": "notice",  "segment": { "timeline": "ring", "inTime": 600, "outTime": 1400 } }
 ],
 "flows": [ { "id": "pointer" }, { "id": "notice", "initialFlowStep": "ringing" } ],
 "actions": [
@@ -827,14 +834,97 @@ is on the [JSON format page](../format/README.md#timelines-flows-and-flow-steps)
 
 `onFlowStepChange(flowStep, previous, flow)` tells the page (`flow` is `default` for the flow `default`) — the Vue event
 is `flowStepChange`. Going to the current step does nothing; an id the file does not have is ignored and reported
-([PX1114](../diagnostics.md#what-the-document-says)); a request while a step is leaving replaces the earlier one — the
-newest wins — and a next or previous then counts from the step it is heading to: two presses of *Next* while a step
-finishes its pass move two steps (1.30). While the `flowStep` prop is set, the page holds that flow and the file's entries for it rest; at mount a
+([PX1114](../diagnostics.md#what-the-document-says)). The flow is in the step asked for from the moment the change
+begins — `get()` and `onFlowStepChange` say it at once — so a next or previous during a change counts from there: two
+presses of *Next* while a step finishes its pass move two steps (1.30). While the `flowStep` prop is set, the page holds that flow and the file's entries for it rest; at mount a
 step that ends is shown at its end without playing, one that repeats plays. The prop's type is `PxFlowStepProps`, the
 handle's `PxFlowControls` (its arguments `PxGoToActionArgs` and `PxFlowStepActionArgs` — the same objects as an
-entry's `with`), the wire types `PxFlowStep`, `PxFlowStepTimelineOptions` and `PxFlow`.
+entry's `with`), the wire types `PxFlowStep`, `PxFlowStepSegment`, `PxTransitionSegment`, `PxStepTransition` and `PxFlow`.
 `player.flow.goTo({ flowStep: 'success', whenLeaving: 'animateToEnd' })` takes a way of leaving too — a `whenLeaving`
-word over the current step's. (Until 1.33 the calls took plain strings: `goTo('success', 'animateToEnd')`, `next('menu')`.)
+word over the current step's — and `transition` a hand-over:
+`player.flow.goTo({ flowStep: 'success', transition: { overlap: 300 } })`, `player.flow.next({ transition })`.
+(Until 1.33 the calls took plain strings: `goTo('success', 'animateToEnd')`, `next('menu')`.)
+
+### Transitions between steps
+
+A step can play a short part on its way in and on its way out, and two steps can overlap while they hand over (1.34).
+A step has three parts, each a range of a timeline:
+
+<!-- px-check off the three parts of a step, prose -->
+| Part | Plays |
+|---|---|
+| `inTransitionSegment` | once, each time the step is entered — before its `segment` |
+| `segment` | where it rests or loops, as above |
+| `outTransitionSegment` | once, each time the step is left — after its `segment` lets go by its `whenLeaving` |
+
+How two steps meet is said by the change, not by either step: an entry's `with.transition`, a page call's
+`transition`, or the flow's `transition` for every change in it that says none. WHY on the change: an overlap needs both
+steps — the same step can be reached by a cut from one and a slow crossfade from another; the flow's default is one
+style for every change, as a slideshow's "apply to all". With none anywhere: one part after the other — a cut when
+neither step has a transition segment.
+
+A card that flies in, bobs in a loop, and flies out when it is clicked — one timeline cut in three, `[in │ main │ out]`:
+
+```json
+"animator": {
+  "timelines": [ { "id": "card", "outTime": 3200 }, { "id": "check", "outTime": 400 } ],
+  "flowSteps": [
+    { "id": "card",
+      "inTransitionSegment":  { "inTime": 0, "outTime": 600 },
+      "segment":              { "timeline": "card", "inTime": 600, "outTime": 2600, "iterations": "infinite", "whenLeaving": "animateToEnd" },
+      "outTransitionSegment": { "inTime": 2600, "outTime": 3200 } },
+    { "id": "done", "segment": { "timeline": "check" } }
+  ],
+  "actions": [
+    { "name": "timeline.start", "triggers": [ { "event": "load" } ] },
+    { "name": "flow.goTo", "with": { "flowStep": "done", "transition": { "overlap": 200 } },
+      "triggers": [ { "event": "click" } ], "when": { "flowSteps": ["card"] } }
+  ]
+}
+```
+
+Read cold: on load the card flies in (0 – 600 ms of `card`), then bobs (600 – 2600, round and round). A click asks for
+`done`: the bob finishes its pass, the card flies out (2600 – 3200), and the check mark starts 200 ms before the card is
+gone. The transition segments name no `timeline`, so they are parts of the step's own. An out-transition that is the
+in-transition backwards is the same range, reversed: `"outTransitionSegment": { "inTime": 0, "outTime": 600,
+"iterationDirection": "reverse" }`.
+
+<!-- px-check schema PxTransitionSegmentSchema -->
+| `inTransitionSegment` · `outTransitionSegment` | Means |
+|---|---|
+| `timeline` | the timeline it is a part of, by its `id`. None: the step's own — its `segment`'s |
+| `inTime` | where its range starts, ms (default: the timeline's window) |
+| `outTime` | …and ends |
+| `playbackSpeed` | as the timeline's, on top of the player's speed |
+| `iterationDirection` | `normal` (default) · `reverse` — backwards through its range. It plays once: no other repeat keys |
+
+<!-- px-check schema PxStepTransitionSchema -->
+| `transition` | Means |
+|---|---|
+| `overlap` | how long the leaving step's end and the entered step's start play together, ms. Default `0`: one after the other |
+| `mix` | how an attribute both steps animate is mixed while they overlap (`PxTransitionMix`): `crossfade` (default) — from the leaving step's value to the entered one's, over the overlap · `nextOnTop` — the entered step's value from the first frame, as the upper clip of a video editor · `previousOnTop` — the leaving step's value until the overlap ends |
+| `leavingStep` | what the leaving step does while they overlap (`PxLeavingStep`): `playsOn` (default) — it goes on playing, its out-transition or its segment · `holds` — it stops at the pose it has when the overlap starts |
+| `easing` | the curve of the crossfade — a keyframe's [easing](../format/README.md#easing): `[x1, y1, x2, y2]` or the name of one in `definitions.easings`. None: linear |
+
+Its type is `PxStepTransition` (`PxStepTransitionSchema`); a transition segment's `PxTransitionSegment`
+(`PxTransitionSegmentSchema`), a step's `segment` `PxFlowStepSegment` (`PxFlowStepSegmentSchema`).
+
+<!-- px-check off the rules of a change, prose -->
+| | A change from step A to step B |
+|---|---|
+| What plays | A lets go by its `whenLeaving`, of the part it is in · A's out-transition — only if A's `segment` had started · the overlap · what is left of B's in-transition · B's `segment` |
+| The overlap | B starts `overlap` ms before A's tail ends. Never longer than A's out-transition, when A has one; with none, A's `segment` plays on under B's start (or holds — `leavingStep: "holds"`). It may reach past B's in-transition into B's `segment` |
+| A value that cannot be mixed | two paths of a different shape, a word — it switches at the overlap's middle. An attribute only one side animates keeps that side's values |
+| The current step | B, from the moment the change begins: `flow.get()` and `onFlowStepChange` say B at once, and an event during the change is read as in B (its entries, `when.flowSteps: ["B"]`) |
+| A go-to B while A → B plays | nothing — B is current |
+| A go-to A while A → B plays | the change runs back from where it is, and A goes on from where it was left — no snap |
+| A go-to C while A → B plays | B is left from the part it is in; A's remaining tail stops — at most two steps play at once |
+| `effects.show` | follows the parts that play: during the overlap, an element is shown if either step shows it |
+| Start | plays the current step from its in-transition — the flow's first step plays its in-transition when the animation starts |
+| Stop | never plays an out-transition — the step's `whenStopped` says how it stops |
+| A scroll timeline | a transition segment on one is not played; the check reports it (`partOfScrollTimeline`) |
+| The engines | the overlap is mixed in advance into one short playback of its own, so every engine — and a pre-rendered SVG + JS file — plays it the same way |
+| React Native | no transitions yet: its steps change at once |
 
 ### Content shown only in some steps — `show`
 
@@ -850,8 +940,9 @@ fish (1.31; `showIn` until 1.33):
 ```
 
 Any listed step of any flow counts; a flow the page does not run counts as at its start step. The element is hidden
-at once with its own `display: none` (no transition yet), so it takes no clicks either; while a step finishes its
-pass, its content stays until the flow lands. [The format](../format/README.md#show) has the details. Its `when` is
+at once with its own `display: none` (no fade of its own), so it takes no clicks either. It follows the parts that
+play: while a step finishes its pass or plays its out-transition, its content stays; during an overlap, an element
+either step shows is shown ([Transitions between steps](#transitions-between-steps)). [The format](../format/README.md#show) has the details. Its `when` is
 the same word as an entry's `when`.
 
 ### Only at some steps — `when.flowSteps`
@@ -909,14 +1000,14 @@ A name the file does not have is ignored, with a warning ([PX1507](../diagnostic
 <!-- px-check off how flows play, prose -->
 | | |
 |---|---|
-| A step | plays with the ordinary playback on its own timeline. Going to another step stops it — it lets go of what it holds — and the next plays from its start, also when the playback was paused or off |
+| A step | plays with the ordinary playback on its own timeline. Going to another step stops it — it lets go of what it holds — and the next plays from its start (its in-transition, when it has one), also when the playback was paused or off |
 | `timeline.*` with no `timeline` | acts on the whole picture — every flow. With a `timeline`: on the flow that plays it |
 | `player.timeline` | its buttons and speed act on the whole picture; its reads and seeks are of the first flow that runs — its current step. `player.getTimeline(id)` is the same kind of handle for the flow that plays that timeline (`""`, `PX_DEFAULT_TIMELINE`: the default timeline; `undefined` for an id the file lacks or that does not run) |
 | The callbacks | `onPlaybackStart` … `onPlaybackFinish` report the first flow; `onFlowStepChange` reports every flow. A step that goes on at its end reports no finish |
 | Key events | heard on the page, only while the picture is in view and not while typing in a field |
 | What shows before anything plays | a timeline's own step: its `whenIdle`; a written step: its first frame; an attribute no running step moves: the node's own value |
-| A timeline's `delay` | waited only by a timeline's own step — a written step waits only its own `timelineOptions.delay` |
-| A scroll timeline | an entry with `"type": "scroll"`. The whole of it is a step, moved by the scrolling while the others go on; a part of it is not read |
+| A timeline's `delay` | waited only by a timeline's own step — a written step waits only its own `segment.delay` |
+| A scroll timeline | an entry with `"type": "scroll"`. The whole of it is a step, moved by the scrolling while the others go on; a part of it is not read, and neither is a transition segment on it |
 | Two flows on one attribute | the first that runs keeps it (a node's transform parts count as one attribute) — the page's order decides |
 
 ### Checks
@@ -930,9 +1021,9 @@ Repeated step ids are [PX1115](../diagnostics.md#what-the-document-says), a `flo
 | `kind` | When | What the player does |
 |---|---|---|
 | `idDuplicate` | two timelines (also two with no id), or two flows, share an id | the first wins |
-| `referenceNotFound` | a `timeline`, `flowStep` or `flow` names nothing — on a step, an entry's `with` or a `byTimeline` entry | it is not read |
+| `referenceNotFound` | a `timeline`, `flowStep` or `flow` names nothing — on a step's `segment` or transition segment, an entry's `with` or a `byTimeline` entry | it is not read |
 | `timelineShared` | steps of two flows are on one timeline | the first flow keeps it |
-| `partOfScrollTimeline` | a step on a part of a scroll timeline | not read |
+| `partOfScrollTimeline` | a step on a part of a scroll timeline, or a transition segment on a scroll timeline | not read |
 | `attributeSplit` | one attribute is moved by two flows. A node's transform parts (translate, rotate, scale, skew, origin) count as one attribute | the first wins |
 | `keyframesWithoutDefault` | plain `keyframes` in a file whose timelines all have an id | they are no timeline's: not played |
 | `unnamedAmongSeveral` | a timeline with no id in a file with several — with several, every timeline has an id | it plays, as the default one: plain `keyframes` and what names no timeline are its |
@@ -942,15 +1033,15 @@ Repeated step ids are [PX1115](../diagnostics.md#what-the-document-says), a `flo
 <!-- px-check off accepted limits, prose -->
 | Limit | The way round |
 |---|---|
-| One step — one timeline: two clocks of different length in one step cannot be said | two flows moved by the same event — or one timeline and a per-property `loop` |
-| No blend between two timelines, no crossfade between two steps | two steps on one timeline: it plays from one part to the other — `whenLeaving` |
+| One `segment` — one timeline: two clocks of different length in one step cannot be said | two flows moved by the same event — or one timeline and a per-property `loop` |
+| At most two steps play at once — a third step asked for during a change stops the first one's tail | a shorter `overlap`, or go on at `flowStep.finished` |
 | An id is unique in its whole list — two steps cannot both be `open` | `eyesOpen`, `mouthOpen` — the id is the name |
 | The transform parts of one node are one attribute — `scale` in one flow and `rotate` in another: the first flow keeps both | a group around the node takes the second move, as in SVG itself |
 | An entry applies in every step of its flow | `when.flowSteps` — [Only at some steps](#only-at-some-steps--whenflowsteps) |
 | `getState()` naming the step | `flow.get()` beside it |
-| `timelineOptions` changing one step | `timelineOptions` patches the default timeline only; steps are the file's |
+| `timelineOptions` changing one step's `segment` | `timelineOptions` patches the default timeline only; steps are the file's |
 | Exports other than the players — SVG + CSS with no script, Lottie, video | one timeline, whole |
-| React Native | one flow — the first that runs ([PX1605](../diagnostics.md#react-native)); its steps change at once (no `whenLeaving`); no `flowStep` prop yet; a tap reads no entry's `when.flowSteps`, `with.whenStopped` or `with.whenLeaving` |
+| React Native | one flow — the first that runs ([PX1605](../diagnostics.md#react-native)); its steps change at once (no `whenLeaving`, no transitions — no transition segment or `transition` is played); no `flowStep` prop yet; a tap reads no entry's `when.flowSteps`, `with.whenStopped` or `with.whenLeaving` |
 
 ## Overriding from a player
 
@@ -1151,8 +1242,8 @@ write yourself cannot drift from the four shipped ones:
   spec — its event, where it is heard, its `from` and `behavior`, all part of its key — and `fromStepsOf(rule)` the steps
   its `from` names (none: any step).
 - **Flows.** `isFlowStepEntry(value)` recognises a list entry that can be a step. `flowStepViewsOf(steps, flows)` lays
-  each step's `timelineOptions` flat on it and marks the step its flow's `initialFlowStep` names (a `PxFlowStepView`,
-  the runtime view's `flowStepViews`); `initialFlowStepsOf(flows)` is where each flow starts, by flow id.
+  each step's `segment` flat on it, keeps its transition segments and marks the step its flow's `initialFlowStep`
+  names (a `PxFlowStepView`, the runtime view's `flowStepViews`; a step's `timelineOptions` until 1.34); `initialFlowStepsOf(flows)` is where each flow starts, by flow id.
   `flowStepReferenceIssues(view, extraIds?)` lists the `flow.goTo` that name nothing
   (`PxFlowStepReferenceIssue`, PX1114), `duplicateFlowStepIds(steps)` the ids used twice (PX1115). `PX_DEFAULT_ID` is
   `default` (the default flow), `PX_DEFAULT_TIMELINE` is `""` (the default timeline); `defaultTimelineOf(view)` is the default timeline and `isOnDefaultTimeline(step)` says whether a step is a
@@ -1172,7 +1263,8 @@ write yourself cannot drift from the four shipped ones:
   stating its `with` (`PxTimelineActionArgsSchema`, `PxStopActionArgsSchema`, `PxGoToActionArgsSchema`,
   `PxFlowStepActionArgsSchema`) and limiting its triggers to the events it may name, so a trigger that does not fit is
   dropped and an entry naming no action is dropped whole; `PxActionWhenSchema` is its `when`. `PxFlowStepSchema` ·
-  `PxFlowSchema` are a step and a flow (`PxFlowStepTimelineOptionsSchema` a step's `timelineOptions`),
+  `PxFlowSchema` are a step and a flow (`PxFlowStepSegmentSchema` a step's `segment`, `PxTransitionSegmentSchema` its
+  transition segments, `PxStepTransitionSchema` a `transition`; `PxFlowStepTimelineOptionsSchema` until 1.34),
   `PxTimelineTrackSchema` one `byTimeline` entry. (`PxActionTriggersSchema` · `PxActionTriggerRuleSchema` ·
   `PxActionObjectSchema` until 1.33.) `PxWhenFinishedSchema` is the `whenFinished` enum on the timeline (`hold` · `jumpToStart` ·
   `animateToStart`, default `hold`); `whenStopped` and `whenOutOfView` are enums of the timeline schema, each stating

@@ -33,8 +33,8 @@ describe('condition rules (1.33)', () => {
             type: 'svg',
             animator: {
                 timelines: [{ outTime: 3000 }],
-                flowSteps: [{ id: 'idle', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'loading', timelineOptions: { inTime: 1000, outTime: 2000 } },
-                    { id: 'done', timelineOptions: { inTime: 2000, outTime: 3000 } }],
+                flowSteps: [{ id: 'idle', segment: { inTime: 0, outTime: 1000 } }, { id: 'loading', segment: { inTime: 1000, outTime: 2000 } },
+                    { id: 'done', segment: { inTime: 2000, outTime: 3000 } }],
                 actions: ENTRIES,
             },
         };

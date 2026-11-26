@@ -16,7 +16,7 @@ const DOC: PxDocumentJson = {
     id: 'pic', type: 'svg',
     animator: {
         timelines: [{ engine: 'js', outTime: 1000, iterations: 'infinite' }, { id: 'p', engine: 'js', outTime: 1000, iterations: 'infinite' }],
-        flowSteps: [{ id: 'beat', flow: 'pulse', timeline: 'p' }],
+        flowSteps: [{ id: 'beat', flow: 'pulse', segment: { timeline: 'p' } }],
         actions: [{ name: 'timeline.start', triggers: [{ event: 'load' }] }],
         definitions: { animations: {
             fade: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },

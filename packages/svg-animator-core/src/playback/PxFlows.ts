@@ -75,6 +75,7 @@ export function atEndActionOf(stepId: string, rules: ReadonlyArray<PxActionRule>
         const out: PxActionObject = { action: rule.action };
         if (rule.flowStep !== undefined) out.flowStep = rule.flowStep;
         if (rule.flow !== undefined) out.flow = rule.flow;
+        if (rule.transition !== undefined) out.transition = rule.transition;
         return out;
     }
     return undefined;

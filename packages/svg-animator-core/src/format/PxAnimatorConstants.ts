@@ -21,7 +21,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActions, PxActionRule, PxConditionRule, PxActionsInput, PxActionEntry, PxFlowStepView, PxFlow, PxFlowStep, PxTriggerEventObject, PxTriggerEventFilter, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScrollMomentWire, PxTimeline, PxActions, PxActionRule, PxConditionRule, PxActionsInput, PxActionEntry, PxFlowStepView, PxFlow, PxFlowStep, PxStepTransition, PxTriggerEventObject, PxTriggerEventFilter, _PxScrollTimeline, _PxTimeTimeline } from './PxAnimatorTypes';
 // (TYPES only from PxAnimatorTypes: it reads this module's constants while it loads.)
 import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
@@ -185,6 +185,24 @@ export const PxWhenLeaving = {
     animateToStart: 'animateToStart',
 } as const;
 export type PxWhenLeaving = typeof PxWhenLeaving[keyof typeof PxWhenLeaving];
+
+/** How an attribute both steps animate is mixed while they overlap (`transition.mix`, 1.34): `crossfade` (default) —
+ *  from the leaving step's value to the entered one's over the overlap; `nextOnTop` — the entered step's value from the
+ *  first frame (the upper clip of a video editor); `previousOnTop` — the leaving step's value until the overlap ends. @public */
+export const PxTransitionMix = {
+    crossfade:     'crossfade',
+    nextOnTop:     'nextOnTop',
+    previousOnTop: 'previousOnTop',
+} as const;
+export type PxTransitionMix = typeof PxTransitionMix[keyof typeof PxTransitionMix];
+
+/** What the leaving step does while the two overlap (`transition.leavingStep`, 1.34): `playsOn` (default) — it goes on
+ *  playing, its out-transition or its main part; `holds` — it stops at the pose it has when the overlap starts. @public */
+export const PxLeavingStep = {
+    playsOn: 'playsOn',
+    holds:   'holds',
+} as const;
+export type PxLeavingStep = typeof PxLeavingStep[keyof typeof PxLeavingStep];
 
 /** THE BUILT-IN ACTION NAMES — the one place they are spelled. Each is the `action` of an entry of `animator.actions` (its
  *  list) and, for the one with settings, of `timeline.actions` (playback-layers.md, layers 0–1): `"timeline.start"` /
@@ -685,6 +703,8 @@ export interface PxFlowTrigger {
     readonly flowStep?: string;
     /** The flow a stepping action (`flow.next` …, {@link flowStepMoveOf}) steps through, as the rule names it. */
     readonly flow?: string;
+    /** How the two steps hand over (1.34) — the entry's `with.transition`. */
+    readonly transition?: PxStepTransition;
     readonly keys: ReadonlyArray<string>;
 }
 
@@ -1069,17 +1089,19 @@ export interface PxRuleTarget {
     flowStep?: string;
     flow?: string;
     behavior?: PxStopPlaybackBehavior | PxWhenLeaving;
+    /** A flow action's hand-over (1.34). */
+    transition?: PxStepTransition;
 }
 
 /** An entry's arguments read by its `name` — what {@link actionRulesOf} puts on each of its rules; an entry with no
  *  triggers has them too. @internal */
 export function actionTargetOf(entry: PxActionEntry): PxRuleTarget {
     switch (entry.name) {
-        case PxFlowAction.goTo: return { flowStep: entry.with?.flowStep, behavior: entry.with?.whenLeaving };
+        case PxFlowAction.goTo: return { flowStep: entry.with?.flowStep, behavior: entry.with?.whenLeaving, transition: entry.with?.transition };
         case PxFlowAction.next:
         case PxFlowAction.previous:
         case PxFlowAction.nextOrWrap:
-        case PxFlowAction.previousOrWrap: return { flow: entry.with?.flow };
+        case PxFlowAction.previousOrWrap: return { flow: entry.with?.flow, transition: entry.with?.transition };
         case PxTriggerList.stopPlayback: return { timeline: entry.with?.timeline, behavior: entry.with?.whenStopped };
         default: return { timeline: entry.with?.timeline };
     }
@@ -1105,6 +1127,7 @@ export function actionRulesOf(entries: PxActionsInput | undefined): Array<PxActi
             if (trigger.with !== undefined) rule.with = trigger.with;
             if (from.length) rule.from = from;
             if (target.behavior !== undefined) rule.behavior = target.behavior;
+            if (target.transition !== undefined) rule.transition = target.transition;
             if (condition !== undefined) rule.condition = condition;
             out.push(rule);
         }
@@ -1129,6 +1152,7 @@ export function conditionRulesOf(entries: PxActionsInput | undefined): Array<PxC
         const from = (entry.when?.flowSteps ?? []).filter(id => typeof id === 'string' && id !== '');
         if (from.length) rule.from = from;
         if (target.behavior !== undefined) rule.behavior = target.behavior;
+        if (target.transition !== undefined) rule.transition = target.transition;
         out.push(rule);
     }
     return out;
@@ -1155,12 +1179,15 @@ export function actionEntryOf(rule: PxActionRule): PxActionEntry {
     const stopping = isStopBehavior(rule.behavior) ? rule.behavior : undefined;
     switch (rule.action) {
         case PxFlowAction.goTo:
-            return { name: rule.action, with: { flowStep: rule.flowStep ?? '', ...(leaving !== undefined ? { whenLeaving: leaving } : {}) }, ...rest };
+            return { name: rule.action, with: { flowStep: rule.flowStep ?? '', ...(leaving !== undefined ? { whenLeaving: leaving } : {}),
+                ...(rule.transition !== undefined ? { transition: rule.transition } : {}) }, ...rest };
         case PxFlowAction.next:
         case PxFlowAction.previous:
         case PxFlowAction.nextOrWrap:
-        case PxFlowAction.previousOrWrap:
-            return { name: rule.action, ...(rule.flow !== undefined ? { with: { flow: rule.flow } } : {}), ...rest };
+        case PxFlowAction.previousOrWrap: {
+            const args = { ...(rule.flow !== undefined ? { flow: rule.flow } : {}), ...(rule.transition !== undefined ? { transition: rule.transition } : {}) };
+            return { name: rule.action, ...(Object.keys(args).length ? { with: args } : {}), ...rest };
+        }
         case PxTriggerList.stopPlayback: {
             const args = { ...(rule.timeline !== undefined ? { timeline: rule.timeline } : {}), ...(stopping !== undefined ? { whenStopped: stopping } : {}) };
             return { name: rule.action, ...(Object.keys(args).length ? { with: args } : {}), ...rest };
@@ -1179,18 +1206,19 @@ function isStopBehavior(v: unknown): v is PxStopPlaybackBehavior {
         || v === PxStopPlaybackBehavior.animateToEnd || v === PxStopPlaybackBehavior.animateToEndAndBack;
 }
 
-/** The steps as the engines read them (1.33) — each step's `timelineOptions` laid flat on it, and `initial` on the step
- *  its flow's `initialFlowStep` names (the flow `default`: the entry with that id). What is not a step is left out.
- *  @public @advanced */
+/** The steps as the engines read them (1.34) — each step's `segment` laid flat on it, its transition segments, and
+ *  `initial` on the step its flow's `initialFlowStep` names (the flow `default`: the entry with that id). What is not a
+ *  step is left out. @public @advanced */
 export function flowStepViewsOf(steps: ReadonlyArray<PxFlowStep> | undefined, flows: ReadonlyArray<PxFlow> | undefined): Array<PxFlowStepView> {
     const startOf = initialFlowStepsOf(flows);
     const out: Array<PxFlowStepView> = [];
     for (const step of Array.isArray(steps) ? steps : []) {
         if (!step || typeof step !== 'object' || typeof step.id !== 'string') continue;
-        const options = step.timelineOptions && typeof step.timelineOptions === 'object' ? step.timelineOptions : {};
-        const view: PxFlowStepView = { ...options, id: step.id };
+        const segment = step.segment && typeof step.segment === 'object' ? step.segment : {};
+        const view: PxFlowStepView = { ...segment, id: step.id };
         if (step.flow !== undefined) view.flow = step.flow;
-        if (step.timeline !== undefined) view.timeline = step.timeline;
+        if (step.inTransitionSegment && typeof step.inTransitionSegment === 'object') view.inTransitionSegment = step.inTransitionSegment;
+        if (step.outTransitionSegment && typeof step.outTransitionSegment === 'object') view.outTransitionSegment = step.outTransitionSegment;
         if (startOf.get(step.flow ?? PX_DEFAULT_ID) === step.id) view.initial = true;
         out.push(view);
     }
@@ -1223,7 +1251,7 @@ export function resolveTriggers(rules: ReadonlyArray<PxActionRule> | undefined, 
     const pausePlayback = listOf(PxTriggerList.pausePlayback);
     const resumePlayback = rules.some(r => r.action === PxTriggerList.resumePlayback) ? listOf(PxTriggerList.resumePlayback)
         : derivedResume(startPlayback, stopPlayback, pausePlayback, specs);
-    const flows: Array<{ action: PxFlowAction; flowStep?: string; flow?: string; keys: Array<string> }> = [];
+    const flows: Array<{ action: PxFlowAction; flowStep?: string; flow?: string; transition?: PxStepTransition; keys: Array<string> }> = [];
     if (stepIds.length) {
         for (const rule of rules) {
             if (!isFlowAction(rule.action)) continue;
@@ -1232,11 +1260,14 @@ export function resolveTriggers(rules: ReadonlyArray<PxActionRule> | undefined, 
             if (!isPageEventRule(rule)) continue;
             const spec = ruleSpecOf(rule);
             specs.set(spec.key, spec);
-            const same = flows.find(t => t.action === rule.action && t.flowStep === rule.flowStep && t.flow === rule.flow);
+            // entries with the same target and the same hand-over share one trigger (1.34: a different `transition` is another)
+            const handover = JSON.stringify(rule.transition ?? null);
+            const same = flows.find(t => t.action === rule.action && t.flowStep === rule.flowStep && t.flow === rule.flow && JSON.stringify(t.transition ?? null) === handover);
             if (same) { if (!same.keys.includes(spec.key)) same.keys.push(spec.key); continue; }
-            const trigger: { action: PxFlowAction; flowStep?: string; flow?: string; keys: Array<string> } = { action: rule.action, keys: [spec.key] };
+            const trigger: { action: PxFlowAction; flowStep?: string; flow?: string; transition?: PxStepTransition; keys: Array<string> } = { action: rule.action, keys: [spec.key] };
             if (rule.flowStep !== undefined && rule.action === PxFlowAction.goTo) trigger.flowStep = rule.flowStep;
             if (rule.flow !== undefined && rule.action !== PxFlowAction.goTo) trigger.flow = rule.flow;
+            if (rule.transition !== undefined) trigger.transition = rule.transition;
             flows.push(trigger);
         }
     }
@@ -1855,9 +1886,10 @@ export function defaultTimelineOf(cfg: Pick<PxAnimatorRuntimeConfig, 'timelines'
     return list.find((t): t is PxTimeline => t !== null && typeof t === 'object' && typeof t.id !== 'string');
 }
 
-/** True when a step is a part of the default timeline: it names no timeline, or {@link PX_DEFAULT_TIMELINE}. @public @advanced */
-export function isOnDefaultTimeline(step: Pick<PxFlowStep, 'timeline'>): boolean {
-    return step.timeline === undefined || step.timeline === PX_DEFAULT_TIMELINE;
+/** True when a step's segment (or a view of a step) is a part of the default timeline: it names no timeline, or
+ *  {@link PX_DEFAULT_TIMELINE}. @public @advanced */
+export function isOnDefaultTimeline(segment: { timeline?: string } | undefined): boolean {
+    return segment?.timeline === undefined || segment.timeline === PX_DEFAULT_TIMELINE;
 }
 
 /** A wire moment (a word, `{ domElement, screen }` or `{ scrolled }`) in its settings form — `undefined` for anything else. */

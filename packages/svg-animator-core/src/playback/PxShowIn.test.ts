@@ -16,8 +16,8 @@ const DOC: PxDocument = {
     animator: {
         timelines: [{ outTime: 2000 }, { id: 'l', outTime: 2000 }],
         flowSteps: [
-            { id: 'a', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'b', timelineOptions: { inTime: 1000, outTime: 2000 } },
-            { id: 'off', flow: 'lamp', timeline: 'l', timelineOptions: { inTime: 0, outTime: 1000 } }, { id: 'on', flow: 'lamp', timeline: 'l', timelineOptions: { inTime: 1000, outTime: 2000 } },
+            { id: 'a', segment: { inTime: 0, outTime: 1000 } }, { id: 'b', segment: { inTime: 1000, outTime: 2000 } },
+            { id: 'off', flow: 'lamp', segment: { timeline: 'l', inTime: 0, outTime: 1000 } }, { id: 'on', flow: 'lamp', segment: { timeline: 'l', inTime: 1000, outTime: 2000 } },
         ],
         flows: [{ id: 'default', initialFlowStep: 'b' }, { id: 'lamp' }],
         bindings: [{ element: '#pre', animateWith: [], show: { when: { flowSteps: ['on'] } } }],

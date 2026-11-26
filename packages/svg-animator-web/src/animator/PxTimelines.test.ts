@@ -30,9 +30,9 @@ function buttonDoc(): PxDocument {
             ],
             // the pointer steps name their flow: only flows run side by side (2026-11-22)
             flowSteps: [
-                { id: 'idle', flow: 'pointer', timeline: 'grow', timelineOptions: { inTime: 0, outTime: 0 } },
-                { id: 'hover', flow: 'pointer', timeline: 'grow' },
-                { id: 'press', flow: 'pointer', timeline: 'dip' },
+                { id: 'idle', flow: 'pointer', segment: { timeline: 'grow', inTime: 0, outTime: 0 } },
+                { id: 'hover', flow: 'pointer', segment: { timeline: 'grow' } },
+                { id: 'press', flow: 'pointer', segment: { timeline: 'dip' } },
             ],
             flows: [{ id: 'pointer' }],
             actions: [

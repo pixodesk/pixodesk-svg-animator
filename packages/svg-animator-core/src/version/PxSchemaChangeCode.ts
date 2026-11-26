@@ -313,6 +313,17 @@ export enum PxSchemaChangeCode {
      * values (`a ? b : c`).
      */
     actionsAndFlowsShape = 32,
+
+    /**
+     * Transitions between flow steps (2026-11-26, docs/library/playback-and-triggers.md). A step's `timeline` and
+     * `timelineOptions` become one object, its `segment` — `{ "id": "card", "segment": { "timeline": "card", "inTime":
+     * 600, "outTime": 2600 } }`. A step may also have an `inTransitionSegment`, played once each time it is entered, and
+     * an `outTransitionSegment`, played once each time it is left (`timeline`, `inTime`, `outTime`, `playbackSpeed`,
+     * `iterationDirection`). How two steps hand over is the arrow's: `with.transition` of `flow.goTo`, `flow.next`,
+     * `flow.previous` and the `…OrWrap` actions — `{ "overlap": 200, "mix": "crossfade", "leavingStep": "playsOn",
+     * "easing": [0.42, 0, 0.58, 1] }` — and a flow's `transition` is the default of every change in it.
+     */
+    flowStepTransitions = 33,
 }
 
 /** Where the words behind a code live. One string, shared by every code. */

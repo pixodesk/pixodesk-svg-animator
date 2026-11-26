@@ -468,7 +468,34 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // No `down`: 1.33 says what 1.32 could not — several triggers on one entry, a condition, a step's own delay and
         // way of stopping, a timeline's way of being left, a formula that compares.
     },
+    {
+        from: '1.33',
+        to: '1.34',
+        code: PxSchemaChangeCode.flowStepTransitions,
+        kind: PxWireStepKind.converted,
+        up: (doc) => { upStepSegments(doc); },
+        // No `down`: 1.34 says what 1.33 could not — a step's in- and out-transition, how two steps hand over.
+    },
 ];
+
+/** 1.33 → 1.34 (see the step's `code`) — frozen at the words of the two versions: a step's `timeline` and
+ *  `timelineOptions` become its `segment`. A step already in the 1.34 shape is left as it is. @internal */
+export function upStepSegments(doc: Record<string, unknown>): void {
+    const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+    const animator = getAnimatorBlock(doc);
+    const steps = animator && Array.isArray(animator['flowSteps']) ? animator['flowSteps'].filter(isObj) : [];
+    for (const step of steps) {
+        const timeline = step['timeline'];
+        const options = step['timelineOptions'];
+        if (timeline === undefined && options === undefined) continue;
+        const segment: Record<string, unknown> = isObj(step['segment']) ? { ...step['segment'] } : {};
+        if (timeline !== undefined && segment['timeline'] === undefined) segment['timeline'] = timeline;
+        if (isObj(options)) for (const [key, value] of Object.entries(options)) if (segment[key] === undefined) segment[key] = value;
+        delete step['timeline'];
+        delete step['timelineOptions'];
+        if (Object.keys(segment).length) step['segment'] = segment;
+    }
+}
 
 /** 1.32 → 1.33 (see the step's `code`) — frozen at the words of the two versions. Each entry stays one entry (one
  *  trigger); a step's `initial` goes to its flow; every `name` of a timeline, a flow and a step is dropped (a label —

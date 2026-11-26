@@ -1197,5 +1197,50 @@
    "effects.showOneOf.which"
   ],
   "note": "PXS32 — Fewer words and structures for actions, flows and steps (2026-11-24, docs/library/playback-and-triggers.md). An entry of `actions` reads in three parts — `{ \"name\": \"flow.goTo\", \"with\": { \"flowStep\": \"save\" }, \"triggers\": [ { \"event\": \"click\" } ], \"when\": { \"flowSteps\": [\"idle\"] } }`: its `action` is `name`; what it acts on and how (`timeline`, `flow`, `flowStep`, `behavior`) is its arguments' object `with` — `behavior` becomes `whenStopped` or `whenLeaving`; its event (`event`, `element`, `selector`, `with`) is one object of the list `triggers`; `from` is `when.flowSteps`, always a list; `when.condition` is new. The event `finished` is `flowStep.finished`. A step's timeline keys (`inTime`, `outTime`, `iterations`, `iterationDirection`, `playbackSpeed`, `whenFinished`, `whenLeaving`) move into its `timelineOptions`, which also takes `delay` and `whenStopped`; a timeline has `whenLeaving` too. Where a flow starts is its `initialFlowStep` (a step's `initial: true` until then). Timelines, flows and steps have no `name` — the id is the name. `effects.showIn: { flowSteps }` is `effects.show: { when: { flowSteps } }`, `effects.showOneOf: { which }` is `effects.showOneChild: { when: { index } }` — on a pre-rendered binding too. A formula (`calc(…)`) may compare, join conditions with `and` · `or` · `not` and pick one of two values (`a ? b : c`)."
+ },
+ {
+  "version": "1.34",
+  "date": "2026-11-26",
+  "added": [
+   "animator.actions[]|flow.goTo.with.transition",
+   "animator.actions[]|flow.next.with.transition",
+   "animator.flowSteps[].inTransitionSegment",
+   "animator.flowSteps[].inTransitionSegment.inTime",
+   "animator.flowSteps[].inTransitionSegment.iterationDirection",
+   "animator.flowSteps[].inTransitionSegment.outTime",
+   "animator.flowSteps[].inTransitionSegment.playbackSpeed",
+   "animator.flowSteps[].inTransitionSegment.timeline",
+   "animator.flowSteps[].outTransitionSegment",
+   "animator.flowSteps[].segment",
+   "animator.flowSteps[].segment.delay",
+   "animator.flowSteps[].segment.inTime",
+   "animator.flowSteps[].segment.iterationDirection",
+   "animator.flowSteps[].segment.iterations",
+   "animator.flowSteps[].segment.outTime",
+   "animator.flowSteps[].segment.playbackSpeed",
+   "animator.flowSteps[].segment.timeline",
+   "animator.flowSteps[].segment.whenFinished",
+   "animator.flowSteps[].segment.whenLeaving",
+   "animator.flowSteps[].segment.whenStopped",
+   "animator.flows[].transition",
+   "animator.flows[].transition.easing",
+   "animator.flows[].transition.leavingStep",
+   "animator.flows[].transition.mix",
+   "animator.flows[].transition.overlap"
+  ],
+  "removed": [
+   "animator.flowSteps[].timeline",
+   "animator.flowSteps[].timelineOptions",
+   "animator.flowSteps[].timelineOptions.delay",
+   "animator.flowSteps[].timelineOptions.inTime",
+   "animator.flowSteps[].timelineOptions.iterationDirection",
+   "animator.flowSteps[].timelineOptions.iterations",
+   "animator.flowSteps[].timelineOptions.outTime",
+   "animator.flowSteps[].timelineOptions.playbackSpeed",
+   "animator.flowSteps[].timelineOptions.whenFinished",
+   "animator.flowSteps[].timelineOptions.whenLeaving",
+   "animator.flowSteps[].timelineOptions.whenStopped"
+  ],
+  "note": "PXS33 — Transitions between flow steps (2026-11-26, docs/library/playback-and-triggers.md). A step's `timeline` and `timelineOptions` become one object, its `segment` — `{ \"id\": \"card\", \"segment\": { \"timeline\": \"card\", \"inTime\": 600, \"outTime\": 2600 } }`. A step may also have an `inTransitionSegment`, played once each time it is entered, and an `outTransitionSegment`, played once each time it is left (`timeline`, `inTime`, `outTime`, `playbackSpeed`, `iterationDirection`). How two steps hand over is the arrow's: `with.transition` of `flow.goTo`, `flow.next`, `flow.previous` and the `…OrWrap` actions — `{ \"overlap\": 200, \"mix\": \"crossfade\", \"leavingStep\": \"playsOn\", \"easing\": \"ease-in-out\" }` — and a flow's `transition` is the default of every change in it."
  }
 ]

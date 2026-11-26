@@ -317,8 +317,8 @@ The package exports the component (`SvgAnimationPlayer`, also its default export
 
 With none of the control props set, the file's own triggers drive it — a file saved with
 `{ "name": "timeline.start", "triggers": [{ "event": "load" }] }` plays on mount. React Native plays **one flow** — the first that
-runs (PX1605); its steps change at once (no `whenLeaving`), there is no `flowStep` prop yet, and `getTimeline()` answers
-`undefined`.
+runs (PX1605); its steps change at once (no `whenLeaving`, no transitions — a step's in- and out-transition and a
+`transition` are not played), there is no `flowStep` prop yet, and `getTimeline()` answers `undefined`.
 
 ### Playback overrides
 
@@ -510,7 +510,7 @@ not supported.
 | The gate: `whenOutOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility measured against the window every 200 ms — React Native has no `IntersectionObserver` |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
-| Several flows at once; `whenLeaving` (a timeline's, a step's, a go-to's); the `flowStep` prop, `onFlowStepChange` | ❌ | one flow — the first that runs (PX1605); its steps change at once; `getTimeline()` answers `undefined`; `onFlowStepChange` is typed but not called yet ([Flows](./playback-and-triggers.md#flows--named-steps-of-the-animation)) |
+| Several flows at once; `whenLeaving` (a timeline's, a step's, a go-to's); transitions between steps (`inTransitionSegment`, `outTransitionSegment`, `transition`); the `flowStep` prop, `onFlowStepChange` | ❌ | one flow — the first that runs (PX1605); its steps change at once; `getTimeline()` answers `undefined`; `onFlowStepChange` is typed but not called yet ([Flows](./playback-and-triggers.md#flows--named-steps-of-the-animation)) |
 | Following the scroll (`timeline.type: 'scroll'`) | ❌ | measure your `ScrollView` and pass the progress with `showAtProgress`, on a clock timeline — `timelineOptions={{ type: 'time' }}` for a file saved to follow the scroll ([Following the scroll](./playback-and-triggers.md#following-the-scroll)) |
 
 ## Monorepo setup

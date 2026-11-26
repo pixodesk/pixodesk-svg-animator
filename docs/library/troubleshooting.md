@@ -60,10 +60,27 @@ component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
 
+**A step's `timeline` or `timelineOptions` is not read; `PxFlowStepTimelineOptions` is not exported.** Changed in
+1.34 (2026-11-26): a step's timeline and its options are one object, its `segment` — and a step may play an
+in-transition and an out-transition, and two steps may overlap while they hand over
+([Transitions between steps](./playback-and-triggers.md#transitions-between-steps)).
+
+<!-- px-check off old and new spelling, prose -->
+| Was | Is |
+|---|---|
+| `{ "id": "hover", "timeline": "grow", "timelineOptions": { "whenLeaving": "animateToStart" } }` | `{ "id": "hover", "segment": { "timeline": "grow", "whenLeaving": "animateToStart" } }` — the same keys, `timeline` among them |
+| a step that names no `timeline` | a `segment` that names none — the default timeline, as before |
+| (new) | `"inTransitionSegment": { "inTime": 0, "outTime": 600 }` · `"outTransitionSegment": { … }` — played once on the way in and on the way out |
+| (new) | `"with": { "flowStep": "done", "transition": { "overlap": 200 } }` on `flow.goTo`, `flow.next`, `flow.previous` and the `…OrWrap` actions · `"flows": [{ "id": "menu", "transition": { … } }]` — the default of every change in a flow · `player.flow.goTo({ flowStep: 'done', transition: { overlap: 200 } })` |
+| `PxFlowStepTimelineOptions` · `PxFlowStepTimelineOptionsSchema` | `PxFlowStepSegment` · `PxFlowStepSegmentSchema`; new: `PxTransitionSegment`, `PxStepTransition` and their schemas, `PxTransitionMix`, `PxLeavingStep` |
+
+Stamped 1.33 files are converted on read; there is no way back to 1.33 — it cannot say a transition.
+
 **An entry of `actions` with `action`, `event`, `from` or `behavior`, a step's `inTime` or `initial`, a `name`,
 `showIn` or `showOneOf` is not read; `player.flow.goTo('open')` does not compile.** Changed in 1.33 (2026-11-24): an
 entry of `actions` reads in three parts — what (`name` + `with`), set off by (`triggers`), only when (`when`); a step's
-timeline keys sit in its `timelineOptions`; the page's flow calls take the entry's `with` object.
+timeline keys sit in its `timelineOptions` (in its `segment` since 1.34); the page's flow calls take the entry's `with`
+object.
 
 <!-- px-check off old and new spelling, prose -->
 | Was | Is |
@@ -131,7 +148,7 @@ and 2026-11-22 (schema 1.28, amended): a file can hold several timelines, flows 
 | a `"timeline.resume"` key with an empty list | not possible any more: with no `timeline.resume` entry, the resume is derived |
 | `"states"` · `"stateMachines"` · a rule's `"state"` / `"stateMachine"` · `state.goTo` (2026-11-20) | `"flowSteps"` · `"flows"` · `with.flowStep` / `with.flow` · `flow.goTo` |
 | `player.state` · the `state` prop · `onStateChange` · Vue `stateChange` | `player.flow` · the `flowStep` prop · `onFlowStepChange` · Vue `flowStepChange` |
-| two timelines played side by side by themselves | one flow of two steps — give the second a flow of its own (a step `{ "id": "…", "flow": "…", "timeline": "…" }`), or name both in the `timelines` prop |
+| two timelines played side by side by themselves | one flow of two steps — give the second a flow of its own (a step `{ "id": "…", "flow": "…", "segment": { "timeline": "…" } }`), or name both in the `timelines` prop |
 
 The `actionTriggers` prop and option take the list too. Stamped 1.28 files are converted on read — see
 [Flows](./playback-and-triggers.md#flows--named-steps-of-the-animation).

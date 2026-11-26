@@ -353,9 +353,12 @@ interface PxFlowControls {
 interface PxGoToActionArgs {
     flowStep: string;                      // the step — an id of `animator.flowSteps`, or a timeline's id
     whenLeaving?: PxWhenLeaving;           // how the current step is left this time; none: its own
+    transition?: PxStepTransition;         // how the two steps hand over this time — { overlap, mix, leavingStep,
+                                           //   easing }; none: the flow's (Transitions between steps)
 }
 interface PxFlowStepActionArgs {
     flow?: string;                         // the flow it steps through; none: `default`
+    transition?: PxStepTransition;         // as above
 }
 ```
 

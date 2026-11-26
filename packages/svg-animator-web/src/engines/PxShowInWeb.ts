@@ -21,7 +21,7 @@ export interface PxShowInWeb {
 
 /** The `showIn` elements of `doc` (the document the picture was rendered from), applied now — undefined when it has
  *  none. `current`: each running flow's current step, by flow name; a flow not in it is at its start. */
-export function createShowInWeb(doc: PxDocument, root: () => Element | null, current: () => ReadonlyMap<string, string>, hider: PxHider): PxShowInWeb | undefined {
+export function createShowInWeb(doc: PxDocument, root: () => Element | null, current: () => ReadonlyMap<string, string | ReadonlyArray<string>>, hider: PxHider): PxShowInWeb | undefined {
     const targets = showInTargetsOf(doc);
     if (!targets.length) return undefined;
     const all = planUnits(doc);   // every flow of the file — the page's run lists aside

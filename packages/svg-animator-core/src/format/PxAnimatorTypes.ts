@@ -14,7 +14,7 @@ import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxHoldAt, PxPlaybackDirection,
     PxScrollAxis, PxScrollFollows, PxScrollLine, PxScrollMoment, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind, PxVariableType,
-    PX_ALL_TRIGGER_EVENTS, PX_FLOW_ACTION_EVENTS, PxPointerType, PxFlowAction, PxWhenLeaving, type PxActionEvent } from './PxAnimatorConstants';
+    PX_ALL_TRIGGER_EVENTS, PX_FLOW_ACTION_EVENTS, PxPointerType, PxFlowAction, PxWhenLeaving, PxTransitionMix, PxLeavingStep, type PxActionEvent } from './PxAnimatorConstants';
 import type { PxActionName, PxPlaybackState, PxScrollSettings, PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
@@ -707,12 +707,16 @@ export interface PxGoToActionArgs {
     flowStep: string;
     /** How the current step is left this time — none: its own `whenLeaving`. */
     whenLeaving?: PxWhenLeaving;
+    /** How the two steps hand over this time (1.34) — none: the flow's `transition`. */
+    transition?: PxStepTransition;
 }
 
 /** `with` of `flow.next` · `flow.previous` · `flow.nextOrWrap` · `flow.previousOrWrap`. @public */
 export interface PxFlowStepActionArgs {
     /** The flow it steps through — an `id` of `animator.flows`, or `default`. None: `default`. */
     flow?: string;
+    /** How the two steps hand over this time (1.34) — none: the flow's `transition`. */
+    transition?: PxStepTransition;
 }
 
 /**
@@ -763,6 +767,8 @@ export interface _PxActionRule {
     from?: ReadonlyArray<string>;
     /** HOW, for this rule alone: a stop's manner, a go-to's way of leaving. */
     behavior?: PxStopPlaybackBehavior | PxWhenLeaving;
+    /** A flow action's hand-over between the two steps (1.34) — its `with.transition`. */
+    transition?: PxStepTransition;
     /** A formula on variables that must be true when the event comes. */
     condition?: string;
 }
@@ -786,6 +792,8 @@ export interface _PxConditionRule {
     from?: ReadonlyArray<string>;
     /** HOW, for this rule alone: a stop's manner, a go-to's way of leaving. */
     behavior?: PxStopPlaybackBehavior | PxWhenLeaving;
+    /** A flow action's hand-over between the two steps (1.34) — its `with.transition`. */
+    transition?: PxStepTransition;
     /** The formula on variables — `var(name)` or `calc(…)`; it acts when this turns true. */
     condition: string;
 }
@@ -869,6 +877,37 @@ const STOP_BEHAVIORS = [PxStopPlaybackBehavior.jumpToStart, PxStopPlaybackBehavi
 /** A go-to's ways of leaving — what its `whenLeaving` may say. */
 const LEAVING_BEHAVIORS = [PxWhenLeaving.jump, PxWhenLeaving.animateToEnd, PxWhenLeaving.animateToStart] as const;
 
+/**
+ * How the step left (A) hands over to the step entered (B) — `transition` on an arrow (an entry's `with`, a page call's
+ * argument) or on a flow (the default of every change in it), 1.34. Both steps' own parts play as they are — A's
+ * `outTransitionSegment`, B's `inTransitionSegment` (each optional); this says how the two meet. With none anywhere:
+ * one part after the other — a cut when neither step has a transition segment.
+ * @public
+ */
+export interface _PxStepTransition {
+    /** How long A's end and B's start play together, ms — B starts this long before A's tail ends (its out-transition;
+     *  with none, its main part plays on). 0: one after the other. Not longer than A's out-transition, when it has one. */
+    overlap?: number;
+    /** How an attribute both animate is mixed while they overlap — see {@link PxTransitionMix}. A value that cannot be
+     *  mixed (a word, two paths of different shape) switches at the overlap's middle. */
+    mix?: PxTransitionMix;
+    /** What A does while they overlap — see {@link PxLeavingStep}. */
+    leavingStep?: PxLeavingStep;
+    /** The curve of the crossfade — a keyframe's easing words. */
+    easing?: PxEasingOrRef;
+}
+
+/** @public @advanced */
+export const PxStepTransitionSchema = implementsInterface<_PxStepTransition>()(px.object({
+    overlap: px.number(0).optional(),
+    mix: px.enum([PxTransitionMix.crossfade, PxTransitionMix.nextOnTop, PxTransitionMix.previousOnTop] as const, PxTransitionMix.crossfade).optional(),
+    leavingStep: px.enum([PxLeavingStep.playsOn, PxLeavingStep.holds] as const, PxLeavingStep.playsOn).optional(),
+    easing: PxEasingOrRefSchema.optional(),
+}));
+/** @public */
+export type PxStepTransition = PxInfer<typeof PxStepTransitionSchema>;
+const _ck_PxStepTransition: KeysMatch<PxStepTransition, _PxStepTransition> = true;
+
 /** @public @advanced */
 export const PxTimelineActionArgsSchema = implementsInterface<PxTimelineActionArgs>()(px.object({
     timeline: px.string().optional(),
@@ -882,10 +921,12 @@ export const PxStopActionArgsSchema = implementsInterface<PxStopActionArgs>()(px
 export const PxGoToActionArgsSchema = implementsInterface<PxGoToActionArgs>()(px.object({
     flowStep: px.string(),
     whenLeaving: px.enum(LEAVING_BEHAVIORS).optional(),
+    transition: PxStepTransitionSchema.optional(),
 }));
 /** @public @advanced */
 export const PxFlowStepActionArgsSchema = implementsInterface<PxFlowStepActionArgs>()(px.object({
     flow: px.string().optional(),
+    transition: PxStepTransitionSchema.optional(),
 }));
 
 /** One entry whose `name` is `name`: its arguments' schema, and the events its triggers may name. */
@@ -937,6 +978,8 @@ export interface PxActionObject {
     action: PxFlowAction;
     flowStep?: string;
     flow?: string;
+    /** The hand-over at that end (1.34) — the entry's `with.transition`. */
+    transition?: PxStepTransition;
 }
 
 const PxStopPlaybackPresetSchema = px.enum([PxStopPlaybackBehavior.jumpToStart, PxStopPlaybackBehavior.animateToStart, PxStopPlaybackBehavior.jumpToEnd,
@@ -1139,14 +1182,17 @@ export type PxHoldOnScreen = PxInfer<typeof PxHoldOnScreenSchema>;
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const, PxTimelineEngineSetting.auto).optional();
 
 /**
- * A FLOW STEP (2026-11-22; a "state" 11-20, a "segment" nested in its timeline 11-15) — a named piece of animation, given
- * as a part of ONE timeline: `timeline` (none — the default timeline, the one with no id) and `timelineOptions` — the keys
- * of that timeline it plays differently: its part (`inTime` – `outTime`; none — the whole of it), how it repeats, its
- * direction, speed and delay, what happens at its end, how it is stopped and how it is left when another is asked for.
- * What it does not say, it takes from its timeline. Of the steps of one flow exactly one is current; while it is current,
- * its part plays with the ordinary playback. A timeline no step names is a step of the flow `default` by itself — the
- * whole of it. WHY `timelineOptions` (1.33; the keys stood on the step until then): a step IS its timeline with some
- * options changed — the same block, and the same word, as the page's `timelineOptions`.
+ * A FLOW STEP (2026-11-22; a "state" 11-20, a "segment" nested in its timeline 11-15) — a named piece of animation: its
+ * `segment`, a part of ONE timeline (`timeline` — none: the default timeline, the one with no id) with the keys of that
+ * timeline it plays differently — its part (`inTime` – `outTime`; none — the whole of it), how it repeats, its direction,
+ * speed and delay, what happens at its end, how it is stopped and how it is left when another is asked for. What it
+ * does not say, it takes from its timeline. It may also have an `inTransitionSegment` — played once, each time the step
+ * is entered, before its segment — and an `outTransitionSegment` — played once, each time it is left (1.34). Of the steps
+ * of one flow exactly one is current; while it is current, its segment plays with the ordinary playback. A timeline no
+ * step names is a step of the flow `default` by itself — the whole of it. How two steps hand over (an overlap, how they
+ * mix) is the arrow's: {@link _PxStepTransition}. WHY `segment` (1.34; `timeline` + `timelineOptions` until then): one
+ * object says which timeline, from where to where and how — and the three parts of a step are one kind of thing, named
+ * alike.
  * @public
  */
 export interface _PxFlowStep {
@@ -1155,21 +1201,27 @@ export interface _PxFlowStep {
     id: string;
     /** The flow it belongs to — an `id` of `animator.flows`. None: the flow `default`. */
     flow?: string;
-    /** The timeline it is a part of — an `id` of `animator.timelines`. None: the default timeline. */
-    timeline?: string;
-    /** The keys of its timeline it plays differently — see {@link PxFlowStepTimelineOptions}. */
-    timelineOptions?: PxFlowStepTimelineOptions;
+    /** The part it rests in or loops — see {@link PxFlowStepSegment}. None: the whole of the default timeline. */
+    segment?: PxFlowStepSegment;
+    /** Played once, each time the step is entered, before its `segment` — see {@link PxTransitionSegment}. */
+    inTransitionSegment?: PxTransitionSegment;
+    /** Played once, each time the step is left, after its `segment` lets go (its `whenLeaving`). */
+    outTransitionSegment?: PxTransitionSegment;
 }
 
-/** A step's `timelineOptions` (1.33) — the playback keys of a timeline, each optional: what a step does not say, it
- *  takes from its timeline. Not `id`, `type`, `engine`, `frameRate` or the in-view keys — those are the picture's.
- *  @public */
-export type PxFlowStepTimelineOptions = Partial<Pick<_PxTimeTimeline, 'inTime' | 'outTime' | 'playbackSpeed' | 'delay'
-    | 'iterations' | 'iterationDirection' | 'whenFinished' | 'whenStopped' | 'whenLeaving'>>;
+/** A step's `segment` (1.34; its `timeline` and `timelineOptions` until then) — the timeline it is a part of and that
+ *  timeline's playback keys, each optional: what a step does not say, it takes from its timeline. Not `id`, `type`,
+ *  `engine`, `frameRate` or the in-view keys — those are the picture's. @public */
+export interface PxFlowStepSegment extends Partial<Pick<_PxTimeTimeline, 'inTime' | 'outTime' | 'playbackSpeed' | 'delay'
+    | 'iterations' | 'iterationDirection' | 'whenFinished' | 'whenStopped' | 'whenLeaving'>> {
+    /** The timeline it is a part of — an `id` of `animator.timelines`. None: the default timeline. */
+    timeline?: string;
+}
 
 /** @public @advanced */
-export const PxFlowStepTimelineOptionsSchema = implementsInterface<PxFlowStepTimelineOptions>()(px.object({
+export const PxFlowStepSegmentSchema = implementsInterface<PxFlowStepSegment>()(px.object({
     // no stated defaults: what a step leaves out is its timeline's, not a constant
+    timeline: px.string().optional(),
     inTime: px.number().optional(),
     outTime: px.number().optional(),
     playbackSpeed: px.number().optional(),
@@ -1181,27 +1233,47 @@ export const PxFlowStepTimelineOptionsSchema = implementsInterface<PxFlowStepTim
         PxStopPlaybackBehavior.animateToEnd, PxStopPlaybackBehavior.animateToEndAndBack] as const).optional(),
     whenLeaving: px.enum([PxWhenLeaving.jump, PxWhenLeaving.animateToEnd, PxWhenLeaving.animateToStart] as const).optional(),
 }));
-const _ck_PxFlowStepTimelineOptions: KeysMatch<PxInfer<typeof PxFlowStepTimelineOptionsSchema>, Required<PxFlowStepTimelineOptions>> = true;
+const _ck_PxFlowStepSegment: KeysMatch<PxInfer<typeof PxFlowStepSegmentSchema>, Required<PxFlowStepSegment>> = true;
+
+/** A step's `inTransitionSegment` / `outTransitionSegment` (1.34) — a range of a timeline played ONCE: five of
+ *  {@link PxFlowStepSegment}'s keys (`timeline` — none: the step's own). "The out-transition is the in-transition,
+ *  backwards": the same range with `iterationDirection: "reverse"`. @public */
+export interface PxTransitionSegment extends Pick<PxFlowStepSegment, 'timeline' | 'inTime' | 'outTime' | 'playbackSpeed'> {
+    /** Forwards, or backwards through its range. */
+    iterationDirection?: typeof PxPlaybackDirection.normal | typeof PxPlaybackDirection.reverse;
+}
+
+/** @public @advanced */
+export const PxTransitionSegmentSchema = implementsInterface<PxTransitionSegment>()(px.object({
+    timeline: px.string().optional(),
+    inTime: px.number().optional(),
+    outTime: px.number().optional(),
+    playbackSpeed: px.number().optional(),
+    iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse] as const).optional(),
+}));
+const _ck_PxTransitionSegment: KeysMatch<PxInfer<typeof PxTransitionSegmentSchema>, Required<PxTransitionSegment>> = true;
 
 /** @public @advanced */
 export const PxFlowStepSchema = implementsInterface<_PxFlowStep>()(px.object({
     id: px.string(),
     flow: px.string().optional(),
-    timeline: px.string().optional(),
-    timelineOptions: PxFlowStepTimelineOptionsSchema.optional(),
+    segment: PxFlowStepSegmentSchema.optional(),
+    inTransitionSegment: PxTransitionSegmentSchema.optional(),
+    outTransitionSegment: PxTransitionSegmentSchema.optional(),
 }));
 /** @public */
 export type PxFlowStep = PxInfer<typeof PxFlowStepSchema>;
 const _ck_PxFlowStep: KeysMatch<PxFlowStep, _PxFlowStep> = true;
 
-/** A step as the engines read it — its `timelineOptions` laid flat on it, and `initial` from its flow's
- *  `initialFlowStep` (`flowStepViewsOf`). NOT a wire shape. @public @advanced */
-export interface PxFlowStepView extends PxFlowStepTimelineOptions {
+/** A step as the engines read it — its `segment` laid flat on it, its transition segments, and `initial` from its
+ *  flow's `initialFlowStep` (`flowStepViewsOf`). NOT a wire shape. @public @advanced */
+export interface PxFlowStepView extends PxFlowStepSegment {
     id: string;
     flow?: string;
-    timeline?: string;
     /** Where its flow starts — the flow's `initialFlowStep` names it. */
     initial?: boolean;
+    inTransitionSegment?: PxTransitionSegment;
+    outTransitionSegment?: PxTransitionSegment;
 }
 
 /**
@@ -1217,12 +1289,15 @@ export interface _PxFlow {
      *  WHY on the flow: the start is said once, on the parent — as dotLottie's `initial`, XState's `initial` and SCXML's
      *  `initial`; with none, SCXML's rule too — the first in order. */
     initialFlowStep?: string;
+    /** How its steps hand over — every change in it whose arrow says none (1.34). See {@link _PxStepTransition}. */
+    transition?: PxStepTransition;
 }
 
 /** @public @advanced */
 export const PxFlowSchema = implementsInterface<_PxFlow>()(px.object({
     id: px.string(),
     initialFlowStep: px.string().optional(),
+    transition: PxStepTransitionSchema.optional(),
 }));
 /** @public */
 export type PxFlow = PxInfer<typeof PxFlowSchema>;

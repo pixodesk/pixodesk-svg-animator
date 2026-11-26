@@ -154,7 +154,7 @@ write or transform documents in TypeScript rather than by hand:
 | `PxNode` | any element in `children`; `PxSvgNode` is the root `<svg>`, which adds the document keys |
 | `PxAnimatorConfig` | the `animator` block as a whole |
 | `PxTimeline` | one entry of `animator.timelines` — what advances the playhead |
-| `PxFlowStep` · `PxFlowStepTimelineOptions` · `PxFlow` | one entry of `animator.flowSteps`, its `timelineOptions`, and one entry of `animator.flows` — [Timelines, flows and flow steps](#timelines-flows-and-flow-steps) |
+| `PxFlowStep` · `PxFlowStepSegment` · `PxTransitionSegment` · `PxFlow` · `PxStepTransition` | one entry of `animator.flowSteps`, its `segment`, its `inTransitionSegment` / `outTransitionSegment`, one entry of `animator.flows`, and how two steps hand over — a flow's `transition` and a flow action's `with.transition` — [Timelines, flows and flow steps](#timelines-flows-and-flow-steps) |
 | `PxActions` · `PxActionEntry` | `animator.actions`, a list of entries, and one entry: its `name` (a `PxActionName` — `timeline.start`, `timeline.play`, `timeline.stop`, `timeline.pause`, `timeline.resume`, `flow.goTo`, `flow.next`, `flow.previous`, `flow.nextOrWrap`, `flow.previousOrWrap`), its `with` (`PxActionArgs` by name: `PxTimelineActionArgs`, `PxStopActionArgs`, `PxGoToActionArgs`, `PxFlowStepActionArgs`), its `triggers` (each a `PxTriggerEventObject` whose `event` is a `PxActionEvent`: a page event, or `flowStep.finished` — the one `PxStepEvent`) and its `when` (`PxActionWhen`) |
 | `PxElementAnimation` | one element's `animate` map; `PxKeyframe` is one entry of a property's `keyframes`, `PxLoop` that property's `loop`, and `PxTimelineTrack` one entry of its `byTimeline` |
 | `PxBinding` | one entry of `animator.bindings`, in a bind-by-id document |
@@ -165,12 +165,12 @@ write or transform documents in TypeScript rather than by hand:
 | `PxBezierPath` | a path outline as bezier segments |
 | `PxScrollMomentWire` · `PxHoldOnScreen` | one of a scroll timeline's two moments, `firstFrameWhen` / `lastFrameWhen` — a word, an exact place `{ domElement, screen }` or `{ scrolled }` — and its `holdOnScreen` object |
 | `PxTimelineEngineSetting` · `PxTimelineEngine` · `PxPlaybackDirection` | the timeline's `engine` (as written: `auto` · `native` · `js`; as resolved: `native` · `js`) and `iterationDirection`. Every two-or-more-way wire selector is a named constant like these — a const namespace AND the string type of the same name, so `PxTriggerEvent.click` and `event: PxTriggerEvent` come from one import |
-| `PxTriggerEvent` · `PxFlowAction` · `PxWhenLeaving` · `PxStopPlaybackBehavior` · `PxOutOfViewBehavior` · `PxWhenFinished` · `PxWhenIdle` | the triggers' events, the five flow actions, the timeline's and a step's `whenLeaving` (and a go-to's own in `with`), the timeline's `whenStopped` (and a stop's own in `with`) and `whenOutOfView`, and its `whenFinished` and `whenIdle` — [Playback settings & triggers](../library/playback-and-triggers.md#requests-and-moments) |
+| `PxTriggerEvent` · `PxFlowAction` · `PxWhenLeaving` · `PxTransitionMix` · `PxLeavingStep` · `PxStopPlaybackBehavior` · `PxOutOfViewBehavior` · `PxWhenFinished` · `PxWhenIdle` | the triggers' events, the five flow actions, the timeline's and a step's `whenLeaving` (and a go-to's own in `with`), a transition's `mix` and `leavingStep`, the timeline's `whenStopped` (and a stop's own in `with`) and `whenOutOfView`, and its `whenFinished` and `whenIdle` — [Playback settings & triggers](../library/playback-and-triggers.md#requests-and-moments) |
 | `PxScrollFollows` · `PxScrollMoment` · `PxScrollLine` · `PxScrollAxis` · `PxHoldAt` | a scroll timeline's `follows`, the seven moment words, the lines of an exact place (`top` · `center` · `bottom` · `left` · `right`), its `axis`, and `holdOnScreen.at` — [Following the scroll](../library/playback-and-triggers.md#following-the-scroll) |
 | `PxAlongPathMode` · `PxLoopRepeatAt` · `PxLoopDirection` | a property animation's `alongPathMode`, and its `loop.repeatAt` / `loop.direction` |
 | `PxStrokeTrimSubPaths` · `PxCloneOmit` · `PxMaskType` · `PxUnits` · `PxGradientType` · `PxGradientSpreadMethod` · `PxPathOverflow` · `PxLengthAdjust` · `PxTextPathMethod` · `PxTextPathSpacing` | the effects' selectors: `strokeTrim.subPaths`, `clone.omit`, `maskedBy.maskType`, the mask and gradient units, a gradient's `type` and `spreadMethod`, and `textPath`'s `pathOverflow` / `lengthAdjust` / `method` / `spacing` |
 
-<!-- px-check schema-block SVG_JSON=PxDocumentSchema NODE=PxNodeSchema ANIMATE=PxPropertyAnimationSchema EFFECTS=PxEffectsSchema GRADIENT=PxFillGradientEffectSchema TRIGGER=PxTriggerEventObjectSchema WHEN=PxActionWhenSchema -->
+<!-- px-check schema-block SVG_JSON=PxDocumentSchema NODE=PxNodeSchema ANIMATE=PxPropertyAnimationSchema EFFECTS=PxEffectsSchema GRADIENT=PxFillGradientEffectSchema TRIGGER=PxTriggerEventObjectSchema WHEN=PxActionWhenSchema TRANSITION_SEGMENT=PxTransitionSegmentSchema TRANSITION=PxStepTransitionSchema -->
 ```typescript
 // PxDocument
 // Self-contained document: has children — player renders SVG tree and animates it
@@ -282,15 +282,16 @@ interface SVG_JSON extends NODE {
         >;
 
         // NAMED STEPS — a flow step is a PART OF ONE TIMELINE, or all of it (2026-11-22; `states` 11-20, a timeline's
-        // `segments` 11-15). Of one flow's steps exactly one is current, and plays with the ordinary playback; the step
-        // IS its timeline with some options changed — `timelineOptions` — and takes the rest from it
+        // `segments` 11-15). Of one flow's steps exactly one is current, and plays with the ordinary playback. Its
+        // `segment` IS its timeline with some options changed, and takes the rest from it; an in- and an out-transition
+        // segment, each optional, play once on the way in and out (1.34; `timeline` + `timelineOptions` until then)
         flowSteps?: Array<{
             id: string;                            // what actions (with.flowStep, when.flowSteps), effects.show and the page
                                                    // call it — unique; a repeated id: the first wins (PX1115). The id is the name
             flow?: string;                         // → flows; none = the flow `default`
-            timeline?: string;                     // → timelines; none (or "") = the default timeline
-            timelineOptions?: {                    // the keys of its timeline it plays differently, each optional — none = the
-                                                   // timeline's (on the step itself until 1.33)
+            segment?: {                            // where it rests or loops — the keys of its timeline it plays differently,
+                                                   // each optional; none = the timeline's (on the step itself until 1.33)
+                timeline?: string;                 // → timelines; none (or "") = the default timeline
                 inTime?: number;                   // its part of that timeline, ms; none = the timeline's window
                 outTime?: number;
                 playbackSpeed?: number;            // on top of the player's speed
@@ -303,6 +304,9 @@ interface SVG_JSON extends NODE {
                 whenLeaving?: 'jump' | 'animateToEnd' | 'animateToStart';  // how it is left when another step is asked
                                                    // for: at once, after this pass, or played back to its start
             };
+            inTransitionSegment?: TRANSITION_SEGMENT;   // played once, each time the step is entered, before `segment`
+            outTransitionSegment?: TRANSITION_SEGMENT;  // played once, each time it is left, after `segment` lets go
+                                                        // by its whenLeaving
         }>;
 
         // Of one flow's steps exactly one is current. Flows run at the same time and do not know of each other;
@@ -311,6 +315,7 @@ interface SVG_JSON extends NODE {
             id: string;                            // what a step's `flow`, a flow.next's `with.flow` and the page call it — unique
             initialFlowStep?: string;              // → flowSteps: the step it starts at; none = its first (1.33; a step's
                                                    // `initial: true` until then)
+            transition?: TRANSITION;               // how its steps hand over — every change whose arrow says none (1.34)
         }>;
 
         // WHEN things happen — a LIST OF ENTRIES at the animator's root, beside `timelines` (a map by action until
@@ -351,6 +356,7 @@ interface SVG_JSON extends NODE {
                     flowStep: string;              // → flowSteps (or a timeline's id: its own step)
                     whenLeaving?: 'jump' | 'animateToEnd' | 'animateToStart';  // how the current step is left this time;
                                                    // none = its own whenLeaving (`behavior` until 1.33)
+                    transition?: TRANSITION;       // how the two steps hand over this time; none = the flow's (1.34)
                 };
                 triggers?: Array<TRIGGER>;
                 when?: WHEN;
@@ -361,7 +367,10 @@ interface SVG_JSON extends NODE {
                     | 'flow.previous'              //   the previous one; on the first, nothing
                     | 'flow.nextOrWrap'            //   the next one; after the last, the first
                     | 'flow.previousOrWrap';       //   the previous one; before the first, the last. Any event
-                with?: { flow?: string };          // → flows: what it steps through; none = `default`
+                with?: {
+                    flow?: string;                 // → flows: what it steps through; none = `default`
+                    transition?: TRANSITION;       // as flow.goTo's
+                };
                 triggers?: Array<TRIGGER>;
                 when?: WHEN;
               }
@@ -443,6 +452,27 @@ interface WHEN {
     flowSteps?: Array<string>;  // → flowSteps: a flow is at one of these steps; none = at any step. With
                                 // 'flowStep.finished': the steps whose end it is (`from` until 1.33)
     condition?: string;         // a formula on variables that must be true: "var(unlocked)", "calc(var(progress) >= 1)"
+}
+
+// A step's in- or out-transition — a range of a timeline, played ONCE (1.34)
+interface TRANSITION_SEGMENT {
+    timeline?: string;                          // → timelines; none = the step's own (its segment's)
+    inTime?: number;                            // its range, ms; none = the timeline's window
+    outTime?: number;
+    playbackSpeed?: number;                     // on top of the player's speed
+    iterationDirection?: 'normal' | 'reverse';  // an out-transition that is the in-transition backwards: the same
+                                                // range, 'reverse'
+}
+
+// How the step left (A) hands over to the step entered (B) — an arrow's `with.transition`, else its flow's
+// `transition`, else none: one part after the other (1.34)
+interface TRANSITION {
+    overlap?: number;                           // ms A's end and B's start play together; 0 (default) = one after the other.
+                                                // Never longer than A's out-transition, when A has one
+    mix?: 'crossfade' | 'nextOnTop' | 'previousOnTop';  // an attribute both animate while they overlap: from A's value to
+                                                // B's (default) · B's from the first frame · A's until the overlap ends
+    leavingStep?: 'playsOn' | 'holds';          // A while they overlap: goes on playing (default) · stops at its pose
+    easing?: string | [number, number, number, number];  // the crossfade's curve — a keyframe's easing; none = linear
 }
 
 // One SVG element
@@ -560,8 +590,8 @@ one field:
 | List | One entry | Refers to |
 |---|---|---|
 | `timelines` | a time axis — one needs no `id`; with several, each has one | — |
-| `flowSteps` | a part of one timeline (or all of it): its `timelineOptions` — `inTime` – `outTime` on it, its repeats, direction, speed, delay and end | its `timeline` (none: the default one), its `flow` (none: `default`) |
-| `flows` | a set of steps of which exactly one is current; several run at once. A timeline no step names is a step of the flow `default` | its `initialFlowStep` |
+| `flowSteps` | a part of one timeline (or all of it): its `segment` — `inTime` – `outTime` on it, its repeats, direction, speed, delay and end — and, each optional, an `inTransitionSegment` and an `outTransitionSegment` played once on the way in and out | its `segment.timeline` (none: the default one) and its transition segments' `timeline` (none: the segment's), its `flow` (none: `default`) |
+| `flows` | a set of steps of which exactly one is current; several run at once. A timeline no step names is a step of the flow `default`. Its `transition` is how its steps hand over | its `initialFlowStep` |
 | `actions` | an entry: an action (`name` + `with`), the events that set it off (`triggers`), what must hold (`when`) | in `with`: a `timeline`, a `flowStep`, a `flow`; in `when`: the steps it is limited to (`flowSteps`); in a trigger: an `element` (`"#id"`) |
 
 A node names timelines only — `byTimeline` says what an animated value does on each timeline (its `keyframes`, from
@@ -573,9 +603,9 @@ touches no node. A small file, a button that grows on hover and dips on press:
   "animator": {
     "timelines": [ { "id": "grow", "outTime": 150 }, { "id": "dip", "outTime": 200 } ],
     "flowSteps": [
-      { "id": "idle",  "timeline": "grow", "timelineOptions": { "inTime": 0, "outTime": 0 } },
-      { "id": "hover", "timeline": "grow", "timelineOptions": { "whenLeaving": "animateToStart" } },
-      { "id": "press", "timeline": "dip" } ],
+      { "id": "idle",  "segment": { "timeline": "grow", "inTime": 0, "outTime": 0 } },
+      { "id": "hover", "segment": { "timeline": "grow", "whenLeaving": "animateToStart" } },
+      { "id": "press", "segment": { "timeline": "dip" } } ],
     "actions": [
       { "name": "flow.goTo", "with": { "flowStep": "hover" },
         "triggers": [ { "event": "flowStep.finished" } ], "when": { "flowSteps": ["press"] } },
@@ -597,11 +627,14 @@ Every timeline here has an id, as with several timelines every one must (a timel
 plays, as the default one, and is reported); the flow `default` starts at its first step (`idle` · `hover` ·
 `press`). How it plays, the moves between steps, the
 checks (PX1114 – PX1116) and the accepted limits:
-[Flows](../library/playback-and-triggers.md#flows--named-steps-of-the-animation). A file saved before 2026-11-20 —
+[Flows](../library/playback-and-triggers.md#flows--named-steps-of-the-animation); a step's in- and out-transition and
+how two steps hand over — an entry's `with.transition`, a flow's `transition`:
+[Transitions between steps](../library/playback-and-triggers.md#transitions-between-steps). A file saved before 2026-11-20 —
 one `timeline` with `segments`, `actionTriggers` as a map by action — one in the words of 2026-11-20 (`states`,
 `stateMachines`), a 1.28 file (`actionTriggers`, a timeline's `actions` block, a step's `whenFinished` object) and a
 1.32 file (one flat rule per event — `action`, `event`, `from`, `behavior` — a step's timeline keys on the step, its
-`initial`, `showIn`, `showOneOf`) are converted when they are read.
+`initial`, `showIn`, `showOneOf`) and a 1.33 file (a step's `timeline` + `timelineOptions`) are converted when they are
+read.
 
 #### Why these names
 
@@ -625,7 +658,9 @@ one `timeline` with `segments`, `actionTriggers` as a map by action — one in t
 | `whenStopped` · `whenOutOfView` | what the timeline does by itself at a moment is a plain key of the timeline, in the family of `whenFinished` and `whenIdle` — `when` + the moment; a timeline's `actions` block keyed `timeline.stop` / `outOfView` until 1.29 |
 | `when.flowSteps` | the arrow of a state machine starts at a state — it names where an entry waits; a click that means "open" at one step and "close" at another is two plain entries. Always a list: the same `when` as `effects.show`. `from` (one id or a list) until 1.33 |
 | `flowStep.finished` | a bare word comes from outside, a dotted name is the animation's own — and it says WHAT finished; `finished` until 1.33 |
-| `timelineOptions` (a step's) | a step IS its timeline with some options changed — the same block, and the same word, as the page's `timelineOptions`; the keys stood on the step until 1.33 |
+| `segment` · `inTransitionSegment` · `outTransitionSegment` | the three parts of a step are one kind of thing — a range of a timeline — so they end in one word; the main part is the plain one. `segment` says which timeline, from where to where and how, in one object: `timeline` + `timelineOptions` until 1.34 (the keys stood on the step until 1.33) |
+| `transition` | how two steps hand over needs both of them, so it is the arrow's — an entry's `with`, the page call's argument — with a default per flow, one style for every change. A transition is A's out-transition segment and B's in-transition segment, overlapped and mixed as it says |
+| `overlap` · `mix` · `leavingStep` | what you would say aloud: how long they play together, how two values meet, what the step being left does. `nextOnTop` / `previousOnTop` are a video editor's clips, one above the other |
 | `initialFlowStep` | the start is said once, on the parent — as dotLottie's, XState's and SCXML's `initial`; with none, SCXML's rule too — the first in order. A step's `initial: true` until 1.33 |
 | `timeline.start` · `timeline.play` · `timeline.stop` · `timeline.pause` · `timeline.resume` | an action names the BUTTON an event presses — a verb and the noun it acts on, the same five words as the handle's methods; one family, so `timeline.resume` cannot be read as "start again". `start` always means from the start; `play` is the media word for "start, or carry on". `start` · `stop` · `pause` · `resume` until 1.23; `timeline.play` since 1.26 |
 | `whenFinished` | nobody presses the end of the playback — the clock gets there — so its rule is a timeline key beside `whenIdle`, not a button; it pairs with `whenIdle` and names the state it governs: the playback is `finished`, and the key says only what the picture shows. `atEnd` until 1.25; `actions.finish` (until 1.23) sat among the buttons |
@@ -1768,7 +1803,9 @@ later settings (how it appears) another — they never mix in one object.
 
 - Any listed step of any flow counts; a flow that does not run counts as at its start step.
 - Hidden is the element's own `display: none` — not drawn, no pointer events; its children go with it.
-- The element's own attributes and animations are untouched; there is no transition yet.
+- The element's own attributes and animations are untouched; it has no fade of its own.
+- While two steps hand over, it follows the parts that play: during an overlap it is shown if either step shows it
+  ([Transitions between steps](../library/playback-and-triggers.md#transitions-between-steps)).
 - An empty list says nothing: always shown. A step the file lacks is never current
   ([PX1114](../diagnostics.md#what-the-document-says)).
 - A pre-rendered SVG has no nodes, so the same object rides on the element's binding:
@@ -2362,10 +2399,10 @@ adapter. You need it only to build a player; everything else is on the main entr
 | Diagnostics | `diagnoseDocument(doc)` → (`{ problems }`), `reportDocumentDiagnostics(doc, where, diag?)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
 | Validation | `isPxDocument`, `validateDocument(doc, options?)` → `PxValidationResult` | ● the shallow guard, and THE one deep check: `{ valid, errors, findings }` (review §15). `isValidPxDocument`, `validateNodeEffects`, `validateDeprecatedTransformChannels`, `validateEasingRefs`, `validateVersionStamp` (▪) moved to `/internal` |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals. `legacyAnimatorOf` (▪) is the raw config at the pre-rendered SVG's `meta.animator` address — unchecked: cast it with `PxAnimatorConfigSchema` |
-| Flows and rules | `PxFlowStep`, `PxFlowStepTimelineOptions`, `PxFlow`, `PxShowEffect`, `PxShowOneChildEffect`, `PxFlowAction`, `PxWhenLeaving`, `PxActionEntry`, `PxActionName`, `PxActionArgs`, `PxTimelineActionArgs`, `PxStopActionArgs`, `PxGoToActionArgs`, `PxFlowStepActionArgs`, `PxActionWhen`, `PxActionEvent`, `PxStepEvent`, `PxActionRule` (○), `PxFlowStepView` (○), `PxTimelineTrack`, `PxFlowControls`, `PxFlowStepProps`, `PxRunListProps`, `PX_DEFAULT_ID`, `PX_DEFAULT_TIMELINE`, `PxTriggerEventEntry`, `PxTriggerEventObject`, `PxTriggerEventFilter`, `PxPointerType` | ● several timelines, flows and flow steps, and the entries that move them (2026-11-22, [Flows](../library/playback-and-triggers.md#flows--named-steps-of-the-animation)) — the wire types (a step and its `timelineOptions`, a flow, the `show` and `showOneChild` effects, one entry of `actions`, its `name`, its `with` by name, its `when`, its trigger's event — a page event or a step's end, `flowStep.finished` — one `byTimeline` entry), the flat views the engines read (`PxActionRule` — one rule per trigger, `PxFlowStepView` — a step with its `timelineOptions` laid flat), the handle's `player.flow` (its calls take the entry's `with` objects), the components' `flowStep` prop and `flows` / `timelines` lists, `default` — the name of the flow (and the step) that needs none, `""` — the timeline with no id; an event in core's helpers: a word or `{ event, element, selector, with }` |
-| Flows and rules — schemas | `PxFlowStepSchema`, `PxFlowStepTimelineOptionsSchema`, `PxFlowSchema`, `PxActionEntrySchema`, `PxTimelineActionArgsSchema`, `PxStopActionArgsSchema`, `PxGoToActionArgsSchema`, `PxFlowStepActionArgsSchema`, `PxActionWhenSchema`, `PxTimelineTrackSchema`, `PxTriggerEventObjectSchema`, `PxTriggerEventFilterSchema` | ○ the schemas of the types above — one entry is a member per action, stating its `with` and the events its triggers may name; a trigger that does not fit is dropped, an entry naming no action is dropped whole |
-| Flows and rules — engine | `/engine`: `actionRulesOf`, `actionEntryOf`, `conditionRulesOf`, `conditionEntryOf`, `isConditionTrue`, `PxConditionRule`, `PxConditionSources`, `flowStepViewsOf`, `initialFlowStepsOf`, `PX_ACTION_NAMES`, `isPlaybackAction`, `isFlowAction`, `flowStepMoveOf`, `flowStepIndexAfter`, `PxFlowStepMove`, `ruleEventEntry`, `ruleEntriesOf`, `rulesOfEntries`, `isFlowStepEntry`, `flowStepReferenceIssues`, `PxFlowStepReferenceIssue`, `duplicateFlowStepIds`, `PxFlowTrigger`, `forwardFlowControls`, `shouldWireOwnTriggers`, `timelineIssues`, `PxTimelineIssue`, `PxTimelineIssueKind`, `PX_ALL_TRIGGER_EVENTS`, `PX_FLOW_ACTION_EVENTS`, `isPageEvent`, `isPageEventRule`, `ruleSpecOf`, `fromStepsOf`, `isTriggerEvents`, `triggerKeys`, `triggerKeyOf`, `triggerSpecOf`, `triggerEventOf`, `PxTriggerEventSpec` | ○ the `actions` list laid flat — one rule per trigger — and one rule back as an entry; the steps with their `timelineOptions` laid flat, and where each flow starts; every action name and the playback / flow split; a next or previous action's move and the step it lands on (none past an end without wrapping); a rule's event as an entry and back; the `flow.goTo` that name nothing (PX1114), the ids used twice (PX1115); the forwarding `flow` a wrapper hands out; whether an engine wires its own triggers (not a flow's step: its flow does); the timeline checks (PX1116); the page events and the events a flow action may name, a rule's spec (its `from` and `behavior` part of its key) and the steps it is limited to; the resolved triggers' entry keys and what each listens for — [For player authors](../library/playback-and-triggers.md#for-player-authors--the-same-rules-exported) |
-| Flows — internal | `PxFlowRuntime`, `PxShowInTarget`, `showInTargetsOf`, `isShownIn`, `currentFlowStepsOf`, `flowNameOfUnit`, `PxShowOneOfTarget`, `showOneOfTargetsOf`, `shownOptionOf`, `PxUnit`, `PxUnitPlan`, `PxPlannedStep`, `PxAttributeClaim`, `PxRunLists`, `planUnits`, `stepDocumentOf`, `unitConfigOf`, `attributeOwnersOf`, `switchStepsOf`, `unknownRunNames`, `createFlowSwitch`, `PxFlowSwitch`, `PxFlowSwitchOptions`, `PxFlowSwitchStep`, `PxFlowStepPlayer`, `timelineWindowsOf` (**`/engine`**); `/internal`: `createFlowLever`, `PxFlowLever`, `PxFlowHolder`, `createRunLever`, `PxRunLever`, `upTimelinesStatesAndRules`, `upFlowWords`, `actionTargetOf`, `PxRuleTarget` | ▪ what an entry's `with` gives each of its rules; the plan of a file with flows (a unit per running flow, the flow `default` with a step for every timeline no step names), one step's document, the clash rule, what a unit's triggers are wired from; the flow switch that keeps one step's ordinary playback live; every timeline's window by id; the levers a component's `flowStep` and `flows` / `timelines` props hold the player with; the steps that bring a document stamped 1.28 in the spelling of 2026-11-15, and of 2026-11-20, over |
+| Flows and rules | `PxFlowStep`, `PxFlowStepSegment`, `PxTransitionSegment`, `PxFlow`, `PxStepTransition`, `PxTransitionMix`, `PxLeavingStep`, `PxShowEffect`, `PxShowOneChildEffect`, `PxFlowAction`, `PxWhenLeaving`, `PxActionEntry`, `PxActionName`, `PxActionArgs`, `PxTimelineActionArgs`, `PxStopActionArgs`, `PxGoToActionArgs`, `PxFlowStepActionArgs`, `PxActionWhen`, `PxActionEvent`, `PxStepEvent`, `PxActionRule` (○), `PxFlowStepView` (○), `PxTimelineTrack`, `PxFlowControls`, `PxFlowStepProps`, `PxRunListProps`, `PX_DEFAULT_ID`, `PX_DEFAULT_TIMELINE`, `PxTriggerEventEntry`, `PxTriggerEventObject`, `PxTriggerEventFilter`, `PxPointerType` | ● several timelines, flows and flow steps, and the entries that move them (2026-11-22, [Flows](../library/playback-and-triggers.md#flows--named-steps-of-the-animation)) — the wire types (a step, its `segment` and its transition segments, a flow, how two steps hand over — its `mix` and `leavingStep` words — the `show` and `showOneChild` effects, one entry of `actions`, its `name`, its `with` by name, its `when`, its trigger's event — a page event or a step's end, `flowStep.finished` — one `byTimeline` entry), the flat views the engines read (`PxActionRule` — one rule per trigger, `PxFlowStepView` — a step with its `segment` laid flat), the handle's `player.flow` (its calls take the entry's `with` objects), the components' `flowStep` prop and `flows` / `timelines` lists, `default` — the name of the flow (and the step) that needs none, `""` — the timeline with no id; an event in core's helpers: a word or `{ event, element, selector, with }` |
+| Flows and rules — schemas | `PxFlowStepSchema`, `PxFlowStepSegmentSchema`, `PxTransitionSegmentSchema`, `PxFlowSchema`, `PxStepTransitionSchema`, `PxActionEntrySchema`, `PxTimelineActionArgsSchema`, `PxStopActionArgsSchema`, `PxGoToActionArgsSchema`, `PxFlowStepActionArgsSchema`, `PxActionWhenSchema`, `PxTimelineTrackSchema`, `PxTriggerEventObjectSchema`, `PxTriggerEventFilterSchema` | ○ the schemas of the types above — one entry is a member per action, stating its `with` and the events its triggers may name; a trigger that does not fit is dropped, an entry naming no action is dropped whole |
+| Flows and rules — engine | `/engine`: `actionRulesOf`, `actionEntryOf`, `conditionRulesOf`, `conditionEntryOf`, `isConditionTrue`, `PxConditionRule`, `PxConditionSources`, `flowStepViewsOf`, `initialFlowStepsOf`, `PX_ACTION_NAMES`, `isPlaybackAction`, `isFlowAction`, `flowStepMoveOf`, `flowStepIndexAfter`, `PxFlowStepMove`, `ruleEventEntry`, `ruleEntriesOf`, `rulesOfEntries`, `isFlowStepEntry`, `flowStepReferenceIssues`, `PxFlowStepReferenceIssue`, `duplicateFlowStepIds`, `PxFlowTrigger`, `forwardFlowControls`, `shouldWireOwnTriggers`, `timelineIssues`, `PxTimelineIssue`, `PxTimelineIssueKind`, `PX_ALL_TRIGGER_EVENTS`, `PX_FLOW_ACTION_EVENTS`, `isPageEvent`, `isPageEventRule`, `ruleSpecOf`, `fromStepsOf`, `isTriggerEvents`, `triggerKeys`, `triggerKeyOf`, `triggerSpecOf`, `triggerEventOf`, `PxTriggerEventSpec` | ○ the `actions` list laid flat — one rule per trigger — and one rule back as an entry; the steps with their `segment` laid flat, and where each flow starts; every action name and the playback / flow split; a next or previous action's move and the step it lands on (none past an end without wrapping); a rule's event as an entry and back; the `flow.goTo` that name nothing (PX1114), the ids used twice (PX1115); the forwarding `flow` a wrapper hands out; whether an engine wires its own triggers (not a flow's step: its flow does); the timeline checks (PX1116); the page events and the events a flow action may name, a rule's spec (its `from` and `behavior` part of its key) and the steps it is limited to; the resolved triggers' entry keys and what each listens for — [For player authors](../library/playback-and-triggers.md#for-player-authors--the-same-rules-exported) |
+| Flows — internal | `PxFlowRuntime`, `PxShowInTarget`, `showInTargetsOf`, `isShownIn`, `currentFlowStepsOf`, `flowNameOfUnit`, `PxShowOneOfTarget`, `showOneOfTargetsOf`, `shownOptionOf`, `PxUnit`, `PxUnitPlan`, `PxPlannedStep`, `PxAttributeClaim`, `PxRunLists`, `planUnits`, `stepDocumentOf`, `unitConfigOf`, `attributeOwnersOf`, `switchStepsOf`, `unknownRunNames`, `createFlowSwitch`, `PxFlowSwitch`, `PxFlowSwitchOptions`, `PxFlowSwitchStep`, `PxFlowStepPlayer`, `PxFlowPartInfo`, `PxFlowWindowRequest`, `PxFlowWindowSource`, `PxStepPart`, `flowTransitionOf`, `flowWindowDocumentOf`, `PxWindowSource`, `PxWindowSpec`, `timelineWindowsOf` (**`/engine`**); `/internal`: `createFlowLever`, `PxFlowLever`, `PxFlowHolder`, `createRunLever`, `PxRunLever`, `upTimelinesStatesAndRules`, `upFlowWords`, `actionTargetOf`, `PxRuleTarget` | ▪ what an entry's `with` gives each of its rules; the plan of a file with flows (a unit per running flow, the flow `default` with a step for every timeline no step names), one step's document, the clash rule, what a unit's triggers are wired from; the flow switch that keeps one step's ordinary playback live — a part of a step at a time (`PxStepPart`: its segment, its in- or out-transition), and the window of a change mixed in advance into one short document of its own (`flowWindowDocumentOf`; a flow's `transition`: `flowTransitionOf`); every timeline's window by id; the levers a component's `flowStep` and `flows` / `timelines` props hold the player with; the steps that bring a document stamped 1.28 in the spelling of 2026-11-15, and of 2026-11-20, over |
 | Timeline shape | `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig`, `defaultTimelineOf(view)`, `isOnDefaultTimeline(step)` | ○ the runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) → the default timeline as an entry of `timelines` again; `defaultTimelineOf` is the timeline with no id, `isOnDefaultTimeline` whether a step is a part of it (**`/engine`**: the two). The other direction, `resolveAnimatorTimeline` (▪), moved to `/internal` (review §17a): read the view through `getAnimatorConfig` / `prepareDocument` |
 | Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |
 | Playback override | `PxPlaybackOverride`, `PxTimelineOptions`, `PxTimelineTiming`, `PxRecursivePartial`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult` | ● the `timelineOptions` and `actions` overrides as every player takes them — `PxTimelineOptions`, a `PxRecursivePartial` (every key optional at every depth, arrays replaced whole, no delete) of `PxTimelineTiming` (the timeline's keys, `whenStopped` and `whenOutOfView` among them), merged over the file's (until 1.29 `PxActionsInput` was the timeline's `actions` block, set instead of the file's) — and the companion types of the two merge functions above (`PxPatch` · `PxTimelinePatch` · `PxActionsPatch` until 1.22; `PxActionsOptions`, a merged partial, until 1.25) — [Overriding from a player](../library/playback-and-triggers.md#overriding-from-a-player) |

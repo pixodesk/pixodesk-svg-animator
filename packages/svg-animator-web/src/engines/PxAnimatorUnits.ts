@@ -21,8 +21,9 @@
 
 import { PX_DEFAULT_ID, PxDiagnosticCode, PxDiagnosticKind, getAnimatorConfig, type PxDocument, type PxFlowControls, type PxTimelineControls } from '@pixodesk/svg-animator-core';
 import {
-    attributeOwnersOf, createFlowSwitch, duplicateFlowStepIds, flowNameOfUnit, flowStepReferenceIssues, forwardPlaybackControls, planUnits, showInTargetsOf, stepDocumentOf, switchStepsOf, unitConfigOf, unknownRunNames,
-    type PxAttributeClaim, type PxFlowSwitch, type PxRunLists, type PxUnitPlan,
+    attributeOwnersOf, createFlowSwitch, duplicateFlowStepIds, flowNameOfUnit, flowStepReferenceIssues, flowTransitionOf, flowWindowDocumentOf, forwardPlaybackControls, planUnits, PxStepPart,
+    showInTargetsOf, stepDocumentOf, switchStepsOf, unitConfigOf, unknownRunNames,
+    type PxAttributeClaim, type PxFlowPartInfo, type PxFlowSwitch, type PxFlowWindowSource, type PxRunLists, type PxUnitPlan,
 } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -107,21 +108,51 @@ function bindUnit(
     // told after the flow moves — what a condition entry's `when.flowSteps` reads (1.33)
     const stepListeners = new Set<() => void>();
     const onStepChange = (listener: () => void): (() => void) => { stepListeners.add(listener); return () => { stepListeners.delete(listener); }; };
+    // a step's part documents (1.34: its segment, its transition segments) — pure, so built once each
+    const partDocs = new Map<string, PxDocument>();
+    const partDoc = (stepIndex: number, part: PxStepPart): PxDocument => {
+        const key = stepIndex + ':' + part;
+        let d = partDocs.get(key);
+        if (!d) { d = stepDocumentOf(doc, plan, unitIndex, stepIndex, claims, part); partDocs.set(key, d); }
+        return d;
+    };
+    /** A part's playback length and speed, as its document says — what a change is laid out by. */
+    const partInfo = (stepIndex: number, part: PxStepPart): PxFlowPartInfo | undefined => {
+        const cfg = getAnimatorConfig(partDoc(stepIndex, part));
+        if (!cfg) return undefined;
+        const duration = typeof cfg.duration === 'number' && cfg.duration > 0 ? cfg.duration : 0;
+        const iterations = cfg.iterations === 'infinite' ? Infinity : typeof cfg.iterations === 'number' && cfg.iterations > 0 ? cfg.iterations : 1;
+        const speed = typeof cfg.playbackSpeed === 'number' && cfg.playbackSpeed > 0 ? cfg.playbackSpeed : 1;
+        return { totalMs: duration * iterations, speed };
+    };
+    const sourcesOf = (sources: ReadonlyArray<PxFlowWindowSource>) => sources.map(s => ({ doc: partDoc(s.index, s.part), atMs: s.atMs, rate: s.rate, ...(s.forMs !== undefined ? { forMs: s.forMs } : {}) }));
     const flowSwitch = createFlowSwitch<PxBoundPlayerApi>({
         flow: flowNameOfUnit(plan, unit),
         steps: switchStepsOf(unit, plan, getAnimatorConfig(doc)?.actionRules ?? []),
+        transition: flowTransitionOf(doc, unit.flow),
         raf: webRaf,
         onChange: (flowStep, previous, flow) => {
             onStepChanged();
             onFlowStepChange?.(flowStep, previous, flow);
             for (const listener of [...stepListeners]) listener();
         },
+        onPlayingChange: () => onStepChanged(),
         onPlaybackFinish: () => onPlaybackFinish?.(),
-        bind: (stepIndex, events) => {
-            const stepDoc = stepDocumentOf(doc, plan, unitIndex, stepIndex, claims);
-            const scroll = plan.timelines[unit.steps[stepIndex].timeline].scroll;
-            return binder(stepDoc, { ...stepCallbacks, onPlaybackFinish: events.onPlaybackFinish }, scroll ? followed : undefined, true);
+        bind: (stepIndex, events, part) => {
+            const which = part ?? PxStepPart.main;
+            // a scroll timeline has no transition segments: only a step's segment follows the scrolling
+            const scroll = which === PxStepPart.main && plan.timelines[unit.steps[stepIndex].timeline].scroll;
+            return binder(partDoc(stepIndex, which), { ...stepCallbacks, onPlaybackFinish: events.onPlaybackFinish }, scroll ? followed : undefined, true);
         },
+        partInfo,
+        // the window of a change (1.34): A's tail and B's head pre-mixed into one plain document
+        bindWindow: (request, events) => binder(flowWindowDocumentOf(doc, {
+            durationMs: request.durationMs,
+            leaving: sourcesOf(request.leaving),
+            entering: sourcesOf(request.entering),
+            mix: request.transition.mix,
+            easing: request.transition.easing,
+        }), { ...stepCallbacks, onPlaybackFinish: events.onPlaybackFinish }, undefined, true),
     });
     // the unit's triggers and gate, once — over the switch's executor (the current step's playback)
     let detach = (): void => {};
@@ -154,9 +185,10 @@ function bindUnits(
     const units = plan.units.map((_, i) => bindUnit(doc, plan, i, claims, binder, i === 0 ? callbacks : secondaryCallbacks(callbacks), followed,
         () => showIn?.update()));
     const first = units[0];
-    // `showIn` (1.31): shown while one of its steps is current — each running flow's, by its name
+    // `showIn` (1.31): shown while one of its steps plays — each running flow's, by its name; both steps of a change's
+    // window (1.34, R2)
     showIn = createShowInWeb(doc, () => first?.flowSwitch.currentPlayer().getRootElement() ?? null,
-        () => new Map(plan.units.map((unit, i) => [flowNameOfUnit(plan, unit), units[i].flowSwitch.controls.get()[0]])), hider);
+        () => new Map(plan.units.map((unit, i) => [flowNameOfUnit(plan, unit), units[i].flowSwitch.playing()])), hider);
     const clocks = units.filter(u => !u.scroll);
     const each = (run: (t: PxTimelineControls) => void) => (): void => { for (const u of clocks) run(u.flowSwitch.timeline); };
 
@@ -177,10 +209,10 @@ function bindUnits(
     const ownerOf = (flowStep: string) => flows.find(x => x.unit.steps.some(s => s.id === flowStep));
     const flow: PxFlowControls = {
         "goTo": (args) => ownerOf(args.flowStep)?.bound.flowSwitch.controls.goTo(args),
-        "next": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.next(),
-        "previous": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.previous(),
-        "nextOrWrap": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.nextOrWrap(),
-        "previousOrWrap": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.previousOrWrap(),
+        "next": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.next(args),
+        "previous": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.previous(args),
+        "nextOrWrap": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.nextOrWrap(args),
+        "previousOrWrap": (args) => flowOf(args?.flow)?.bound.flowSwitch.controls.previousOrWrap(args),
         "get": (name) => name === undefined ? flows.flatMap(x => x.bound.flowSwitch.controls.get()) : flowOf(name)?.bound.flowSwitch.controls.get() ?? [],
         "getAll": () => flows.flatMap(x => x.bound.flowSwitch.controls.getAll()),
     };

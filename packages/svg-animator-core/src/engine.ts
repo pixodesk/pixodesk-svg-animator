@@ -53,11 +53,13 @@ export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIs
 // states (2026-11-20; segments 2026-11-15): the engine's view of a document with states, the states in their settings form
 export { flowStepReferenceIssues, duplicateFlowStepIds, isFlowStepEntry } from './playback/PxFlows';
 export { createFlowSwitch } from './playback/PxFlowSwitch';
-export type { PxFlowSwitch, PxFlowSwitchOptions, PxFlowSwitchStep, PxFlowStepPlayer } from './playback/PxFlowSwitch';
+export type { PxFlowSwitch, PxFlowSwitchOptions, PxFlowSwitchStep, PxFlowStepPlayer, PxFlowPartInfo, PxFlowWindowRequest, PxFlowWindowSource } from './playback/PxFlowSwitch';
+export { flowWindowDocumentOf } from './playback/PxFlowWindow';
+export type { PxWindowSource, PxWindowSpec } from './playback/PxFlowWindow';
 export { timelineIssues, PxTimelineIssueKind, type PxTimelineIssue } from './playback/PxTimelineChecks';
 export type { PxFlowRuntime, PxFlowStepReferenceIssue } from './playback/PxFlows';
 // several timelines (2026-11-20): the units a player binds side by side, each a one-timeline document
-export { planUnits, stepDocumentOf, unitConfigOf, attributeOwnersOf, switchStepsOf, unknownRunNames } from './playback/PxUnits';
+export { planUnits, stepDocumentOf, unitConfigOf, attributeOwnersOf, switchStepsOf, unknownRunNames, flowTransitionOf, PxStepPart } from './playback/PxUnits';
 export { showInTargetsOf, isShownIn, currentFlowStepsOf, flowNameOfUnit, showOneOfTargetsOf, shownOptionOf, type PxShowInTarget, type PxShowOneOfTarget } from './playback/PxShowIn';
 export { timelineWindowsOf } from './playback/PxTimelineWindows';
 export type { PxUnit, PxUnitPlan, PxPlannedStep, PxAttributeClaim, PxRunLists } from './playback/PxUnits';

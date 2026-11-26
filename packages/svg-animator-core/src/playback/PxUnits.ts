@@ -37,8 +37,8 @@
 // | `flow.next` / `flow.previous` | the unit of its `flow` — none: `default`, else the first |
 // ============================================================================
 
-import { isCompiledAnimation, type PxActionObject, type PxActionRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStepView, type PxNode } from '../format/PxAnimatorTypes';
-import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, actionEntryOf, conditionEntryOf, flowStepViewsOf, initialFlowStepsOf, PxWhenFinished, PxWhenIdle, PxWhenLeaving, flowStepIndexAfter, flowStepMoveOf, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
+import { isCompiledAnimation, PxStepTransitionSchema, type PxStepTransition, type PxActionObject, type PxActionRule, type PxAnimationDefinition, type PxCompiledAnimation, type PxDefinitions, type PxDocument, type PxFlowStepView, type PxNode, type PxTransitionSegment } from '../format/PxAnimatorTypes';
+import { PX_DEFAULT_ID, PX_DEFAULT_TIMELINE, PxFlowAction, PxPlaybackDirection, actionEntryOf, conditionEntryOf, flowStepViewsOf, initialFlowStepsOf, PxWhenFinished, PxWhenIdle, PxWhenLeaving, flowStepIndexAfter, flowStepMoveOf, getAnimatorConfig, isPlaybackAction, resolveTimelineEngine } from '../format/PxAnimatorConstants';
 import { atEndActionOf } from './PxFlows';
 import type { PxFlowSwitchStep } from './PxFlowSwitch';
 import { timelinesOf, timelineWindowsOf, type PxTimelineInfo } from './PxTimelineWindows';
@@ -60,13 +60,31 @@ export interface PxRunLists {
 /** True when the page named what runs. */
 const hasRunLists = (run: PxRunLists | undefined): boolean => !!run && (run.flows !== undefined || run.timelines !== undefined);
 
+/** The three parts of a step (1.34) — what a step's playback is built from: its `segment`, and its transition segments. @internal */
+export const PxStepPart = {
+    main:          'main',
+    inTransition:  'inTransition',
+    outTransition: 'outTransition',
+} as const;
+export type PxStepPart = typeof PxStepPart[keyof typeof PxStepPart];
+
+/** A step's transition segment as the player plays it: its timeline (an index into the plan's `timelines`) and the range. @internal */
+export interface PxPlannedPart {
+    readonly timeline: number;
+    readonly segment: PxTransitionSegment;
+}
+
 /** One step as the player plays it: written, or the step a timeline no step names is. @internal */
 export interface PxPlannedStep {
     readonly id: string;
     /** Its timeline — an index into the plan's `timelines`. */
     readonly timeline: number;
-    /** As written, its `timelineOptions` laid flat; for a timeline's own step `{ id }` (and its `timeline`). */
+    /** As written, its `segment` laid flat; for a timeline's own step `{ id }` (and its `timeline`). */
     readonly step: PxFlowStepView;
+    /** Played once each time it is entered / left (1.34) — none when the step has none, or its timeline is not played
+     *  (unknown, or a scroll timeline). */
+    readonly inTransition?: PxPlannedPart;
+    readonly outTransition?: PxPlannedPart;
     /** Where its flow starts — the flow's `initialFlowStep` names it. */
     readonly initial: boolean;
     /** The step a timeline no written step names is — it plays as the timeline alone does. */
@@ -104,14 +122,25 @@ function impliedStepOf(t: PxTimelineInfo, initial = false): PxPlannedStep {
     return { id: t.stepId, timeline: t.index, step: t.isDefault ? { id: t.stepId } : { id: t.stepId, timeline: t.id }, implied: true, initial };
 }
 
+/** A step's transition segment as planned: its timeline — none: the step's own — when the file has it and it is a
+ *  clock timeline; else none (the checks report it). */
+function plannedPartOf(segment: PxTransitionSegment | undefined, own: number, timelines: ReadonlyArray<PxTimelineInfo>): PxPlannedPart | undefined {
+    if (!segment || typeof segment !== 'object') return undefined;
+    const at = segment.timeline === undefined ? own : indexOfTimeline(timelines, segment.timeline);
+    if (at < 0 || timelines[at].scroll) return undefined;
+    return { timeline: at, segment };
+}
+
 /** A step is a PART of its timeline when it says where it begins or ends. */
 const isPartOfTimeline = (step: PxFlowStepView): boolean => step.inTime !== undefined || step.outTime !== undefined;
 
 /** A unit of `flow` (or of a timeline the page runs) over `steps`. */
 function unitOf(flow: string | undefined, steps: ReadonlyArray<PxPlannedStep>, timelines: ReadonlyArray<PxTimelineInfo>): PxUnit {
     const used: Array<number> = [];
-    for (const s of steps) if (!used.includes(s.timeline)) used.push(s.timeline);
-    return { flow, steps, timelines: used, scroll: used.length > 0 && used.every(i => timelines[i].scroll) };
+    // a step's transition segments play on their timelines too (1.34) — the unit moves what is animated there
+    for (const s of steps) for (const t of [s.timeline, s.inTransition?.timeline, s.outTransition?.timeline]) if (t !== undefined && !used.includes(t)) used.push(t);
+    const own = steps.map(s => s.timeline);
+    return { flow, steps, timelines: used, scroll: own.length > 0 && own.every(i => timelines[i].scroll) };
 }
 
 // @px-importance important
@@ -135,7 +164,10 @@ export function planUnits(doc: PxDocument, run?: PxRunLists): PxUnitPlan | undef
         const at = indexOfTimeline(timelines, step.timeline);
         if (at < 0 || (timelines[at].scroll && isPartOfTimeline(step))) continue;
         ids.add(step.id);
-        written.push({ id: step.id, timeline: at, step, implied: false, initial: step.initial === true, flow: typeof step.flow === 'string' ? step.flow : PX_DEFAULT_ID });
+        const inTransition = plannedPartOf(step.inTransitionSegment, at, timelines);
+        const outTransition = plannedPartOf(step.outTransitionSegment, at, timelines);
+        written.push({ id: step.id, timeline: at, step, implied: false, initial: step.initial === true, flow: typeof step.flow === 'string' ? step.flow : PX_DEFAULT_ID,
+            ...(inTransition ? { inTransition } : {}), ...(outTransition ? { outTransition } : {}) });
     }
     // a timeline no written step names is a step of `default` — unless a written step has its name
     const named = new Set(written.map(s => s.timeline));
@@ -366,6 +398,24 @@ function stepTimeline(timeline: Record<string, unknown>, step: PxFlowStepView, g
     return out;
 }
 
+/** A transition segment's timeline (1.34): its range of the timeline (none — the whole of it), played ONCE, forwards or
+ *  backwards, at its own speed; it holds its last frame — the flow goes on. No delay. */
+function transitionTimeline(timeline: Record<string, unknown>, segment: PxTransitionSegment): Record<string, unknown> {
+    const out = asOnlyTimeline(timeline);
+    if (typeof segment.inTime === 'number') out.inTime = segment.inTime;
+    if (typeof segment.outTime === 'number') out.outTime = segment.outTime;
+    const start = typeof out.inTime === 'number' ? out.inTime : 0;
+    if (typeof out.outTime === 'number' && out.outTime <= start) out.outTime = start + HELD_FRAME_MS;
+    out.iterations = 1;
+    out.iterationDirection = segment.iterationDirection === PxPlaybackDirection.reverse ? PxPlaybackDirection.reverse : PxPlaybackDirection.normal;
+    if (typeof segment.playbackSpeed === 'number') out.playbackSpeed = segment.playbackSpeed; else delete out.playbackSpeed;
+    out.whenFinished = PxWhenFinished.hold;
+    delete out.delay;
+    delete out.whenStopped;
+    out.whenIdle = PxWhenIdle.firstFrame;
+    return out;
+}
+
 /** The node tree with every compiled entry of every node's `animate` replaced by `project(entry, node, prop)` — an
  *  entry it drops is gone; a node left with none has no `animate`. Shares untouched subtrees. */
 function projectTree(node: PxNode, project: (ch: PxCompiledAnimation, node: PxNode, prop: string) => PxCompiledAnimation | undefined): PxNode {
@@ -458,15 +508,19 @@ function projectDefinitions(
  * the timeline alone does (its delay, its rest pose); a written step plays its part with its own settings. No rules: the
  * flow wires them (`unitConfigOf`). @internal
  */
-export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: number, stepIndex: number, claims: ReadonlyArray<PxAttributeClaim>): PxDocument {
+export function stepDocumentOf(doc: PxDocument, plan: PxUnitPlan, unitIndex: number, stepIndex: number, claims: ReadonlyArray<PxAttributeClaim>,
+    part: PxStepPart = PxStepPart.main): PxDocument {
     const unit = plan.units[unitIndex];
     const planned = unit.steps[stepIndex];
-    const t = plan.timelines[planned.timeline];
+    // a transition segment (1.34) plays on its own timeline — none: the step's — with its own record
+    const transition = part === PxStepPart.inTransition ? planned.inTransition : part === PxStepPart.outTransition ? planned.outTransition : undefined;
+    const t = plan.timelines[transition ? transition.timeline : planned.timeline];
     const animator = animatorOf(doc);
     const base: Record<string, unknown> = isRecord(animator) ? { ...animator } : {};
     delete base.timelines; delete base.flowSteps; delete base.flows; delete base.actions;
     const goesOn = goesOnAtEnd(atEndActionOf(planned.id, getAnimatorConfig(doc)?.actionRules), stepIndex, unit.steps.length);
-    base.timelines = [planned.implied ? asOnlyTimeline(t.timeline) : stepTimeline(t.timeline, planned.step, goesOn)];
+    base.timelines = [transition ? transitionTimeline(t.timeline, transition.segment)
+        : planned.implied ? asOnlyTimeline(t.timeline) : stepTimeline(t.timeline, planned.step, goesOn)];
     const owns = ownsOf(claims, unitIndex);
     const trackId = t.isDefault ? undefined : t.id;
     const promote = (ch: PxCompiledAnimation, node: PxNode | undefined, prop: string, element?: string): PxCompiledAnimation | undefined =>
@@ -507,9 +561,12 @@ export function switchStepsOf(unit: PxUnit, plan: PxUnitPlan, rules: ReadonlyArr
         return {
             id: planned.id,
             then,
+            ...(then !== undefined && wf?.transition !== undefined ? { thenTransition: wf.transition } : {}),
             whenLeaving: leaving,
             initial: planned.initial,
             endless: iterations === 'infinite',
+            hasIn: planned.inTransition !== undefined,
+            hasOut: planned.outTransition !== undefined,
         };
     });
 }
@@ -528,4 +585,14 @@ export function unknownRunNames(doc: PxDocument, run: PxRunLists | undefined): A
     for (const name of run?.flows ?? []) if (!flows.has(name)) out.push({ list: 'flows', name });
     for (const name of run?.timelines ?? []) if (!timelines.some(t => t.name === name)) out.push({ list: 'timelines', name });
     return out;
+}
+
+/** The `transition` of a running flow (1.34) — its entry's in `animator.flows`; none for the flow with no entry. @internal */
+export function flowTransitionOf(doc: PxDocument, flow: string | undefined): PxStepTransition | undefined {
+    if (flow === undefined) return undefined;
+    const animator = animatorOf(doc);
+    const flows = isRecord(animator) && Array.isArray(animator.flows) ? animator.flows : [];
+    const entry = flows.find((f): f is Record<string, unknown> => isRecord(f) && f.id === flow);
+    const transition = entry?.transition;
+    return PxStepTransitionSchema.castOrNull(transition) ?? undefined;
 }

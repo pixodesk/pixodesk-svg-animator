@@ -3506,12 +3506,12 @@
               "flow": {
                 "type": "string"
               },
-              "timeline": {
-                "type": "string"
-              },
-              "timelineOptions": {
+              "segment": {
                 "type": "object",
                 "properties": {
+                  "timeline": {
+                    "type": "string"
+                  },
                   "inTime": {
                     "type": "number"
                   },
@@ -3567,6 +3567,54 @@
                   }
                 },
                 "additionalProperties": false
+              },
+              "inTransitionSegment": {
+                "type": "object",
+                "properties": {
+                  "timeline": {
+                    "type": "string"
+                  },
+                  "inTime": {
+                    "type": "number"
+                  },
+                  "outTime": {
+                    "type": "number"
+                  },
+                  "playbackSpeed": {
+                    "type": "number"
+                  },
+                  "iterationDirection": {
+                    "enum": [
+                      "normal",
+                      "reverse"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              },
+              "outTransitionSegment": {
+                "type": "object",
+                "properties": {
+                  "timeline": {
+                    "type": "string"
+                  },
+                  "inTime": {
+                    "type": "number"
+                  },
+                  "outTime": {
+                    "type": "number"
+                  },
+                  "playbackSpeed": {
+                    "type": "number"
+                  },
+                  "iterationDirection": {
+                    "enum": [
+                      "normal",
+                      "reverse"
+                    ]
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "required": [
@@ -3585,6 +3633,54 @@
               },
               "initialFlowStep": {
                 "type": "string"
+              },
+              "transition": {
+                "type": "object",
+                "properties": {
+                  "overlap": {
+                    "type": "number"
+                  },
+                  "mix": {
+                    "enum": [
+                      "crossfade",
+                      "nextOnTop",
+                      "previousOnTop"
+                    ]
+                  },
+                  "leavingStep": {
+                    "enum": [
+                      "playsOn",
+                      "holds"
+                    ]
+                  },
+                  "easing": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ],
+                        "minItems": 4,
+                        "maxItems": 4
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "required": [
@@ -4133,6 +4229,54 @@
                           "animateToEnd",
                           "animateToStart"
                         ]
+                      },
+                      "transition": {
+                        "type": "object",
+                        "properties": {
+                          "overlap": {
+                            "type": "number"
+                          },
+                          "mix": {
+                            "enum": [
+                              "crossfade",
+                              "nextOnTop",
+                              "previousOnTop"
+                            ]
+                          },
+                          "leavingStep": {
+                            "enum": [
+                              "playsOn",
+                              "holds"
+                            ]
+                          },
+                          "easing": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ],
+                                "minItems": 4,
+                                "maxItems": 4
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     },
                     "required": [
@@ -4240,6 +4384,54 @@
                     "properties": {
                       "flow": {
                         "type": "string"
+                      },
+                      "transition": {
+                        "type": "object",
+                        "properties": {
+                          "overlap": {
+                            "type": "number"
+                          },
+                          "mix": {
+                            "enum": [
+                              "crossfade",
+                              "nextOnTop",
+                              "previousOnTop"
+                            ]
+                          },
+                          "leavingStep": {
+                            "enum": [
+                              "playsOn",
+                              "holds"
+                            ]
+                          },
+                          "easing": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ],
+                                "minItems": 4,
+                                "maxItems": 4
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     },
                     "additionalProperties": false
@@ -4344,6 +4536,54 @@
                     "properties": {
                       "flow": {
                         "type": "string"
+                      },
+                      "transition": {
+                        "type": "object",
+                        "properties": {
+                          "overlap": {
+                            "type": "number"
+                          },
+                          "mix": {
+                            "enum": [
+                              "crossfade",
+                              "nextOnTop",
+                              "previousOnTop"
+                            ]
+                          },
+                          "leavingStep": {
+                            "enum": [
+                              "playsOn",
+                              "holds"
+                            ]
+                          },
+                          "easing": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ],
+                                "minItems": 4,
+                                "maxItems": 4
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     },
                     "additionalProperties": false
@@ -4448,6 +4688,54 @@
                     "properties": {
                       "flow": {
                         "type": "string"
+                      },
+                      "transition": {
+                        "type": "object",
+                        "properties": {
+                          "overlap": {
+                            "type": "number"
+                          },
+                          "mix": {
+                            "enum": [
+                              "crossfade",
+                              "nextOnTop",
+                              "previousOnTop"
+                            ]
+                          },
+                          "leavingStep": {
+                            "enum": [
+                              "playsOn",
+                              "holds"
+                            ]
+                          },
+                          "easing": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ],
+                                "minItems": 4,
+                                "maxItems": 4
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     },
                     "additionalProperties": false
@@ -4552,6 +4840,54 @@
                     "properties": {
                       "flow": {
                         "type": "string"
+                      },
+                      "transition": {
+                        "type": "object",
+                        "properties": {
+                          "overlap": {
+                            "type": "number"
+                          },
+                          "mix": {
+                            "enum": [
+                              "crossfade",
+                              "nextOnTop",
+                              "previousOnTop"
+                            ]
+                          },
+                          "leavingStep": {
+                            "enum": [
+                              "playsOn",
+                              "holds"
+                            ]
+                          },
+                          "easing": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "array",
+                                "prefixItems": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ],
+                                "minItems": 4,
+                                "maxItems": 4
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
                       }
                     },
                     "additionalProperties": false

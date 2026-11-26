@@ -13,7 +13,7 @@ import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
     PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep, upFlowWords, upActionsList, downActionsList, downFlowEnds, downShowIn,
-    upActionsAndFlowsShape,
+    upActionsAndFlowsShape, upStepSegments,
 } from './PxWireVersion';
 import { isRecord } from '../schema/PxSchema';
 import { validateDocument } from '../format/PxAnimatorTypes';
@@ -377,10 +377,11 @@ describe('1.28 amended a third time (2026-11-22) — the flow words', () => {
         const animator = isRecord(r.doc) && isRecord(r.doc.animator) ? r.doc.animator : {};
         expect(animator.states).toBeUndefined();
         // 1.29: the list is `actions`, and "at its end, the next" is an entry of it; 1.30: a next of before wrapped, so it
-        // arrives as `flow.nextOrWrap`; 1.33: a step's part in `timelineOptions`, an entry `{ name, with, triggers, when }`
+        // arrives as `flow.nextOrWrap`; 1.33: a step's part in `timelineOptions`, an entry `{ name, with, triggers, when }`;
+        // 1.34: the part in its `segment`
         expect(animator.flowSteps).toEqual([
-            { id: 'intro', timelineOptions: { inTime: 0, outTime: 1000 } },
-            { id: 'loop', timelineOptions: { inTime: 1000, outTime: 3000 } },
+            { id: 'intro', segment: { inTime: 0, outTime: 1000 } },
+            { id: 'loop', segment: { inTime: 1000, outTime: 3000 } },
         ]);
         expect(animator.actions).toEqual([
             { name: 'flow.goTo', with: { flowStep: 'loop' }, triggers: [{ event: 'click' }] },
@@ -516,7 +517,7 @@ describe('1.30 (2026-11-23) — next and previous stop at the ends; the `…OrWr
 
     it('a 1.29 file keeps its meaning: its next and previous wrapped, so they arrive as `…OrWrap`', () => {
         const r = convertWireDocument(at129());
-        expect(r.applied.map(s => s.to)).toEqual(['1.30', '1.33']);
+        expect(r.applied.map(s => s.to)).toEqual(['1.30', '1.33', '1.34']);
         // 1.33: an entry `{ name, with, triggers, when }`
         expect(rawAnimator(r.doc).actions).toEqual([
             { name: 'timeline.start', triggers: [{ event: 'load' }] },
@@ -626,22 +627,23 @@ describe('1.33 (2026-11-24) — an entry `{ name, with, triggers, when }`, a ste
         expect(twice).toEqual(once);
     });
 
-    it('a 1.32 file arrives in the 1.33 shape, exactly, and validates with no finding', () => {
+    it('a 1.32 file arrives in the 1.33 shape (then 1.34\'s segments), exactly, and validates with no finding', () => {
         const r = convertWireDocument(at132());
-        expect(r.applied.map(s => s.to)).toEqual(['1.33']);
+        expect(r.applied.map(s => s.to)).toEqual(['1.33', '1.34']);
         expect(r.doc).toEqual({
             type: 'svg', viewBox: '0 0 100 100',
             animator: {
-                version: '1.33.0',
+                version: '1.34.0',
                 // every `name` of a timeline, a flow and a step is dropped
                 timelines: [{ outTime: 3000 }, { id: 'lamp', outTime: 1000 }],
                 // a step's `initial` → its flow's `initialFlowStep`; a step of no flow → the flow `default`
                 flows: [{ id: 'pages', initialFlowStep: 'on' }, { id: 'default', initialFlowStep: 'loop' }],
                 flowSteps: [
-                    { id: 'intro', timelineOptions: { inTime: 0, outTime: 1000, iterations: 2, whenFinished: 'hold' } },
-                    { id: 'loop', timelineOptions: { inTime: 1000, outTime: 3000, iterationDirection: 'alternate', playbackSpeed: 2, whenLeaving: 'animateToEnd' } },
-                    { id: 'off', flow: 'pages', timeline: 'lamp', timelineOptions: { inTime: 0, outTime: 500 } },
-                    { id: 'on', flow: 'pages', timeline: 'lamp', timelineOptions: { inTime: 500, outTime: 1000 } },
+                    // 1.34: a step's timeline and `timelineOptions` in its `segment`
+                    { id: 'intro', segment: { inTime: 0, outTime: 1000, iterations: 2, whenFinished: 'hold' } },
+                    { id: 'loop', segment: { inTime: 1000, outTime: 3000, iterationDirection: 'alternate', playbackSpeed: 2, whenLeaving: 'animateToEnd' } },
+                    { id: 'off', flow: 'pages', segment: { timeline: 'lamp', inTime: 0, outTime: 500 } },
+                    { id: 'on', flow: 'pages', segment: { timeline: 'lamp', inTime: 500, outTime: 1000 } },
                 ],
                 actions: [
                     { name: 'timeline.start', triggers: [{ event: 'load' }] },
@@ -686,6 +688,33 @@ describe('1.33 (2026-11-24) — an entry `{ name, with, triggers, when }`, a ste
         const r = downgradeWireDocument(convertWireDocument(at132()).doc, { a: 1, b: 32, c: 0 });
         expect(r.ok).toBe(false);
         if (r.ok) return;
-        expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.actionsAndFlowsShape]);
+        // 1.34 has no way back either — the steps back are refused, the newest first
+        expect(r.blocking.map(s => s.code)).toEqual([PxSchemaChangeCode.flowStepTransitions, PxSchemaChangeCode.actionsAndFlowsShape]);
+    });
+});
+
+describe('1.34 (2026-11-26) — a step\'s `segment`, its transition segments, and how two steps hand over', () => {
+    it('a 1.33 step\'s `timeline` and `timelineOptions` arrive as its `segment`; twice is the same as once', () => {
+        const d: Record<string, unknown> = { type: 'svg', animator: {
+            timelines: [{ outTime: 1000 }, { id: 'lamp', outTime: 500 }],
+            flowSteps: [{ id: 'a', timelineOptions: { inTime: 0, outTime: 500 } }, { id: 'b', flow: 'f', timeline: 'lamp' },
+                { id: 'c', timeline: 'lamp', timelineOptions: { iterations: 'infinite', whenLeaving: 'animateToEnd' } }, { id: 'd' }],
+        } };
+        upStepSegments(d);
+        const once = JSON.stringify(d);
+        expect(rawAnimator(d).flowSteps).toEqual([
+            { id: 'a', segment: { inTime: 0, outTime: 500 } },
+            { id: 'b', flow: 'f', segment: { timeline: 'lamp' } },
+            { id: 'c', segment: { timeline: 'lamp', iterations: 'infinite', whenLeaving: 'animateToEnd' } },
+            { id: 'd' },
+        ]);
+        upStepSegments(d);
+        expect(JSON.stringify(d)).toBe(once);
+    });
+
+    it('a 1.33 file converts by the 1.34 step alone', () => {
+        const r = convertWireDocument({ type: 'svg', animator: { version: '1.33.0', timelines: [{ outTime: 1000 }], flowSteps: [{ id: 'a', timelineOptions: { outTime: 500 } }] } });
+        expect(r.applied.map(s => s.to)).toEqual(['1.34']);
+        expect(rawAnimator(r.doc).flowSteps).toEqual([{ id: 'a', segment: { outTime: 500 } }]);
     });
 });

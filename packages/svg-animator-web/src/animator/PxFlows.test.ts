@@ -7,7 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer as createPlayer } from '../index';
-import { PxDiagnosticCode, PxStepEvent, type PxActionEntry, type PxActions, type PxDocument, type PxFlowStep, type PxFlowStepTimelineOptions } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxStepEvent, type PxActionEntry, type PxActions, type PxDocument, type PxFlowStep, type PxFlowStepSegment } from '@pixodesk/svg-animator-core';
 
 /** Every player a test makes is destroyed after it — a live frame loop otherwise outlives its test's fake timers. */
 const made: Array<ReturnType<typeof createPlayer>> = [];
@@ -20,20 +20,20 @@ const createSvgAnimationPlayer: typeof createPlayer = (options) => {
 /** Opacity runs 0 → 1 over content 0…3000 ms, so the opacity says where the playhead is (content ms / 3000). */
 /** The test's states by id, written as the file's list in that order. */
 // 1.33: a step's "at its end, go there" is an entry of `actions` (`flowStep.finished`, `when.flowSteps`) and its timing is
-// `timelineOptions` — the helper takes both flat on the step, as the tests read it, and writes them as the file has them.
+// its `segment` (1.34; `timelineOptions` in 1.33) — the helper takes both flat on the step, as the tests read it, and writes them as the file has them.
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 /** What a step does at its end, as the test writes it on the step: an entry of `actions` without its triggers and `when`. */
 type AtEnd = DistributiveOmit<PxActionEntry, 'triggers' | 'when'>;
-type TestStep = Omit<PxFlowStepTimelineOptions, 'whenFinished'> & { whenFinished?: PxFlowStepTimelineOptions['whenFinished'] | AtEnd };
+type TestStep = Omit<PxFlowStepSegment, 'whenFinished'> & { whenFinished?: PxFlowStepSegment['whenFinished'] | AtEnd };
 function doc(byId: Record<string, TestStep>, actions: PxActions = [{ name: 'timeline.start', triggers: [{ event: 'load' }] }]): PxDocument {
     const atEnd: PxActions = [];
     const states: Array<PxFlowStep> = Object.entries(byId).map(([id, { whenFinished, ...options }]) => {
         if (whenFinished === undefined || typeof whenFinished === 'string') {
             const all = whenFinished === undefined ? options : { ...options, whenFinished };
-            return Object.keys(all).length ? { id, timelineOptions: all } : { id };
+            return Object.keys(all).length ? { id, segment: all } : { id };
         }
         atEnd.push({ ...whenFinished, triggers: [{ event: PxStepEvent.finished }], when: { flowSteps: [id] } });
-        return Object.keys(options).length ? { id, timelineOptions: options } : { id };
+        return Object.keys(options).length ? { id, segment: options } : { id };
     });
     return {
         type: 'svg', viewBox: '0 0 10 10',
@@ -174,9 +174,14 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         vi.advanceTimersByTime(1300);                    // intro done, 300 ms into the loop
         expect(api.flow.get()).toEqual(['loop']);
         api.flow.goTo({ flowStep: 'success' });
-        expect(api.flow.get()).toEqual(['loop']);   // still finishing its pass
-        vi.advanceTimersByTime(900);
+        // 1.34 (D7): the flow is in the step it goes to from the request — the loop still finishes its pass on screen
         expect(api.flow.get()).toEqual(['success']);
+        vi.advanceTimersByTime(100);
+        expect(contentMs()).toBeGreaterThanOrEqual(1000);
+        expect(contentMs()).toBeLessThan(2000);
+        vi.advanceTimersByTime(800);
+        expect(api.flow.get()).toEqual(['success']);
+        expect(contentMs()).toBeGreaterThanOrEqual(2000);
     });
 
     it('the newest request wins while a state is leaving', () => {
@@ -228,7 +233,7 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         const twice: PxDocument = doc(THREE);
         const states = twice.animator?.flowSteps;
         if (!states) throw new Error('no states');
-        states.push({ id: 'intro', timelineOptions: { inTime: 2500, outTime: 3000 } });
+        states.push({ id: 'intro', segment: { inTime: 2500, outTime: 3000 } });
         const api = createSvgAnimationPlayer({ document: twice, container: '#box', onWarning: (w) => warnings.push(w.code) });
         expect(api.flow.getAll()).toEqual(['intro', 'loop', 'success']);
         expect(warnings).toContain(PxDiagnosticCode.flowStepIdDuplicate);
@@ -291,9 +296,13 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         vi.advanceTimersByTime(300);
         api.flow.next();
         api.flow.next();
-        expect(api.flow.get()).toEqual(['a']);               // still finishing its pass
-        vi.advanceTimersByTime(800);
+        // 1.34 (D7): the flow is in the step it goes to from the request — `a` still finishes its pass on screen
         expect(api.flow.get()).toEqual(['c']);
+        vi.advanceTimersByTime(100);
+        expect(contentMs()).toBeLessThan(1000);
+        vi.advanceTimersByTime(700);
+        expect(api.flow.get()).toEqual(['c']);
+        expect(contentMs()).toBeGreaterThanOrEqual(2000);
         api.flow.next();                                     // the last: nothing
         expect(api.flow.get()).toEqual(['c']);
     });
@@ -305,9 +314,13 @@ describe('states — named parts of a timeline (2026-11-20; segments 2026-11-15)
         });
         vi.advanceTimersByTime(1300);                        // 300 ms into the loop (it leaves at once by itself)
         click();
-        expect(api.flow.get()).toEqual(['loop']);            // finishing its pass first
-        vi.advanceTimersByTime(900);
+        // 1.34 (D7): the flow is in the step it goes to from the click — the loop finishes its pass first on screen
         expect(api.flow.get()).toEqual(['success']);
+        vi.advanceTimersByTime(100);
+        expect(contentMs()).toBeGreaterThanOrEqual(1000);
+        expect(contentMs()).toBeLessThan(2000);
+        vi.advanceTimersByTime(800);
+        expect(contentMs()).toBeGreaterThanOrEqual(2000);
     });
 
     it('a stop\'s own `with.whenStopped` (1.29 `behavior`) — the picture travels back instead of jumping', () => {

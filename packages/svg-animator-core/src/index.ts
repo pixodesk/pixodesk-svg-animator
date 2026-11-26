@@ -50,7 +50,7 @@ export type { PxDocument, PxDocumentJson, PxAnimationDefinition, PxAnimationPlay
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerEvent.click`
 // and `start?: PxTriggerEvent` from one import.
-export { PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxPlaybackDirection, PxTriggerEvent, PxStepEvent, PxPlayback, PxFlowAction, PxWhenLeaving, PxPointerType } from './format/PxAnimatorConstants';
+export { PxFillMode, PxStopPlaybackBehavior, PxWhenFinished, PxOutOfViewBehavior, PxWhenIdle, PxPlaybackDirection, PxTriggerEvent, PxStepEvent, PxPlayback, PxFlowAction, PxWhenLeaving, PxTransitionMix, PxLeavingStep, PxPointerType } from './format/PxAnimatorConstants';
 
 // Variables (schema 1.27) — declared in `definitions.variables`, read by `"var(name)"` / `"calc(…)"` bindings
 export { PxVariableType } from './format/PxAnimatorConstants';
@@ -126,7 +126,9 @@ export {
     PxShowWhenSchema,
     PxShowOneChildEffectSchema,
     PxShowOneChildWhenSchema,
-    PxFlowStepTimelineOptionsSchema,
+    PxFlowStepSegmentSchema,
+    PxTransitionSegmentSchema,
+    PxStepTransitionSchema,
     PxBindingSchema,
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
@@ -158,7 +160,9 @@ export type {
     PxEffects,
     PxShowEffect,
     PxShowOneChildEffect,
-    PxFlowStepTimelineOptions,
+    PxFlowStepSegment,
+    PxTransitionSegment,
+    PxStepTransition,
     PxFlowStepView,
     PxVec2,
 } from './format/PxAnimatorTypes';

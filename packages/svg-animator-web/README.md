@@ -120,7 +120,7 @@ It returns a `PxAnimationPlayerApi` — the player's lifecycle, `timeline` and `
 | Member                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `timeline`              | Everything a page does to the animation — a `PxTimelineControls`, below. One object per player, made of closures (`const { start } = player.timeline` works) |
-| `flow`                 | The file's [flows](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation) — a `PxFlowControls`: `goTo({ flowStep, whenLeaving? })` · `next({ flow? })` · `previous({ flow? })` · `get(flow?)` (one id per flow) · `getAll()` |
+| `flow`                 | The file's [flows](../../docs/library/playback-and-triggers.md#flows--named-steps-of-the-animation) — a `PxFlowControls`: `goTo({ flowStep, whenLeaving?, transition? })` · `next({ flow?, transition? })` · `previous({ flow?, transition? })` · `get(flow?)` (one id per flow) · `getAll()` |
 | `getTimeline(id)`       | One timeline of the file by its `id` — the same controls as `timeline`, on that timeline alone; `undefined` for an id the file does not have |
 | `variables`             | The document's variables — `get` / `set` / `setVariables` / `reset`, `setVariant` … (a `PxVariablesApi`); a change is drawn on the next frame and never touches the playback. See [Variables](../../docs/library/variables.md) |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) — calls made before are queued |

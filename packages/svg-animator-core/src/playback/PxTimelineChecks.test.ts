@@ -23,9 +23,9 @@ function bell(): PxDocument {
                 { id: 'reveal', type: 'scroll', outTime: 1000 },
             ],
             flowSteps: [
-                { id: 'idle', timeline: 'grow', timelineOptions: { inTime: 0, outTime: 0 } },
-                { id: 'press', timeline: 'dip' },
-                { id: 'ringing', flow: 'notice', timeline: 'ring' },
+                { id: 'idle', segment: { timeline: 'grow', inTime: 0, outTime: 0 } },
+                { id: 'press', segment: { timeline: 'dip' } },
+                { id: 'ringing', flow: 'notice', segment: { timeline: 'ring' } },
             ],
             flows: [{ id: 'notice' }],
             actions: [
@@ -76,7 +76,7 @@ describe('timeline checks', () => {
 
     it('references that name nothing: a step\'s timeline, a rule\'s, a track\'s timeline — a flow only steps name is a flow', () => {
         const doc = bell();
-        doc.animator?.flowSteps?.push({ id: 'lost', timeline: 'nope', flow: 'gone' });
+        doc.animator?.flowSteps?.push({ id: 'lost', segment: { timeline: 'nope' }, flow: 'gone' });
         doc.animator?.actions?.push({ name: 'timeline.stop', with: { timeline: 'nope2' }, triggers: [{ event: 'click' }] });
         doc.children?.push({ type: 'rect', id: 'stray', animate: { x: { byTimeline: [{ timeline: 'nope3', keyframes: [{ time: 0, value: 1 }] }] } } });
         expect(kinds(doc)).toEqual([
@@ -88,7 +88,7 @@ describe('timeline checks', () => {
 
     it('one timeline in two flows; a step on a PART of the scroll timeline (the whole of it is a step)', () => {
         const doc = bell();
-        doc.animator?.flowSteps?.push({ id: 'taken', flow: 'notice', timeline: 'grow' }, { id: 'scrolled', timeline: 'reveal', timelineOptions: { inTime: 0, outTime: 500 } });
+        doc.animator?.flowSteps?.push({ id: 'taken', flow: 'notice', segment: { timeline: 'grow' } }, { id: 'scrolled', segment: { timeline: 'reveal', inTime: 0, outTime: 500 } });
         expect(kinds(doc)).toEqual([
             [PxTimelineIssueKind.partOfScrollTimeline, '', 'reveal', 'scrolled'],
             [PxTimelineIssueKind.timelineShared, '', 'grow', 'taken'],
