@@ -326,10 +326,11 @@ export interface _PxPropertyAnimation {
     alongPathMode?: 'sampled' | 'offsetPath';
 
     /**
-     * What the attribute does on the file's NAMED timelines (2026-11-20) — one entry per timeline, by its `id`: its
-     * `keyframes`, from that timeline's time 0. The plain `keyframes` above are the default timeline's (the one with no
-     * id) and may stand beside it (2026-11-22). On a timeline with no keyframes for it, the attribute has the node's own
-     * value.
+     * What the attribute does on each of the file's timelines (2026-11-20) — one entry per timeline, by its `id`: its
+     * `keyframes`, from that timeline's time 0. A file with one timeline needs no id and keeps the plain `keyframes`
+     * above; with several, every timeline has an id and every keyframe list is here (2026-11-26 — plain `keyframes`
+     * beside a timeline with no id still play as its, reported as `unnamedAmongSeveral`). On a timeline with no keyframes
+     * for it, the attribute has the node's own value.
      */
     byTimeline?: Array<_PxTimelineTrack>;
 }

@@ -525,9 +525,9 @@ interface ANIMATE {
                                          // 'start' = intro
         direction?: 'normal' | 'alternate'; // 'normal' (default) = cycle same direction; 'alternate' = pingpong
     };
-    // what the attribute does on the file's NAMED timelines (2026-11-20) — one entry per timeline, by its id. The plain
-    // keys above are the default timeline's (the one with no id) and may stand beside it (2026-11-22). On a timeline
-    // with no keyframes for it, the attribute has the node's own value
+    // what the attribute does on each of the file's timelines (2026-11-20) — one entry per timeline, by its id. A file
+    // with one timeline needs no id and keeps the plain keys above; with several, every timeline has an id and every
+    // keyframe list is here (2026-11-26). On a timeline with no keyframes for it, the attribute has the node's own value
     byTimeline?: Array<{
         timeline: string;                     // → animator.timelines, by id
         keyframes?: ANIMATE['keyframes'];     // counted from that timeline's time 0
@@ -559,19 +559,19 @@ one field:
 <!-- px-check off the four lists and their references, prose -->
 | List | One entry | Refers to |
 |---|---|---|
-| `timelines` | a time axis — the one with no `id` is the default timeline | — |
+| `timelines` | a time axis — one needs no `id`; with several, each has one | — |
 | `flowSteps` | a part of one timeline (or all of it): its `timelineOptions` — `inTime` – `outTime` on it, its repeats, direction, speed, delay and end | its `timeline` (none: the default one), its `flow` (none: `default`) |
 | `flows` | a set of steps of which exactly one is current; several run at once. A timeline no step names is a step of the flow `default` | its `initialFlowStep` |
 | `actions` | an entry: an action (`name` + `with`), the events that set it off (`triggers`), what must hold (`when`) | in `with`: a `timeline`, a `flowStep`, a `flow`; in `when`: the steps it is limited to (`flowSteps`); in a trigger: an `element` (`"#id"`) |
 
-A node names timelines only — an animated value's plain `keyframes` are on the default timeline, and `byTimeline`
-says what it does on each named one (its `keyframes`, from that timeline's time 0); the two can stand side by side.
-So cutting or regrouping steps touches no node. A small file, a button that grows on hover and dips on press:
+A node names timelines only — `byTimeline` says what an animated value does on each timeline (its `keyframes`, from
+that timeline's time 0); a file with one timeline keeps the plain `keyframes` instead. So cutting or regrouping steps
+touches no node. A small file, a button that grows on hover and dips on press:
 
 ```json
 { "type": "svg", "viewBox": "0 0 200 80",
   "animator": {
-    "timelines": [ { "outTime": 1000 }, { "id": "grow", "outTime": 150 }, { "id": "dip", "outTime": 200 } ],
+    "timelines": [ { "id": "grow", "outTime": 150 }, { "id": "dip", "outTime": 200 } ],
     "flowSteps": [
       { "id": "idle",  "timeline": "grow", "timelineOptions": { "inTime": 0, "outTime": 0 } },
       { "id": "hover", "timeline": "grow", "timelineOptions": { "whenLeaving": "animateToStart" } },
@@ -593,8 +593,9 @@ So cutting or regrouping steps touches no node. A small file, a button that grow
 `byTimeline` works on a node's `animate`, in `definitions.animations` and in the animatable parameters of effects.
 The schema of the whole `animator` block — these four lists, `definitions`, `bindings` and `version` — is
 `PxAnimatorConfigSchema`.
-The default timeline here is the first, with no id — no step names it, so it is a step of the flow `default`
-too: the flow starts at it (`default` · `idle` · `hover` · `press`). How it plays, the moves between steps, the
+Every timeline here has an id, as with several timelines every one must (a timeline with no id among others still
+plays, as the default one, and is reported); the flow `default` starts at its first step (`idle` · `hover` ·
+`press`). How it plays, the moves between steps, the
 checks (PX1114 – PX1116) and the accepted limits:
 [Flows](../library/playback-and-triggers.md#flows--named-steps-of-the-animation). A file saved before 2026-11-20 —
 one `timeline` with `segments`, `actionTriggers` as a map by action — one in the words of 2026-11-20 (`states`,

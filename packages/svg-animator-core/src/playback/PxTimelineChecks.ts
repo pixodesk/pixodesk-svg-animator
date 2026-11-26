@@ -17,6 +17,7 @@
 // | `partOfScrollTimeline` | a step is a part of a scroll timeline (`inTime` / `outTime`) — not read; the whole of one is a step |
 // | `attributeSplit` | an attribute (a node's transform parts count as one) is moved by two flows — the first wins |
 // | `keyframesWithoutDefault` | plain keyframes in a file whose timelines all have an id — they are no timeline's: not played |
+// | `unnamedAmongSeveral` | a timeline with no id in a file with several (2026-11-26: with several, every timeline is named) — it plays as the default one |
 //
 // Duplicate step ids and a `flow.goTo` naming no step have their own codes (PX1115, PX1114).
 // ============================================================================
@@ -35,6 +36,7 @@ export const PxTimelineIssueKind = {
     partOfScrollTimeline:    'partOfScrollTimeline',
     attributeSplit:          'attributeSplit',
     keyframesWithoutDefault: 'keyframesWithoutDefault',
+    unnamedAmongSeveral:     'unnamedAmongSeveral',
 } as const;
 /** @public @advanced */
 export type PxTimelineIssueKind = typeof PxTimelineIssueKind[keyof typeof PxTimelineIssueKind];
@@ -68,6 +70,10 @@ export function timelineIssues(doc: PxDocument): Array<PxTimelineIssue> {
     const flows = listOf(animator.flows);
 
     // repeated ids — timelines (two with no id are two default ones) and flows; a repeated step id is PX1115
+    // several timelines: every one is named (2026-11-26) — one with no id still plays, as the default one
+    if (rawTimelines.length > 1 && rawTimelines.some(t => idOf(t) === undefined)) {
+        issues.push({ kind: PxTimelineIssueKind.unnamedAmongSeveral, key: 'timelines', id: PX_DEFAULT_TIMELINE });
+    }
     const seenTimelines = new Set<string>();
     for (const t of rawTimelines) {
         const name = idOf(t) ?? PX_DEFAULT_TIMELINE;

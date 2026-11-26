@@ -748,7 +748,7 @@ timeline is a flow of one step, and plays as it always did — and **two timelin
 steps**, one at a time: only flows run side by side.
 
 ```json
-"timelines": [ { "outTime": 2000, "iterations": "infinite" }, { "id": "hover", "outTime": 150 }, { "id": "press", "outTime": 200 } ],
+"timelines": [ { "id": "idle", "outTime": 2000, "iterations": "infinite" }, { "id": "hover", "outTime": 150 }, { "id": "press", "outTime": 200 } ],
 "actions": [
   { "name": "timeline.start", "triggers": [ { "event": "load" } ] },
   { "name": "flow.goTo", "with": { "flowStep": "hover" }, "triggers": [ { "event": "hoverIn" } ] },
@@ -756,7 +756,7 @@ steps**, one at a time: only flows run side by side.
 ]
 ```
 
-A button with no step written: the flow `default` is `default` (the idle loop) · `hover` · `press`.
+A button with no step written: the flow `default` is `idle` (the idle loop) · `hover` · `press`.
 
 ### Several flows
 
@@ -784,20 +784,21 @@ button's pointer steps and its notification badge each have their own, and both 
 ```
 
 `idle` and `hover` are `pointer`; `calm`, `ringing` and `unread` are `notice`, three parts of one timeline, `ring` —
-`notice` starts at `ringing`, then rests on `unread`. The default timeline, which no step names, is the flow `default`
+`notice` starts at `ringing`, then rests on `unread`. The first timeline, which no step names, is the flow `default`
 — it plays beside both.
 
 ### Several timelines and `byTimeline`
 
-A file can hold several timelines. The default timeline carries the plain keyframes; any other is named by its `id`,
-and an attribute that moves on it says what it does there in **`byTimeline`** — its `keyframes`, counted from that
-timeline's time 0. Plain `keyframes` and `byTimeline` can stand side by side. On a timeline with no keyframes for it,
-the attribute has the node's own value. A node names timelines only, never a step — so cutting or regrouping steps
+A file can hold several timelines; then every timeline is named by its `id`, and an attribute that moves on one says
+what it does there in **`byTimeline`** — its `keyframes`, counted from that timeline's time 0. A file with one timeline
+needs no id and keeps the plain `keyframes`. (Plain `keyframes` beside a timeline with no id among several still play,
+as that timeline's — the file check reports it: `unnamedAmongSeveral`.) On a timeline with no keyframes for it, the
+attribute has the node's own value. A node names timelines only, never a step — so cutting or regrouping steps
 touches no node.
 
 ```json
 "timelines": [
-  { "outTime": 4000, "iterations": "infinite" },
+  { "id": "idle", "outTime": 4000, "iterations": "infinite" },
   { "id": "grow", "outTime": 150 },
   { "id": "dip",  "outTime": 200 }
 ],
@@ -934,6 +935,7 @@ Repeated step ids are [PX1115](../diagnostics.md#what-the-document-says), a `flo
 | `partOfScrollTimeline` | a step on a part of a scroll timeline | not read |
 | `attributeSplit` | one attribute is moved by two flows. A node's transform parts (translate, rotate, scale, skew, origin) count as one attribute | the first wins |
 | `keyframesWithoutDefault` | plain `keyframes` in a file whose timelines all have an id | they are no timeline's: not played |
+| `unnamedAmongSeveral` | a timeline with no id in a file with several — with several, every timeline has an id | it plays, as the default one: plain `keyframes` and what names no timeline are its |
 
 ### Accepted limits
 

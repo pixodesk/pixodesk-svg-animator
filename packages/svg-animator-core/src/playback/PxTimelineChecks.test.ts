@@ -45,11 +45,15 @@ function bell(): PxDocument {
     };
 }
 
-const kinds = (doc: PxDocument) => timelineIssues(doc).map(i => [i.kind, i.key ?? i.attribute ?? '', i.id ?? '', i.at ?? '']);
+// the fixtures below keep a timeline with no id beside named ones on purpose (the older spelling, still played): its own
+// finding, `unnamedAmongSeveral`, is checked in its own case at the end
+const kinds = (doc: PxDocument) => timelineIssues(doc).filter(i => i.kind !== PxTimelineIssueKind.unnamedAmongSeveral)
+    .map(i => [i.kind, i.key ?? i.attribute ?? '', i.id ?? '', i.at ?? '']);
 
 describe('timeline checks', () => {
     it('the bell file is clean — a flow over several timelines, its transform parts on two of them', () => {
-        expect(timelineIssues(bell())).toEqual([]);
+        // its timeline with no id is the older spelling — that finding aside (see `kinds`), it is clean
+        expect(kinds(bell())).toEqual([]);
     });
 
     // 2026-11-22: the timeline with no id is called '' (PX_DEFAULT_TIMELINE), no longer `default`
@@ -113,5 +117,14 @@ describe('timeline checks', () => {
         const named: PxDocument = { type: 'svg', animator: { timelines: [{ id: 'only', outTime: 100 }] },
             children: [{ type: 'rect', id: 'r', animate: { x: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] } } }] };
         expect(kinds(named)).toEqual([[PxTimelineIssueKind.keyframesWithoutDefault, 'x', '', 'r']]);
+    });
+
+    it('several timelines, one with no id: a finding — with several, every timeline is named (2026-11-26); one timeline: none', () => {
+        const unnamed = (doc: PxDocument) => timelineIssues(doc).filter(i => i.kind === PxTimelineIssueKind.unnamedAmongSeveral);
+        expect(unnamed(bell()).map(i => [i.key, i.id])).toEqual([['timelines', '']]);
+        const allNamed: PxDocument = { type: 'svg', animator: { timelines: [{ id: 'Timeline1', outTime: 100 }, { id: 'Timeline2', outTime: 100 }] } };
+        expect(unnamed(allNamed)).toEqual([]);
+        const one: PxDocument = { type: 'svg', animator: { timelines: [{ outTime: 100 }] } };
+        expect(unnamed(one)).toEqual([]);
     });
 });
